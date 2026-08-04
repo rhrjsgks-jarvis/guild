@@ -100,17 +100,28 @@ apps-script/
 
 ## 로컬에서 돌려보기
 
+**진짜 스프레드시트도, Apps Script 배포도, 환경변수도 필요 없습니다.**
+
 ```bash
 npm install
-cp .env.example .env.local   # 값 채우기
-npm run dev                  # http://localhost:3000
+npm run dev:mock     # http://localhost:3000 · 관리자 PIN 1234
 ```
+
+가짜 시트가 함께 뜨고, 등록·분배·지급이 실제로 숫자를 움직입니다. 화면만 고칠 땐 이것만 쓰면 됩니다.
+진짜 시트에 붙이고 싶으면 `.env.example` 을 `.env.local` 로 복사해 값을 채우고 `npm run dev`.
 
 | 명령 | 설명 |
 |---|---|
-| `npm run build` | 배포와 동일한 빌드 (푸시 전 확인용) |
-| `npm run typecheck` | 타입 검사만 |
+| `npm run verify` | **커밋 전 이거 하나** — 타입·린트·`.gs` 검사·빌드·E2E 전부 |
+| `npm run verify:gs` | `.gs` 11개 항목 (구문·라우터 노출면·락·분배 산식 5,000건 대조·사용안내·보호훅) |
+| `npm run e2e` | 권한 경계 + 화면 흐름 17건 (`npm run build` 먼저) |
+| `npm run build` | 배포와 동일한 빌드 |
 | `npm run icons` | 아이콘 PNG 다시 생성 |
+
+push하면 GitHub Actions가 같은 검사를 자동으로 돌립니다.
+
+> 코드를 고치기 전에 [`CLAUDE.md`](CLAUDE.md) 를 읽으세요 — 어디를 고쳐야 하는지,
+> 절대 건드리면 안 되는 불변식이 무엇인지 정리돼 있습니다.
 
 ---
 

@@ -1,0 +1,54 @@
+name: CI
+
+# 배포 전에 깨진 것을 잡는다. Vercel 빌드가 실패하고 나서 알게 되는 것보다
+# 여기서 먼저 빨간불이 뜨는 편이 낫다.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: 타입 검사
+        run: npm run typecheck
+
+      - name: 린트
+        run: npm run lint
+
+      - name: Apps Script 검사 (구문·라우터·분배 산식)
+        run: npm run verify:gs
+
+      - name: 빌드
+        run: npm run build
+
+      - name: 크로미움 설치
+        run: npx playwright install --with-deps chromium
+
+      - name: 통합 테스트 (권한 경계 + 화면 흐름)
+        run: npm run e2e
+        env:
+          E2E_SHOTS: shots
+
+      # 실패했을 때 화면이 어땠는지 보면 원인이 대부분 바로 보인다
+      - name: 스크린샷 보관
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: shots/
+          if-no-files-found: ignore
+          retention-days: 7

@@ -15,7 +15,18 @@ type Entry<T> = { value: T; expiresAt: number };
 const store = new Map<string, Entry<unknown>>();
 const inflight = new Map<string, Promise<unknown>>();
 
-export async function cached<T>(key: string, ttlMs: number, load: () => Promise<T>): Promise<T> {
+export async function cached<T>(
+  key: string,
+  ttlMs: number,
+  load: () => Promise<T>,
+  /**
+   * 무엇을 캐시할지 고르는 함수. 기본은 전부 캐시.
+   *
+   * 실패 응답을 캐시하면 구글시트가 한 번 삐끗한 대가를 TTL 내내 모든
+   * 사용자가 치르게 된다 — 실패는 캐시하지 않는 게 맞다.
+   */
+  shouldCache: (value: T) => boolean = () => true,
+): Promise<T> {
   const hit = store.get(key) as Entry<T> | undefined;
   if (hit && hit.expiresAt > Date.now()) return hit.value;
 
@@ -26,7 +37,7 @@ export async function cached<T>(key: string, ttlMs: number, load: () => Promise<
   const p = (async () => {
     try {
       const value = await load();
-      store.set(key, { value, expiresAt: Date.now() + ttlMs });
+      if (shouldCache(value)) store.set(key, { value, expiresAt: Date.now() + ttlMs });
       return value;
     } finally {
       inflight.delete(key);

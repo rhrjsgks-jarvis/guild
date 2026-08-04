@@ -4,9 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:mock": "node scripts/dev-mock.mjs",
     "build": "next build",
     "start": "next start",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "verify:gs": "node scripts/verify-gs.mjs",
+    "e2e": "node scripts/e2e.mjs",
+    "verify": "npm run typecheck && npm run lint && npm run verify:gs && npm run build && npm run e2e",
     "icons": "node scripts/make-icons.mjs"
   },
   "dependencies": {
@@ -17,9 +22,15 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.6",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.22",
+    "jsqr": "^1.4.0",
+    "playwright": "^1.62.1",
+    "prettier": "^3.9.6",
     "typescript": "^5.7.2"
   }
 }
