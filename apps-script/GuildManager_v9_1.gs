@@ -1,7 +1,29 @@
 // ═══════════════════════════════════════════════════════════════
-//  길드 정산 시스템 v9.0  (모든 관리 기능을 앱에서 — PC 시트 불필요)
+//  길드 정산 시스템 v9.1  (보안 수정: 인증 없는 쓰기 경로 제거)
 //  시트 구성: [사용안내] [멤버DB] [참여자현황] [분배대기중] [잔액현황]
 //            [지급기록] + [시즌1] [시즌2] ...  ← 이 순서로 항상 정렬됨
+// ═══════════════════════════════════════════════════════════════
+//  변경점 v9.0 → v9.1 (긴급 보안 수정)
+//
+//  【무엇이 문제였나】
+//   웹앱 배포 액세스를 "모든 사용자"로 열면(Vercel 서버가 호출하려면 필수),
+//   /exec 주소를 아는 사람은 누구나 브라우저로 열어 구버전 화면(_mobileHtml)을
+//   받을 수 있었다. 그 화면은 google.script.run 으로 api_register /
+//   api_distribute / api_payout 을 직접 호출한다.
+//   토큰 검사는 doPost 에만 있으므로 이 경로는 인증을 통째로 우회한다.
+//   → 즉 URL 하나만 알면 PIN 없이 등록·분배·지급이 가능했다.
+//
+//  【어떻게 고쳤나】
+//   - _mobileHtml 완전 삭제. 쓰기가 가능한 HTML 경로를 아예 없앤다.
+//     (주소를 비밀로 유지하는 것에 기대지 않는다 — 코드에서 없앤다)
+//   - doGet 기본 응답을 데이터가 없는 안내 페이지로 교체
+//   - 읽기 전용 개인 조회(?view=lookup)는 유지 — Vercel 이 멈췄을 때
+//     혈맹원이 본인 잔액만 확인할 수 있는 비상 경로
+//   - verify:gs 에 "doGet 이 내주는 HTML 은 어떤 쓰기 함수도 부를 수 없다"
+//     검사를 추가해 같은 실수가 다시 들어오지 못하게 막는다
+//
+//  ※ 토큰 자체는 새어나가지 않았으므로 재발급은 필요 없다.
+//    v9.1 을 붙여넣고 [배포 관리] → 새 버전으로 올리면 즉시 닫힌다.
 // ═══════════════════════════════════════════════════════════════
 //  변경점 v8.2 → v9.0 (정수 업 — 구조 변경: PC 메뉴 전용 기능 폐지)
 //   지금까지 "실수하면 크게 망가진다"는 이유로 PC 시트에만 두었던 기능을
@@ -279,7 +301,7 @@
 //     '누적기록'을 그대로 찾음 (하위 호환, 리네이밍과 무관)
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION = '9.0';
+const VERSION = '9.1';
 const T2S_MAP = {'國':'国','學':'学','這':'这','個':'个','們':'们','說':'说','話':'话','對':'对','時':'时','間':'间','現':'现','場':'场','開':'开','關':'关','內':'内','東':'东','車':'车','馬':'马','龍':'龙','風':'风','陽':'阳','陰':'阴','電':'电','語':'语','讀':'读','寫':'写','書':'书','紙':'纸','筆':'笔','長':'长','門':'门','問':'问','聽':'听','見':'见','覺':'觉','讓':'让','誰':'谁','還':'还','進':'进','運':'运','動':'动','靜':'静','樂':'乐','藥':'药','華':'华','蘭':'兰','葉':'叶','黃':'黄','麗':'丽','寶':'宝','貴':'贵','財':'财','買':'买','賣':'卖','錢':'钱','銀':'银','鐵':'铁','鋼':'钢','陳':'陈','劉':'刘','張':'张','楊':'杨','蔣':'蒋','鄭':'郑','謝':'谢','呂':'吕','蘇':'苏','韓':'韩','馮':'冯','於':'于','鳳':'凤','雲':'云','劍':'剑','斷':'断','亂':'乱','愛':'爱','聲':'声','醫':'医','藝':'艺','頭':'头','臉':'脸','腳':'脚','氣':'气','樓':'楼','橋':'桥','飛':'飞','機':'机','網':'网','線':'线','條':'条','裡':'里','邊':'边','錯':'错','壞':'坏','舊':'旧','寬':'宽','淺':'浅','週':'周','節':'节','業':'业','後':'后','來':'来','終':'终','結':'结','敗':'败','勝':'胜','負':'负','輸':'输','贏':'赢','強':'强','難':'难','簡':'简','單':'单','複':'复','雜':'杂','純':'纯','淨':'净','髒':'脏','齊':'齐','穩':'稳','變':'变','轉':'转','換':'换','顯':'显','樣':'样','種':'种','類':'类','團':'团','體':'体','統':'统','織':'织','組':'组','構':'构','設':'设','計':'计','劃':'划','數':'数','課':'课','題':'题','試':'试','練':'练','習':'习','師':'师','員':'员','職':'职','務':'务','責':'责','權':'权','應':'应','該':'该','須':'须','願':'愿','夢':'梦','憶':'忆','識':'识','認':'认','歡':'欢','醜':'丑','帥':'帅','靈':'灵','獸':'兽','鷹':'鹰','鶴':'鹤','鴻':'鸿','鱷':'鳄','鯨':'鲸','鯊':'鲨','蝦':'虾','殼':'壳','冑':'胄','戰':'战','爭':'争','鬥':'斗','擊':'击','禦':'御','護':'护','衛':'卫','謀':'谋','陣':'阵','營':'营','軍':'军','隊':'队','將':'将','嬪':'嫔','宮':'宫','廟':'庙','觀':'观','閣':'阁','蓮':'莲','楓':'枫','樺':'桦','檜':'桧','樹':'树','實':'实','幹':'干','莖':'茎','穫':'获','採':'采','鮮':'鲜','籠':'笼','傷':'伤','殺':'杀','斬':'斩','豬':'猪','雞':'鸡','鴨':'鸭','鵝':'鹅','龜':'龟','蟬':'蝉','蟻':'蚁','螞':'蚂','鴉':'鸦','鵰':'雕','鴛':'鸳','鴦':'鸯','賽':'赛','廠':'厂','廣':'广','麼':'么','誒':'诶','歲':'岁','歷':'历','歸':'归','殘':'残','蟲':'虫','貓':'猫','氈':'毡','貫':'贯','質':'质','貨':'货','貼':'贴','費':'费','資':'资','賬':'账','賺':'赚','贈':'赠','賀':'贺','賢':'贤','賦':'赋','賤':'贱','賓':'宾','賴':'赖','齲':'龋','齒':'齿','龄':'齡','齡':'龄','齣':'出','岡':'冈','剛':'刚','剮':'剐','創':'创','劇':'剧','勵':'励','勸':'劝','勻':'匀','匯':'汇','醬':'酱','醞':'酝','釀':'酿','釋':'释','釘':'钉','針':'针','釣':'钓','鈍':'钝','鈴':'铃','鈔':'钞','鉛':'铅','鋸':'锯','鋒':'锋','鍵':'键','鎖':'锁','鑄':'铸','鑼':'锣','錶':'表','鐘':'钟','鏡':'镜','鑽':'钻','鑑':'鉴','閉':'闭','閃':'闪','閏':'闰','閱':'阅','闆':'板','闖':'闯','陸':'陆','隱':'隐','雖':'虽','雙':'双','雛':'雏','靂':'雳','韋':'韦','韌':'韧','頁':'页','頂':'顶','項':'项','順':'顺','頌':'颂','預':'预','頑':'顽','頒':'颁','頗':'颇','領':'领','頡':'颉','頜':'颌','頸':'颈','頻':'频','頹':'颓','顆':'颗','額':'额','顏':'颜','顛':'颠','顧':'顾','飄':'飘','饑':'饥','餃':'饺','餅':'饼','館':'馆','饒':'饶','饞':'馋','馳':'驰','駕':'驾','駛':'驶','駐':'驻','駱':'骆','駭':'骇','騎':'骑','騰':'腾','驅':'驱','驚':'惊','驕':'骄','驗':'验','骯':'肮','髮':'发','鬍':'胡','鬧':'闹','鮑':'鲍','鯉':'鲤','鰲':'鳌','鱉':'鳖','鳥':'鸟','鳴':'鸣','鹹':'咸','麥':'麦','麵':'面','黨':'党'};  // 번체→간체 상용한자 (서체 변환 전용, 다른 뜻 글자는 포함하지 않음)
 const UNIT = '다이아';                 // 재화 단위 표기
 const MAX_MEMBERS = 50;               // 최대 멤버 수
@@ -2134,8 +2156,11 @@ function _rebuildGuide(ss) {
     ['   거부됩니다. 토큰은 Vercel 서버에만 저장되고 브라우저로', 'warn'],
     ['   내려가지 않습니다. 토큰이 새어나갔다고 판단되면 메뉴에서', 'warn'],
     ['   재발급하면 즉시 무효화됩니다', 'warn'],
-    ['※ 기존 구글 로그인 웹앱(위 항목)도 그대로 살아있습니다 —', 'b'],
-    ['  새 앱에 문제가 생기면 언제든 그쪽으로 돌아갈 수 있습니다', 'b'],
+    ['⚠️ v9.1 보안 수정: 예전 구글 로그인 웹앱 화면은 삭제되었습니다', 'warn'],
+    ['   액세스를 "모든 사용자"로 열면 그 화면을 통해 PIN 없이', 'warn'],
+    ['   등록·분배·지급이 가능했기 때문입니다. 반드시 v9.1 이상을', 'warn'],
+    ['   쓰세요. 본인 잔액 조회(?view=lookup)는 읽기 전용이라 그대로', 'warn'],
+    ['   남아 있습니다', 'warn'],
     [''  , 'sp'],
     ['🔔 디스코드 자동 알림', 'sec'],
     ['· [🔗 디스코드 웹훅 설정]을 한 번 해두면, 이후 아이템 등록·', 'b'],
@@ -3844,17 +3869,48 @@ function _apiRoute(action, req) {
 // ═══════════════════════════════════════════════════════════════
 function doGet(e) {
   const view = (e && e.parameter && e.parameter.view) || '';
+
+  // 읽기 전용 개인 조회 — Vercel 앱이 멈췄을 때의 비상 경로.
+  // 조회만 가능하고 어떤 값도 바꾸지 않는다.
   if (view === 'lookup') {
     return HtmlService.createHtmlOutput(_lookupHtml())
       .setTitle('내 다이아 조회')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1, user-scalable=yes');
   }
-  return HtmlService.createHtmlOutput(_mobileHtml())
-    .setTitle('길드정산')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1, user-scalable=yes');
+
+  // 기본 응답은 안내 페이지다.
+  //
+  // ⚠️ 여기에 등록·분배·지급이 가능한 화면을 다시 붙이지 말 것.
+  //    이 주소는 액세스가 "모든 사용자"로 열려 있어야 Vercel 서버가 호출할 수 있다.
+  //    즉 주소를 아는 누구나 이 페이지를 받는다. google.script.run 호출은
+  //    doPost 의 토큰 검사를 거치지 않으므로, 쓰기 기능을 여기 두면
+  //    PIN 없이 정산을 조작할 수 있게 된다. (v9.0 에서 실제로 그랬다)
+  return HtmlService.createHtmlOutput(_noticeHtml())
+    .setTitle('길드정산 — 데이터 연결 주소')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
-// 조회 전용 링크에 사용할 멤버 이름 목록 (혈비 계정 제외)
+// 안내 페이지: 어떤 데이터도 보여주지 않고, 어떤 서버 함수도 부르지 않는다
+function _noticeHtml() {
+  return '<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">' +
+'<style>' +
+'*{box-sizing:border-box;margin:0;padding:0}' +
+'body{font-family:-apple-system,"Noto Sans KR",sans-serif;background:#f2f4f8;color:#16181d;' +
+'display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}' +
+'.card{background:#fff;border-radius:16px;padding:28px 22px;max-width:420px;' +
+'box-shadow:0 1px 2px rgba(16,24,40,.06),0 4px 16px rgba(16,24,40,.06);text-align:center}' +
+'h1{font-size:18px;color:#262a9e;margin-bottom:10px}' +
+'p{font-size:14px;line-height:1.7;color:#4b5563;margin-bottom:12px}' +
+'.small{font-size:12px;color:#9aa1ac;margin-top:16px}' +
+'a{color:#3b3fd8}' +
+'</style></head><body><div class="card">' +
+'<h1>🎮 길드정산 데이터 연결 주소</h1>' +
+'<p>이 주소는 <b>앱이 데이터를 주고받는 통로</b>입니다.<br>사람이 직접 여는 화면이 아닙니다.</p>' +
+'<p>정산 현황은 길드에서 공유한 <b>앱 주소</b>로 접속해주세요.</p>' +
+'<p class="small">본인 잔액만 급히 확인해야 한다면<br>이 주소 뒤에 <b>?view=lookup</b> 을 붙이면 됩니다.</p>' +
+'<p class="small">v' + VERSION + '</p>' +
+'</div></body></html>';
+}
 function api_getMemberNames() {
   return _getMembers(SpreadsheetApp.getActiveSpreadsheet()).filter(m => m !== FUND_NAME);
 }
@@ -4098,8 +4154,7 @@ function api_payout(name, amount, email) {
   return { ok: true, msg: msg };
 }
 
-// 모바일 HTML (외부 의존성 없음, 핀치줌 허용)
-// 개인 잔액 조회 전용 경량 페이지 (일반 길드원용 — 등록/분배 등 관리 기능 없음)
+// 개인 잔액 조회 전용 경량 페이지 (읽기 전용 — 어떤 값도 바꾸지 않는다)
 function _lookupHtml() {
   return '<!DOCTYPE html><html><head><meta charset="utf-8">' +
 '<style>' +
@@ -4160,194 +4215,3 @@ function _lookupHtml() {
 '</scr'+'ipt></body></html>';
 }
 
-function _mobileHtml() {
-  return '<!DOCTYPE html><html><head><meta charset="utf-8">' +
-'<style>' +
-'*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}' +
-'body{font-family:-apple-system,"Noto Sans KR",sans-serif;background:#f4f6f8;color:#222;padding-bottom:70px}' +
-'.hd{background:#1A237E;color:#fff;padding:14px 16px;font-size:17px;font-weight:700;position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center}' +
-'.hd small{font-weight:400;opacity:.85;font-size:12px}' +
-'.tabs{display:flex;background:#fff;border-bottom:1px solid #e0e0e0;position:sticky;top:48px;z-index:5}' +
-'.tab{flex:1;text-align:center;padding:13px 0;font-size:15px;font-weight:600;color:#888;border-bottom:3px solid transparent}' +
-'.tab.on{color:#1A237E;border-color:#1A237E}' +
-'.pg{display:none;padding:12px}' +
-'.pg.on{display:block}' +
-'.card{background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.08)}' +
-'.sect{font-size:13px;font-weight:700;color:#555;margin:2px 2px 8px}' +
-'.row{display:flex;align-items:center;justify-content:space-between;padding:11px 12px;border-bottom:1px solid #f0f0f0}' +
-'.row:last-child{border-bottom:none}' +
-'.nm{font-size:15px;font-weight:600}' +
-'.nm .cnt{font-size:11px;color:#999;font-weight:400;margin-left:5px}' +
-'.amt{text-align:right;margin-right:10px}' +
-'.pend{font-size:15px;font-weight:700;color:#E65100}' +
-'.pend.zero{color:#bbb;font-weight:400}' +
-'.paid{font-size:11px;color:#2E7D32}' +
-'.btn{border:none;border-radius:8px;font-size:13px;font-weight:700;padding:9px 14px;color:#fff;background:#1A237E}' +
-'.btn:disabled{background:#ccc}' +
-'.btn.big{width:100%;padding:15px;font-size:16px;border-radius:10px;margin-top:10px}' +
-'.btn.dist{background:#E65100}' +
-'input[type=text],input[type=number],input[type=url]{width:100%;padding:13px;font-size:16px;border:1.5px solid #d0d5da;border-radius:8px;margin:5px 0 12px}' +
-'label.fl{font-size:13px;font-weight:700;color:#555}' +
-'.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}' +
-'.mchip{display:flex;align-items:center;gap:7px;background:#fafafa;border:1.5px solid #e0e0e0;border-radius:8px;padding:10px;font-size:14px}' +
-'.mchip.sel{background:#E8F5E9;border-color:#4CAF50;font-weight:700}' +
-'.mchip input{width:18px;height:18px}' +
-'.selbar{display:flex;gap:8px;margin-top:10px}' +
-'.selbar .btn{flex:1;background:#546E7A}' +
-'.empty{color:#999;font-size:14px;padding:8px 4px}' +
-'.photoPrev{display:none;margin:4px 0 12px}' +
-'.photoPrev img{max-width:100%;border-radius:8px;display:block}' +
-'.photoStatus{font-size:12px;color:#666;margin-top:5px}' +
-'.fileBtn{display:block;width:100%;padding:12px;text-align:center;background:#F1F8FF;border:1.5px dashed #90A4AE;border-radius:8px;font-size:14px;color:#455A64;font-weight:600;margin:5px 0 4px;cursor:pointer}' +
-'.warnNote{background:#FFF3E0;color:#E65100;font-size:12px;font-weight:600;padding:9px 11px;border-radius:8px;margin-top:10px;text-align:center}' +
-'#toast{position:fixed;bottom:16px;left:12px;right:12px;background:#323232;color:#fff;padding:13px 16px;border-radius:10px;font-size:14px;display:none;z-index:99}' +
-'#load{position:fixed;inset:0;background:rgba(255,255,255,.75);display:none;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#1A237E;z-index:98}' +
-'.totline{font-size:13px;color:#555;padding:4px 4px 10px}' +
-'.dashBar{display:flex;gap:8px;padding:10px 12px;background:#EDE7F6;border-bottom:1px solid #D1C4E9}' +
-'.dashItem{flex:1;text-align:center;background:#fff;border-radius:8px;padding:8px 4px}' +
-'.dashNum{font-size:19px;font-weight:800;color:#4527A0}' +
-'.dashLabel{font-size:11px;color:#666;margin-top:2px}' +
-'</style></head><body>' +
-'<div class="hd"><span>🎮 길드정산</span><small><a href="#" onclick="changeMyEmail();return false;" style="color:#fff;opacity:.8;text-decoration:underline;margin-right:8px">📧</a><span id="season"></span></small></div>' +
-'<div class="tabs"><div class="tab on" id="t0" onclick="tab(0)">💰 잔액·지급</div><div class="tab" id="t1" onclick="tab(1)">📦 아이템</div></div>' +
-'<div class="dashBar">' +
-'<div class="dashItem"><div class="dashNum" id="dashPending">-</div><div class="dashLabel">⏳ 미분배 아이템</div></div>' +
-'<div class="dashItem"><div class="dashNum" id="dashOwed">-</div><div class="dashLabel">💰 잔액 남은 인원</div></div>' +
-'</div>' +
-
-'<div class="pg on" id="p0">' +
-'<div class="totline" id="tot"></div>' +
-'<div class="card" id="ballist">불러오는 중...</div>' +
-'</div>' +
-
-'<div class="pg" id="p1">' +
-'<div class="sect">⏳ 미분배 아이템 — [분배] 누르고 판매금액 입력</div>' +
-'<div class="card" id="itemlist">불러오는 중...</div>' +
-'<div class="sect">📝 새 아이템 등록 (레이드 직후)</div>' +
-'<div class="card">' +
-'<label class="fl">📦 아이템명</label><input type="text" id="fItem" placeholder="예: 기란 세금">' +
-'<label class="fl">📷 인증샷 첨부 (사진에서 참여자 자동 감지)</label>' +
-'<label class="fileBtn" for="fPhotoFile">📎 사진 선택 / 촬영</label>' +
-'<input type="file" id="fPhotoFile" accept="image/*" style="display:none">' +
-'<div class="photoPrev" id="photoPrev"><img id="photoImg"><div class="photoStatus" id="photoStatus"></div>' +
-'<div id="ocrToggle" style="display:none"><a href="#" onclick="toggleOcr();return false;" style="font-size:12px;color:#1565C0">🔍 인식된 텍스트 보기</a>' +
-'<div id="ocrText" style="display:none;background:#F5F5F5;border-radius:6px;padding:8px;margin-top:5px;font-size:11px;color:#555;white-space:pre-wrap;max-height:150px;overflow:auto"></div></div></div>' +
-'<label class="fl">🔗 인증샷 링크 (사진 첨부 시 자동 입력, 직접 붙여넣기도 가능)</label>' +
-'<input type="url" id="fPhoto" placeholder="https://...">' +
-'<div class="selbar"><button class="btn" onclick="selAll(true)">전체 선택</button><button class="btn" onclick="selAll(false)">전체 해제</button></div>' +
-'<div class="mgrid" id="mgrid"></div>' +
-'<div class="warnNote">⚠️ 등록 전 체크된 참여자가 맞는지 꼭 확인해주세요 (자동 감지는 참고용입니다)</div>' +
-'<button class="btn big" id="goBtn" onclick="registerItem()">📝 아이템 등록</button>' +
-'</div></div>' +
-
-'<div id="toast"></div><div id="load">처리 중...</div>' +
-'<script>' +
-'var S=null;' +
-'function $(id){return document.getElementById(id)}' +
-'function tab(i){for(var k=0;k<2;k++){$("t"+k).className="tab"+(k==i?" on":"");$("p"+k).className="pg"+(k==i?" on":"")}}' +
-'function toast(m){var t=$("toast");t.textContent=m;t.style.display="block";setTimeout(function(){t.style.display="none"},4000)}' +
-'function load(on){$("load").style.display=on?"flex":"none"}' +
-'function fmt(n){return (n||0).toLocaleString()}' +
-'function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;").replace(/\x27/g,"&#39;")}' +
-'function getMyEmail(){' +
-'var e=localStorage.getItem("gm_email");' +
-'if(e)return e;' +
-'e=prompt("기록용 이메일 주소를 입력해주세요.\\n(누가 등록·분배했는지 기록에 남기기 위함 \u2014 한 번만 물어봅니다)");' +
-'if(!e)return "";' +
-'e=e.trim();' +
-'if(e)localStorage.setItem("gm_email",e);' +
-'return e}' +
-'function changeMyEmail(){' +
-'var e=prompt("이메일 주소를 변경합니다.",localStorage.getItem("gm_email")||"");' +
-'if(e===null)return;' +
-'e=e.trim();' +
-'if(e){localStorage.setItem("gm_email",e);toast("이메일이 저장되었습니다: "+e)}' +
-'else{localStorage.removeItem("gm_email");toast("이메일이 삭제되었습니다.")}}' +
-'function refresh(){load(true);google.script.run.withSuccessHandler(render).withFailureHandler(function(e){load(false);toast("연결 오류: "+e.message)}).api_getState()}' +
-'function render(st){S=st;load(false);' +
-'$("season").textContent="시즌 "+st.season;' +
-'var tp=0,td=0,owed=0,h="";' +
-'st.rows.forEach(function(r){tp+=r.pending;td+=r.paid;if(r.pending>0)owed++;' +
-'h+="<div class=row><div class=nm>"+esc(r.name)+"<span class=cnt>"+r.cnt+"회</span></div>"+' +
-'"<div style=\'display:flex;align-items:center\'><div class=amt><div class=\'pend"+(r.pending>0?"":" zero")+"\'>"+fmt(r.pending)+" "+S.unit+"</div><div class=paid>완료 "+fmt(r.paid)+"</div></div>"+' +
-'"<button class=btn "+(r.pending>0?"":"disabled")+" data-n=\'"+esc(r.name)+"\'>지급</button></div></div>"});' +
-'$("ballist").innerHTML=h||"멤버가 없습니다";' +
-'$("tot").textContent="분배전 합계 "+fmt(tp)+" "+S.unit+" · 분배완료 합계 "+fmt(td)+" "+S.unit;' +
-'$("dashPending").textContent=st.items.length;' +
-'$("dashOwed").textContent=owed;' +
-'var ih="";st.items.forEach(function(it){' +
-'ih+="<div class=row><div class=nm>"+esc(it.item)+"<span class=cnt>"+it.date+" · "+it.cnt+"명</span></div>"+' +
-'"<button class=\'btn dist\' data-r=\'"+it.row+"\'>분배</button></div>"});' +
-'$("itemlist").innerHTML=ih||"<div class=empty>미분배 아이템이 없습니다. 아래에서 등록하세요.</div>";' +
-'var g="";st.members.forEach(function(m){if(m===st.fundName)return;' +
-'g+="<label class=mchip><input type=checkbox data-n=\'"+esc(m)+"\' onchange=\'chip(this)\'>"+esc(m)+"</label>"});' +
-'$("mgrid").innerHTML=g}' +
-'function chip(cb){cb.parentNode.className="mchip"+(cb.checked?" sel":"")}' +
-'function selAll(v){document.querySelectorAll("#mgrid input").forEach(function(cb){cb.checked=v;cb.parentNode.className="mchip"+(v?" sel":"")})}' +
-'function picked(){var a=[];document.querySelectorAll("#mgrid input:checked").forEach(function(cb){a.push(cb.getAttribute("data-n"))});return a}' +
-'function pay(name){var r=S.rows.find(function(x){return x.name===name});if(!r||r.pending<=0)return;' +
-'var v=prompt(name+" 지급할 금액을 입력하세요.\\n(분배전 전액: "+fmt(r.pending)+" "+S.unit+" — 그대로 확인하면 전액 지급)",r.pending);' +
-'if(v===null)return;var amt=Number(String(v).replace(/,/g,""));' +
-'if(!amt||amt<=0||amt!==Math.floor(amt)){toast("지급액은 양의 정수여야 합니다.");return}' +
-'if(amt>r.pending){toast("지급액이 분배전("+fmt(r.pending)+" "+S.unit+")보다 큽니다.");return}' +
-'if(!confirm(name+" 에게 "+fmt(amt)+" "+S.unit+" 지급 처리할까요?"+(amt<r.pending?"\\n(부분 지급 — 잔여 "+fmt(r.pending-amt)+" "+S.unit+"는 분배전에 유지)":"\\n(전액 지급)")))return;' +
-'load(true);google.script.run.withSuccessHandler(function(res){toast(res.msg);refresh()}).withFailureHandler(function(e){load(false);toast("오류: "+e.message)}).api_payout(name,amt,getMyEmail())}' +
-'function distribute(row){var it=S.items.find(function(x){return x.row==row});if(!it)return;' +
-'var v=prompt(it.item+" — 판매금액("+S.unit+")을 입력하세요.\\n참여 "+it.cnt+"명 · 혈비 "+Math.round(S.fundRate*100)+"% 공제 후 1/N 분배","");' +
-'if(v===null)return;var amt=Number(String(v).replace(/,/g,""));' +
-'if(!amt||amt<=0||amt!==Math.floor(amt)){toast("판매금액은 양의 정수여야 합니다.");return}' +
-'var fund=Math.floor(amt*S.fundRate),per=Math.floor((amt-fund)/it.cnt);' +
-'var rem=(amt-fund)-per*it.cnt;' +
-'if(!confirm("📦 "+it.item+"\\n💎 판매 "+fmt(amt)+" "+S.unit+"\\n🏦 혈비 "+fmt(fund)+"\\n👥 "+it.cnt+"명 × "+fmt(per)+(rem>0?"\\n➕ 나머지 "+rem+" → "+S.remainderName:"")+"\\n\\n분배할까요?"))return;' +
-'load(true);google.script.run.withSuccessHandler(function(res){toast(res.msg);refresh()}).withFailureHandler(function(e){load(false);toast("오류: "+e.message)}).api_distribute(row,amt,getMyEmail())}' +
-
-'function onPhotoFile(){var f=$("fPhotoFile").files&&$("fPhotoFile").files[0];if(!f)return;' +
-'var rd=new FileReader();' +
-'rd.onload=function(ev){var img=new Image();' +
-'img.onload=function(){' +
-'var maxDim=1600,w=img.width,h=img.height;' +
-'if(w>maxDim||h>maxDim){var sc=maxDim/Math.max(w,h);w=Math.round(w*sc);h=Math.round(h*sc)}' +
-'var cv=document.createElement("canvas");cv.width=w;cv.height=h;' +
-'var ctx=cv.getContext("2d");' +
-'try{ctx.filter="contrast(160%) brightness(112%) saturate(105%)";}catch(fe){}' +
-'ctx.drawImage(img,0,0,w,h);' +
-'var dataUrl=cv.toDataURL("image/jpeg",0.82);' +
-'var b64=dataUrl.split(",")[1];' +
-'$("photoPrev").style.display="block";$("photoImg").src=dataUrl;' +
-'$("photoStatus").textContent="분석 중...";' +
-'google.script.run.withSuccessHandler(function(res){' +
-'if(!res.ok){$("photoStatus").textContent="분석 실패: "+res.msg;return}' +
-'if(res.photoUrl)$("fPhoto").value=res.photoUrl;' +
-'if(res.matched&&res.matched.length>0){' +
-'document.querySelectorAll("#mgrid input").forEach(function(cb){' +
-'if(res.matched.indexOf(cb.getAttribute("data-n"))>=0){cb.checked=true;cb.parentNode.className="mchip sel"}' +
-'})}' +
-'$("photoStatus").textContent=res.msg;' +
-'if(res.ocrPreview){$("ocrToggle").style.display="block";$("ocrText").textContent=res.ocrPreview;$("ocrText").style.display="none"}' +
-'else{$("ocrToggle").style.display="none"}' +
-'}).withFailureHandler(function(e){$("photoStatus").textContent="분석 오류: "+e.message}).api_analyzePhoto(b64)' +
-'};img.src=ev.target.result};' +
-'rd.readAsDataURL(f)}' +
-'function toggleOcr(){var e=$("ocrText");e.style.display=e.style.display==="none"?"block":"none"}' +
-'function registerItem(){var item=$("fItem").value.trim(),ps=picked();' +
-'if(!item){toast("아이템명을 입력해주세요.");return}' +
-'if(ps.length===0){toast("참여 멤버를 선택해주세요.");return}' +
-'var listTxt=ps.length<=12?ps.join(", "):ps.slice(0,12).join(", ")+" 외 "+(ps.length-12)+"명";' +
-'if(!confirm("⚠️ 참여자를 다시 한 번 확인해주세요\\n\\n📦 "+item+"\\n👥 "+ps.length+"명 참여\\n"+listTxt+"\\n\\n체크가 정확하면 확인을 눌러 등록하세요."))return;' +
-'load(true);$("goBtn").disabled=true;' +
-'google.script.run.withSuccessHandler(function(res){$("goBtn").disabled=false;toast(res.msg);' +
-'if(res.ok){$("fItem").value="";$("fPhoto").value="";selAll(false);' +
-'$("fPhotoFile").value="";$("photoPrev").style.display="none";$("photoStatus").textContent="";' +
-'$("ocrToggle").style.display="none";$("ocrText").textContent=""}refresh()})' +
-'.withFailureHandler(function(e){load(false);$("goBtn").disabled=false;toast("오류: "+e.message)})' +
-'.api_register(item,ps,$("fPhoto").value.trim(),getMyEmail())}' +
-'document.getElementById("ballist").addEventListener("click",function(e){' +
-'var b=e.target;while(b&&b!==this&&!(b.getAttribute&&b.getAttribute("data-n")))b=b.parentNode;' +
-'if(b&&b!==this&&!b.disabled)pay(b.getAttribute("data-n"))});' +
-'document.getElementById("itemlist").addEventListener("click",function(e){' +
-'var b=e.target;while(b&&b!==this&&!(b.getAttribute&&b.getAttribute("data-r")))b=b.parentNode;' +
-'if(b&&b!==this)distribute(b.getAttribute("data-r"))});' +
-'document.getElementById("fPhotoFile").addEventListener("change",onPhotoFile);' +
-'refresh();' +
-'</scr'+'ipt></body></html>';
-}

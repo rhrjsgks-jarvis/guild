@@ -15,7 +15,7 @@
 | | 무엇 | 어디서 | 기존 시트 영향 |
 |---|---|---|---|
 | ① | 새 스프레드시트 만들기 | 구글 드라이브 | 없음 |
-| ② | v9.0 설치 + 웹앱 배포 | 새 시트의 Apps Script | 없음 |
+| ② | v9.1 설치 + 웹앱 배포 | 새 시트의 Apps Script | 없음 |
 | ③ | Vercel 배포 | vercel.com | 없음 |
 | ④ | 폰에서 확인 | 폰 | 없음 |
 | ⑤ | **데이터 이관** | 새 시트 메뉴 | **읽기만** |
@@ -27,10 +27,10 @@
 1. [sheets.new](https://sheets.new) 로 빈 스프레드시트 생성
 2. 이름을 알아보기 쉽게 (예: `길드정산 v8`)
 
-## ② v9.0 설치 + 웹앱 배포
+## ② v9.1 설치 + 웹앱 배포
 
 1. 새 시트에서 **확장 프로그램 → Apps Script**
-2. 기본 코드를 지우고, [**GuildManager_v9_0.gs 전체**](https://raw.githubusercontent.com/rhrjsgks-jarvis/guild/main/apps-script/GuildManager_v9_0.gs) 를 복사해 붙여넣기 (Ctrl+A → Ctrl+C → Ctrl+V) → 💾 저장
+2. 기본 코드를 지우고, [**GuildManager_v9_1.gs 전체**](https://raw.githubusercontent.com/rhrjsgks-jarvis/guild/main/apps-script/GuildManager_v9_1.gs) 를 복사해 붙여넣기 (Ctrl+A → Ctrl+C → Ctrl+V) → 💾 저장
 3. 시트로 돌아와 새로고침 → 메뉴 **[🎮 길드정산] → [🚀 최초 설치]**
    - 빈 시트 구조가 만들어집니다 (데이터는 아직 없음)
 4. Apps Script 우측 상단 **[배포] → [새 배포]**
@@ -45,6 +45,9 @@
 
 5. 시트 메뉴 **[🔑 웹 API 토큰]** → 48자 토큰 복사 = **`GAS_TOKEN`**
 
+> 🚨 **반드시 v9.1 이상을 쓰세요.** v9.0 이하에서는 액세스를 "모든 사용자"로 열면
+> 이 주소를 아는 사람이 브라우저로 열어 PIN 없이 등록·분배·지급을 할 수 있었습니다.
+>
 > **"모든 사용자"로 열어도 되나요?**
 > Vercel 서버에는 구글 로그인 세션이 없어서 "나만"으로는 아예 연결되지 않습니다.
 > 대신 위 토큰이 없는 요청은 전부 거부됩니다. 토큰은 Vercel 서버에만 저장되고

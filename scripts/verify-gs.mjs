@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v9_0.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v9_1.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 const gs = readFileSync(GS_PATH, 'utf8');
@@ -68,7 +68,13 @@ check('VERSION 상수와 파일명 일치', () => {
   return `v${v}`;
 });
 
-check('웹앱 클라이언트 JS 구문 (백업 경로)', () => {
+check('doGet 이 내주는 화면은 아무것도 바꿀 수 없다', () => {
+  // ★ v9.0 에서 실제로 뚫렸던 지점이다.
+  //
+  // 웹앱 배포 액세스는 "모든 사용자"여야 Vercel 서버가 호출할 수 있다.
+  // 즉 /exec 주소를 아는 누구나 doGet 이 내주는 HTML 을 받는다.
+  // 그 HTML 안의 google.script.run 호출은 doPost 의 토큰 검사를 거치지 않으므로,
+  // 쓰기 함수를 하나라도 부를 수 있으면 PIN 없이 정산을 조작할 수 있게 된다.
   const stubs = {
     VERSION: '0',
     UNIT: '다이아',
@@ -79,16 +85,43 @@ check('웹앱 클라이언트 JS 구문 (백업 경로)', () => {
     MEMBER_START_ROW: 5,
     PROTECT_MODE: 'warn',
   };
-  let count = 0;
-  for (const fn of ['_mobileHtml', '_lookupHtml']) {
+
+  // doGet 이 실제로 어떤 함수를 불러 HTML 을 만드는지 뽑아낸다
+  const doGet = extractFn(gs, 'doGet');
+  const producers = [...doGet.matchAll(/HtmlService\.createHtmlOutput\((\w+)\(\)\)/g)].map((m) => m[1]);
+  if (producers.length === 0) throw new Error('doGet 이 HTML 을 만드는 지점을 찾지 못했습니다.');
+
+  // 이 함수들은 어떤 경로로도 서버에 쓰기를 요청할 수 없어야 한다
+  const writeFns = [
+    'api_register', 'api_distribute', 'api_payout', 'api_analyzePhoto',
+    'api_renameMember', 'api_addMember', 'api_removeMember',
+    'api_correctItem', 'api_deleteItem', 'api_undoPayout', 'api_runTool',
+  ];
+
+  for (const fn of producers) {
     const ctx = vm.createContext({ ...stubs });
     vm.runInContext(`${extractFn(gs, fn)}; __html = ${fn}();`, ctx);
-    const inner = String(ctx.__html).match(/<script>([\s\S]*?)<\/scr/)?.[1];
-    if (!inner) throw new Error(`${fn} 에서 <script> 블록을 찾지 못했습니다.`);
-    new vm.Script(inner);
-    count += 1;
+    const html = String(ctx.__html);
+
+    const leaked = writeFns.filter((w) => html.includes(w));
+    if (leaked.length) {
+      throw new Error(
+        `${fn} 이 인증 없이 쓰기 함수를 부를 수 있습니다: ${leaked.join(', ')}\n` +
+          '     이 화면은 주소만 알면 누구나 열 수 있습니다 — 쓰기 기능을 두면 안 됩니다.',
+      );
+    }
+
+    // 스크립트가 있다면 문법도 확인한다 (붙여넣기 전 마지막 방어선)
+    const inner = html.match(/<script>([\s\S]*?)<\/scr/)?.[1];
+    if (inner) new vm.Script(inner);
   }
-  return `${count}개 페이지`;
+
+  // _mobileHtml(쓰기가 가능했던 구 화면)이 되살아나지 않았는지도 본다
+  if (/function _mobileHtml\b/.test(gs)) {
+    throw new Error('_mobileHtml 이 다시 들어왔습니다. 이 화면은 인증 없이 등록·분배·지급이 가능합니다.');
+  }
+
+  return `${producers.length}개 화면 (쓰기 함수 0건)`;
 });
 
 check('API 라우터 — 필요한 액션 노출 / 위험한 액션 차단', () => {
