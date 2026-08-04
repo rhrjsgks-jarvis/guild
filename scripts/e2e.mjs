@@ -93,12 +93,15 @@ function eq(actual, expected, what) {
   if (actual !== expected) throw new Error(`${what}: 기대 ${JSON.stringify(expected)}, 실제 ${JSON.stringify(actual)}`);
 }
 
-const post = (path, body, headers = {}) =>
+const send = (method) => (path, body, headers = {}) =>
   fetch(APP + path, {
-    method: 'POST',
+    method,
     headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(body ?? {}),
   });
+
+const post = send('POST');
+const del = send('DELETE');
 
 /* ────────────────────────────────────────────── */
 
@@ -269,11 +272,7 @@ await t('혈맹원 추가: 명단에 들어가고 중복은 거부된다', async
 });
 
 await t('탈퇴: 이력 없는 사람은 목록에서 사라진다', async () => {
-  const res = await fetch(`${APP}/api/admin/member`, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json', Cookie: cookie },
-    body: JSON.stringify({ name: '신입혈맹원' }),
-  });
+  const res = await del('/api/admin/member', { name: '신입혈맹원' }, { Cookie: cookie });
   const body = await res.json();
   eq(body.ok, true, '탈퇴 결과');
   eq(body.kept, false, '이력이 없으므로 보존하지 않음');
@@ -283,11 +282,7 @@ await t('탈퇴: 이력 없는 사람은 목록에서 사라진다', async () =>
 });
 
 await t('탈퇴: 잔액이 남으면 먼저 되묻는다', async () => {
-  const res = await fetch(`${APP}/api/admin/member`, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json', Cookie: cookie },
-    body: JSON.stringify({ name: '대서과Z' }),
-  });
+  const res = await del('/api/admin/member', { name: '대서과Z' }, { Cookie: cookie });
   eq(res.status, 200, 'HTTP 상태');
   const body = await res.json();
   eq(body.ok, false, 'ok');
@@ -300,11 +295,7 @@ await t('탈퇴: 잔액이 남으면 먼저 되묻는다', async () => {
 
 await t('탈퇴: 확인하면 기록은 (미등록)으로 남는다', async () => {
   const before = (await (await post('/api/lookup', { name: '대서과Z' })).json()).data;
-  const res = await fetch(`${APP}/api/admin/member`, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json', Cookie: cookie },
-    body: JSON.stringify({ name: '대서과Z', confirmRemove: true }),
-  });
+  const res = await del('/api/admin/member', { name: '대서과Z', confirmRemove: true }, { Cookie: cookie });
   const body = await res.json();
   eq(body.ok, true, '탈퇴 결과');
   eq(body.kept, true, '잔액이 있으므로 보존');
@@ -318,22 +309,11 @@ await t('탈퇴: 확인하면 기록은 (미등록)으로 남는다', async () =
 });
 
 await t('탈퇴: 혈비 계정은 거부된다', async () => {
-  const res = await fetch(`${APP}/api/admin/member`, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json', Cookie: cookie },
-    body: JSON.stringify({ name: '유일배분(혈비)', confirmRemove: true }),
-  });
+  const res = await del('/api/admin/member', { name: '유일배분(혈비)', confirmRemove: true }, { Cookie: cookie });
   eq((await res.json()).ok, false, 'ok');
 });
 
 /* ── ①-2 정산 정정 · 도구 (v9.0) ── */
-
-const del = (path, body, headers = {}) =>
-  fetch(APP + path, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json', ...headers },
-    body: JSON.stringify(body ?? {}),
-  });
 
 for (const [label, path] of [
   ['아이템 정정·삭제', '/api/admin/items'],
