@@ -35,20 +35,25 @@ if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 const children = [];
 function spawnBg(cmd, args, env) {
   const child = spawn(cmd, args, { env: { ...process.env, ...env }, stdio: 'ignore' });
+  // unref 하지 않으면 자식이 살아있는 동안 node 가 종료되지 않아,
+  // 테스트가 전부 통과하고도 프로세스가 매달린다 (CI 에서 그대로 타임아웃)
+  child.unref();
   children.push(child);
   return child;
 }
-function cleanup() {
+
+/** 띄워둔 서버를 정리하고 확실히 종료한다 */
+function finish(code) {
   children.forEach((c) => {
     try {
-      c.kill('SIGTERM');
+      c.kill('SIGKILL');
     } catch {
       /* 이미 죽었으면 그만 */
     }
   });
+  process.exit(code);
 }
-process.on('exit', cleanup);
-process.on('SIGINT', () => process.exit(130));
+process.on('SIGINT', () => finish(130));
 
 /**
  * 조건이 참이 될 때까지 기다린다.
@@ -291,6 +296,7 @@ await browser.close();
 results.forEach((r) => console.log(r));
 if (failed) {
   console.log(`\n❌ ${failed}건 실패 / ${results.length}건 중\n`);
-  process.exit(1);
+  finish(1);
 }
 console.log(`\n✅ ${results.length}건 전부 통과\n`);
+finish(0);
