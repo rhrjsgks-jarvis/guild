@@ -41,6 +41,16 @@ export type LookupResult = {
   cnt: number;
 };
 
+/** 혈맹원 관리 화면용 — 이름과 게임표시명, 그리고 이름을 바꿀 때 따라올 잔액 */
+export type RosterEntry = {
+  name: string;
+  /** 멤버DB D열 — 게임 표시 이름이 DB 표기와 다를 때만 채워진다 */
+  displayName: string;
+  pending: number;
+  /** 혈비 계정은 앱에서 바꿀 수 없다 */
+  isFund: boolean;
+};
+
 export type PhotoResult = {
   photoUrl?: string;
   matched?: string[];

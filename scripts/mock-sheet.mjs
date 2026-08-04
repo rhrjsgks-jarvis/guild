@@ -152,6 +152,51 @@ const handlers = {
     return { ok: true, msg };
   },
 
+  roster: () => ({
+    ok: true,
+    data: S.rows.map((r) => ({
+      name: r.name,
+      displayName: '',
+      pending: r.pending,
+      isFund: r.name === FUND_NAME,
+    })),
+  }),
+
+  rename: ({ oldName, newName, confirmMerge }) => {
+    const from = findRow(oldName);
+    if (!from) return { ok: false, msg: `"${oldName}" 을(를) 멤버DB에서 찾지 못했습니다.` };
+    if (norm(oldName) === norm(newName)) return { ok: false, msg: '기존 이름과 같습니다.' };
+    if (oldName === FUND_NAME || newName === FUND_NAME) {
+      return { ok: false, msg: `혈비 계정(${FUND_NAME})은 앱에서 변경할 수 없습니다.` };
+    }
+
+    const dup = findRow(newName);
+    if (dup && confirmMerge !== true) {
+      return {
+        ok: false,
+        needsConfirm: true,
+        msg:
+          `"${newName}" 은(는) 이미 명단에 있는 이름입니다.\n\n` +
+          `그대로 진행하면 두 계정이 하나로 합쳐집니다.\n` +
+          `· ${oldName} 분배전 ${from.pending.toLocaleString()}${UNIT}\n` +
+          `· ${newName} 분배전 ${dup.pending.toLocaleString()}${UNIT}\n\n` +
+          `동일 인물이 맞을 때만 진행하세요.`,
+      };
+    }
+
+    if (dup) {
+      // 병합 — 잔액·지급·참여횟수를 합치고 옛 행을 지운다
+      dup.pending += from.pending;
+      dup.paid += from.paid;
+      dup.cnt += from.cnt;
+      S.rows.splice(S.rows.indexOf(from), 1);
+      return { ok: true, merged: true, msg: `✅ "${oldName}" → "${newName}" 변경 완료 (중복 계정 병합됨)` };
+    }
+
+    from.name = newName;
+    return { ok: true, merged: false, msg: `✅ "${oldName}" → "${newName}" 변경 완료` };
+  },
+
   // OCR은 흉내만 낸다 — 실제 인식은 드라이브가 필요하다
   photo: () => ({
     ok: true,

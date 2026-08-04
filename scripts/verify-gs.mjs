@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v8_0.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v8_1.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 const gs = readFileSync(GS_PATH, 'utf8');
@@ -95,7 +95,7 @@ check('API 라우터 — 필요한 액션 노출 / 위험한 액션 차단', () 
   const router = gs.slice(gs.indexOf('function _apiRoute'));
   const routed = [...router.matchAll(/case '(\w+)':/g)].map((m) => m[1]);
 
-  const required = ['ping', 'state', 'members', 'lookup', 'register', 'distribute', 'payout', 'photo'];
+  const required = ['ping', 'state', 'members', 'lookup', 'register', 'distribute', 'payout', 'photo', 'roster', 'rename'];
   const missing = required.filter((a) => !routed.includes(a));
   if (missing.length) throw new Error(`누락된 액션: ${missing.join(', ')}`);
 
@@ -111,7 +111,7 @@ check('쓰기 액션은 전부 LockService 대상', () => {
   const list = gs.match(/API_WRITE_ACTIONS = \[([^\]]*)\]/)?.[1];
   if (!list) throw new Error('API_WRITE_ACTIONS 상수를 찾을 수 없습니다.');
   const actions = list.replace(/['\s]/g, '').split(',').filter(Boolean);
-  const mustLock = ['register', 'distribute', 'payout'];
+  const mustLock = ['register', 'distribute', 'payout', 'rename'];
   const unlocked = mustLock.filter((a) => !actions.includes(a));
   if (unlocked.length) throw new Error(`락이 걸리지 않는 쓰기 액션: ${unlocked.join(', ')}`);
   if (!/lock\.waitLock\(/.test(gs)) throw new Error('waitLock 호출이 없습니다.');
@@ -185,6 +185,30 @@ check('분배 산식: 다이아 보존 + 앱/시트 이중구현 일치', () => 
     }
   }
   return `${cases.length.toLocaleString()}건 (보존·범위·이중구현 일치)`;
+});
+
+check('아이디 변경: 병합은 반드시 재확인을 거친다', () => {
+  const fn = extractFn(gs, 'api_renameMember');
+  // 이미 있는 이름으로 바꾸면 두 사람 잔액이 합쳐진다 — 한 번 더 물어보지 않으면
+  // 남의 잔액을 실수로 흡수하는 사고가 난다
+  if (!fn.includes('confirmMerge !== true')) throw new Error('confirmMerge 확인 절차가 없습니다.');
+  if (!fn.includes('needsConfirm')) throw new Error('앱에 재확인을 요청하는 응답이 없습니다.');
+  if (!fn.includes('FUND_NAME')) throw new Error('혈비 계정 보호가 없습니다.');
+  // 라우터가 confirmMerge 를 그대로 흘려보내야 한다 (기본값 true 로 새면 안전장치가 무력화)
+  const router = gs.slice(gs.indexOf('function _apiRoute'));
+  if (!/req\.confirmMerge === true/.test(router)) {
+    throw new Error('라우터가 confirmMerge 를 엄격하게 다루지 않습니다.');
+  }
+  return '재확인·혈비보호·라우터 전달';
+});
+
+check('가져오기: 옛 파일은 읽기만 한다', () => {
+  const fn = extractFn(gs, '_importCore');
+  // 옛 파일(src*)에 쓰기를 하면 운영 중인 파일이 망가진다 — 읽기 메서드만 허용
+  const writes = [...fn.matchAll(/\bsrc\w*\.(set\w+|delete\w+|insert\w+|clear\w+)\(/g)];
+  if (writes.length) throw new Error(`옛 파일에 쓰기를 시도합니다: ${writes.map((m) => m[0]).join(', ')}`);
+  if (!fn.includes('_applyProtections(ss)')) throw new Error('가져온 뒤 시트 보호를 다시 걸지 않습니다.');
+  return '쓰기 0건 · 보호 재적용';
 });
 
 check('사용안내에 최신 설정 절차 포함', () => {

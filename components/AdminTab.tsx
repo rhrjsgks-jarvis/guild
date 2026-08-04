@@ -3,13 +3,16 @@
 import { useEffect, useState } from 'react';
 import { api, getStoredEmail, setStoredEmail } from '@/lib/client';
 import ShareCard from './ShareCard';
+import RosterCard from './RosterCard';
 
 export default function AdminTab({
   admin,
+  unit,
   onAuthChange,
   toast,
 }: {
   admin: boolean;
+  unit: string;
   onAuthChange: () => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
@@ -86,9 +89,11 @@ export default function AdminTab({
 
       <ShareCard toast={toast} />
 
-      {/* 기록용 이메일은 실제로 쓰기 작업을 하는 관리자에게만 의미가 있다 */}
+      {/* 아이디 관리와 기록용 이메일은 쓰기 작업을 하는 관리자에게만 의미가 있다 */}
       {admin ? (
         <>
+          <RosterCard unit={unit} onChanged={onAuthChange} toast={toast} />
+
           <div className="sect">📧 기록용 이메일</div>
           <div className="card">
             <div className="field">

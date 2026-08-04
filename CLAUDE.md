@@ -11,7 +11,7 @@
 | 요청 예시 | 고칠 곳 | 배포 |
 |---|---|---|
 | "잔액 탭 정렬 바꿔줘", "버튼 색", "탭 추가" | `components/`, `app/globals.css` | push → Vercel 자동 (1~2분) |
-| "혈비 비율 바꿔줘", "분배 규칙", "새 시트 추가" | `apps-script/GuildManager_v8_0.gs` | **사용자가 직접** 붙여넣고 재배포 |
+| "혈비 비율 바꿔줘", "분배 규칙", "새 시트 추가" | `apps-script/GuildManager_v8_1.gs` | **사용자가 직접** 붙여넣고 재배포 |
 | "API에 기능 추가" | `.gs` 의 `_apiRoute` + `app/api/` | 양쪽 다 |
 
 > ⚠️ `.gs` 안에도 `_mobileHtml` / `_lookupHtml` 이라는 HTML 화면이 있습니다.
@@ -88,9 +88,20 @@
 
 ### 5. 위험한 기능은 API에 노출하지 않는다
 
-`correctDistribution`(분배 정정) · `deleteLedgerItem`(완전 삭제) · `seasonEnd` · `firstTimeSetup` 은
-**PC 시트 메뉴 전용**입니다. 실수 한 번이 전체 정산을 망가뜨립니다.
+`correctDistribution`(분배 정정) · `deleteLedgerItem`(완전 삭제) · `seasonEnd` · `firstTimeSetup` ·
+`importFromExisting`(데이터 이관) 은 **PC 시트 메뉴 전용**입니다. 실수 한 번이 전체 정산을 망가뜨립니다.
 `_apiRoute` 에 추가해달라는 요청을 받으면, 붙이기 전에 어떤 안전장치를 걸지 먼저 상의하세요.
+
+앱에 노출된 쓰기는 **정산 3종(등록·분배·지급) + 아이디 변경** 뿐입니다.
+
+### 5-1. 되돌릴 수 없는 병합은 두 번 물어본다
+
+아이디 변경에서 "이미 있는 이름"으로 바꾸면 두 사람의 잔액이 합쳐집니다. 되돌릴 수 없습니다.
+그래서 `api_renameMember` 는 `confirmMerge` 없이는 거부하고 `needsConfirm` 을 돌려주며,
+앱이 **양쪽 잔액을 보여준 뒤** 다시 호출합니다. 서버 라우트가 이 값을 임의로 `true` 로
+만들면 안전장치가 통째로 무력화됩니다 — `req.confirmMerge === true` 로 엄격하게 전달하세요.
+
+비슷한 성격의 기능(병합·삭제·덮어쓰기)을 새로 만들 때도 같은 2단계 패턴을 쓰세요.
 
 ### 6. 여러 대상의 잔액을 도는 반복문은 개별 try/catch
 

@@ -131,7 +131,7 @@ export default function App() {
           ) : null}
           {tab === 'me' ? <MeTab state={state} /> : null}
           {tab === 'admin' ? (
-            <AdminTab admin={admin} onAuthChange={() => void refresh()} toast={toast} />
+            <AdminTab admin={admin} unit={state.unit} onAuthChange={() => void refresh()} toast={toast} />
           ) : null}
         </main>
       )}

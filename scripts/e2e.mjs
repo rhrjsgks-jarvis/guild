@@ -143,7 +143,13 @@ await t('조회는 인증 없이 열린다', async () => {
   eq(r.admin, false, '비로그인 상태의 admin 플래그');
 });
 
-for (const path of ['/api/admin/register', '/api/admin/distribute', '/api/admin/payout', '/api/admin/photo']) {
+for (const path of [
+  '/api/admin/register',
+  '/api/admin/distribute',
+  '/api/admin/payout',
+  '/api/admin/photo',
+  '/api/admin/rename',
+]) {
   await t(`인증 없이 ${path} → 401`, async () => {
     eq((await post(path, { name: '가이', amount: 100 })).status, 401, 'HTTP 상태');
   });
@@ -186,6 +192,46 @@ await t('지급하면 분배전이 줄고 분배완료가 그만큼 는다', asy
   const after = (await (await post('/api/lookup', { name: '가이' })).json()).data;
   eq(after.pending, before.pending - 400, '분배전');
   eq(after.paid, before.paid + 400, '분배완료');
+});
+
+await t('명단 조회는 관리자만', async () => {
+  eq((await fetch(`${APP}/api/admin/roster`)).status, 401, '비로그인 HTTP 상태');
+  const res = await fetch(`${APP}/api/admin/roster`, { headers: { Cookie: cookie } });
+  eq(res.status, 200, '로그인 HTTP 상태');
+  const list = (await res.json()).data;
+  if (!Array.isArray(list) || list.length === 0) throw new Error('명단이 비어 있습니다.');
+  if (!list.some((m) => m.isFund)) throw new Error('혈비 계정 표시가 없습니다.');
+});
+
+await t('아이디 변경: 잔액이 새 이름으로 따라온다', async () => {
+  const before = (await (await post('/api/lookup', { name: 'PlusS' })).json()).data;
+  const res = await post('/api/admin/rename', { oldName: 'PlusS', newName: 'PlusS바뀜' }, { Cookie: cookie });
+  eq((await res.json()).ok, true, '변경 결과');
+
+  const after = (await (await post('/api/lookup', { name: 'PlusS바뀜' })).json()).data;
+  eq(after.pending, before.pending, '분배전');
+  eq(after.paid, before.paid, '분배완료');
+  eq((await (await post('/api/lookup', { name: 'PlusS' })).json()).ok, false, '옛 이름 조회');
+});
+
+await t('아이디 변경: 이미 있는 이름이면 합치기 전에 되묻는다', async () => {
+  const res = await post('/api/admin/rename', { oldName: '가이', newName: 'TC무식' }, { Cookie: cookie });
+  eq(res.status, 200, 'HTTP 상태');
+  const body = await res.json();
+  eq(body.ok, false, 'ok');
+  eq(body.needsConfirm, true, 'needsConfirm');
+
+  // 되묻기를 무시하고 병합이 일어나지 않았는지 확인
+  eq((await (await post('/api/lookup', { name: '가이' })).json()).ok, true, '가이가 그대로 있어야 함');
+});
+
+await t('아이디 변경: 혈비 계정은 거부된다', async () => {
+  const res = await post(
+    '/api/admin/rename',
+    { oldName: '유일배분(혈비)', newName: '아무거나' },
+    { Cookie: cookie },
+  );
+  eq((await res.json()).ok, false, 'ok');
 });
 
 /* ── ② 화면 흐름 (브라우저) ── */

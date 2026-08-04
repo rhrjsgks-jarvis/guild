@@ -1,7 +1,20 @@
 // ═══════════════════════════════════════════════════════════════
-//  길드 정산 시스템 v8.0  (외부 웹앱 연동: JSON API + Vercel PWA)
+//  길드 정산 시스템 v8.1  (새 파일 이전 · 데이터 이관 · 앱에서 아이디 변경)
 //  시트 구성: [사용안내] [멤버DB] [참여자현황] [분배대기중] [잔액현황]
 //            [지급기록] + [시즌1] [시즌2] ...  ← 이 순서로 항상 정렬됨
+// ═══════════════════════════════════════════════════════════════
+//  변경점 v8.0 → v8.1 (소수점 업 — 이전 경로 + 멤버 관리)
+//   - ★ [📥 기존 길드정산 파일에서 가져오기] 신설: 운영 중인 파일을
+//     건드리지 않고 새 파일에 v8.1을 설치해 두었다가, 준비가 끝나면
+//     이 메뉴 한 번으로 멤버DB·잔액·아이템·지급기록·작업기록을 통째로
+//     옮겨온다. "덮어쓰기" 방식이라 여러 번 실행해도 결과가 같다
+//     (합산 방식이면 두 번 실행할 때 잔액이 불어난다)
+//   - ★ 앱에서 혈맹원 아이디 변경: api_renameMember / 'rename' 액션.
+//     바꿀 이름이 이미 있으면 두 사람의 잔액·참여횟수가 합쳐지므로,
+//     confirmMerge 플래그 없이는 거부하고 앱이 한 번 더 확인받게 한다
+//   - ★ api_getRoster: 멤버 이름 + 게임표시명을 앱에 내려준다
+//   - _renameCore 로 멤버DB 갱신과 잔액 승계를 한 곳에 묶음
+//     (PC 메뉴와 앱이 같은 코어를 쓰도록 — 기존 코어/UI 분리 원칙)
 // ═══════════════════════════════════════════════════════════════
 //  변경점 v7.4 → v8.0 (정수 업 — 구조 변경: 외부 프론트엔드 분리)
 //   - ★ doPost JSON API 신설: 이 스크립트가 "데이터 API"가 되고,
@@ -236,7 +249,7 @@
 //     '누적기록'을 그대로 찾음 (하위 호환, 리네이밍과 무관)
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION = '8.0';
+const VERSION = '8.1';
 const T2S_MAP = {'國':'国','學':'学','這':'这','個':'个','們':'们','說':'说','話':'话','對':'对','時':'时','間':'间','現':'现','場':'场','開':'开','關':'关','內':'内','東':'东','車':'车','馬':'马','龍':'龙','風':'风','陽':'阳','陰':'阴','電':'电','語':'语','讀':'读','寫':'写','書':'书','紙':'纸','筆':'笔','長':'长','門':'门','問':'问','聽':'听','見':'见','覺':'觉','讓':'让','誰':'谁','還':'还','進':'进','運':'运','動':'动','靜':'静','樂':'乐','藥':'药','華':'华','蘭':'兰','葉':'叶','黃':'黄','麗':'丽','寶':'宝','貴':'贵','財':'财','買':'买','賣':'卖','錢':'钱','銀':'银','鐵':'铁','鋼':'钢','陳':'陈','劉':'刘','張':'张','楊':'杨','蔣':'蒋','鄭':'郑','謝':'谢','呂':'吕','蘇':'苏','韓':'韩','馮':'冯','於':'于','鳳':'凤','雲':'云','劍':'剑','斷':'断','亂':'乱','愛':'爱','聲':'声','醫':'医','藝':'艺','頭':'头','臉':'脸','腳':'脚','氣':'气','樓':'楼','橋':'桥','飛':'飞','機':'机','網':'网','線':'线','條':'条','裡':'里','邊':'边','錯':'错','壞':'坏','舊':'旧','寬':'宽','淺':'浅','週':'周','節':'节','業':'业','後':'后','來':'来','終':'终','結':'结','敗':'败','勝':'胜','負':'负','輸':'输','贏':'赢','強':'强','難':'难','簡':'简','單':'单','複':'复','雜':'杂','純':'纯','淨':'净','髒':'脏','齊':'齐','穩':'稳','變':'变','轉':'转','換':'换','顯':'显','樣':'样','種':'种','類':'类','團':'团','體':'体','統':'统','織':'织','組':'组','構':'构','設':'设','計':'计','劃':'划','數':'数','課':'课','題':'题','試':'试','練':'练','習':'习','師':'师','員':'员','職':'职','務':'务','責':'责','權':'权','應':'应','該':'该','須':'须','願':'愿','夢':'梦','憶':'忆','識':'识','認':'认','歡':'欢','醜':'丑','帥':'帅','靈':'灵','獸':'兽','鷹':'鹰','鶴':'鹤','鴻':'鸿','鱷':'鳄','鯨':'鲸','鯊':'鲨','蝦':'虾','殼':'壳','冑':'胄','戰':'战','爭':'争','鬥':'斗','擊':'击','禦':'御','護':'护','衛':'卫','謀':'谋','陣':'阵','營':'营','軍':'军','隊':'队','將':'将','嬪':'嫔','宮':'宫','廟':'庙','觀':'观','閣':'阁','蓮':'莲','楓':'枫','樺':'桦','檜':'桧','樹':'树','實':'实','幹':'干','莖':'茎','穫':'获','採':'采','鮮':'鲜','籠':'笼','傷':'伤','殺':'杀','斬':'斩','豬':'猪','雞':'鸡','鴨':'鸭','鵝':'鹅','龜':'龟','蟬':'蝉','蟻':'蚁','螞':'蚂','鴉':'鸦','鵰':'雕','鴛':'鸳','鴦':'鸯','賽':'赛','廠':'厂','廣':'广','麼':'么','誒':'诶','歲':'岁','歷':'历','歸':'归','殘':'残','蟲':'虫','貓':'猫','氈':'毡','貫':'贯','質':'质','貨':'货','貼':'贴','費':'费','資':'资','賬':'账','賺':'赚','贈':'赠','賀':'贺','賢':'贤','賦':'赋','賤':'贱','賓':'宾','賴':'赖','齲':'龋','齒':'齿','龄':'齡','齡':'龄','齣':'出','岡':'冈','剛':'刚','剮':'剐','創':'创','劇':'剧','勵':'励','勸':'劝','勻':'匀','匯':'汇','醬':'酱','醞':'酝','釀':'酿','釋':'释','釘':'钉','針':'针','釣':'钓','鈍':'钝','鈴':'铃','鈔':'钞','鉛':'铅','鋸':'锯','鋒':'锋','鍵':'键','鎖':'锁','鑄':'铸','鑼':'锣','錶':'表','鐘':'钟','鏡':'镜','鑽':'钻','鑑':'鉴','閉':'闭','閃':'闪','閏':'闰','閱':'阅','闆':'板','闖':'闯','陸':'陆','隱':'隐','雖':'虽','雙':'双','雛':'雏','靂':'雳','韋':'韦','韌':'韧','頁':'页','頂':'顶','項':'项','順':'顺','頌':'颂','預':'预','頑':'顽','頒':'颁','頗':'颇','領':'领','頡':'颉','頜':'颌','頸':'颈','頻':'频','頹':'颓','顆':'颗','額':'额','顏':'颜','顛':'颠','顧':'顾','飄':'飘','饑':'饥','餃':'饺','餅':'饼','館':'馆','饒':'饶','饞':'馋','馳':'驰','駕':'驾','駛':'驶','駐':'驻','駱':'骆','駭':'骇','騎':'骑','騰':'腾','驅':'驱','驚':'惊','驕':'骄','驗':'验','骯':'肮','髮':'发','鬍':'胡','鬧':'闹','鮑':'鲍','鯉':'鲤','鰲':'鳌','鱉':'鳖','鳥':'鸟','鳴':'鸣','鹹':'咸','麥':'麦','麵':'面','黨':'党'};  // 번체→간체 상용한자 (서체 변환 전용, 다른 뜻 글자는 포함하지 않음)
 const UNIT = '다이아';                 // 재화 단위 표기
 const MAX_MEMBERS = 50;               // 최대 멤버 수
@@ -390,7 +403,8 @@ function onOpen() {
     // ── 시스템 관리 ──
     .addItem('🚀 최초 설치 (새 파일에서 1회 실행)', 'firstTimeInstall')
     .addItem('🔄 데이터 보존 업그레이드 (전체 재구성)', 'upgradeKeepData')
-    .addItem('📥 v2 데이터 가져오기 (옛 파일에서)', 'importFromV2')
+    .addItem('📥 기존 길드정산 파일에서 가져오기 (새 파일로 이전)', 'importFromExisting')
+    .addItem('📥 v2 데이터 가져오기 (아주 옛 파일에서)', 'importFromV2')
     .addItem('🔑 웹 API 토큰 (Vercel 앱 연동)', 'manageApiToken')
     .addItem('🔗 디스코드 웹훅 설정', 'setDiscordWebhook')
     .addItem('📤 디스코드로 전송', 'sendLatestToDiscord')
@@ -1275,7 +1289,7 @@ function _writeBalanceRow(bal, row, name, pending, paid, cnt, isUnreg) {
 // ─────────────────────────────────────────
 // ★ 개명 코어: 참여자현황·잔액현황에서 이름을 제자리 변경 (5열 대응)
 // ─────────────────────────────────────────
-function _renameMember(ss, oldName, newName) {
+function _renameMember(ss, oldName, newName, email) {
   // 참여자현황: 멤버DB 기준으로 목록 블록 재구성 (중복 원천 차단)
   _rebuildInputMembers(ss);
 
@@ -1310,8 +1324,30 @@ function _renameMember(ss, oldName, newName) {
       _syncMembers(ss);
     }
   }
-  _logAction(ss, '개명', newName, _getActorEmail(), '"' + oldName + '" → "' + newName + '"' + (msg.indexOf('병합') >= 0 ? ' (중복 병합 발생)' : ''));
-  return { message: msg };
+  _logAction(ss, '개명', newName, _getActorEmail(email), '"' + oldName + '" → "' + newName + '"' + (msg.indexOf('병합') >= 0 ? ' (중복 병합 발생)' : ''));
+  return { message: msg, merged: msg.indexOf('병합') >= 0 };
+}
+
+// ─────────────────────────────────────────
+// ★ 개명 코어 (PC 메뉴 + 앱 공용, UI 없음)
+//   멤버DB(진실 원천)를 먼저 고치고, 그다음 잔액을 승계한다.
+//   순서가 바뀌면 _rebuildInputMembers 가 옛 이름을 다시 써넣는다.
+// ─────────────────────────────────────────
+function _renameCore(ss, oldName, newName, email) {
+  const db = ss.getSheetByName('멤버DB');
+  let found = false;
+  if (db) {
+    const vals = db.getRange(2, 2, MAX_MEMBERS, 1).getValues();
+    vals.forEach((r, i) => {
+      if (_normName(r[0]) === _normName(oldName)) {
+        db.getRange(i + 2, 2).setValue(newName);
+        found = true;
+      }
+    });
+  }
+  const result = _renameMember(ss, oldName, newName, email);
+  result.foundInDb = found;
+  return result;
 }
 
 // 잔액현황 합계행 수식 재작성 헬퍼 (분배전·분배완료 각각 합계)
@@ -1374,15 +1410,7 @@ function renameMemberManual() {
   const newName = r2.getResponseText().trim();
   if (!newName) { ui.alert('⚠️ 새 이름이 비어있습니다.'); return; }
 
-  // 멤버DB에서도 변경
-  const db = ss.getSheetByName('멤버DB');
-  if (db) {
-    const vals = db.getRange(2, 2, MAX_MEMBERS, 1).getValues();
-    vals.forEach((r, i) => {
-      if (String(r[0]).trim() === oldName) db.getRange(i + 2, 2).setValue(newName);
-    });
-  }
-  const result = _renameMember(ss, oldName, newName);
+  const result = _renameCore(ss, oldName, newName, '');
   ui.alert('✅ ' + result.message);
 }
 
@@ -2015,6 +2043,28 @@ function _rebuildGuide(ss) {
     ['· 등록·분배 등 관리 기능이 전혀 없어 길드원에게 안전하게', 'b'],
     ['  공유할 수 있습니다 (매니저는 기존 링크를 계속 사용)', 'b'],
     [''  , 'sp'],
+
+    ['🚚 운영 중인 파일에서 이 파일로 옮기기 (v8.1)', 'sec'],
+    ['쓰던 파일을 건드리지 않고 새 파일에서 준비한 뒤 한 번에 옮깁니다.', 'b'],
+    ['① 이 파일에서 [🚀 최초 설치] 실행 (빈 시트 구성)', 'b'],
+    ['② 앱까지 연결해서 충분히 확인 (이 동안 옛 파일로 계속 정산)', 'b'],
+    ['③ 옮길 준비가 되면 [📥 기존 길드정산 파일에서 가져오기]', 'b'],
+    ['   → 옛 파일 URL 붙여넣기 → 멤버DB·잔액·아이템·지급·작업기록 이관', 'b'],
+    ['④ [🔁 참여횟수 재계산] 으로 출석 수치 정리', 'b'],
+    ['· 덮어쓰기 방식이라 여러 번 실행해도 결과가 같습니다', 'b'],
+    ['· 옛 파일은 읽기만 하고 전혀 바꾸지 않습니다', 'b'],
+    ['⚠️ 새 파일에서 정산을 시작한 뒤에 다시 실행하면 그 작업이', 'warn'],
+    ['   사라집니다. 실행 전 확인 팝업의 경고를 꼭 읽어주세요', 'warn'],
+    ['', 'sp'],
+
+    ['👥 앱에서 혈맹원 아이디 바꾸기 (v8.1)', 'sec'],
+    ['앱 [⚙️ 관리] → PIN 입력 → [혈맹원 관리] 에서 바로 변경합니다.', 'b'],
+    ['· 게임에서 보이는 이름과 정확히 같게 입력하세요 (띄어쓰기 포함)', 'b'],
+    ['· 바꾸면 잔액·참여횟수가 새 이름으로 그대로 따라갑니다', 'b'],
+    ['· 이미 있는 이름으로 바꾸면 두 계정이 합쳐집니다 — 앱이 양쪽', 'b'],
+    ['  잔액을 보여주며 한 번 더 확인을 받습니다', 'b'],
+    ['· 모든 변경은 [작업기록] 시트에 영구히 남습니다', 'b'],
+    ['', 'sp'],
 
     ['📲 스마트폰 전용 앱 (Vercel PWA) — v' + VERSION + ' 신규', 'sec'],
     ['화면은 Vercel에, 데이터는 이 시트가 담당하도록 분리했습니다.', 'b'],
@@ -2862,6 +2912,305 @@ function removeProtectionsMenu() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  👥 혈맹원 명단 · 아이디 변경 API (v8.1)
+// ═══════════════════════════════════════════════════════════════
+
+// 앱 [혈맹원 관리]용 명단 — 이름과 게임표시명(선택)을 함께 준다
+function api_getRoster() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const displayMap = _getDisplayNameMap(ss);
+  const bal = ss.getSheetByName('잔액현황');
+
+  // 잔액이 남은 사람은 이름을 바꿀 때 더 조심해야 하므로 함께 내려준다
+  const pendingMap = {};
+  if (bal && bal.getLastRow() > 1) {
+    bal.getRange(2, 1, bal.getLastRow() - 1, 2).getValues().forEach(r => {
+      const nm = String(r[0]).trim();
+      if (nm && nm !== '합계') {
+        pendingMap[_normName(nm)] = Number(String(r[1]).replace(/,/g, '')) || 0;
+      }
+    });
+  }
+
+  return _getMembers(ss).map(function (name) {
+    return {
+      name: name,
+      displayName: displayMap[name] || '',
+      pending: pendingMap[_normName(name)] || 0,
+      isFund: name === FUND_NAME
+    };
+  });
+}
+
+// 혈맹원 아이디 변경
+//   바꿀 이름이 이미 명단에 있으면 두 사람의 잔액·참여횟수가 합쳐진다.
+//   실수로 남의 잔액을 흡수하는 사고를 막기 위해, 그 경우에는
+//   confirmMerge 를 명시적으로 받기 전까지 거부한다.
+function api_renameMember(oldName, newName, email, confirmMerge) {
+  oldName = String(oldName || '').trim();
+  newName = String(newName || '').trim();
+
+  if (!oldName || !newName) return { ok: false, msg: '이름을 모두 입력해주세요.' };
+  if (newName.length > 30) return { ok: false, msg: '이름이 너무 깁니다 (30자 이내).' };
+  if (_normName(oldName) === _normName(newName)) {
+    return { ok: false, msg: '기존 이름과 같습니다.' };
+  }
+  if (oldName === FUND_NAME || newName === FUND_NAME) {
+    return { ok: false, msg: '혈비 계정(' + FUND_NAME + ')은 앱에서 변경할 수 없습니다. PC 시트에서 처리해주세요.' };
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const members = _getMembers(ss);
+
+  const exists = members.some(function (m) { return _normName(m) === _normName(oldName); });
+  if (!exists) return { ok: false, msg: '"' + oldName + '" 을(를) 멤버DB에서 찾지 못했습니다. 새로고침 후 다시 시도해주세요.' };
+
+  // 이미 있는 이름으로 바꾸려는 경우 → 병합. 한 번 더 확인받는다.
+  const dup = members.filter(function (m) { return _normName(m) === _normName(newName); })[0];
+  if (dup && confirmMerge !== true) {
+    const roster = api_getRoster();
+    const pick = function (nm) {
+      const hit = roster.filter(function (r) { return _normName(r.name) === _normName(nm); })[0];
+      return hit ? hit.pending : 0;
+    };
+    return {
+      ok: false,
+      needsConfirm: true,
+      msg: '"' + newName + '" 은(는) 이미 명단에 있는 이름입니다.\n\n' +
+           '그대로 진행하면 두 계정이 하나로 합쳐집니다.\n' +
+           '· ' + oldName + ' 분배전 ' + pick(oldName).toLocaleString() + UNIT + '\n' +
+           '· ' + newName + ' 분배전 ' + pick(newName).toLocaleString() + UNIT + '\n\n' +
+           '동일 인물이 맞을 때만 진행하세요.'
+    };
+  }
+
+  try {
+    const r = _renameCore(ss, oldName, newName, email);
+    return {
+      ok: true,
+      merged: r.merged === true,
+      msg: '✅ "' + oldName + '" → "' + newName + '" 변경 완료' + (r.merged ? ' (중복 계정 병합됨)' : '')
+    };
+  } catch (e) {
+    return { ok: false, msg: '변경 중 오류가 발생했습니다: ' + e.message };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  📥 기존 길드정산 파일에서 가져오기 (v8.1)
+//
+//  왜 필요한가: 운영 중인 파일을 건드리면 옮기는 동안 길드 관리가 멈춘다.
+//  그래서 새 파일에 v8.1을 설치해 충분히 확인한 뒤, 준비가 끝났을 때
+//  이 메뉴로 실제 데이터를 한 번에 옮긴다.
+//
+//  방식은 "덮어쓰기"다. 여러 번 실행해도 결과가 같아서(멱등),
+//  옮기다 중단되거나 옛 파일에서 며칠 더 쓰다 다시 옮겨도 안전하다.
+//  ⚠️ 반대로, 새 파일에서 이미 정산을 시작한 뒤에 다시 실행하면
+//     그 작업이 사라진다 — 그래서 아래에서 한 번 더 확인받는다.
+// ═══════════════════════════════════════════════════════════════
+const IMPORT_MARK_PROP = 'IMPORTED_FROM';
+
+function importFromExisting() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ui = SpreadsheetApp.getUi();
+  const props = PropertiesService.getDocumentProperties();
+
+  const resp = ui.prompt('📥 기존 길드정산 파일에서 가져오기',
+    '지금 쓰고 계신 길드정산 스프레드시트의 URL(또는 파일 ID)을 붙여넣어주세요.\n' +
+    '※ 같은 구글 계정으로 열 수 있는 파일이어야 합니다.\n' +
+    '※ 옛 파일은 읽기만 하고 전혀 바꾸지 않습니다.',
+    ui.ButtonSet.OK_CANCEL);
+  if (resp.getSelectedButton() !== ui.Button.OK) return;
+
+  const m = String(resp.getResponseText()).match(/[-\w]{25,}/);
+  if (!m) { ui.alert('⚠️ 입력한 값에서 파일 ID를 찾지 못했습니다.'); return; }
+  const oldId = m[0];
+  if (oldId === ss.getId()) { ui.alert('⚠️ 지금 이 파일과 같은 파일입니다.'); return; }
+
+  let old;
+  try {
+    old = SpreadsheetApp.openById(oldId);
+  } catch (e) {
+    ui.alert('❌ 파일을 열 수 없습니다: ' + e.message + '\n\n· 파일 ID가 맞는지\n· 이 계정에 열람 권한이 있는지 확인해주세요.');
+    return;
+  }
+
+  const srcDb = old.getSheetByName('멤버DB');
+  const srcBal = old.getSheetByName('잔액현황');
+  const srcLedger = old.getSheetByName(LEDGER_SHEET) || old.getSheetByName('누적기록');
+  const srcPay = old.getSheetByName(PAYOUT_SHEET);
+  const srcLog = old.getSheetByName(AUDIT_SHEET);
+
+  if (!srcDb && !srcBal && !srcLedger) {
+    ui.alert('⚠️ 그 파일에서 [멤버DB]/[잔액현황]/[' + LEDGER_SHEET + '] 을 찾지 못했습니다.\n길드정산 파일이 맞는지 확인해주세요.');
+    return;
+  }
+  if (!ss.getSheetByName('멤버DB') || !ss.getSheetByName('잔액현황')) {
+    ui.alert('❌ 이 파일에 시트가 아직 없습니다.\n메뉴 [🚀 최초 설치] 를 먼저 실행해주세요.');
+    return;
+  }
+
+  const rows = function (sheet) { return sheet ? Math.max(sheet.getLastRow() - 1, 0) : 0; };
+  let warn = '옛 파일: "' + old.getName() + '"\n\n' +
+    '· 멤버DB ' + rows(srcDb) + '명\n' +
+    '· 잔액현황 ' + rows(srcBal) + '행\n' +
+    '· ' + LEDGER_SHEET + ' ' + rows(srcLedger) + '건\n' +
+    '· ' + PAYOUT_SHEET + ' ' + rows(srcPay) + '건\n' +
+    '· ' + AUDIT_SHEET + ' ' + rows(srcLog) + '건\n\n' +
+    '이 파일의 기존 내용을 지우고 위 내용으로 덮어씁니다.';
+
+  const already = props.getProperty(IMPORT_MARK_PROP);
+  if (already) {
+    warn += '\n\n🚨 이 파일은 이미 ' + already + ' 에 가져오기를 실행했습니다.\n' +
+            '다시 실행하면 그 이후 이 파일에서 한 등록·분배·지급이 모두 사라집니다.';
+  }
+
+  if (ui.alert('📥 가져오기 확인', warn + '\n\n계속할까요?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+
+  try {
+    const report = _importCore(ss, old, srcDb, srcBal, srcLedger, srcPay, srcLog);
+    props.setProperty(IMPORT_MARK_PROP,
+      Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm'));
+    _logAction(ss, '데이터가져오기', old.getName(), _getActorEmail(''), report.join(' / '));
+    ui.alert('✅ 가져오기 완료\n\n' + report.join('\n') +
+      '\n\n다음으로:\n· [🔁 참여횟수 재계산] 으로 출석 수치를 맞춰보세요\n' +
+      '· 앱에서 잔액이 옛 파일과 같은지 확인하세요');
+  } catch (e) {
+    ui.alert('❌ 가져오는 중 오류가 발생했습니다.\n\n' + e.message +
+      '\n\n옛 파일은 그대로입니다. 원인을 확인한 뒤 다시 실행해주세요.');
+  }
+}
+
+// 실제 이관 (UI 없음)
+function _importCore(ss, old, srcDb, srcBal, srcLedger, srcPay, srcLog) {
+  const report = [];
+
+  // ── ① 멤버DB — 이름이 유일한 진실 원천이므로 가장 먼저 ──
+  if (srcDb && srcDb.getLastRow() > 1) {
+    const n = Math.min(srcDb.getLastRow() - 1, MAX_MEMBERS);
+    const width = Math.max(srcDb.getLastColumn(), 4);
+    const vals = srcDb.getRange(2, 1, n, width).getValues();
+    const db = ss.getSheetByName('멤버DB');
+    db.getRange(2, 2, MAX_MEMBERS, 1).clearContent();   // 이름(B)
+    db.getRange(2, 4, MAX_MEMBERS, 1).clearContent();   // 게임표시명(D)
+
+    const names = [];
+    const displays = [];
+    vals.forEach(function (r) {
+      const nm = String(r[1]).trim();
+      if (!nm) return;
+      names.push([nm]);
+      displays.push([width >= 4 ? String(r[3]).trim() : '']);
+    });
+    if (names.length) {
+      db.getRange(2, 2, names.length, 1).setValues(names);
+      db.getRange(2, 4, displays.length, 1).setValues(displays);
+    }
+    report.push('멤버DB ' + names.length + '명');
+  }
+
+  // 멤버DB 기준으로 참여자현황·잔액현황 행을 만들어 둔다
+  _syncMembers(ss);
+  _rebuildInputMembers(ss);
+
+  // ── ② 잔액현황 — 이름별 분배전/분배완료/참여횟수 덮어쓰기 ──
+  if (srcBal && srcBal.getLastRow() > 1) {
+    const map = _readBalanceMap(srcBal);   // {name: {pending, paid, cnt}}
+    const bal = ss.getSheetByName('잔액현황');
+    const curVals = bal.getRange(2, 1, Math.max(bal.getLastRow() - 1, 1), 1).getValues();
+
+    const nameToRow = {};
+    let totalRow = -1;
+    curVals.forEach(function (r, i) {
+      const nm = String(r[0]).trim();
+      if (nm === '합계') { totalRow = i + 2; return; }
+      if (nm) nameToRow[_normName(nm)] = i + 2;
+    });
+
+    let applied = 0;
+    let carried = 0;
+    Object.keys(map).forEach(function (name) {
+      const d = map[name];
+      const key = _normName(name);
+      if (nameToRow[key]) {
+        const row = nameToRow[key];
+        bal.getRange(row, BAL_COL.PENDING).setValue(d.pending);
+        bal.getRange(row, BAL_COL.PAID).setValue(d.paid);
+        bal.getRange(row, BAL_COL.CNT).setValue(d.cnt);
+        applied++;
+      } else if (d.pending || d.paid || d.cnt) {
+        // 멤버DB에 없는 옛 이름(탈퇴자 등) — 잔액이 있으면 버리지 않고 보존한다
+        const insertAt = totalRow > 0 ? totalRow : bal.getLastRow() + 1;
+        if (totalRow > 0) bal.insertRowBefore(totalRow);
+        _writeBalanceRow(bal, insertAt, name, d.pending, d.paid, d.cnt, true);
+        if (totalRow > 0) totalRow++;
+        carried++;
+      }
+    });
+    _rewriteBalanceTotal(bal);
+    report.push('잔액 ' + applied + '명' + (carried ? ' (+미등록 ' + carried + '명 보존)' : ''));
+  }
+
+  // ── ③ 아이템 파이프라인 ──
+  if (srcLedger && srcLedger.getLastRow() > 1) {
+    const ledger = ss.getSheetByName(LEDGER_SHEET);
+    if (ledger.getLastRow() > 1) ledger.deleteRows(2, ledger.getLastRow() - 1);
+
+    const n = srcLedger.getLastRow() - 1;
+    const width = Math.max(srcLedger.getLastColumn(), 7);
+    const vals = srcLedger.getRange(2, 1, n, width).getValues();
+    const fmls = srcLedger.getRange(2, 1, n, width).getFormulas();
+    const isNew = String(srcLedger.getRange(1, 3).getValue()).indexOf('상태') >= 0;
+    const pad14 = function (arr) { const a = arr.slice(0, 14); while (a.length < 14) a.push(''); return a; };
+
+    const out = [];
+    const photos = [];
+    for (let i = 0; i < n; i++) {
+      const v = vals[i];
+      if (isNew) {
+        out.push(pad14(v));
+        photos.push(fmls[i][LG.PHOTO - 1] || '');
+      } else {
+        // 아주 옛 스키마: [날짜, 아이템, 총액, 인원, 1인당, 명단, 인증샷, (혈비)]
+        out.push(pad14([v[0], v[1], ST_DONE, v[3], v[5], '', '', v[2], (v[7] !== undefined ? v[7] : ''), v[4], v[0]]));
+        photos.push(fmls[i][6] || '');
+      }
+    }
+    ledger.getRange(2, 1, n, 14).setValues(out);
+    for (let i = 0; i < n; i++) {
+      if (photos[i]) ledger.getRange(2 + i, LG.PHOTO).setFormula(photos[i]);
+      ledger.getRange(2 + i, LG.CHECK).insertCheckboxes();
+    }
+    ledger.getRange(2, LG.DATE, n, 1).setNumberFormat('yyyy-mm-dd hh:mm');
+    ledger.getRange(2, LG.DIST, n, 1).setNumberFormat('yyyy-mm-dd hh:mm');
+    [LG.AMOUNT, LG.FUND, LG.PER].forEach(function (col) {
+      ledger.getRange(2, col, n, 1).setNumberFormat('#,##0');
+    });
+    ledger.getRange(2, LG.STATUS, n, 1).setHorizontalAlignment('center');
+    report.push(LEDGER_SHEET + ' ' + n + '건');
+  }
+
+  // ── ④ 지급기록 · ⑤ 작업기록 — 있는 그대로 옮긴다 ──
+  [[srcPay, PAYOUT_SHEET], [srcLog, AUDIT_SHEET]].forEach(function (pair) {
+    const from = pair[0];
+    const name = pair[1];
+    if (!from || from.getLastRow() < 2) return;
+    const to = ss.getSheetByName(name) || (name === AUDIT_SHEET ? _getOrCreateAuditLog(ss) : null);
+    if (!to) return;
+    if (to.getLastRow() > 1) to.deleteRows(2, to.getLastRow() - 1);
+    const n = from.getLastRow() - 1;
+    const width = Math.min(Math.max(from.getLastColumn(), 1), to.getMaxColumns());
+    to.getRange(2, 1, n, width).setValues(from.getRange(2, 1, n, width).getValues());
+    to.getRange(2, 1, n, 1).setNumberFormat('yyyy-mm-dd hh:mm:ss');
+    report.push(name + ' ' + n + '건');
+  });
+
+  _applyProtections(ss);
+  _applyMemberNameFormatting(ss);
+  return report;
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  🌐 외부 웹앱 연동 JSON API (v8.0)
 //
 //  화면(PWA)은 Vercel에, 데이터는 이 스크립트가 담당하는 구조.
@@ -2878,7 +3227,7 @@ function removeProtectionsMenu() {
 // ═══════════════════════════════════════════════════════════════
 const API_TOKEN_PROP = 'API_TOKEN';
 // 쓰기(잔액·원장을 바꾸는) 액션 — LockService로 직렬화한다
-const API_WRITE_ACTIONS = ['register', 'distribute', 'payout'];
+const API_WRITE_ACTIONS = ['register', 'distribute', 'payout', 'rename'];
 
 // 🔑 토큰 발급·확인·재발급 (메뉴)
 function manageApiToken() {
@@ -2995,6 +3344,12 @@ function _apiRoute(action, req) {
 
     case 'photo':
       return api_analyzePhoto(req.base64);
+
+    case 'roster':
+      return { ok: true, data: api_getRoster() };
+
+    case 'rename':
+      return api_renameMember(req.oldName, req.newName, req.email, req.confirmMerge === true);
 
     // ⚠️ correctDistribution / deleteLedgerItem 은 의도적으로 노출하지 않는다.
     //    (되돌리기·완전삭제는 제작자 전용 PC 메뉴 유지 — 아키텍처 함정 #17)

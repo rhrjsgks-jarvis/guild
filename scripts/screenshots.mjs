@@ -148,6 +148,18 @@ await snap('admin', '등록 확인 — 마지막 점검');
 await page.getByRole('button', { name: '취소' }).click();
 await page.waitForTimeout(300);
 
+/* ── 혈맹원 아이디 관리 ── */
+await tab('관리');
+await page.waitForSelector('.row-name', { timeout: 10_000 });
+await page.getByText('혈맹원 아이디 관리').scrollIntoViewIfNeeded();
+await snap('admin', '혈맹원 관리 — 아이디 목록');
+
+await page.getByRole('button', { name: '변경' }).first().click();
+await page.waitForTimeout(400);
+await snap('admin', '아이디 변경 — 잔액이 따라옴');
+await page.getByRole('button', { name: '취소' }).click();
+await page.waitForTimeout(300);
+
 /* ── 다크 모드 ── */
 await page.emulateMedia({ colorScheme: 'dark' });
 await tab('잔액');
