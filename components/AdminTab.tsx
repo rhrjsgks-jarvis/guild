@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { api, getStoredEmail, setStoredEmail } from '@/lib/client';
+import ShareCard from './ShareCard';
 
 export default function AdminTab({
   admin,
@@ -83,32 +84,39 @@ export default function AdminTab({
         )}
       </div>
 
-      <div className="sect">📧 기록용 이메일</div>
-      <div className="card">
-        <div className="field">
-          <input
-            type="text"
-            inputMode="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <button
-            className="btn ghost block"
-            style={{ marginTop: 10 }}
-            onClick={() => {
-              setStoredEmail(email);
-              toast(email.trim() ? `저장했습니다: ${email.trim()}` : '이메일을 지웠습니다.');
-            }}
-          >
-            저장
-          </button>
-          <p className="hint">
-            누가 등록·분배·지급했는지 시트 [작업기록]에 남기기 위한 값입니다. 이 기기에만 저장되고 다른 사람에게
-            보이지 않습니다.
-          </p>
-        </div>
-      </div>
+      <ShareCard toast={toast} />
+
+      {/* 기록용 이메일은 실제로 쓰기 작업을 하는 관리자에게만 의미가 있다 */}
+      {admin ? (
+        <>
+          <div className="sect">📧 기록용 이메일</div>
+          <div className="card">
+            <div className="field">
+              <input
+                type="text"
+                inputMode="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <button
+                className="btn ghost block"
+                style={{ marginTop: 10 }}
+                onClick={() => {
+                  setStoredEmail(email);
+                  toast(email.trim() ? `저장했습니다: ${email.trim()}` : '이메일을 지웠습니다.');
+                }}
+              >
+                저장
+              </button>
+              <p className="hint">
+                누가 등록·분배·지급했는지 시트 [작업기록]에 남기기 위한 값입니다. 이 기기에만 저장되고 다른
+                사람에게 보이지 않습니다.
+              </p>
+            </div>
+          </div>
+        </>
+      ) : null}
 
       <div className="sect">📲 앱처럼 쓰기</div>
       <div className="card">

@@ -45,9 +45,19 @@ Apps Script 편집기에서 우측 상단 **[배포] → [새 배포]**
 
 ## ③ Vercel에 배포
 
-1. [vercel.com](https://vercel.com) 로그인 (GitHub 계정으로)
-2. **Add New → Project** → 이 저장소(`guild`) 선택 → **Import**
-3. 빌드 설정은 건드리지 말고 (Next.js 자동 인식), **Environment Variables** 에 4개 등록:
+1. [vercel.com/new](https://vercel.com/new) 로그인 (GitHub 계정으로)
+2. **Add New → Project** → 이 저장소(`rhrjsgks-jarvis/guild`) 선택 → **Import**
+3. **Project Name 을 `guild-manager` 로 지정** ← 이 이름이 그대로 주소가 됩니다
+
+   | Project Name | 접속 주소 |
+   |---|---|
+   | `guild-manager` | `https://guild-manager.vercel.app` |
+
+   `gyeongwon-ax-hub` → `gyeongwon-ax-hub.vercel.app` 와 같은 방식입니다.
+   이미 누가 쓰는 이름이면 거절당하니, 그때는 `guild-dia`·`guild-settle` 같은 다른 이름을 쓰세요.
+   나중에 Settings → General → Project Name 에서 바꿔도 주소가 따라옵니다.
+
+4. 빌드 설정은 건드리지 말고 (Next.js 자동 인식), **Environment Variables** 에 4개 등록:
 
 | Name | Value |
 |---|---|
@@ -56,7 +66,11 @@ Apps Script 편집기에서 우측 상단 **[배포] → [새 배포]**
 | `ADMIN_PIN` | 직접 정하는 관리자 비밀번호 (6자리 이상 권장) |
 | `SESSION_SECRET` | 아무 긴 임의 문자열 (예: `openssl rand -base64 32` 결과) |
 
-4. **Deploy**
+5. **Deploy**
+
+> 저장소의 기본 브랜치가 `claude/mobile-app-web-deploy-nsr2o2` 라서, Vercel이 이 브랜치를
+> 자동으로 Production Branch 로 잡습니다. 앞으로 이 브랜치에 push 되면 1~2분 뒤 자동 반영됩니다.
+> (Settings → Git → Production Branch 에서 언제든 바꿀 수 있습니다)
 
 ---
 
@@ -93,7 +107,8 @@ https://<앱주소>.vercel.app/api/health
 홈 화면 아이콘으로 열면 주소창 없이 전체화면으로 뜹니다.
 
 **길드원에게는 이 주소를 그냥 공유하면 됩니다.** PIN 없이는 조회만 되니 안전합니다.
-관리자만 앱에서 **[⚙️ 관리]** 탭 → PIN 입력 → 등록·분배·지급 버튼이 나타납니다.
+앱 **[⚙️ 관리]** 탭의 **📤 길드원에게 공유하기** 카드에 QR·링크 복사·공유 버튼이 있습니다.
+관리자만 같은 탭에서 PIN을 입력하면 등록·분배·지급 버튼이 나타납니다.
 
 ---
 
