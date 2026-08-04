@@ -152,14 +152,17 @@ const handlers = {
     return { ok: true, msg };
   },
 
+  // 명단은 멤버DB 기준이라, 탈퇴 처리된 '(미등록)' 행은 빠진다
   roster: () => ({
     ok: true,
-    data: S.rows.map((r) => ({
-      name: r.name,
-      displayName: '',
-      pending: r.pending,
-      isFund: r.name === FUND_NAME,
-    })),
+    data: S.rows
+      .filter((r) => !r.name.includes('(미등록)'))
+      .map((r) => ({
+        name: r.name,
+        displayName: '',
+        pending: r.pending,
+        isFund: r.name === FUND_NAME,
+      })),
   }),
 
   rename: ({ oldName, newName, confirmMerge }) => {
@@ -195,6 +198,44 @@ const handlers = {
 
     from.name = newName;
     return { ok: true, merged: false, msg: `✅ "${oldName}" → "${newName}" 변경 완료` };
+  },
+
+  addMember: ({ name }) => {
+    const nm = String(name || '').trim();
+    if (!nm) return { ok: false, msg: '아이디를 입력해주세요.' };
+    if (nm === FUND_NAME) return { ok: false, msg: '혈비 계정은 앱에서 추가할 수 없습니다.' };
+    if (findRow(nm)) return { ok: false, msg: `"${nm}" 은(는) 이미 명단에 있습니다.` };
+    if (S.rows.length >= 50) return { ok: false, msg: '멤버가 최대 인원(50명)에 도달했습니다.' };
+
+    S.rows.push({ name: nm, pending: 0, paid: 0, cnt: 0 });
+    return { ok: true, msg: `✅ "${nm}" 을(를) 명단에 추가했습니다.` };
+  },
+
+  removeMember: ({ name, confirmRemove }) => {
+    const r = findRow(name);
+    if (!r) return { ok: false, msg: `"${name}" 을(를) 멤버DB에서 찾지 못했습니다.` };
+    if (r.name === FUND_NAME) return { ok: false, msg: '혈비 계정은 앱에서 뺄 수 없습니다.' };
+
+    const isRemainder = r.name === REMAINDER_NAME;
+    if (confirmRemove !== true && (r.pending > 0 || isRemainder)) {
+      let warn = `"${r.name}" 을(를) 명단에서 뺍니다.\n\n`;
+      if (r.pending > 0) {
+        warn += `⚠️ 아직 받지 않은 분배전 잔액이 ${r.pending.toLocaleString()}${UNIT} 남아 있습니다.\n\n`;
+      }
+      if (isRemainder) warn += '⚠️ 이 사람은 분배 나머지가 적립되는 대상입니다.\n\n';
+      return { ok: false, needsConfirm: true, msg: warn + '그래도 진행할까요?' };
+    }
+
+    // 이력이 전혀 없을 때만 목록에서 지우고, 그 외에는 '(미등록)'으로 보존한다
+    const kept = !(r.pending === 0 && r.paid === 0 && r.cnt === 0);
+    if (kept) r.name = `${r.name} (미등록)`;
+    else S.rows.splice(S.rows.indexOf(r), 1);
+
+    return {
+      ok: true,
+      kept,
+      msg: `✅ "${name}" 탈퇴 처리 완료` + (kept ? ' — 기록은 "(미등록)" 으로 남겨두었습니다.' : ' — 이력이 없어 목록에서 지웠습니다.'),
+    };
   },
 
   // OCR은 흉내만 낸다 — 실제 인식은 드라이브가 필요하다

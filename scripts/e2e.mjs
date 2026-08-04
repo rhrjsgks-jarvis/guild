@@ -104,6 +104,28 @@ const post = (path, body, headers = {}) =>
 
 console.log('\n🧪 통합 테스트\n');
 
+/**
+ * 이전 실행이 남긴 서버가 포트를 잡고 있으면, 그쪽이 옛 빌드를 계속 내주는 바람에
+ * "청크를 못 찾는다"는 엉뚱한 오류로 테스트가 무더기로 깨진다. 실제로 두 번 겪었다.
+ * 원인을 헤매지 않도록 시작 전에 확인하고 분명하게 알린다.
+ */
+for (const [label, port] of [
+  ['모의 시트', MOCK_PORT],
+  ['앱', APP_PORT],
+]) {
+  try {
+    await fetch(`http://127.0.0.1:${port}`, { signal: AbortSignal.timeout(1500) });
+    console.error(
+      `❌ 포트 ${port} 를 이미 누가 쓰고 있습니다 (${label}).\n` +
+        `   이전 실행이 남아 있을 수 있습니다. 아래로 정리한 뒤 다시 실행하세요:\n` +
+        `   pgrep -f "scripts/mock-sheet|next start" | xargs -r kill -9\n`,
+    );
+    process.exit(1);
+  } catch {
+    /* 아무도 안 쓰고 있다 — 정상 */
+  }
+}
+
 spawnBg('node', ['scripts/mock-sheet.mjs'], { MOCK_PORT: String(MOCK_PORT) });
 spawnBg('npx', ['next', 'start', '-p', String(APP_PORT)], {
   GAS_URL: MOCK,
@@ -144,6 +166,7 @@ await t('조회는 인증 없이 열린다', async () => {
 });
 
 for (const path of [
+  '/api/admin/member',
   '/api/admin/register',
   '/api/admin/distribute',
   '/api/admin/payout',
@@ -234,6 +257,75 @@ await t('아이디 변경: 혈비 계정은 거부된다', async () => {
   eq((await res.json()).ok, false, 'ok');
 });
 
+await t('혈맹원 추가: 명단에 들어가고 중복은 거부된다', async () => {
+  const res = await post('/api/admin/member', { name: '신입혈맹원' }, { Cookie: cookie });
+  eq((await res.json()).ok, true, '추가 결과');
+
+  const list = (await (await fetch(`${APP}/api/admin/roster`, { headers: { Cookie: cookie } })).json()).data;
+  if (!list.some((m) => m.name === '신입혈맹원')) throw new Error('명단에 없습니다.');
+
+  const dup = await post('/api/admin/member', { name: '신입혈맹원' }, { Cookie: cookie });
+  eq((await dup.json()).ok, false, '중복 추가');
+});
+
+await t('탈퇴: 이력 없는 사람은 목록에서 사라진다', async () => {
+  const res = await fetch(`${APP}/api/admin/member`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    body: JSON.stringify({ name: '신입혈맹원' }),
+  });
+  const body = await res.json();
+  eq(body.ok, true, '탈퇴 결과');
+  eq(body.kept, false, '이력이 없으므로 보존하지 않음');
+
+  const list = (await (await fetch(`${APP}/api/admin/roster`, { headers: { Cookie: cookie } })).json()).data;
+  if (list.some((m) => m.name === '신입혈맹원')) throw new Error('아직 명단에 남아 있습니다.');
+});
+
+await t('탈퇴: 잔액이 남으면 먼저 되묻는다', async () => {
+  const res = await fetch(`${APP}/api/admin/member`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    body: JSON.stringify({ name: '대서과Z' }),
+  });
+  eq(res.status, 200, 'HTTP 상태');
+  const body = await res.json();
+  eq(body.ok, false, 'ok');
+  eq(body.needsConfirm, true, 'needsConfirm');
+
+  // 되묻기를 무시하고 빠지지 않았는지 확인
+  const list = (await (await fetch(`${APP}/api/admin/roster`, { headers: { Cookie: cookie } })).json()).data;
+  if (!list.some((m) => m.name === '대서과Z')) throw new Error('확인 없이 탈퇴되었습니다.');
+});
+
+await t('탈퇴: 확인하면 기록은 (미등록)으로 남는다', async () => {
+  const before = (await (await post('/api/lookup', { name: '대서과Z' })).json()).data;
+  const res = await fetch(`${APP}/api/admin/member`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    body: JSON.stringify({ name: '대서과Z', confirmRemove: true }),
+  });
+  const body = await res.json();
+  eq(body.ok, true, '탈퇴 결과');
+  eq(body.kept, true, '잔액이 있으므로 보존');
+
+  // 명단에서는 빠지되, 잔액 기록 자체는 사라지지 않아야 한다
+  const list = (await (await fetch(`${APP}/api/admin/roster`, { headers: { Cookie: cookie } })).json()).data;
+  if (list.some((m) => m.name === '대서과Z')) throw new Error('명단에 남아 있습니다.');
+
+  const still = (await (await post('/api/lookup', { name: '대서과Z' })).json()).data;
+  eq(still.pending, before.pending, '보존된 분배전');
+});
+
+await t('탈퇴: 혈비 계정은 거부된다', async () => {
+  const res = await fetch(`${APP}/api/admin/member`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    body: JSON.stringify({ name: '유일배분(혈비)', confirmRemove: true }),
+  });
+  eq((await res.json()).ok, false, 'ok');
+});
+
 /* ── ② 화면 흐름 (브라우저) ── */
 
 const browser = await chromium.launch({ executablePath: chromiumPath() });
@@ -256,16 +348,16 @@ await t('길드원 화면: 잔액이 보이고 관리 버튼은 없다', async (
   await page.waitForSelector('.row-name');
   await shot('01-viewer-balance');
 
-  await page.getByRole('button', { name: /아이템/ }).click();
+  await page.locator('.nav button', { hasText: /아이템/ }).click();
   await page.waitForTimeout(300);
   eq(await page.getByRole('button', { name: '분배' }).count(), 0, '분배 버튼 개수');
-  await page.getByRole('button', { name: /잔액/ }).click();
+  await page.locator('.nav button', { hasText: /잔액/ }).click();
   await page.waitForTimeout(300);
   eq(await page.getByRole('button', { name: '지급' }).count(), 0, '지급 버튼 개수');
 });
 
 await t('공유 카드의 QR이 앱 주소로 디코딩된다', async () => {
-  await page.getByRole('button', { name: /관리/ }).click();
+  await page.locator('.nav button', { hasText: /관리/ }).click();
   await page.waitForSelector('[aria-label="앱 주소 QR 코드"] svg', { timeout: 10_000 });
   await shot('02-share');
 
@@ -296,7 +388,7 @@ await t('PIN을 넣으면 관리 버튼이 나타난다', async () => {
   await page.locator('#pin').fill(PIN);
   await page.getByRole('button', { name: /잠금 해제/ }).click();
   await page.waitForTimeout(1200);
-  await page.getByRole('button', { name: /잔액/ }).click();
+  await page.locator('.nav button', { hasText: /잔액/ }).click();
   await page.waitForTimeout(500);
   if ((await page.getByRole('button', { name: '지급' }).count()) === 0) {
     throw new Error('로그인 후에도 지급 버튼이 없습니다.');
@@ -305,7 +397,7 @@ await t('PIN을 넣으면 관리 버튼이 나타난다', async () => {
 });
 
 await t('분배 미리보기가 혈비·1인당을 정확히 계산한다', async () => {
-  await page.getByRole('button', { name: /아이템/ }).click();
+  await page.locator('.nav button', { hasText: /아이템/ }).click();
   await page.waitForTimeout(300);
   await page.getByRole('button', { name: '분배' }).first().click();
   await page.locator('#amt').fill('50000');

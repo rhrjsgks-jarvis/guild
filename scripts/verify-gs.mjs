@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v8_1.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v8_2.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 const gs = readFileSync(GS_PATH, 'utf8');
@@ -95,7 +95,11 @@ check('API 라우터 — 필요한 액션 노출 / 위험한 액션 차단', () 
   const router = gs.slice(gs.indexOf('function _apiRoute'));
   const routed = [...router.matchAll(/case '(\w+)':/g)].map((m) => m[1]);
 
-  const required = ['ping', 'state', 'members', 'lookup', 'register', 'distribute', 'payout', 'photo', 'roster', 'rename'];
+  const required = [
+    'ping', 'state', 'members', 'lookup',
+    'register', 'distribute', 'payout', 'photo',
+    'roster', 'rename', 'addMember', 'removeMember',
+  ];
   const missing = required.filter((a) => !routed.includes(a));
   if (missing.length) throw new Error(`누락된 액션: ${missing.join(', ')}`);
 
@@ -111,7 +115,7 @@ check('쓰기 액션은 전부 LockService 대상', () => {
   const list = gs.match(/API_WRITE_ACTIONS = \[([^\]]*)\]/)?.[1];
   if (!list) throw new Error('API_WRITE_ACTIONS 상수를 찾을 수 없습니다.');
   const actions = list.replace(/['\s]/g, '').split(',').filter(Boolean);
-  const mustLock = ['register', 'distribute', 'payout', 'rename'];
+  const mustLock = ['register', 'distribute', 'payout', 'rename', 'addMember', 'removeMember'];
   const unlocked = mustLock.filter((a) => !actions.includes(a));
   if (unlocked.length) throw new Error(`락이 걸리지 않는 쓰기 액션: ${unlocked.join(', ')}`);
   if (!/lock\.waitLock\(/.test(gs)) throw new Error('waitLock 호출이 없습니다.');
@@ -200,6 +204,38 @@ check('아이디 변경: 병합은 반드시 재확인을 거친다', () => {
     throw new Error('라우터가 confirmMerge 를 엄격하게 다루지 않습니다.');
   }
   return '재확인·혈비보호·라우터 전달';
+});
+
+check('탈퇴 처리: 기록을 지우지 않는다', () => {
+  const fn = extractFn(gs, 'api_removeMember');
+
+  // 잔액이 남았거나 나머지 귀속 대상이면 한 번 더 물어봐야 한다
+  if (!fn.includes('confirmRemove !== true')) throw new Error('재확인 절차가 없습니다.');
+  if (!fn.includes('needsConfirm')) throw new Error('앱에 재확인을 요청하는 응답이 없습니다.');
+  if (!fn.includes('REMAINDER_NAME')) throw new Error('나머지 귀속 대상 경고가 없습니다.');
+  if (!fn.includes('FUND_NAME')) throw new Error('혈비 계정 보호가 없습니다.');
+
+  // 이력이 남아 있으면 '(미등록)'으로 보존하고, 전부 0일 때만 행을 지운다
+  if (!/pending === 0 && paid === 0 && cnt === 0/.test(fn)) {
+    throw new Error('이력이 있는데도 행을 지울 수 있는 구조입니다.');
+  }
+  if (!/_writeBalanceRow\([^)]*true\)/.test(fn)) throw new Error("'(미등록)' 보존 경로가 없습니다.");
+  if (!fn.includes('_logAction')) throw new Error('작업기록 로깅이 없습니다.');
+
+  // 분배대기중·작업기록 같은 기록 시트에는 절대 손대면 안 된다
+  if (/(LEDGER_SHEET|AUDIT_SHEET|PAYOUT_SHEET)[^\n]*delete/.test(fn)) {
+    throw new Error('기록 시트를 지우려 합니다.');
+  }
+  return '재확인·이력보존·로깅';
+});
+
+check('혈맹원 추가: 중복과 상한을 막는다', () => {
+  const fn = extractFn(gs, 'api_addMember');
+  if (!fn.includes('_normName')) throw new Error('중복 검사가 _normName 을 거치지 않습니다.');
+  if (!fn.includes('MAX_MEMBERS')) throw new Error('최대 인원 검사가 없습니다.');
+  if (!fn.includes('FUND_NAME')) throw new Error('혈비 계정 보호가 없습니다.');
+  if (!fn.includes('_syncMembers')) throw new Error('추가 후 시트 동기화가 없습니다.');
+  return '중복·상한·혈비보호';
 });
 
 check('가져오기: 옛 파일은 읽기만 한다', () => {

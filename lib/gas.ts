@@ -19,7 +19,9 @@ export type GasAction =
   | 'payout'
   | 'photo'
   | 'roster'
-  | 'rename';
+  | 'rename'
+  | 'addMember'
+  | 'removeMember';
 
 export type GasResponse = Record<string, unknown> & { ok: boolean; msg?: string };
 

@@ -91,8 +91,10 @@ async function snap(group, label) {
   console.log(`  📸 ${label}`);
 }
 
+// 탭 전환은 반드시 하단 탭바로 한정한다 — 목록 안에도 '관리' 버튼이 있어서
+// 범위를 안 좁히면 엉뚱한 버튼이 눌린다
 const tab = async (name) => {
-  await page.getByRole('button', { name: new RegExp(name) }).click();
+  await page.locator('.nav button', { hasText: new RegExp(name) }).click();
   await page.waitForTimeout(400);
 };
 
@@ -151,12 +153,24 @@ await page.waitForTimeout(300);
 /* ── 혈맹원 아이디 관리 ── */
 await tab('관리');
 await page.waitForSelector('.row-name', { timeout: 10_000 });
-await page.getByText('혈맹원 아이디 관리').scrollIntoViewIfNeeded();
-await snap('admin', '혈맹원 관리 — 아이디 목록');
+await page.getByText(/혈맹원 관리/).first().scrollIntoViewIfNeeded();
+await snap('admin', '혈맹원 관리 — 추가·변경·탈퇴');
 
-await page.getByRole('button', { name: '변경' }).first().click();
+await page.getByRole('button', { name: '➕ 혈맹원 추가' }).click();
+await page.locator('#addName').fill('신입혈맹원');
+await snap('admin', '혈맹원 추가');
+await page.getByRole('button', { name: '취소' }).click();
+await page.waitForTimeout(300);
+
+// 목록 행의 [관리] 버튼 (하단 탭바가 아니라)
+await page.locator('.row button', { hasText: '관리' }).first().click();
 await page.waitForTimeout(400);
-await snap('admin', '아이디 변경 — 잔액이 따라옴');
+await snap('admin', '아이디 변경 · 탈퇴');
+await page.getByRole('button', { name: /탈퇴 처리/ }).click();
+await page.waitForTimeout(700);
+await snap('admin', '탈퇴 — 잔액이 남으면 되물음');
+await page.getByRole('button', { name: '뒤로' }).click();
+await page.waitForTimeout(300);
 await page.getByRole('button', { name: '취소' }).click();
 await page.waitForTimeout(300);
 
