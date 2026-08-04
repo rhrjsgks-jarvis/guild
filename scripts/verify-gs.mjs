@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v8_2.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v9_0.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 const gs = readFileSync(GS_PATH, 'utf8');
@@ -99,14 +99,17 @@ check('API 라우터 — 필요한 액션 노출 / 위험한 액션 차단', () 
     'ping', 'state', 'members', 'lookup',
     'register', 'distribute', 'payout', 'photo',
     'roster', 'rename', 'addMember', 'removeMember',
+    'itemsAll', 'previewReverse', 'correctItem', 'deleteItem',
+    'lastPayout', 'undoPayout', 'tools', 'runTool',
   ];
   const missing = required.filter((a) => !routed.includes(a));
   if (missing.length) throw new Error(`누락된 액션: ${missing.join(', ')}`);
 
-  // 되돌리기·삭제·초기화는 절대 앱에서 부를 수 없어야 한다
-  const forbidden = ['correct', 'correctDistribution', 'delete', 'deleteLedgerItem', 'seasonEnd', 'reset', 'firstTimeSetup'];
-  const leaked = forbidden.filter((a) => routed.includes(a));
-  if (leaked.length) throw new Error(`노출되면 안 되는 액션: ${leaked.join(', ')}`);
+  // v9.0 부터 모든 기능이 앱에 열려 있다. 대신 UI 없는 코어를 그대로 부르는
+  // 경로가 생기지 않도록, 라우터는 확인 게이트가 있는 api_* 만 부를 수 있다
+  const bare = ['_correctCore', '_deleteItemCore', '_undoPayoutCore'];
+  const leaked = bare.filter((f) => new RegExp(`case '\\w+':[^;]{0,120}${f}\\(`).test(router));
+  if (leaked.length) throw new Error(`확인 게이트를 건너뛰고 코어를 직접 부릅니다: ${leaked.join(', ')}`);
 
   return `${routed.length}개 액션`;
 });
@@ -115,7 +118,8 @@ check('쓰기 액션은 전부 LockService 대상', () => {
   const list = gs.match(/API_WRITE_ACTIONS = \[([^\]]*)\]/)?.[1];
   if (!list) throw new Error('API_WRITE_ACTIONS 상수를 찾을 수 없습니다.');
   const actions = list.replace(/['\s]/g, '').split(',').filter(Boolean);
-  const mustLock = ['register', 'distribute', 'payout', 'rename', 'addMember', 'removeMember'];
+  const mustLock = ['register', 'distribute', 'payout', 'rename', 'addMember', 'removeMember',
+                    'correctItem', 'deleteItem', 'undoPayout', 'runTool'];
   const unlocked = mustLock.filter((a) => !actions.includes(a));
   if (unlocked.length) throw new Error(`락이 걸리지 않는 쓰기 액션: ${unlocked.join(', ')}`);
   if (!/lock\.waitLock\(/.test(gs)) throw new Error('waitLock 호출이 없습니다.');
@@ -236,6 +240,129 @@ check('혈맹원 추가: 중복과 상한을 막는다', () => {
   if (!fn.includes('FUND_NAME')) throw new Error('혈비 계정 보호가 없습니다.');
   if (!fn.includes('_syncMembers')) throw new Error('추가 후 시트 동기화가 없습니다.');
   return '중복·상한·혈비보호';
+});
+
+check('도구 실행: 위험도 3은 확인 문구 없이는 절대 실행되지 않는다', () => {
+  // 레지스트리와 실행 게이트를 실제로 돌려본다 — 폰에서 잘못 눌러 시즌이
+  // 종료되는 일을 막는 마지막 방어선이라 정적 검사로는 부족하다
+  const ctx = vm.createContext({
+    PropertiesService: { getDocumentProperties: () => ({ setProperty() {}, getProperty: () => null }) },
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => {
+        throw new Error('확인 문구를 통과하기 전에 시트에 접근했습니다.');
+      },
+    },
+    Utilities: { formatDate: () => '2026-01-01 00:00' },
+    Session: { getScriptTimeZone: () => 'Asia/Seoul' },
+    console,
+  });
+  for (const fn of ['_uiAdapter', '_adapterResult', '_toolRegistry', 'api_getTools', 'api_runTool']) {
+    vm.runInContext(extractFn(gs, fn), ctx);
+  }
+  vm.runInContext('__tools = api_getTools(); __run = api_runTool;', ctx);
+
+  const tools = ctx.__tools;
+  const risky = tools.filter((t) => t.danger >= 3);
+  if (risky.length === 0) throw new Error('위험도 3 도구가 하나도 없습니다 (분류가 빠졌을 가능성).');
+
+  for (const t of risky) {
+    if (!t.confirm) throw new Error(`${t.id} 에 확인 문구가 없습니다.`);
+
+    // 빈 값 · 틀린 값 · 공백만 다른 값 전부 거부되어야 한다
+    for (const attempt of ['', '아무거나', t.confirm + 'x', t.confirm.slice(0, -1)]) {
+      const res = ctx.__run(t.id, {}, '', attempt);
+      if (res.ok !== false || res.needsConfirm !== true) {
+        throw new Error(`${t.id}: 확인 문구 "${attempt}" 로 통과했습니다.`);
+      }
+    }
+    // 맞는 문구는 게이트를 넘어가야 한다.
+    // 게이트를 지나면 시트에 접근하는데, 여기 스텁은 그 순간 오류를 낸다 —
+    // 즉 "오류가 났다 = 게이트를 통과했다" 가 성공 신호다.
+    const passed = ctx.__run(t.id, {}, '', t.confirm);
+    if (passed.needsConfirm === true) throw new Error(`${t.id}: 올바른 문구인데도 거부되었습니다.`);
+    if (passed.ok !== false || !/시트에 접근/.test(String(passed.msg))) {
+      throw new Error(`${t.id}: 게이트 통과 후 시트에 접근하지 않았습니다 (${JSON.stringify(passed)}).`);
+    }
+  }
+
+  // 위험도 1·2 도구에는 확인 문구가 붙어 있으면 안 된다 (쓸데없이 번거로워짐)
+  const overGuarded = tools.filter((t) => t.danger < 3 && t.confirm);
+  if (overGuarded.length) throw new Error(`확인 문구가 불필요한 도구: ${overGuarded.map((t) => t.id).join(', ')}`);
+
+  return `도구 ${tools.length}개 (위험도3 ${risky.length}개 × 5가지 입력 검사)`;
+});
+
+check('UI 어댑터: 성공·실패를 메시지로 정확히 구분한다', () => {
+  const ctx = vm.createContext({ SpreadsheetApp: {} });
+  vm.runInContext(extractFn(gs, '_uiAdapter') + extractFn(gs, '_adapterResult'), ctx);
+  vm.runInContext('__mk = _uiAdapter; __res = _adapterResult;', ctx);
+
+  // 확인 대화상자는 앱에서 이미 받았으므로 항상 YES 로 진행되어야 한다
+  const ui = ctx.__mk(true);
+  if (ui.alert('제목', '내용', 'YES_NO') !== ui.Button.YES) throw new Error('silent 모드에서 YES 가 아닙니다.');
+
+  const ok = ctx.__mk(true);
+  ok.alert('✅ 시즌 1 종료 완료!');
+  if (ctx.__res(ok).ok !== true) throw new Error('성공 메시지를 실패로 읽었습니다.');
+
+  const bad = ctx.__mk(true);
+  bad.alert('❌ 시트를 찾을 수 없습니다.');
+  if (ctx.__res(bad).ok !== false) throw new Error('실패 메시지를 성공으로 읽었습니다.');
+
+  // 중간에 경고가 있었으면 마지막이 ✅ 라도 실패로 본다 (조용한 부분 실패 차단)
+  const mixed = ctx.__mk(true);
+  mixed.alert('⚠️ 미분배 아이템이 남아 있습니다.');
+  mixed.alert('✅ 완료');
+  if (ctx.__res(mixed).ok !== false) throw new Error('경고가 섞였는데 성공으로 읽었습니다.');
+
+  // 값을 물어봐야 하는 자리는 조용히 넘어가면 안 된다
+  let threw = false;
+  try {
+    ui.prompt('무언가');
+  } catch {
+    threw = true;
+  }
+  if (!threw) throw new Error('prompt 가 silent 모드에서 조용히 통과했습니다.');
+
+  return 'YES 진행 · ✅/❌/⚠️ 판정 · prompt 차단';
+});
+
+check('정정·삭제·지급취소는 확인 없이 실행되지 않는다', () => {
+  for (const fn of ['api_correctItem', 'api_deleteItem', 'api_undoPayout']) {
+    const body = extractFn(gs, fn);
+    if (!/confirm !== true/.test(body)) throw new Error(`${fn} 에 확인 게이트가 없습니다.`);
+    if (!/needsConfirm/.test(body)) throw new Error(`${fn} 이 재확인을 요청하지 않습니다.`);
+  }
+  // 라우터가 confirm 을 엄격하게 전달해야 한다 (기본값 true 로 새면 무력화)
+  const router = gs.slice(gs.indexOf('function _apiRoute'));
+  for (const a of ['correctItem', 'deleteItem', 'undoPayout']) {
+    if (!new RegExp(`case '${a}':[\\s\\S]{0,200}req\\.confirm === true`).test(router)) {
+      throw new Error(`라우터의 ${a} 가 confirm 을 엄격하게 다루지 않습니다.`);
+    }
+  }
+  return '3종 게이트 + 라우터 전달';
+});
+
+check('되돌리기: 부분 실패면 상태를 바꾸지 않는다', () => {
+  // 실제 사고 이력(19명 중 16명에서 중단) 때문에 반드시 지켜야 하는 순서:
+  // 되돌리기를 전부 성공한 뒤에만 아이템 상태를 미분배로 바꾼다
+  const core = extractFn(gs, '_correctCore');
+  const failIdx = core.indexOf("reason: 'partial'");
+  const statusIdx = core.indexOf('LG.STATUS).setValue(ST_WAIT)');
+  if (failIdx < 0) throw new Error('부분 실패 처리가 없습니다.');
+  if (statusIdx < 0) throw new Error('상태 복귀 코드가 없습니다.');
+  if (failIdx > statusIdx) throw new Error('부분 실패 검사보다 상태 변경이 먼저 일어납니다.');
+
+  // 삭제도 마찬가지 — 되돌리기가 실패하면 행을 지우면 안 된다
+  const del = extractFn(gs, '_deleteItemCore');
+  if (del.indexOf("reason: 'partial'") > del.indexOf('deleteRow')) {
+    throw new Error('삭제가 부분 실패 검사보다 먼저 일어납니다.');
+  }
+  // 행이 사라지기 전에 로그를 남겨야 한다
+  if (del.indexOf('_logAction') > del.indexOf('deleteRow')) {
+    throw new Error('행을 지운 뒤에 로그를 남기려 합니다 (기록이 유실됩니다).');
+  }
+  return '정정·삭제 순서 보장';
 });
 
 check('가져오기: 옛 파일은 읽기만 한다', () => {

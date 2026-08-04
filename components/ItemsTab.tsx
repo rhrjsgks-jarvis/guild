@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { GuildState, LedgerItem, PhotoResult } from '@/lib/types';
 import { api, fmt, getStoredEmail } from '@/lib/client';
+import LedgerCard from './LedgerCard';
 
 type PhotoState = {
   preview: string;
@@ -286,6 +287,13 @@ export default function ItemsTab({
               </button>
             </div>
           </div>
+
+          <LedgerCard
+            unit={state.unit}
+            fundRate={state.fundRate}
+            onChanged={onDone}
+            toast={toast}
+          />
         </>
       )}
 

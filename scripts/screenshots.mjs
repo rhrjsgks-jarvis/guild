@@ -174,6 +174,42 @@ await page.waitForTimeout(300);
 await page.getByRole('button', { name: '취소' }).click();
 await page.waitForTimeout(300);
 
+/* ── 아이템 정정·삭제 ── */
+await tab('아이템');
+await page.getByText('등록된 모든 아이템').scrollIntoViewIfNeeded();
+await page.waitForTimeout(500);
+await snap('tools', '전체 아이템 — 정정·삭제');
+
+// 정정은 분배완료 항목에만 있으므로 그 행을 콕 집는다
+await page.locator('.row').filter({ hasText: '고대의 검' }).getByRole('button').click();
+await page.waitForTimeout(900);
+await snap('tools', '되돌릴 금액 미리보기');
+await page.getByRole('button', { name: /판매금액 정정/ }).click();
+await page.locator('#newAmt').fill('60000');
+await page.waitForTimeout(400);
+await snap('tools', '정정 — 새 금액 미리보기');
+await page.getByRole('button', { name: '뒤로' }).click();
+await page.waitForTimeout(200);
+await page.getByRole('button', { name: /완전 삭제/ }).click();
+await page.waitForTimeout(400);
+await snap('tools', '삭제 — 되돌릴 수 없음 경고');
+await page.getByRole('button', { name: '뒤로' }).click();
+await page.waitForTimeout(200);
+await page.getByRole('button', { name: '닫기' }).click();
+await page.waitForTimeout(300);
+
+/* ── 관리 도구 ── */
+await tab('관리');
+await page.getByText('관리 도구').first().scrollIntoViewIfNeeded();
+await page.waitForTimeout(600);
+await snap('tools', '관리 도구 목록');
+
+await page.locator('.row').filter({ hasText: '시즌 종료' }).getByRole('button').click();
+await page.waitForTimeout(500);
+await snap('tools', '시즌 종료 — 문구를 정확히 입력해야 실행');
+await page.getByRole('button', { name: '취소' }).click();
+await page.waitForTimeout(300);
+
 /* ── 다크 모드 ── */
 await page.emulateMedia({ colorScheme: 'dark' });
 await tab('잔액');
@@ -193,6 +229,7 @@ await snap('dark', '관리 (다크)');
 const GROUPS = [
   ['viewer', '길드원이 보는 화면 — 링크만 있으면 됩니다 (PIN 불필요)', '#3b3fd8'],
   ['admin', '관리자 화면 — PIN을 넣으면 나타납니다', '#e06a00'],
+  ['tools', '관리 기능 — PC 시트 없이 앱에서 전부', '#c92a3a'],
   ['dark', '다크 모드 — 폰 설정을 따라갑니다', '#7d84ff'],
 ];
 
@@ -201,7 +238,7 @@ for (const [group, title, accent] of GROUPS) {
   const items = shots.filter((s) => s.group === group);
   const html = `<!doctype html><meta charset="utf-8"><body style="margin:0;background:#0e1014;font-family:-apple-system,'Noto Sans KR',sans-serif">
 <div style="padding:44px 40px 32px">
-  <div style="color:${accent};font-size:15px;font-weight:800;letter-spacing:.4px;margin-bottom:6px">길드정산 · v8.0</div>
+  <div style="color:${accent};font-size:15px;font-weight:800;letter-spacing:.4px;margin-bottom:6px">길드정산 · v9.0</div>
   <div style="color:#fff;font-size:31px;font-weight:800;letter-spacing:-.8px">${title}</div>
 </div>
 <div style="display:flex;gap:26px;padding:0 40px 44px;align-items:flex-start">

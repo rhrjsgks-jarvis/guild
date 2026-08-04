@@ -39,10 +39,29 @@ function freshState() {
       { row: 2, item: '기란 세금', date: '08/01', cnt: 19 },
       { row: 5, item: '용의 심장', date: '08/03', cnt: 12 },
     ],
+    // 분배완료된 아이템 — 정정·삭제 대상.
+    // 하나는 되돌릴 수 있고, 하나는 이미 지급되어 막히는 상황을 일부러 만들어 둔다.
+    done: [
+      { row: 3, item: '고대의 검', date: '07/28', cnt: 3, amount: 3000, names: ['가이', 'TC무식', '詹阿呆'] },
+      { row: 4, item: '지급된 아이템', date: '07/20', cnt: 2, amount: 100000, names: ['팩맨', '향로셔틀'] },
+    ],
+    // 지급 이력 — 마지막 건을 되돌릴 수 있다
+    payouts: [{ name: '향로셔틀', amount: 9800, date: '08/02 21:10' }],
     season: 3,
     nextRow: 9,
   };
 }
+
+/** 실제 Apps Script 의 _toolRegistry() 와 같은 모양 */
+const TOOLS = [
+  { id: 'recalcCounts', name: '🔁 참여횟수 재계산', desc: '등록 이력을 다시 세어 참여횟수를 맞춥니다.', danger: 1, confirm: '', inputs: [] },
+  { id: 'tidy', name: '📐 시트 정돈', desc: '시트 순서와 행 높이를 표준으로 되돌립니다.', danger: 1, confirm: '', inputs: [] },
+  { id: 'discord', name: '🔗 디스코드 알림 설정', desc: '등록·분배 시 자동 알림을 보냅니다.', danger: 1, confirm: '', inputs: [{ key: 'url', label: '웹훅 주소' }] },
+  { id: 'seasonEnd', name: '🏁 시즌 종료', desc: '기록을 보존하고 초기화합니다.', danger: 3, confirm: '시즌종료', inputs: [] },
+  { id: 'importData', name: '📥 기존 파일에서 가져오기', desc: '쓰던 시트의 데이터를 옮깁니다.', danger: 3, confirm: '가져오기', inputs: [{ key: 'url', label: '기존 스프레드시트 주소' }] },
+  { id: 'install', name: '🚀 최초 설치', desc: '빈 시트에 구조를 만듭니다.', danger: 3, confirm: '설치', inputs: [] },
+  { id: 'factoryReset', name: '⚠️ 공장 초기화', desc: '전부 삭제하고 처음 상태로 되돌립니다.', danger: 3, confirm: '전부삭제', inputs: [] },
+];
 
 let S = freshState();
 
@@ -59,6 +78,12 @@ function calcSplit(total, n) {
 
 function findRow(name) {
   return S.rows.find((r) => norm(r.name) === norm(name));
+}
+
+/** 아이템의 참여자 명단 (없으면 혈비를 뺀 앞쪽 인원으로 근사) */
+function participantsOf(item) {
+  if (item.names) return item.names;
+  return S.rows.filter((r) => r.name !== FUND_NAME).slice(0, item.cnt).map((r) => r.name);
 }
 
 function add(name, amount) {
@@ -129,6 +154,7 @@ const handlers = {
     if (remainder > 0) add(REMAINDER_NAME, remainder);
 
     S.items.splice(idx, 1);
+    S.done.push({ ...item, amount: amt, names: participantsOf(item) });
     let msg = `✅ "${item.item}" ${amt.toLocaleString()}${UNIT} 분배 완료 — 혈비 ${fund.toLocaleString()} / ${item.cnt}명 × ${perPerson.toLocaleString()}`;
     if (remainder > 0) msg += ` / 나머지 ${remainder}${UNIT} → ${REMAINDER_NAME}`;
     return { ok: true, msg };
@@ -147,6 +173,7 @@ const handlers = {
 
     r.pending -= amt;
     r.paid += amt;
+    S.payouts.push({ name: r.name, amount: amt, date: '08/04 12:00' });
     let msg = `✅ "${name}" ${amt.toLocaleString()}${UNIT} 지급 완료`;
     if (r.pending > 0) msg += ` (잔여 분배전 ${r.pending.toLocaleString()}${UNIT})`;
     return { ok: true, msg };
@@ -246,6 +273,136 @@ const handlers = {
     ocrPreview: '[모의 OCR]\n가이\nPlusS\n斬斷\n...',
     msg: '📷 사진 저장 완료 · 2명 자동 감지 (모의)',
   }),
+
+  /* ── 정정 · 삭제 · 지급취소 · 도구 (v9.0) ── */
+
+  itemsAll: () => ({
+    ok: true,
+    data: [...S.items, ...S.done].map((i) => ({
+      row: i.row,
+      item: i.item,
+      status: i.amount ? '✅분배완료' : '⏳미분배',
+      date: i.date,
+      cnt: i.cnt,
+      amount: i.amount ?? 0,
+      perPerson: i.amount ? calcSplit(i.amount, i.cnt).perPerson : 0,
+      fund: i.amount ? calcSplit(i.amount, i.cnt).fund : 0,
+    })),
+  }),
+
+  previewReverse: ({ row }) => {
+    const it = S.done.find((x) => x.row === Number(row)) ?? S.items.find((x) => x.row === Number(row));
+    if (!it) return { ok: false, msg: '아이템을 찾을 수 없습니다.' };
+    if (!it.amount) {
+      return { ok: true, data: { item: it.item, status: '⏳미분배', n: it.cnt, amount: 0, needsReverse: false, blocked: false } };
+    }
+    const sp = calcSplit(it.amount, it.cnt);
+    // 되돌릴 만큼 분배전이 남아 있는지 참여자 명단대로 확인한다
+    const insufficient = participantsOf(it)
+      .map((nm) => findRow(nm))
+      .filter((r) => !r || r.pending < sp.perPerson)
+      .map((r) => `${r ? r.name : '(없음)'} (분배전 ${r ? r.pending : 0} < 필요 ${sp.perPerson})`);
+    return {
+      ok: true,
+      data: {
+        item: it.item, status: '✅분배완료', n: it.cnt, amount: it.amount, needsReverse: true,
+        perPerson: sp.perPerson, fund: sp.fund, remainder: sp.remainder, remainderTo: REMAINDER_NAME,
+        blocked: insufficient.length > 0, insufficient,
+      },
+    };
+  },
+
+  correctItem: ({ row, newAmount, confirm }) => {
+    if (confirm !== true) return { ok: false, needsConfirm: true, msg: '확인이 필요합니다.' };
+    const idx = S.done.findIndex((x) => x.row === Number(row));
+    if (idx < 0) return { ok: false, msg: '분배완료 상태인 아이템만 정정할 수 있습니다.' };
+    const it = S.done[idx];
+    const sp = calcSplit(it.amount, it.cnt);
+    const short = participantsOf(it).filter((nm) => (findRow(nm)?.pending ?? 0) < sp.perPerson);
+    if (short.length) return { ok: false, reason: 'insufficient', msg: '정정할 수 없습니다. 이미 지급✓ 처리된 대상이 있습니다: ' + short.join(', ') };
+
+    // 되돌리기 (명단 기준)
+    add(FUND_NAME, -sp.fund);
+    participantsOf(it).forEach((nm) => { const r = findRow(nm); if (r) r.pending -= sp.perPerson; });
+    if (sp.remainder > 0) add(REMAINDER_NAME, -sp.remainder);
+
+    S.done.splice(idx, 1);
+    if (newAmount === null || newAmount === undefined || newAmount === '') {
+      S.items.push({ row: it.row, item: it.item, date: it.date, cnt: it.cnt });
+      return { ok: true, redistributed: false, msg: `✅ "${it.item}" 되돌리기 완료 — ⏳미분배 상태로 돌아갔습니다.` };
+    }
+    const amt = Number(newAmount);
+    const ns = calcSplit(amt, it.cnt);
+    add(FUND_NAME, ns.fund);
+    participantsOf(it).forEach((nm) => { const r = findRow(nm); if (r) r.pending += ns.perPerson; });
+    if (ns.remainder > 0) add(REMAINDER_NAME, ns.remainder);
+    S.done.push({ ...it, amount: amt });
+    return { ok: true, redistributed: true, msg: `✅ "${it.item}" 정정 완료 — ${it.amount} → ${amt}${UNIT}` };
+  },
+
+  deleteItem: ({ row, confirm }) => {
+    if (confirm !== true) return { ok: false, needsConfirm: true, msg: '확인이 필요합니다.' };
+    const di = S.done.findIndex((x) => x.row === Number(row));
+    if (di >= 0) {
+      const it = S.done[di];
+      const sp = calcSplit(it.amount, it.cnt);
+      const short = participantsOf(it).filter((nm) => (findRow(nm)?.pending ?? 0) < sp.perPerson);
+      if (short.length) return { ok: false, reason: 'insufficient', msg: '삭제할 수 없습니다. 이미 지급✓ 처리된 대상이 있습니다: ' + short.join(', ') };
+      add(FUND_NAME, -sp.fund);
+      participantsOf(it).forEach((nm) => { const r = findRow(nm); if (r) r.pending -= sp.perPerson; });
+      if (sp.remainder > 0) add(REMAINDER_NAME, -sp.remainder);
+      S.done.splice(di, 1);
+      return { ok: true, msg: `✅ "${it.item}" 삭제 완료 — 참여횟수가 자동으로 재계산되었습니다.` };
+    }
+    const wi = S.items.findIndex((x) => x.row === Number(row));
+    if (wi < 0) return { ok: false, msg: '아이템을 찾을 수 없습니다.' };
+    const it = S.items[wi];
+    S.items.splice(wi, 1);
+    return { ok: true, msg: `✅ "${it.item}" 삭제 완료 — 참여횟수가 자동으로 재계산되었습니다.` };
+  },
+
+  lastPayout: () =>
+    S.payouts.length
+      ? { ok: true, data: S.payouts[S.payouts.length - 1] }
+      : { ok: false, msg: '취소할 지급 기록이 없습니다.' },
+
+  undoPayout: ({ confirm }) => {
+    if (confirm !== true) return { ok: false, needsConfirm: true, msg: '확인이 필요합니다.' };
+    const rec = S.payouts.pop();
+    if (!rec) return { ok: false, msg: '취소할 지급 기록이 없습니다.' };
+    const r = findRow(rec.name);
+    if (r) {
+      r.pending += rec.amount;
+      r.paid = Math.max(r.paid - rec.amount, 0);
+    }
+    return { ok: true, msg: `✅ "${rec.name}" ${rec.amount.toLocaleString()}${UNIT}가 분배전으로 복구되었습니다.` };
+  },
+
+  tools: () => ({ ok: true, data: TOOLS }),
+
+  runTool: ({ id, params, confirmText }) => {
+    const tool = TOOLS.find((t) => t.id === id);
+    if (!tool) return { ok: false, msg: '알 수 없는 도구입니다: ' + id };
+    if (tool.danger >= 3 && String(confirmText || '').trim() !== tool.confirm) {
+      return {
+        ok: false,
+        needsConfirm: true,
+        confirm: tool.confirm,
+        msg: `이 작업은 되돌릴 수 없습니다.\n계속하려면 "${tool.confirm}" 을(를) 정확히 입력해주세요.`,
+      };
+    }
+    if (id === 'seasonEnd') {
+      S.season += 1;
+      S.items = [];
+      S.done = [];
+      S.rows.forEach((r) => { r.pending = 0; r.paid = 0; r.cnt = 0; });
+      return { ok: true, msg: `✅ 시즌을 종료했습니다. (시즌 ${S.season} 시작)` };
+    }
+    if (id === 'importData' && !String(params?.url || '').match(/[-\w]{25,}/)) {
+      return { ok: false, msg: '주소에서 파일 ID를 찾지 못했습니다.' };
+    }
+    return { ok: true, msg: `✅ ${tool.name} 완료 (모의).` };
+  },
 
   // 테스트가 매번 같은 상태에서 시작할 수 있도록
   __reset: () => {

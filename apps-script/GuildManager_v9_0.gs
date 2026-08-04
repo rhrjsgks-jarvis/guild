@@ -1,7 +1,25 @@
 // ═══════════════════════════════════════════════════════════════
-//  길드 정산 시스템 v8.2  (앱에서 혈맹원 추가 · 탈퇴 처리)
+//  길드 정산 시스템 v9.0  (모든 관리 기능을 앱에서 — PC 시트 불필요)
 //  시트 구성: [사용안내] [멤버DB] [참여자현황] [분배대기중] [잔액현황]
 //            [지급기록] + [시즌1] [시즌2] ...  ← 이 순서로 항상 정렬됨
+// ═══════════════════════════════════════════════════════════════
+//  변경점 v8.2 → v9.0 (정수 업 — 구조 변경: PC 메뉴 전용 기능 폐지)
+//   지금까지 "실수하면 크게 망가진다"는 이유로 PC 시트에만 두었던 기능을
+//   전부 앱으로 옮긴다. 대신 위험도에 비례하는 확인 절차를 붙였다.
+//
+//   - ★ _uiAdapter: UI가 없는 웹 API 환경에서도 기존 메뉴 함수를 그대로
+//     실행할 수 있게 하는 어댑터. 로직을 복사하지 않고 한 벌만 유지한다
+//     (복사하면 PC와 앱이 서로 다르게 동작하는 사고로 이어진다)
+//   - ★ 정정·삭제의 되돌리기 로직을 _reverseCheck / _reverseAmounts 로
+//     통합. 두 함수에 거의 같은 코드가 중복돼 있던 것을 한 곳으로 모았다
+//   - ★ _correctCore / _deleteItemCore / _undoPayoutCore 추출.
+//     PC 메뉴는 이 코어를 부르는 얇은 래퍼가 된다
+//   - ★ 도구 레지스트리(TOOLS) + api_runTool: 시즌종료·데이터이관·최초설치·
+//     공장초기화·시트정돈·참여횟수재계산·디스코드웹훅을 하나의 API로 노출.
+//     위험도 3단계는 정해진 확인 문구를 정확히 입력해야만 실행된다
+//     (폰에서 실수로 눌러 시즌이 종료되는 일을 막기 위함)
+//   - ★ api_getItemsAll: 미분배·분배완료 아이템을 모두 내려줘, 앱에서
+//     정정·삭제 대상을 목록에서 고를 수 있게 한다
 // ═══════════════════════════════════════════════════════════════
 //  변경점 v8.1 → v8.2 (소수점 업 — 앱에서 혈맹원 추가·탈퇴)
 //   - ★ api_addMember: 신규 가입자를 앱에서 바로 등록. 멤버DB에 넣고
@@ -261,7 +279,7 @@
 //     '누적기록'을 그대로 찾음 (하위 호환, 리네이밍과 무관)
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION = '8.2';
+const VERSION = '9.0';
 const T2S_MAP = {'國':'国','學':'学','這':'这','個':'个','們':'们','說':'说','話':'话','對':'对','時':'时','間':'间','現':'现','場':'场','開':'开','關':'关','內':'内','東':'东','車':'车','馬':'马','龍':'龙','風':'风','陽':'阳','陰':'阴','電':'电','語':'语','讀':'读','寫':'写','書':'书','紙':'纸','筆':'笔','長':'长','門':'门','問':'问','聽':'听','見':'见','覺':'觉','讓':'让','誰':'谁','還':'还','進':'进','運':'运','動':'动','靜':'静','樂':'乐','藥':'药','華':'华','蘭':'兰','葉':'叶','黃':'黄','麗':'丽','寶':'宝','貴':'贵','財':'财','買':'买','賣':'卖','錢':'钱','銀':'银','鐵':'铁','鋼':'钢','陳':'陈','劉':'刘','張':'张','楊':'杨','蔣':'蒋','鄭':'郑','謝':'谢','呂':'吕','蘇':'苏','韓':'韩','馮':'冯','於':'于','鳳':'凤','雲':'云','劍':'剑','斷':'断','亂':'乱','愛':'爱','聲':'声','醫':'医','藝':'艺','頭':'头','臉':'脸','腳':'脚','氣':'气','樓':'楼','橋':'桥','飛':'飞','機':'机','網':'网','線':'线','條':'条','裡':'里','邊':'边','錯':'错','壞':'坏','舊':'旧','寬':'宽','淺':'浅','週':'周','節':'节','業':'业','後':'后','來':'来','終':'终','結':'结','敗':'败','勝':'胜','負':'负','輸':'输','贏':'赢','強':'强','難':'难','簡':'简','單':'单','複':'复','雜':'杂','純':'纯','淨':'净','髒':'脏','齊':'齐','穩':'稳','變':'变','轉':'转','換':'换','顯':'显','樣':'样','種':'种','類':'类','團':'团','體':'体','統':'统','織':'织','組':'组','構':'构','設':'设','計':'计','劃':'划','數':'数','課':'课','題':'题','試':'试','練':'练','習':'习','師':'师','員':'员','職':'职','務':'务','責':'责','權':'权','應':'应','該':'该','須':'须','願':'愿','夢':'梦','憶':'忆','識':'识','認':'认','歡':'欢','醜':'丑','帥':'帅','靈':'灵','獸':'兽','鷹':'鹰','鶴':'鹤','鴻':'鸿','鱷':'鳄','鯨':'鲸','鯊':'鲨','蝦':'虾','殼':'壳','冑':'胄','戰':'战','爭':'争','鬥':'斗','擊':'击','禦':'御','護':'护','衛':'卫','謀':'谋','陣':'阵','營':'营','軍':'军','隊':'队','將':'将','嬪':'嫔','宮':'宫','廟':'庙','觀':'观','閣':'阁','蓮':'莲','楓':'枫','樺':'桦','檜':'桧','樹':'树','實':'实','幹':'干','莖':'茎','穫':'获','採':'采','鮮':'鲜','籠':'笼','傷':'伤','殺':'杀','斬':'斩','豬':'猪','雞':'鸡','鴨':'鸭','鵝':'鹅','龜':'龟','蟬':'蝉','蟻':'蚁','螞':'蚂','鴉':'鸦','鵰':'雕','鴛':'鸳','鴦':'鸯','賽':'赛','廠':'厂','廣':'广','麼':'么','誒':'诶','歲':'岁','歷':'历','歸':'归','殘':'残','蟲':'虫','貓':'猫','氈':'毡','貫':'贯','質':'质','貨':'货','貼':'贴','費':'费','資':'资','賬':'账','賺':'赚','贈':'赠','賀':'贺','賢':'贤','賦':'赋','賤':'贱','賓':'宾','賴':'赖','齲':'龋','齒':'齿','龄':'齡','齡':'龄','齣':'出','岡':'冈','剛':'刚','剮':'剐','創':'创','劇':'剧','勵':'励','勸':'劝','勻':'匀','匯':'汇','醬':'酱','醞':'酝','釀':'酿','釋':'释','釘':'钉','針':'针','釣':'钓','鈍':'钝','鈴':'铃','鈔':'钞','鉛':'铅','鋸':'锯','鋒':'锋','鍵':'键','鎖':'锁','鑄':'铸','鑼':'锣','錶':'表','鐘':'钟','鏡':'镜','鑽':'钻','鑑':'鉴','閉':'闭','閃':'闪','閏':'闰','閱':'阅','闆':'板','闖':'闯','陸':'陆','隱':'隐','雖':'虽','雙':'双','雛':'雏','靂':'雳','韋':'韦','韌':'韧','頁':'页','頂':'顶','項':'项','順':'顺','頌':'颂','預':'预','頑':'顽','頒':'颁','頗':'颇','領':'领','頡':'颉','頜':'颌','頸':'颈','頻':'频','頹':'颓','顆':'颗','額':'额','顏':'颜','顛':'颠','顧':'顾','飄':'飘','饑':'饥','餃':'饺','餅':'饼','館':'馆','饒':'饶','饞':'馋','馳':'驰','駕':'驾','駛':'驶','駐':'驻','駱':'骆','駭':'骇','騎':'骑','騰':'腾','驅':'驱','驚':'惊','驕':'骄','驗':'验','骯':'肮','髮':'发','鬍':'胡','鬧':'闹','鮑':'鲍','鯉':'鲤','鰲':'鳌','鱉':'鳖','鳥':'鸟','鳴':'鸣','鹹':'咸','麥':'麦','麵':'面','黨':'党'};  // 번체→간체 상용한자 (서체 변환 전용, 다른 뜻 글자는 포함하지 않음)
 const UNIT = '다이아';                 // 재화 단위 표기
 const MAX_MEMBERS = 50;               // 최대 멤버 수
@@ -347,9 +365,9 @@ function _applyMemberNameFormatting(ss) {
 }
 
 // 메뉴: 시트 정돈 (순서·행높이 즉시 적용 + 표준 목록 외 시트는 확인 후 삭제)
-function tidySheets() {
+function tidySheets(opts) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const ui = SpreadsheetApp.getUi();
+  const ui = (opts && opts._ui) ? opts._ui : _uiAdapter(opts && opts.silent);
   const known = new Set(BASE_SHEET_ORDER);
   const unknown = ss.getSheets().map(s => s.getName())
     .filter(n => !known.has(n) && !/^시즌\d+$/.test(n));
@@ -393,6 +411,324 @@ function applyNameFormatMenu() {
 // ─────────────────────────────────────────
 // 0. 메뉴
 // ─────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+//  🔌 UI 어댑터 (v9.0)
+//
+//  같은 함수를 PC 메뉴(대화상자 있음)와 웹 API(대화상자 없음) 양쪽에서
+//  쓰기 위한 장치. 로직을 복사해 두 벌로 만들면 언젠가 반드시 어긋나므로,
+//  "UI를 갈아끼우는" 방식으로 한 벌만 유지한다.
+//
+//  silent 모드에서 alert 는 화면에 띄우는 대신 메시지를 모아두고 항상 YES 를
+//  돌려준다(확인은 앱에서 이미 받았다). 모아둔 메시지는 _adapterResult 가
+//  ✅/❌ 관례에 따라 성공·실패로 해석해 앱에 그대로 전달한다.
+// ═══════════════════════════════════════════════════════════════
+function _uiAdapter(silent) {
+  if (!silent) return SpreadsheetApp.getUi();
+  const messages = [];
+  return {
+    _silent: true,
+    _messages: messages,
+    alert: function (a, b) {
+      // alert(msg) / alert(title, msg) / alert(title, msg, buttons) 전부 대응
+      messages.push(String(b === undefined ? a : b));
+      return 'YES';
+    },
+    prompt: function () {
+      throw new Error('이 기능은 앱에서 필요한 값을 함께 보내야 합니다.');
+    },
+    ButtonSet: { OK: 'OK', OK_CANCEL: 'OK_CANCEL', YES_NO: 'YES_NO' },
+    Button: { OK: 'OK', YES: 'YES', CANCEL: 'CANCEL', NO: 'NO' }
+  };
+}
+
+// 어댑터가 모은 메시지를 성공/실패로 해석한다.
+// 이 시스템의 모든 안내문은 성공이면 ✅ 로 시작하는 관례를 지킨다.
+function _adapterResult(ui, fallbackMsg) {
+  const msgs = (ui && ui._messages) || [];
+  if (msgs.length === 0) return { ok: true, msg: fallbackMsg || '완료되었습니다.' };
+  const last = msgs[msgs.length - 1];
+  const failed = msgs.some(function (m) { return m.indexOf('❌') >= 0 || m.indexOf('⚠️') >= 0; });
+  return { ok: !failed, msg: last, details: msgs };
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  ↩️ 되돌리기 공용 로직 (v9.0)
+//  분배 정정과 아이템 삭제가 똑같이 쓰던 코드를 한 곳으로 모은 것.
+// ═══════════════════════════════════════════════════════════════
+
+// 되돌릴 대상과 금액을 계산하고, 실제로 되돌릴 수 있는 상태인지 확인한다.
+function _reverseCheck(ss, balance, participants, oldAmount) {
+  const n = participants.length;
+  const split = _calcSplit(oldAmount, n);
+  const members = _getMembers(ss);
+  const remainderTarget = members.filter(function (m) { return _coreName(m) === _coreName(REMAINDER_NAME); })[0] ||
+                          members.filter(function (m) { return m !== FUND_NAME; })[0];
+
+  const balData = balance.getRange(2, 1, Math.max(balance.getLastRow() - 1, 1), 4).getValues();
+  const map = {};
+  balData.forEach(function (r, i) {
+    const nm = String(r[0]).trim();
+    if (nm && nm !== '합계') map[_normName(nm)] = i + 2;
+  });
+  const findRow = function (nm) { return map[_normName(nm)]; };
+  const pendingOf = function (row) {
+    return Number(String(balance.getRange(row, BAL_COL.PENDING).getValue()).replace(/,/g, '')) || 0;
+  };
+
+  // 이미 지급✓ 처리되어 분배전 잔액이 모자라면 되돌릴 수 없다.
+  // 부분 반영은 데이터 정합성을 해치므로 아예 시작하지 않는다.
+  const insufficient = [];
+  const need = function (name, amount, label) {
+    if (amount <= 0) return;
+    const row = findRow(name);
+    const pending = row ? pendingOf(row) : 0;
+    if (!row || pending < amount) {
+      insufficient.push((label || name) + ' (분배전 ' + pending.toLocaleString() + ' < 필요 ' + amount.toLocaleString() + ')');
+    }
+  };
+  participants.forEach(function (p) { need(p, split.perPerson); });
+  need(FUND_NAME, split.fund);
+  need(remainderTarget, split.remainder, remainderTarget + '(나머지분)');
+
+  return {
+    split: split,
+    remainderTarget: remainderTarget,
+    insufficient: insufficient,
+    findRow: findRow,
+    pendingOf: pendingOf
+  };
+}
+
+// 실제로 되돌린다. 대상별 개별 try/catch — 부분 실패를 절대 침묵시키지 않는다.
+function _reverseAmounts(balance, participants, chk) {
+  const reversed = [];
+  const failed = [];
+  const split = chk.split;
+
+  participants.forEach(function (p) {
+    try {
+      const row = chk.findRow(p);
+      if (!row) { failed.push(p + ' (잔액현황에 없음)'); return; }
+      balance.getRange(row, BAL_COL.PENDING).setValue(chk.pendingOf(row) - split.perPerson);
+      reversed.push(p);
+    } catch (e) { failed.push(p + ' (' + e.message + ')'); }
+  });
+
+  if (split.fund > 0) {
+    try {
+      const fr = chk.findRow(FUND_NAME);
+      if (!fr) failed.push(FUND_NAME + ' (잔액현황에 없음)');
+      else {
+        const cnt = Number(balance.getRange(fr, BAL_COL.CNT).getValue()) || 0;
+        balance.getRange(fr, BAL_COL.PENDING).setValue(chk.pendingOf(fr) - split.fund);
+        balance.getRange(fr, BAL_COL.CNT).setValue(Math.max(cnt - 1, 0));
+        reversed.push(FUND_NAME);
+      }
+    } catch (e) { failed.push(FUND_NAME + ' (' + e.message + ')'); }
+  }
+
+  if (split.remainder > 0) {
+    try {
+      const rr = chk.findRow(chk.remainderTarget);
+      if (!rr) failed.push(chk.remainderTarget + '(나머지) (잔액현황에 없음)');
+      else {
+        balance.getRange(rr, BAL_COL.PENDING).setValue(chk.pendingOf(rr) - split.remainder);
+        reversed.push(chk.remainderTarget + '(나머지)');
+      }
+    } catch (e) { failed.push(chk.remainderTarget + '(나머지) (' + e.message + ')'); }
+  }
+
+  return { reversed: reversed, failed: failed };
+}
+
+// 아이템 행을 읽어 정정·삭제에 필요한 정보를 꺼낸다
+function _readLedgerRow(ledger, row) {
+  if (row < 2 || row > ledger.getLastRow()) return null;
+  const data = ledger.getRange(row, 1, 1, 14).getValues()[0];
+  const participants = String(data[LG.NAMES - 1]).trim().split(',')
+    .map(function (s) { return s.trim(); }).filter(Boolean);
+  return {
+    row: row,
+    item: String(data[LG.ITEM - 1]).trim(),
+    status: String(data[LG.STATUS - 1]).trim(),
+    amount: Number(data[LG.AMOUNT - 1]) || 0,
+    participants: participants,
+    n: participants.length,
+    data: data
+  };
+}
+
+// ─────────────────────────────────────────
+// 🔄 분배 정정 코어 (PC 메뉴 + 앱 공용, UI 없음)
+//   newAmount 가 null 이면 되돌리기만 하고 ⏳미분배로 복귀한다.
+// ─────────────────────────────────────────
+function _correctCore(ss, row, newAmount, email) {
+  const ledger = ss.getSheetByName(LEDGER_SHEET);
+  const balance = ss.getSheetByName('잔액현황');
+  if (!ledger || !balance) return { ok: false, reason: 'nosheet', msg: LEDGER_SHEET + '/잔액현황 시트를 찾을 수 없습니다.' };
+
+  const info = _readLedgerRow(ledger, Number(row));
+  if (!info) return { ok: false, reason: 'norow', msg: '아이템을 찾을 수 없습니다. 새로고침 후 다시 시도해주세요.' };
+  if (info.status !== ST_DONE) return { ok: false, reason: 'notdone', msg: '분배완료 상태인 아이템만 정정할 수 있습니다.' };
+  if (info.n === 0) return { ok: false, reason: 'nonames', msg: '참여자 명단을 읽을 수 없습니다.' };
+
+  const chk = _reverseCheck(ss, balance, info.participants, info.amount);
+  if (chk.insufficient.length > 0) {
+    return {
+      ok: false,
+      reason: 'insufficient',
+      insufficient: chk.insufficient,
+      msg: '정정할 수 없습니다. 아래 대상이 이미 지급✓ 처리되어 분배전 잔액이 부족합니다:\n\n' +
+           chk.insufficient.join('\n') + '\n\n지급 기록을 확인한 뒤 다시 시도해주세요.'
+    };
+  }
+
+  const rev = _reverseAmounts(balance, info.participants, chk);
+  if (rev.failed.length > 0) {
+    // 하나라도 실패하면 상태를 바꾸지 않는다 — "상태와 실제 데이터가 다른" 상황을 만들지 않기 위해
+    return {
+      ok: false,
+      reason: 'partial',
+      reversed: rev.reversed,
+      failed: rev.failed,
+      msg: '되돌리기가 일부만 반영되어 중단했습니다.\n\n' +
+           '반영됨(' + rev.reversed.length + '): ' + rev.reversed.join(', ') + '\n' +
+           '실패(' + rev.failed.length + '): ' + rev.failed.join(', ') + '\n\n' +
+           '상태는 "' + ST_DONE + '"로 유지했습니다. 실패한 항목만 수동 조정 후 다시 시도해주세요.'
+    };
+  }
+
+  const actor = _getActorEmail(email);
+  ledger.getRange(row, LG.STATUS).setValue(ST_WAIT);
+  [LG.AMOUNT, LG.FUND, LG.PER, LG.DIST].forEach(function (c) { ledger.getRange(row, c).clearContent(); });
+  ledger.getRange(row, LG.CHECK).insertCheckboxes().setValue(false);
+  ledger.getRange(row, LG.EDITBY).setValue(actor);
+  _logAction(ss, '정정-되돌리기', info.item, actor, info.amount.toLocaleString() + UNIT + ' 분배를 되돌림');
+
+  if (newAmount === null || newAmount === undefined || newAmount === '') {
+    return {
+      ok: true, redistributed: false, item: info.item,
+      msg: '✅ "' + info.item + '" 되돌리기 완료 — ' + ST_WAIT + ' 상태로 돌아갔습니다.'
+    };
+  }
+
+  const amt = Number(newAmount);
+  if (!Number.isInteger(amt) || amt <= 0) {
+    return {
+      ok: true, redistributed: false, item: info.item,
+      msg: '✅ 되돌리기는 완료했지만 새 금액이 올바르지 않아 재분배는 하지 않았습니다. [아이템] 탭에서 분배해주세요.'
+    };
+  }
+
+  const r = _distributeCore(ss, ledger, row, amt, email);
+  if (!r.ok) {
+    return {
+      ok: true, redistributed: false, item: info.item,
+      msg: '✅ 되돌리기는 완료했으나 재분배에 실패했습니다(' + r.reason + '). [아이템] 탭에서 다시 분배해주세요.'
+    };
+  }
+  ledger.getRange(row, LG.EDITBY).setValue(actor);
+  _logAction(ss, '정정-재분배', info.item, actor, info.amount.toLocaleString() + ' → ' + amt.toLocaleString() + UNIT);
+
+  let msg = '✅ "' + info.item + '" 정정 완료 — ' + info.amount.toLocaleString() + ' → ' + amt.toLocaleString() + UNIT +
+            '\n혈비 ' + r.fund.toLocaleString() + ' / ' + r.n + '명 × ' + r.perPerson.toLocaleString();
+  if (r.remainder > 0) msg += ' / 나머지 ' + r.remainder + '→' + r.remainderTo;
+  return { ok: true, redistributed: true, item: info.item, msg: msg };
+}
+
+// ─────────────────────────────────────────
+// 🗑️ 아이템 완전 삭제 코어 (PC 메뉴 + 앱 공용, UI 없음)
+// ─────────────────────────────────────────
+function _deleteItemCore(ss, row, email) {
+  const ledger = ss.getSheetByName(LEDGER_SHEET);
+  const balance = ss.getSheetByName('잔액현황');
+  if (!ledger) return { ok: false, reason: 'nosheet', msg: LEDGER_SHEET + ' 시트를 찾을 수 없습니다.' };
+
+  const info = _readLedgerRow(ledger, Number(row));
+  if (!info) return { ok: false, reason: 'norow', msg: '아이템을 찾을 수 없습니다. 새로고침 후 다시 시도해주세요.' };
+
+  if (info.status === ST_DONE) {
+    if (!balance) return { ok: false, reason: 'nosheet', msg: '잔액현황 시트가 없어 안전하게 삭제할 수 없습니다.' };
+
+    const chk = _reverseCheck(ss, balance, info.participants, info.amount);
+    if (chk.insufficient.length > 0) {
+      return {
+        ok: false, reason: 'insufficient', insufficient: chk.insufficient,
+        msg: '삭제할 수 없습니다. 아래 대상이 이미 지급✓ 처리되어 분배전 잔액이 부족합니다:\n\n' +
+             chk.insufficient.join('\n')
+      };
+    }
+    const rev = _reverseAmounts(balance, info.participants, chk);
+    if (rev.failed.length > 0) {
+      return {
+        ok: false, reason: 'partial', reversed: rev.reversed, failed: rev.failed,
+        msg: '금액 되돌리기가 일부만 반영되어 삭제를 중단했습니다.\n\n' +
+             '반영됨(' + rev.reversed.length + '): ' + rev.reversed.join(', ') + '\n' +
+             '실패(' + rev.failed.length + '): ' + rev.failed.join(', ') + '\n\n' +
+             '행은 삭제하지 않았습니다.'
+      };
+    }
+  }
+
+  // 행이 사라지기 전에 반드시 로그를 남긴다
+  const actor = _getActorEmail(email);
+  const detail = (info.status === ST_DONE
+    ? info.amount.toLocaleString() + UNIT + ' 분배분을 되돌린 뒤 삭제'
+    : '미분배 상태에서 삭제') + ' (참여 ' + info.n + '명)';
+  _logAction(ss, '삭제', info.item, actor, detail);
+
+  ledger.deleteRow(Number(row));
+  _recalcAllParticipationCounts(ss);
+  _applyProtections(ss);
+
+  return { ok: true, item: info.item, msg: '✅ "' + info.item + '" 삭제 완료 — 참여횟수가 자동으로 재계산되었습니다.' };
+}
+
+// ─────────────────────────────────────────
+// ↩️ 최근 지급 취소 코어 (PC 메뉴 + 앱 공용, UI 없음)
+// ─────────────────────────────────────────
+function _lastPayoutInfo(ss) {
+  const log = ss.getSheetByName(PAYOUT_SHEET);
+  if (!log || log.getLastRow() < 2) return null;
+  const lr = log.getLastRow();
+  const rec = log.getRange(lr, 1, 1, 3).getValues()[0];
+  return {
+    logRow: lr,
+    name: String(rec[1]).trim(),
+    amount: Number(String(rec[2]).replace(/,/g, '')) || 0,
+    date: Utilities.formatDate(new Date(rec[0]), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm')
+  };
+}
+
+function _undoPayoutCore(ss, email) {
+  const info = _lastPayoutInfo(ss);
+  if (!info) return { ok: false, reason: 'empty', msg: '취소할 지급 기록이 없습니다.' };
+
+  const bal = ss.getSheetByName('잔액현황');
+  if (!bal) return { ok: false, reason: 'nosheet', msg: '잔액현황 시트를 찾을 수 없습니다.' };
+
+  const vals = bal.getRange(2, 1, Math.max(bal.getLastRow() - 1, 1), 1).getValues();
+  let row = -1;
+  vals.forEach(function (r, i) { if (_normName(r[0]) === _normName(info.name)) row = i + 2; });
+  if (row < 0) return { ok: false, reason: 'noname', msg: '잔액현황에서 "' + info.name + '"을 찾지 못했습니다.' };
+
+  const pending = Number(String(bal.getRange(row, BAL_COL.PENDING).getValue()).replace(/,/g, '')) || 0;
+  const paid = Number(String(bal.getRange(row, BAL_COL.PAID).getValue()).replace(/,/g, '')) || 0;
+  bal.getRange(row, BAL_COL.PENDING).setValue(pending + info.amount);
+  bal.getRange(row, BAL_COL.PAID).setValue(Math.max(paid - info.amount, 0));
+
+  const actor = _getActorEmail(email);
+  // 원본 행을 지우기 전에 반드시 먼저 기록한다
+  _logAction(ss, '지급취소', info.name, actor,
+    info.amount.toLocaleString() + UNIT + ' 지급 건을 취소·복구 (원 지급일 ' + info.date + ')');
+  ss.getSheetByName(PAYOUT_SHEET).deleteRow(info.logRow);
+
+  return {
+    ok: true, name: info.name, amount: info.amount,
+    msg: '✅ "' + info.name + '" ' + info.amount.toLocaleString() + UNIT + '가 분배전으로 복구되었습니다.'
+  };
+}
+
 function onOpen() {
   _ensureAuditLogExists();   // ★ 매번 파일을 열 때마다 영구 로그 시트 존재를 확인·자동 복구
   SpreadsheetApp.getUi()
@@ -434,9 +770,9 @@ function onOpen() {
 // ─────────────────────────────────────────
 // 🏁 시즌 종료: 스냅샷 보존 → 초기화 → 시즌 번호 증가
 // ─────────────────────────────────────────
-function seasonEnd() {
+function seasonEnd(opts) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const ui = SpreadsheetApp.getUi();
+  const ui = (opts && opts._ui) ? opts._ui : _uiAdapter(opts && opts.silent);
   const props = PropertiesService.getDocumentProperties();
 
   // 시즌 번호 결정 (저장값 우선, 시트 이름 충돌 시 자동 증가)
@@ -848,388 +1184,82 @@ function _payoutCore(ss, bal, row, amtOverride, clientEmail) {
 function deleteLedgerItem() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const ui = SpreadsheetApp.getUi();
-  const ledger = ss.getSheetByName(LEDGER_SHEET);
-  const balance = ss.getSheetByName('잔액현황');
-  if (!ledger) { ui.alert('❌ ' + LEDGER_SHEET + ' 시트를 찾을 수 없습니다.'); return; }
 
   const r1 = ui.prompt('🗑️ 아이템 완전 삭제',
-    '삭제할 아이템명을 정확히 입력하세요.\n(연습 항목, 잘못 등록한 항목 정리용 — 삭제하면 기록이 완전히 사라지고 되돌릴 수 없습니다)',
+    '삭제할 아이템명을 정확히 입력하세요.\n(삭제하면 기록이 사라지고 되돌릴 수 없습니다)',
     ui.ButtonSet.OK_CANCEL);
   if (r1.getSelectedButton() !== ui.Button.OK) return;
   const itemName = r1.getResponseText().trim();
   if (!itemName) { ui.alert('⚠️ 아이템명을 입력해주세요.'); return; }
 
-  const lastRow = ledger.getLastRow();
-  if (lastRow < 2) { ui.alert('⚠️ 등록된 항목이 없습니다.'); return; }
-  const rows = ledger.getRange(2, 1, lastRow - 1, 14).getValues();
-  const candidates = [];
-  rows.forEach((r, i) => {
-    if (String(r[LG.ITEM - 1]).trim() === itemName) candidates.push({ row: i + 2, data: r });
-  });
-  if (candidates.length === 0) {
-    ui.alert('⚠️ "' + itemName + '" 이름의 항목을 찾지 못했습니다.');
-    return;
-  }
-  candidates.sort((a, b) => b.row - a.row);
-  const target = candidates[0];
-  if (candidates.length > 1) {
-    ui.alert('ℹ️ 동일 이름 항목이 ' + candidates.length + '건 있어, 가장 최근 건(행 ' + target.row + ')을 삭제 대상으로 합니다.');
-  }
+  const target = _findItemRow(ss, itemName, null);
+  if (!target) { ui.alert('⚠️ "' + itemName + '" 이름의 항목을 찾지 못했습니다.'); return; }
 
-  const row = target.row;
-  const data = target.data;
-  const status = String(data[LG.STATUS - 1]).trim();
-  const namesStr = String(data[LG.NAMES - 1]).trim();
-  const participants = namesStr.split(',').map(s => s.trim()).filter(Boolean);
-  const n = participants.length;
-
-  let oldSplit = null;
-  let remainderTarget = null;
-  const findRowFactory = () => {
-    const balData = balance.getRange(2, 1, Math.max(balance.getLastRow() - 1, 1), 4).getValues();
-    const map = {};
-    balData.forEach((r3, i) => { const nm = String(r3[0]).trim(); if (nm && nm !== '합계') map[_normName(nm)] = i + 2; });
-    return (nm) => map[_normName(nm)];
-  };
-  const pendingOf = (r3) => Number(String(balance.getRange(r3, BAL_COL.PENDING).getValue()).replace(/,/g, '')) || 0;
-
-  if (status === ST_DONE) {
-    if (!balance) { ui.alert('❌ 잔액현황 시트를 찾을 수 없어 안전하게 삭제할 수 없습니다.'); return; }
-    const oldAmount = Number(data[LG.AMOUNT - 1]) || 0;
-    oldSplit = _calcSplit(oldAmount, n);
-    const members = _getMembers(ss);
-    remainderTarget = members.find(m => _coreName(m) === REMAINDER_NAME) || (members.filter(m => m !== FUND_NAME)[0]);
-
-    // ── 안전성 검사: 되돌릴 금액만큼 분배전 잔액이 남아있는지 ──
-    const findRow = findRowFactory();
-    const insufficient = [];
-    participants.forEach(p => {
-      const r3 = findRow(p);
-      const pending = r3 ? pendingOf(r3) : 0;
-      if (!r3 || pending < oldSplit.perPerson) {
-        insufficient.push(p + ' (분배전 ' + pending.toLocaleString() + ' < 필요 ' + oldSplit.perPerson.toLocaleString() + ')');
-      }
-    });
-    if (oldSplit.fund > 0) {
-      const fr = findRow(FUND_NAME);
-      const pending = fr ? pendingOf(fr) : 0;
-      if (!fr || pending < oldSplit.fund) insufficient.push(FUND_NAME + ' (분배전 ' + pending.toLocaleString() + ' < 필요 ' + oldSplit.fund.toLocaleString() + ')');
-    }
-    if (oldSplit.remainder > 0) {
-      const rr = findRow(remainderTarget);
-      const pending = rr ? pendingOf(rr) : 0;
-      if (!rr || pending < oldSplit.remainder) insufficient.push(remainderTarget + '(나머지) (분배전 ' + pending.toLocaleString() + ' < 필요 ' + oldSplit.remainder.toLocaleString() + ')');
-    }
-    if (insufficient.length > 0) {
-      ui.alert('❌ 삭제할 수 없습니다.\n\n다음 대상이 이미 지급✓ 처리되어 분배전 잔액이 부족합니다:\n\n' +
-        insufficient.join('\n') + '\n\n지급 기록을 확인한 뒤 다시 시도해주세요.');
-      return;
-    }
-  }
-
-  // ── 확인 팝업 ──
-  let msg = `📦 ${itemName} (행 ${row}, 상태: ${status})\n참여자 ${n}명\n`;
-  if (status === ST_DONE) {
-    msg += `\n[삭제 전 되돌릴 금액] 1인당 ${oldSplit.perPerson.toLocaleString()} / 혈비 ${oldSplit.fund.toLocaleString()} / 나머지 ${oldSplit.remainder.toLocaleString()}→${remainderTarget}\n`;
-  }
-  msg += `\n⚠️ 이 아이템 기록을 완전히 삭제합니다(되돌릴 수 없음).\n참여자의 참여횟수도 자동으로 재계산되어 이 항목만큼 줄어듭니다.\n\n계속할까요?`;
+  const info = _readLedgerRow(ss.getSheetByName(LEDGER_SHEET), target);
+  let msg = '📦 ' + info.item + ' (행 ' + target + ', ' + info.status + ')\n참여자 ' + info.n + '명\n';
+  if (info.status === ST_DONE) msg += '판매금액 ' + info.amount.toLocaleString() + UNIT + ' 를 먼저 되돌립니다.\n';
+  msg += '\n⚠️ 완전히 삭제합니다(되돌릴 수 없음). 계속할까요?';
   if (ui.alert('🗑️ 삭제 확인', msg, ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
 
-  try {
-    // ── 이미 분배된 경우: 금액부터 안전하게 되돌림 (개별 추적) ──
-    if (status === ST_DONE) {
-      const findRow = findRowFactory();
-      const reversed = [];
-      const failed = [];
-      participants.forEach(p => {
-        try {
-          const r3 = findRow(p);
-          if (!r3) { failed.push(p + ' (잔액현황에 없음)'); return; }
-          balance.getRange(r3, BAL_COL.PENDING).setValue(pendingOf(r3) - oldSplit.perPerson);
-          reversed.push(p);
-        } catch (e) { failed.push(p + ' (' + e.message + ')'); }
-      });
-      if (oldSplit.fund > 0) {
-        try {
-          const fr = findRow(FUND_NAME);
-          if (!fr) { failed.push(FUND_NAME + ' (잔액현황에 없음)'); }
-          else {
-            const cnt = Number(balance.getRange(fr, BAL_COL.CNT).getValue()) || 0;
-            balance.getRange(fr, BAL_COL.PENDING).setValue(pendingOf(fr) - oldSplit.fund);
-            balance.getRange(fr, BAL_COL.CNT).setValue(Math.max(cnt - 1, 0));
-            reversed.push(FUND_NAME);
-          }
-        } catch (e) { failed.push(FUND_NAME + ' (' + e.message + ')'); }
-      }
-      if (oldSplit.remainder > 0) {
-        try {
-          const rr = findRow(remainderTarget);
-          if (!rr) { failed.push(remainderTarget + '(나머지) (잔액현황에 없음)'); }
-          else {
-            balance.getRange(rr, BAL_COL.PENDING).setValue(pendingOf(rr) - oldSplit.remainder);
-            reversed.push(remainderTarget + '(나머지)');
-          }
-        } catch (e) { failed.push(remainderTarget + '(나머지) (' + e.message + ')'); }
-      }
-
-      if (failed.length > 0) {
-        ui.alert('⚠️ 금액 되돌리기가 일부만 반영되어 삭제를 중단했습니다.\n\n' +
-          '✅ 반영됨(' + reversed.length + '건): ' + reversed.join(', ') + '\n\n' +
-          '❌ 실패함(' + failed.length + '건): ' + failed.join(', ') + '\n\n' +
-          '행은 삭제되지 않았습니다(누적기록 상태는 "' + ST_DONE + '"로 유지됨).\n' +
-          '반영된 항목은 이미 되돌려졌으니, 실패한 항목만 수동 조정 후 다시 시도해주세요.');
-        return;
-      }
-    }
-
-    // ── 삭제 전 로그 기록 (행이 사라지기 전에 남겨야 함) ──
-    const actor = _getActorEmail();
-    const detail = (status === ST_DONE
-      ? (Number(data[LG.AMOUNT - 1]) || 0).toLocaleString() + UNIT + ' 분배분 되돌린 뒤 삭제'
-      : '미분배 상태에서 삭제') + ' (참여 ' + n + '명)';
-    _logAction(ss, '삭제', itemName, actor, detail);
-
-    // ── 누적기록 행 완전 삭제 ──
-    ledger.deleteRow(row);
-    // ── 참여횟수 재계산 (삭제된 행은 더 이상 등록 이력에 포함되지 않음) ──
-    _recalcAllParticipationCounts(ss);
-    _applyProtections(ss);
-
-    ui.alert(`✅ "${itemName}" 삭제 완료.\n참여횟수가 자동으로 재계산되었습니다.`);
-  } catch (e) {
-    ui.alert('❌ 삭제 실패: ' + e.message + '\n\n일부만 반영되었을 수 있으니 잔액현황·' + LEDGER_SHEET + '을 확인해주세요.');
-  }
+  const res = _deleteItemCore(ss, target, '');
+  ui.alert(res.ok ? res.msg : '❌ ' + res.msg);
 }
-
 function correctDistribution() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const ui = SpreadsheetApp.getUi();
-  const ledger = ss.getSheetByName(LEDGER_SHEET);
-  const balance = ss.getSheetByName('잔액현황');
-  if (!ledger || !balance) { ui.alert('❌ ' + LEDGER_SHEET + '/잔액현황 시트를 찾을 수 없습니다.'); return; }
 
   const r1 = ui.prompt('🔄 분배 정정', '정정할 아이템명을 정확히 입력하세요 (분배완료 상태만 가능):', ui.ButtonSet.OK_CANCEL);
   if (r1.getSelectedButton() !== ui.Button.OK) return;
   const itemName = r1.getResponseText().trim();
   if (!itemName) { ui.alert('⚠️ 아이템명을 입력해주세요.'); return; }
 
-  const lastRow = ledger.getLastRow();
-  if (lastRow < 2) { ui.alert('⚠️ 등록된 항목이 없습니다.'); return; }
-  const rows = ledger.getRange(2, 1, lastRow - 1, 14).getValues();
-  const candidates = [];
-  rows.forEach((r, i) => {
-    if (String(r[LG.ITEM - 1]).trim() === itemName && String(r[LG.STATUS - 1]).trim() === ST_DONE) {
-      candidates.push({ row: i + 2, data: r });
-    }
-  });
-  if (candidates.length === 0) {
-    ui.alert('⚠️ "' + itemName + '" 이름의 분배완료 항목을 찾지 못했습니다.\n(이름이 다르거나, 이미 미분배 상태이거나, 이미 정정했을 수 있습니다)');
-    return;
-  }
-  candidates.sort((a, b) => b.row - a.row);
-  const target = candidates[0];
-  if (candidates.length > 1) {
-    ui.alert('ℹ️ 동일 이름의 분배완료 항목이 ' + candidates.length + '건 있어, 가장 최근 건(행 ' + target.row + ')을 대상으로 진행합니다.');
-  }
+  const target = _findItemRow(ss, itemName, ST_DONE);
+  if (!target) { ui.alert('⚠️ "' + itemName + '" 이름의 분배완료 항목을 찾지 못했습니다.'); return; }
 
-  const row = target.row;
-  const data = target.data;
-  const oldAmount = Number(data[LG.AMOUNT - 1]) || 0;
-  const namesStr = String(data[LG.NAMES - 1]).trim();
-  const participants = namesStr.split(',').map(s => s.trim()).filter(Boolean);
-  const n = participants.length;
-  if (n === 0) { ui.alert('❌ 참여자 명단을 읽을 수 없습니다.'); return; }
-
-  const oldSplit = _calcSplit(oldAmount, n);
-  const members = _getMembers(ss);
-  const remainderTarget = members.find(m => _coreName(m) === REMAINDER_NAME) ||
-                          (members.filter(m => m !== FUND_NAME)[0]);
-
+  const info = _readLedgerRow(ss.getSheetByName(LEDGER_SHEET), target);
+  const oldSplit = _calcSplit(info.amount, info.n);
   const r2 = ui.prompt('🔄 분배 정정 — ' + itemName,
-    '현재 판매금액: ' + oldAmount.toLocaleString() + ' ' + UNIT + ' (' + n + '명)\n\n' +
-    '새 판매금액을 입력하세요.\n· 숫자 입력 → 되돌린 후 새 금액으로 즉시 재분배\n· 빈칸 + 확인 → 되돌리기만 하고 ' + ST_WAIT + ' 상태로 복귀',
+    '현재 판매금액: ' + info.amount.toLocaleString() + ' ' + UNIT + ' (' + info.n + '명)\n' +
+    '되돌릴 내역: 1인당 ' + oldSplit.perPerson.toLocaleString() + ' / 혈비 ' + oldSplit.fund.toLocaleString() + '\n\n' +
+    '새 판매금액을 입력하세요.\n· 숫자 → 되돌린 뒤 새 금액으로 재분배\n· 빈칸 → 되돌리기만 하고 ' + ST_WAIT + ' 복귀',
     ui.ButtonSet.OK_CANCEL);
   if (r2.getSelectedButton() !== ui.Button.OK) return;
-  const newAmountStr = r2.getResponseText().trim();
-  let newAmount = null;
-  if (newAmountStr !== '') {
-    newAmount = Number(newAmountStr.replace(/,/g, ''));
-    if (!newAmount || newAmount <= 0 || newAmount !== Math.floor(newAmount)) {
-      ui.alert('⚠️ 새 판매금액은 양의 정수여야 합니다.');
-      return;
-    }
-  }
+  const raw = r2.getResponseText().trim();
+  const newAmount = raw === '' ? null : Number(raw.replace(/,/g, ''));
 
-  // ── 잔액현황 조회 ──
-  const balData = balance.getRange(2, 1, Math.max(balance.getLastRow() - 1, 1), 4).getValues();
-  const nameToRow = {};
-  balData.forEach((r3, i) => {
-    const nm = String(r3[0]).trim();
-    if (nm && nm !== '합계') nameToRow[_normName(nm)] = i + 2;
-  });
-  const findRow = (nm) => nameToRow[_normName(nm)];
-  const pendingOf = (r3) => Number(String(balance.getRange(r3, BAL_COL.PENDING).getValue()).replace(/,/g, '')) || 0;
-
-  // ── 안전성 검사: 되돌릴 금액만큼 분배전 잔액이 남아있는지 ──
-  const insufficient = [];
-  participants.forEach(p => {
-    const r3 = findRow(p);
-    const pending = r3 ? pendingOf(r3) : 0;
-    if (!r3 || pending < oldSplit.perPerson) {
-      insufficient.push(p + ' (분배전 ' + pending.toLocaleString() + ' < 필요 ' + oldSplit.perPerson.toLocaleString() + ')');
-    }
-  });
-  if (oldSplit.fund > 0) {
-    const fr = findRow(FUND_NAME);
-    const pending = fr ? pendingOf(fr) : 0;
-    if (!fr || pending < oldSplit.fund) insufficient.push(FUND_NAME + ' (분배전 ' + pending.toLocaleString() + ' < 필요 ' + oldSplit.fund.toLocaleString() + ')');
-  }
-  if (oldSplit.remainder > 0) {
-    const rr = findRow(remainderTarget);
-    const pending = rr ? pendingOf(rr) : 0;
-    if (!rr || pending < oldSplit.remainder) insufficient.push(remainderTarget + '(나머지분) (분배전 ' + pending.toLocaleString() + ' < 필요 ' + oldSplit.remainder.toLocaleString() + ')');
-  }
-  if (insufficient.length > 0) {
-    ui.alert('❌ 정정할 수 없습니다.\n\n다음 대상이 이미 지급✓ 처리되어 분배전 잔액이 부족합니다(이미 실제로 지급되었을 가능성):\n\n' +
-      insufficient.join('\n') +
-      '\n\n지급 기록을 확인하거나 잔액을 수동 조정한 뒤 다시 시도해주세요.');
-    return;
-  }
-
-  // ── 확인 팝업 ──
-  let msg = `📦 ${itemName} (행 ${row})\n\n[되돌릴 내역]\n참여자 1인당 ${oldSplit.perPerson.toLocaleString()} / 혈비 ${oldSplit.fund.toLocaleString()} / 나머지 ${oldSplit.remainder.toLocaleString()}→${remainderTarget}\n`;
-  if (newAmount !== null) {
-    const newSplit = _calcSplit(newAmount, n);
-    msg += `\n[새 판매금액] ${newAmount.toLocaleString()} ${UNIT}\n→ 참여자 1인당 ${newSplit.perPerson.toLocaleString()} / 혈비 ${newSplit.fund.toLocaleString()} / 나머지 ${newSplit.remainder.toLocaleString()}→${remainderTarget}`;
-  } else {
-    msg += `\n(재분배 금액 미입력 — 되돌리기만 하고 ${ST_WAIT} 상태로 복귀합니다)`;
-  }
-  msg += '\n\n계속할까요?';
-  if (ui.alert('🔄 분배 정정 확인', msg, ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
-
-  // ── 되돌리기 실행 (참여횟수는 절대 건드리지 않음 — 등록 시점에 이미 확정된 값) ──
-  //   각 대상을 개별 try/catch로 감싸 부분 실패를 정확히 추적한다.
-  //   실패가 하나라도 있으면 누적기록 상태는 절대 바꾸지 않고(✅분배완료 유지),
-  //   정확히 누가 반영됐고 누가 안 됐는지 알려준 뒤 즉시 중단한다.
-  const reversed = [];
-  const failed = [];
-  participants.forEach(p => {
-    try {
-      const r3 = findRow(p);
-      if (!r3) { failed.push(p + ' (잔액현황에 없음)'); return; }
-      const pending = pendingOf(r3);
-      balance.getRange(r3, BAL_COL.PENDING).setValue(pending - oldSplit.perPerson);
-      reversed.push(p);
-    } catch (e) {
-      failed.push(p + ' (' + e.message + ')');
-    }
-  });
-  if (oldSplit.fund > 0) {
-    try {
-      const fr = findRow(FUND_NAME);
-      if (!fr) { failed.push(FUND_NAME + ' (잔액현황에 없음)'); }
-      else {
-        const pending = pendingOf(fr);
-        const cnt = Number(balance.getRange(fr, BAL_COL.CNT).getValue()) || 0;
-        balance.getRange(fr, BAL_COL.PENDING).setValue(pending - oldSplit.fund);
-        balance.getRange(fr, BAL_COL.CNT).setValue(Math.max(cnt - 1, 0));
-        reversed.push(FUND_NAME);
-      }
-    } catch (e) { failed.push(FUND_NAME + ' (' + e.message + ')'); }
-  }
-  if (oldSplit.remainder > 0) {
-    try {
-      const rr = findRow(remainderTarget);
-      if (!rr) { failed.push(remainderTarget + '(나머지) (잔액현황에 없음)'); }
-      else {
-        const pending = pendingOf(rr);
-        balance.getRange(rr, BAL_COL.PENDING).setValue(pending - oldSplit.remainder);
-        reversed.push(remainderTarget + '(나머지)');
-      }
-    } catch (e) { failed.push(remainderTarget + '(나머지) (' + e.message + ')'); }
-  }
-
-  if (failed.length > 0) {
-    ui.alert('⚠️ 되돌리기가 일부만 반영되었습니다!\n\n' +
-      '✅ 반영됨(' + reversed.length + '건): ' + reversed.join(', ') + '\n\n' +
-      '❌ 실패함(' + failed.length + '건): ' + failed.join(', ') + '\n\n' +
-      '누적기록 상태는 안전을 위해 그대로 "' + ST_DONE + '"로 유지했습니다.\n' +
-      '위 반영된 항목은 이미 되돌려졌으니, 실패한 항목만 잔액현황에서 직접 -' + oldSplit.perPerson + '만큼 수동 조정한 뒤\n' +
-      '누적기록의 상태/금액/혈비/1인당/분배일을 직접 정리해주세요.');
-    return;
-  }
-
-  try {
-    // 누적기록 행을 미분배 상태로 복귀 (되돌리기 전부 성공했을 때만 도달)
-    const actor = _getActorEmail();
-    ledger.getRange(row, LG.STATUS).setValue(ST_WAIT);
-    ledger.getRange(row, LG.AMOUNT).clearContent();
-    ledger.getRange(row, LG.FUND).clearContent();
-    ledger.getRange(row, LG.PER).clearContent();
-    ledger.getRange(row, LG.DIST).clearContent();
-    ledger.getRange(row, LG.CHECK).insertCheckboxes().setValue(false);
-    ledger.getRange(row, LG.EDITBY).setValue(actor);
-    _logAction(ss, '정정-되돌리기', itemName, actor, oldAmount.toLocaleString() + UNIT + ' 분배를 되돌림');
-
-    let doneMsg = `✅ "${itemName}" 되돌리기 완료.`;
-
-    // ── 재분배 실행 (새 금액 입력 시) ──
-    if (newAmount !== null) {
-      const r = _distributeCore(ss, ledger, row, newAmount);
-      if (r.ok) {
-        ledger.getRange(row, LG.EDITBY).setValue(actor);   // 재분배 시 DISTBY는 _distributeCore가 채우고, EDITBY는 "정정 실행자"로 유지
-        _logAction(ss, '정정-재분배', itemName, actor, oldAmount.toLocaleString() + ' → ' + newAmount.toLocaleString() + UNIT);
-        doneMsg = `✅ "${itemName}" 정정 완료!\n${oldAmount.toLocaleString()} → ${newAmount.toLocaleString()} ${UNIT}\n혈비 ${r.fund.toLocaleString()} / ${r.n}명 × ${r.perPerson.toLocaleString()}`;
-        if (r.remainder > 0) doneMsg += ` / 나머지 ${r.remainder}${UNIT}→${r.remainderTo}`;
-      } else {
-        doneMsg += `\n\n⚠️ 되돌리기는 성공했지만 재분배 실행에 실패했습니다(${r.reason}).\n[${LEDGER_SHEET}]에서 분배✓를 다시 눌러 수동으로 처리해주세요.`;
-      }
-    } else {
-      doneMsg += `\n${ST_WAIT} 상태로 복귀했습니다. [${LEDGER_SHEET}]에서 분배✓로 다시 처리할 수 있습니다.`;
-    }
-    ui.alert(doneMsg);
-  } catch (e) {
-    ui.alert('❌ 정정 실패: ' + e.message + '\n\n일부만 반영되었을 수 있으니 잔액현황을 확인해주세요.');
-  }
+  const res = _correctCore(ss, target, newAmount, '');
+  ui.alert(res.ok ? res.msg : '❌ ' + res.msg);
 }
 
+// 아이템명으로 행 찾기 (같은 이름이 여러 건이면 가장 최근 것)
+function _findItemRow(ss, itemName, statusFilter) {
+  const ledger = ss.getSheetByName(LEDGER_SHEET);
+  if (!ledger || ledger.getLastRow() < 2) return null;
+  const rows = ledger.getRange(2, 1, ledger.getLastRow() - 1, 14).getValues();
+  let found = null;
+  rows.forEach(function (r, i) {
+    if (String(r[LG.ITEM - 1]).trim() !== itemName) return;
+    if (statusFilter && String(r[LG.STATUS - 1]).trim() !== statusFilter) return;
+    found = i + 2;   // 뒤쪽(최근) 것이 남는다
+  });
+  return found;
+}
 function undoLastPayout() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const ui = SpreadsheetApp.getUi();
-  const log = ss.getSheetByName(PAYOUT_SHEET);
-  if (!log || log.getLastRow() < 2) { ui.alert('⚠️ 취소할 지급 기록이 없습니다.'); return; }
 
-  const lr = log.getLastRow();
-  const rec = log.getRange(lr, 1, 1, 3).getValues()[0];
-  const name = String(rec[1]).trim();
-  const amt = Number(String(rec[2]).replace(/,/g, '')) || 0;
-  const dateStr = Utilities.formatDate(new Date(rec[0]), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
+  const info = _lastPayoutInfo(ss);
+  if (!info) { ui.alert('⚠️ 취소할 지급 기록이 없습니다.'); return; }
 
-  const resp = ui.alert('↩️ 지급 취소',
-    `마지막 지급 건을 되돌립니다:\n\n📅 ${dateStr}\n👤 ${name}\n💎 ${amt.toLocaleString()} ${UNIT}\n\n분배완료 → 분배전으로 복구할까요?`,
+  const ok = ui.alert('↩️ 지급 취소',
+    '마지막 지급 건을 되돌립니다:\n\n📅 ' + info.date + '\n👤 ' + info.name +
+    '\n💎 ' + info.amount.toLocaleString() + ' ' + UNIT + '\n\n분배완료 → 분배전으로 복구할까요?',
     ui.ButtonSet.YES_NO);
-  if (resp !== ui.Button.YES) return;
+  if (ok !== ui.Button.YES) return;
 
-  const bal = ss.getSheetByName('잔액현황');
-  if (!bal) { ui.alert('❌ 잔액현황 시트를 찾을 수 없습니다.'); return; }
-  const vals = bal.getRange(2, 1, Math.max(bal.getLastRow() - 1, 1), 1).getValues();
-  let row = -1;
-  vals.forEach((r, i) => {
-    if (_normName(r[0]) === _normName(name)) row = i + 2;
-  });
-  if (row < 0) { ui.alert(`❌ 잔액현황에서 "${name}"을 찾지 못했습니다.`); return; }
-
-  const pending = Number(String(bal.getRange(row, BAL_COL.PENDING).getValue()).replace(/,/g, '')) || 0;
-  const paid = Number(String(bal.getRange(row, BAL_COL.PAID).getValue()).replace(/,/g, '')) || 0;
-  bal.getRange(row, BAL_COL.PENDING).setValue(pending + amt);
-  bal.getRange(row, BAL_COL.PAID).setValue(Math.max(paid - amt, 0));
-  const actor = _getActorEmail();
-  _logAction(ss, '지급취소', name, actor, amt.toLocaleString() + UNIT + ' 지급 건을 취소·복구 (원 지급일 ' + dateStr + ')');
-  log.deleteRow(lr);   // 지급기록 원본 행은 삭제되지만, 위 작업기록에는 영구히 남음
-  ui.alert(`✅ 취소 완료: "${name}" ${amt.toLocaleString()}${UNIT}가 분배전으로 복구되었습니다.`);
+  const res = _undoPayoutCore(ss, '');
+  ui.alert(res.ok ? res.msg : '❌ ' + res.msg);
 }
-
-// 지급기록 시트 확보 (없으면 생성)
 function _getOrCreatePayoutLog(ss) {
   let log = ss.getSheetByName(PAYOUT_SHEET);
   if (!log) {
@@ -1706,9 +1736,9 @@ function _getMembers(ss) {
 // 🚀 최초 설치: 새 파일에서 1회 실행 → 전체 시트 자동 세팅
 //    이미 설치된 파일에서는 아무것도 삭제하지 않고 안내만 함
 // ─────────────────────────────────────────
-function firstTimeInstall() {
+function firstTimeInstall(opts) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const ui = SpreadsheetApp.getUi();
+  const ui = (opts && opts._ui) ? opts._ui : _uiAdapter(opts && opts.silent);
 
   // 이미 설치되어 있는지 검사 (핵심 시트 존재 여부)
   const core = ['멤버DB',INPUT_SHEET,LEDGER_SHEET,'잔액현황'];
@@ -1756,9 +1786,9 @@ function firstTimeInstall() {
 // ─────────────────────────────────────────
 // 1. 공장 초기화 (완전 리셋 — 데이터 삭제됨)
 // ─────────────────────────────────────────
-function firstTimeSetup() {
+function firstTimeSetup(opts) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const ui = SpreadsheetApp.getUi();
+  const ui = (opts && opts._ui) ? opts._ui : _uiAdapter(opts && opts.silent);
   const resp = ui.alert('⚠️ 공장 초기화',
     '모든 시트가 재생성되고 기존 기록이 삭제됩니다.\n지난 시즌 기록(시즌1, 시즌2...)도 모두 삭제됩니다!\n(데이터를 유지하려면 [🔄 데이터 보존 업그레이드]를,\n시즌만 넘기려면 [🏁 시즌 종료]를 사용하세요)\n\n' +
     '🔒 [' + AUDIT_SHEET + '](누가 언제 무엇을 했는지의 영구 기록)은\n' +
@@ -3374,6 +3404,259 @@ function _importCore(ss, old, srcDb, srcBal, srcLedger, srcPay, srcLog) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  🧰 관리 도구 레지스트리 (v9.0)
+//
+//  지금까지 PC 시트 메뉴에만 있던 기능을 앱에서 부를 수 있게 모은 것.
+//  화면을 기능마다 따로 만들지 않고, 여기 정의만 추가하면 앱에 자동으로
+//  나타나도록 했다 — 앞으로 도구가 늘어도 앱 코드는 손대지 않아도 된다.
+//
+//  danger 는 확인 강도다.
+//    1 = 되돌릴 수 있음      → 앱에서 한 번 확인
+//    2 = 데이터가 바뀜        → 앱에서 경고와 함께 확인
+//    3 = 되돌릴 수 없음       → 정해진 문구를 정확히 입력해야만 실행
+//        (폰에서 잘못 눌러 시즌이 종료되는 일을 막기 위한 장치)
+// ═══════════════════════════════════════════════════════════════
+function _toolRegistry() {
+  return {
+    recalcCounts: {
+      name: '🔁 참여횟수 재계산',
+      desc: '등록 이력을 다시 세어 참여횟수를 맞춥니다. 다이아 잔액은 건드리지 않습니다.',
+      danger: 1,
+      inputs: [],
+      run: function (ss) {
+        const n = _recalcAllParticipationCounts(ss);
+        return { ok: true, msg: '✅ 참여횟수를 다시 계산했습니다' + (n ? ' (' + n + '명)' : '') + '.' };
+      }
+    },
+
+    tidy: {
+      name: '📐 시트 정돈',
+      desc: '시트 순서와 행 높이, 이름 서식을 표준으로 되돌립니다.',
+      danger: 1,
+      inputs: [],
+      run: function (ss) {
+        _reorderSheets(ss);
+        _normalizeRowHeights(ss);
+        _applyMemberNameFormatting(ss);
+        _applyProtections(ss);
+        return { ok: true, msg: '✅ 시트를 정돈했습니다.' };
+      }
+    },
+
+    discord: {
+      name: '🔗 디스코드 알림 설정',
+      desc: '등록·분배 시 디스코드로 자동 알림을 보냅니다. 웹훅 주소를 비우면 알림이 꺼집니다.',
+      danger: 1,
+      inputs: [{ key: 'url', label: '웹훅 주소', placeholder: 'https://discord.com/api/webhooks/...' }],
+      run: function (ss, params) {
+        const url = String(params.url || '').trim();
+        if (url && url.indexOf('https://') !== 0) {
+          return { ok: false, msg: '웹훅 주소는 https:// 로 시작해야 합니다.' };
+        }
+        PropertiesService.getDocumentProperties().setProperty('DISCORD_WEBHOOK', url);
+        return { ok: true, msg: url ? '✅ 디스코드 알림을 켰습니다.' : '✅ 디스코드 알림을 껐습니다.' };
+      }
+    },
+
+    seasonEnd: {
+      name: '🏁 시즌 종료',
+      desc: '지금까지의 기록을 [시즌N] 시트로 보존하고 잔액·아이템을 초기화합니다.',
+      danger: 3,
+      confirm: '시즌종료',
+      inputs: [],
+      run: function (ss) {
+        const ui = _uiAdapter(true);
+        seasonEnd({ silent: true, _ui: ui });
+        return _adapterResult(ui, '✅ 시즌을 종료했습니다.');
+      }
+    },
+
+    importData: {
+      name: '📥 기존 파일에서 가져오기',
+      desc: '쓰던 스프레드시트의 멤버·잔액·아이템·기록을 이 파일로 옮깁니다. 옛 파일은 읽기만 합니다.',
+      danger: 3,
+      confirm: '가져오기',
+      inputs: [{ key: 'url', label: '기존 스프레드시트 주소', placeholder: 'https://docs.google.com/spreadsheets/d/...' }],
+      run: function (ss, params) {
+        const m = String(params.url || '').match(/[-\w]{25,}/);
+        if (!m) return { ok: false, msg: '주소에서 파일 ID를 찾지 못했습니다.' };
+        if (m[0] === ss.getId()) return { ok: false, msg: '지금 이 파일과 같은 파일입니다.' };
+
+        let old;
+        try {
+          old = SpreadsheetApp.openById(m[0]);
+        } catch (e) {
+          return { ok: false, msg: '파일을 열 수 없습니다: ' + e.message + ' (주소와 열람 권한을 확인해주세요)' };
+        }
+        const report = _importCore(ss, old,
+          old.getSheetByName('멤버DB'),
+          old.getSheetByName('잔액현황'),
+          old.getSheetByName(LEDGER_SHEET) || old.getSheetByName('누적기록'),
+          old.getSheetByName(PAYOUT_SHEET),
+          old.getSheetByName(AUDIT_SHEET));
+        PropertiesService.getDocumentProperties().setProperty(IMPORT_MARK_PROP,
+          Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm'));
+        _logAction(ss, '데이터가져오기', old.getName(), _getActorEmail(''), report.join(' / '));
+        return { ok: true, msg: '✅ 가져오기 완료 — ' + report.join(' / ') };
+      }
+    },
+
+    install: {
+      name: '🚀 최초 설치',
+      desc: '빈 스프레드시트에 시트 구조를 만듭니다. 이미 설치된 파일에서는 실행하지 마세요.',
+      danger: 3,
+      confirm: '설치',
+      inputs: [],
+      run: function (ss) {
+        const ui = _uiAdapter(true);
+        firstTimeInstall({ silent: true, _ui: ui });
+        return _adapterResult(ui, '✅ 설치했습니다.');
+      }
+    },
+
+    factoryReset: {
+      name: '⚠️ 공장 초기화',
+      desc: '시즌 기록을 포함해 전부 삭제하고 처음 상태로 되돌립니다. 작업기록만 남습니다.',
+      danger: 3,
+      confirm: '전부삭제',
+      inputs: [],
+      run: function (ss) {
+        const ui = _uiAdapter(true);
+        firstTimeSetup({ silent: true, _ui: ui });
+        return _adapterResult(ui, '✅ 초기화했습니다.');
+      }
+    }
+  };
+}
+
+// 앱에 도구 목록을 내려준다 (run 함수는 제외 — 서버에만 있어야 한다)
+function api_getTools() {
+  const reg = _toolRegistry();
+  return Object.keys(reg).map(function (id) {
+    const t = reg[id];
+    return {
+      id: id,
+      name: t.name,
+      desc: t.desc,
+      danger: t.danger,
+      confirm: t.confirm || '',
+      inputs: t.inputs || []
+    };
+  });
+}
+
+// 도구 실행. danger 3 은 정해진 문구를 정확히 입력해야만 통과한다.
+function api_runTool(id, params, email, confirmText) {
+  const reg = _toolRegistry();
+  const tool = reg[String(id || '')];
+  if (!tool) return { ok: false, msg: '알 수 없는 도구입니다: ' + id };
+
+  if (tool.danger >= 3) {
+    if (String(confirmText || '').trim() !== tool.confirm) {
+      return {
+        ok: false,
+        needsConfirm: true,
+        confirm: tool.confirm,
+        msg: '이 작업은 되돌릴 수 없습니다.\n계속하려면 "' + tool.confirm + '" 을(를) 정확히 입력해주세요.'
+      };
+    }
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const res = tool.run(ss, params || {}, email);
+    _logAction(ss, '도구실행', tool.name, _getActorEmail(email), res.ok ? '성공' : ('실패: ' + res.msg));
+    return res;
+  } catch (e) {
+    return { ok: false, msg: tool.name + ' 실행 중 오류: ' + e.message };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  📦 아이템 정정·삭제 API (v9.0)
+// ═══════════════════════════════════════════════════════════════
+
+// 미분배 + 분배완료 아이템을 모두 내려준다 (앱에서 정정·삭제 대상 선택용)
+function api_getItemsAll() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ledger = ss.getSheetByName(LEDGER_SHEET);
+  if (!ledger || ledger.getLastRow() < 2) return [];
+
+  const n = ledger.getLastRow() - 1;
+  const vals = ledger.getRange(2, 1, n, 14).getValues();
+  const out = [];
+  vals.forEach(function (r, i) {
+    const item = String(r[LG.ITEM - 1]).trim();
+    if (!item) return;
+    out.push({
+      row: i + 2,
+      item: item,
+      status: String(r[LG.STATUS - 1]).trim(),
+      date: r[LG.DATE - 1] ? Utilities.formatDate(new Date(r[LG.DATE - 1]), Session.getScriptTimeZone(), 'MM/dd') : '',
+      cnt: Number(r[LG.CNT - 1]) || 0,
+      amount: Number(r[LG.AMOUNT - 1]) || 0,
+      perPerson: Number(r[LG.PER - 1]) || 0,
+      fund: Number(r[LG.FUND - 1]) || 0
+    });
+  });
+  // 최근 것이 위로
+  return out.reverse();
+}
+
+// 정정·삭제 전에 "무슨 일이 일어나는지" 미리 보여주기 위한 계산
+function api_previewReverse(row) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ledger = ss.getSheetByName(LEDGER_SHEET);
+  const balance = ss.getSheetByName('잔액현황');
+  if (!ledger || !balance) return { ok: false, msg: '시트를 찾을 수 없습니다.' };
+
+  const info = _readLedgerRow(ledger, Number(row));
+  if (!info) return { ok: false, msg: '아이템을 찾을 수 없습니다.' };
+
+  if (info.status !== ST_DONE) {
+    return { ok: true, data: { item: info.item, status: info.status, n: info.n, amount: 0, needsReverse: false, blocked: false } };
+  }
+
+  const chk = _reverseCheck(ss, balance, info.participants, info.amount);
+  return {
+    ok: true,
+    data: {
+      item: info.item,
+      status: info.status,
+      n: info.n,
+      amount: info.amount,
+      needsReverse: true,
+      perPerson: chk.split.perPerson,
+      fund: chk.split.fund,
+      remainder: chk.split.remainder,
+      remainderTo: chk.remainderTarget,
+      blocked: chk.insufficient.length > 0,
+      insufficient: chk.insufficient
+    }
+  };
+}
+
+function api_correctItem(row, newAmount, email, confirm) {
+  if (confirm !== true) return { ok: false, needsConfirm: true, msg: '확인이 필요합니다.' };
+  return _correctCore(SpreadsheetApp.getActiveSpreadsheet(), Number(row), newAmount, email);
+}
+
+function api_deleteItem(row, email, confirm) {
+  if (confirm !== true) return { ok: false, needsConfirm: true, msg: '확인이 필요합니다.' };
+  return _deleteItemCore(SpreadsheetApp.getActiveSpreadsheet(), Number(row), email);
+}
+
+function api_getLastPayout() {
+  const info = _lastPayoutInfo(SpreadsheetApp.getActiveSpreadsheet());
+  return info ? { ok: true, data: info } : { ok: false, msg: '취소할 지급 기록이 없습니다.' };
+}
+
+function api_undoPayout(email, confirm) {
+  if (confirm !== true) return { ok: false, needsConfirm: true, msg: '확인이 필요합니다.' };
+  return _undoPayoutCore(SpreadsheetApp.getActiveSpreadsheet(), email);
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  🌐 외부 웹앱 연동 JSON API (v8.0)
 //
 //  화면(PWA)은 Vercel에, 데이터는 이 스크립트가 담당하는 구조.
@@ -3390,7 +3673,8 @@ function _importCore(ss, old, srcDb, srcBal, srcLedger, srcPay, srcLog) {
 // ═══════════════════════════════════════════════════════════════
 const API_TOKEN_PROP = 'API_TOKEN';
 // 쓰기(잔액·원장을 바꾸는) 액션 — LockService로 직렬화한다
-const API_WRITE_ACTIONS = ['register', 'distribute', 'payout', 'rename', 'addMember', 'removeMember'];
+const API_WRITE_ACTIONS = ['register', 'distribute', 'payout', 'rename', 'addMember', 'removeMember',
+                           'correctItem', 'deleteItem', 'undoPayout', 'runTool'];
 
 // 🔑 토큰 발급·확인·재발급 (메뉴)
 function manageApiToken() {
@@ -3520,8 +3804,34 @@ function _apiRoute(action, req) {
     case 'removeMember':
       return api_removeMember(req.name, req.email, req.confirmRemove === true);
 
-    // ⚠️ correctDistribution / deleteLedgerItem 은 의도적으로 노출하지 않는다.
-    //    (되돌리기·완전삭제는 제작자 전용 PC 메뉴 유지 — 아키텍처 함정 #17)
+    case 'itemsAll':
+      return { ok: true, data: api_getItemsAll() };
+
+    case 'previewReverse':
+      return api_previewReverse(req.row);
+
+    case 'correctItem':
+      return api_correctItem(req.row, req.newAmount, req.email, req.confirm === true);
+
+    case 'deleteItem':
+      return api_deleteItem(req.row, req.email, req.confirm === true);
+
+    case 'lastPayout':
+      return api_getLastPayout();
+
+    case 'undoPayout':
+      return api_undoPayout(req.email, req.confirm === true);
+
+    case 'tools':
+      return { ok: true, data: api_getTools() };
+
+    case 'runTool':
+      return api_runTool(req.id, req.params, req.email, req.confirmText);
+
+    // v9.0 부터는 모든 관리 기능이 앱에 노출된다. 대신 위험도에 따라
+    // ① 구체적인 숫자를 보여주는 2단계 확인(정정·삭제·지급취소)
+    // ② 정해진 문구를 정확히 입력해야 실행되는 3단계 확인(시즌종료·초기화 등)
+    // 을 서버에서 강제한다 — 앱이 이 값을 임의로 채우면 안전장치가 무력화된다.
     default:
       return { ok: false, msg: '알 수 없는 요청입니다: ' + action };
   }

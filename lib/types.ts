@@ -51,6 +51,52 @@ export type RosterEntry = {
   isFund: boolean;
 };
 
+/** 전체 아이템 (미분배 + 분배완료) — 정정·삭제 대상 선택용 */
+export type LedgerEntry = {
+  row: number;
+  item: string;
+  status: string;
+  date: string;
+  cnt: number;
+  amount: number;
+  perPerson: number;
+  fund: number;
+};
+
+/** 정정·삭제 전에 "무슨 일이 일어나는지" 미리 보여줄 내용 */
+export type ReversePreview = {
+  item: string;
+  status: string;
+  n: number;
+  amount: number;
+  needsReverse: boolean;
+  perPerson?: number;
+  fund?: number;
+  remainder?: number;
+  remainderTo?: string;
+  /** 이미 지급된 사람이 있어 되돌릴 수 없는 상태 */
+  blocked: boolean;
+  insufficient?: string[];
+};
+
+export type PayoutRecord = {
+  name: string;
+  amount: number;
+  date: string;
+};
+
+/** 관리 도구 — 서버가 목록을 내려주므로 앱은 화면만 그린다 */
+export type Tool = {
+  id: string;
+  name: string;
+  desc: string;
+  /** 1=되돌릴 수 있음 · 2=데이터 변경 · 3=되돌릴 수 없음(확인 문구 필요) */
+  danger: number;
+  /** danger 3 일 때 정확히 입력해야 하는 문구 */
+  confirm: string;
+  inputs: { key: string; label: string; placeholder?: string }[];
+};
+
 export type PhotoResult = {
   photoUrl?: string;
   matched?: string[];

@@ -326,7 +326,145 @@ await t('탈퇴: 혈비 계정은 거부된다', async () => {
   eq((await res.json()).ok, false, 'ok');
 });
 
+/* ── ①-2 정산 정정 · 도구 (v9.0) ── */
+
+const del = (path, body, headers = {}) =>
+  fetch(APP + path, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', ...headers },
+    body: JSON.stringify(body ?? {}),
+  });
+
+for (const [label, path] of [
+  ['아이템 정정·삭제', '/api/admin/items'],
+  ['지급 취소', '/api/admin/payout-undo'],
+  ['관리 도구', '/api/admin/tools'],
+]) {
+  await t(`인증 없이 ${label} → 401`, async () => {
+    eq((await fetch(APP + path)).status, 401, 'GET');
+    eq((await post(path, { row: 3 })).status, 401, 'POST');
+  });
+}
+
+await t('아이템 목록에 미분배·분배완료가 모두 나온다', async () => {
+  const list = (await (await fetch(`${APP}/api/admin/items`, { headers: { Cookie: cookie } })).json()).data;
+  if (!list.some((i) => i.status.includes('미분배'))) throw new Error('미분배 항목이 없습니다.');
+  if (!list.some((i) => i.status.includes('분배완료'))) throw new Error('분배완료 항목이 없습니다.');
+});
+
+await t('정정 미리보기가 되돌릴 금액을 알려준다', async () => {
+  const res = await post('/api/admin/items', { op: 'preview', row: 3 }, { Cookie: cookie });
+  const d = (await res.json()).data;
+  eq(d.needsReverse, true, 'needsReverse');
+  eq(d.blocked, false, 'blocked');
+  // 3,000 → 혈비 300, 남은 2,700 을 3명이 나누면 1인당 900
+  eq(d.perPerson, 900, '되돌릴 1인당');
+  eq(d.fund, 300, '되돌릴 혈비');
+});
+
+await t('이미 지급된 아이템은 정정이 막힌다', async () => {
+  const pv = (await (await post('/api/admin/items', { op: 'preview', row: 4 }, { Cookie: cookie })).json()).data;
+  eq(pv.blocked, true, '미리보기 blocked');
+
+  // 미리보기를 무시하고 실행해도 서버가 막아야 한다
+  const run = await post('/api/admin/items', { op: 'correct', row: 4, newAmount: 5000, confirm: true }, { Cookie: cookie });
+  eq((await run.json()).ok, false, '실행 결과');
+});
+
+await t('정정: 확인 없이는 실행되지 않는다', async () => {
+  const res = await post('/api/admin/items', { op: 'correct', row: 3, newAmount: 6000 }, { Cookie: cookie });
+  const body = await res.json();
+  eq(body.ok, false, 'ok');
+  eq(body.needsConfirm, true, 'needsConfirm');
+});
+
+await t('정정하면 참여자 잔액이 새 금액으로 맞춰진다', async () => {
+  const before = (await (await post('/api/lookup', { name: '가이' })).json()).data.pending;
+  const res = await post(
+    '/api/admin/items',
+    { op: 'correct', row: 3, newAmount: 6000, confirm: true },
+    { Cookie: cookie },
+  );
+  eq((await res.json()).ok, true, '정정 결과');
+
+  // 3,000 → 6,000 이면 1인당 900 → 1,800 이므로 정확히 900 늘어야 한다
+  const after = (await (await post('/api/lookup', { name: '가이' })).json()).data.pending;
+  eq(after, before + 900, '가이 분배전');
+});
+
+await t('삭제: 확인 없이는 실행되지 않는다', async () => {
+  const res = await post('/api/admin/items', { op: 'delete', row: 2 }, { Cookie: cookie });
+  const body = await res.json();
+  eq(body.ok, false, 'ok');
+  eq(body.needsConfirm, true, 'needsConfirm');
+});
+
+await t('삭제하면 목록에서 사라진다', async () => {
+  const res = await post('/api/admin/items', { op: 'delete', row: 2, confirm: true }, { Cookie: cookie });
+  eq((await res.json()).ok, true, '삭제 결과');
+  const list = (await (await fetch(`${APP}/api/admin/items`, { headers: { Cookie: cookie } })).json()).data;
+  if (list.some((i) => i.row === 2)) throw new Error('아직 목록에 있습니다.');
+});
+
+await t('지급 취소: 분배완료가 분배전으로 돌아온다', async () => {
+  const last = (await (await fetch(`${APP}/api/admin/payout-undo`, { headers: { Cookie: cookie } })).json()).data;
+  if (!last) throw new Error('되돌릴 지급 기록이 없습니다.');
+  const before = (await (await post('/api/lookup', { name: last.name })).json()).data;
+
+  // 확인 없이는 거부
+  const noConfirm = await post('/api/admin/payout-undo', {}, { Cookie: cookie });
+  eq((await noConfirm.json()).needsConfirm, true, 'needsConfirm');
+
+  const res = await post('/api/admin/payout-undo', { confirm: true }, { Cookie: cookie });
+  eq((await res.json()).ok, true, '취소 결과');
+
+  const after = (await (await post('/api/lookup', { name: last.name })).json()).data;
+  eq(after.pending, before.pending + last.amount, '분배전');
+  eq(after.paid, before.paid - last.amount, '분배완료');
+});
+
+await t('도구 목록: 위험한 것에는 확인 문구가 붙어 있다', async () => {
+  const tools = (await (await fetch(`${APP}/api/admin/tools`, { headers: { Cookie: cookie } })).json()).data;
+  if (!Array.isArray(tools) || tools.length === 0) throw new Error('도구가 없습니다.');
+  const risky = tools.filter((x) => x.danger >= 3);
+  if (risky.length === 0) throw new Error('위험도 3 도구가 없습니다.');
+  if (risky.some((x) => !x.confirm)) throw new Error('확인 문구가 빠진 도구가 있습니다.');
+});
+
+await t('시즌 종료: 문구가 틀리면 실행되지 않는다', async () => {
+  // 실행되면 안 되는 입력만 보낸다 — '시즌종료 ' 처럼 공백만 다른 값은
+  // 서버가 trim 해서 통과시키므로 여기서 보내면 진짜로 시즌이 끝난다
+  for (const text of ['', '아무거나', '시즌종', '시즌종료요', 'season']) {
+    const res = await post('/api/admin/tools', { id: 'seasonEnd', confirmText: text }, { Cookie: cookie });
+    const body = await res.json();
+    if (body.ok !== false || body.needsConfirm !== true) {
+      throw new Error(`"${text}" 로 시즌이 종료되었습니다.`);
+    }
+  }
+  // 시즌이 그대로인지 확인 (하나라도 새어나갔으면 번호가 올라간다)
+  const st = (await (await fetch(`${APP}/api/state`)).json()).data;
+  eq(st.season, 3, '시즌 번호');
+});
+
+await t('안전한 도구는 문구 없이 바로 실행된다', async () => {
+  const res = await post('/api/admin/tools', { id: 'recalcCounts' }, { Cookie: cookie });
+  eq((await res.json()).ok, true, '참여횟수 재계산');
+});
+
+await t('알 수 없는 도구는 거부된다', async () => {
+  const res = await post('/api/admin/tools', { id: 'dropAllTables', confirmText: '전부삭제' }, { Cookie: cookie });
+  eq((await res.json()).ok, false, 'ok');
+});
+
 /* ── ② 화면 흐름 (브라우저) ── */
+
+// 앞의 API 테스트가 데이터를 많이 바꿔놨다. 화면 테스트가 그 결과에 얽매이지
+// 않도록 모의 시트를 처음 상태로 되돌린다 (모의 시트에만 있는 기능 — 앱 API 에는 없다).
+await fetch(MOCK, {
+  method: 'POST',
+  headers: { 'Content-Type': 'text/plain' },
+  body: JSON.stringify({ action: '__reset', token: 'TESTTOKEN' }),
+});
 
 const browser = await chromium.launch({ executablePath: chromiumPath() });
 const ctx = await browser.newContext({

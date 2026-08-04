@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { api, getStoredEmail, setStoredEmail } from '@/lib/client';
 import ShareCard from './ShareCard';
 import RosterCard from './RosterCard';
+import ToolsCard from './ToolsCard';
 
 export default function AdminTab({
   admin,
@@ -93,6 +94,8 @@ export default function AdminTab({
       {admin ? (
         <>
           <RosterCard unit={unit} onChanged={onAuthChange} toast={toast} />
+
+          <ToolsCard unit={unit} onChanged={onAuthChange} toast={toast} />
 
           <div className="sect">📧 기록용 이메일</div>
           <div className="card">

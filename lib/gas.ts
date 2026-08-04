@@ -21,7 +21,15 @@ export type GasAction =
   | 'roster'
   | 'rename'
   | 'addMember'
-  | 'removeMember';
+  | 'removeMember'
+  | 'itemsAll'
+  | 'previewReverse'
+  | 'correctItem'
+  | 'deleteItem'
+  | 'lastPayout'
+  | 'undoPayout'
+  | 'tools'
+  | 'runTool';
 
 export type GasResponse = Record<string, unknown> & { ok: boolean; msg?: string };
 
