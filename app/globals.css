@@ -104,9 +104,30 @@ button {
 }
 
 .header h1 {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
   font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.2px;
+}
+
+/* 제목 옆 버전 — 평소엔 조용히, 시트 버전이 어긋나면 눈에 띄게 */
+.header h1 .ver {
+  flex: none;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  opacity: 0.65;
+}
+
+.header h1 .ver.warn {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #fff3cd;
+  color: #7a4b00;
+  opacity: 1;
 }
 
 .header .meta {

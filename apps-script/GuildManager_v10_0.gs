@@ -4819,7 +4819,10 @@ function api_getState() {
     appName: String(props.getProperty('APP_NAME') || '길드정산'),
     notice: _topNotice(ss),
     unit: UNIT,
-    season: season
+    season: season,
+    // 앱 상단에 표시된다. 앱(Vercel)이 아는 버전과 다르면 앱이 경고를 띄워,
+    // "코드는 붙여넣었는데 재배포를 안 한" 상태를 사용자가 바로 알아챌 수 있다.
+    version: VERSION
   };
 }
 

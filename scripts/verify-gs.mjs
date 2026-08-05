@@ -68,6 +68,35 @@ check('VERSION 상수와 파일명 일치', () => {
   return `v${v}`;
 });
 
+check('버전이 네 곳에서 같다 (.gs · 파일명 · package.json · 앱)', () => {
+  // 화면 상단에 버전을 띄우고 시트 버전과 대조하므로, 앱이 아는 값이 틀리면
+  // 멀쩡한 배포에도 "버전 불일치" 경고가 뜬다. 네 곳을 한 번에 묶어둔다.
+  const gsVer = gs.match(/const VERSION = '([\d.]+)'/)?.[1];
+  const fromName = GS_PATH.match(/_v(\d+)_(\d+)\.gs$/);
+  const nameVer = fromName ? `${fromName[1]}.${fromName[2]}` : null;
+  const appVer = readFileSync(resolve(ROOT, 'lib/version.ts'), 'utf8').match(/APP_VERSION = '([\d.]+)'/)?.[1];
+  const pkgVer = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf8')).version;
+
+  if (!gsVer) throw new Error('.gs 의 VERSION 상수를 찾을 수 없습니다.');
+  if (!appVer) throw new Error('lib/version.ts 의 APP_VERSION 을 찾을 수 없습니다.');
+
+  const seen = { '.gs': gsVer, '파일명': nameVer, 'lib/version.ts': appVer, 'package.json': pkgVer };
+  // package.json 은 semver 라 뒤에 .0 이 붙는다
+  const norm = (v) => String(v).split('.').slice(0, 2).join('.');
+  const bad = Object.entries(seen).filter(([, v]) => v && norm(v) !== norm(gsVer));
+  if (bad.length) {
+    throw new Error(
+      `버전이 어긋납니다 → ${Object.entries(seen).map(([k, v]) => `${k}=${v}`).join(' · ')}`,
+    );
+  }
+
+  // 앱이 시트 버전을 받아 대조할 수 있어야 한다
+  if (!/version:\s*VERSION/.test(extractFn(gs, 'api_getState'))) {
+    throw new Error('api_getState 가 version 을 내려주지 않습니다 — 앱이 버전을 대조할 수 없습니다.');
+  }
+  return `v${gsVer} (4곳 일치)`;
+});
+
 check('doGet 이 내주는 화면은 아무것도 바꿀 수 없다', () => {
   // ★ v9.0 에서 실제로 뚫렸던 지점이다.
   //

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { BalanceRow, GuildState, LedgerItem } from '@/lib/types';
 import { api } from '@/lib/client';
 import { getLang, makeT, type Lang } from '@/lib/i18n';
+import { APP_VERSION } from '@/lib/version';
 import BalanceTab from './BalanceTab';
 import ItemsTab from './ItemsTab';
 import BoardTab from './BoardTab';
@@ -86,10 +87,28 @@ export default function App() {
 
   const title = state?.appName?.trim() || '길드정산';
 
+  // 시트(.gs)는 사용자가 직접 붙여넣고 재배포해야 해서, 앱만 새 버전인 상태가 되기 쉽다.
+  // 그 어긋남을 제목 옆에서 바로 보이게 한다.
+  const sheetVersion = state?.version ?? '';
+  const versionMismatch = Boolean(sheetVersion) && sheetVersion !== APP_VERSION;
+
   return (
     <>
       <header className="header">
-        <h1>🛡️ {title}</h1>
+        <h1>
+          🛡️ {title}
+          <span
+            className={'ver' + (versionMismatch ? ' warn' : '')}
+            title={
+              versionMismatch
+                ? `앱 v${APP_VERSION} · 구글시트 v${sheetVersion} — 시트에 새 코드를 붙여넣고 [배포 관리] → 새 버전으로 배포해주세요.`
+                : `앱 · 구글시트 모두 v${APP_VERSION}`
+            }
+          >
+            v{APP_VERSION}
+            {versionMismatch ? ` ⚠️ 시트 v${sheetVersion}` : ''}
+          </span>
+        </h1>
         <div className="meta">
           {master ? <span className="chip">👑 {t('common.master')}</span> : admin ? <span className="chip">🔓 {t('common.admin')}</span> : null}
           {state ? (

@@ -104,13 +104,16 @@ const send = (method) => (path, body, headers = {}) =>
 const post = send('POST');
 const del = send('DELETE');
 
-/** 모의 시트를 처음 상태로 되돌린다 (모의 시트에만 있는 기능) */
-const reset = () =>
+/** 모의 시트에만 있는 기능 (앱 API 에는 없다) */
+const mock = (action, extra = {}) =>
   fetch(MOCK, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ action: '__reset', token: 'TESTTOKEN' }),
+    body: JSON.stringify({ action, token: 'TESTTOKEN', ...extra }),
   });
+
+/** 모의 시트를 처음 상태로 되돌린다 */
+const reset = () => mock('__reset');
 
 /* ────────────────────────────────────────────── */
 
@@ -761,6 +764,27 @@ await t('상단 시즌 칩으로 지난 시즌을 연다', async () => {
   await shot('06-season');
   await page.getByRole('button', { name: '시즌 목록으로' }).click();
   await page.waitForTimeout(300);
+});
+
+await t('제목 옆에 버전이 보이고, 시트가 옛 버전이면 경고가 붙는다', async () => {
+  await reset();
+  await page.reload({ waitUntil: 'networkidle' });
+  const h1 = page.locator('.header h1');
+  const same = await h1.innerText();
+  if (!same.includes('v10.0')) throw new Error(`제목 옆 버전이 없습니다: ${same}`);
+  if (same.includes('⚠️')) throw new Error(`버전이 같은데 경고가 떴습니다: ${same}`);
+  await shot('09-version');
+
+  // 시트만 옛 버전으로 바꾸면 경고가 떠야 한다 (캐시가 8초라 지나갈 때까지 기다린다)
+  await mock('__setVersion', { version: '9.1' });
+  await page.waitForTimeout(8500);
+  await page.reload({ waitUntil: 'networkidle' });
+  const warned = await h1.innerText();
+  if (!warned.includes('9.1')) throw new Error(`시트 버전 경고가 없습니다: ${warned}`);
+  if (!warned.includes('⚠️')) throw new Error(`경고 표시가 없습니다: ${warned}`);
+  await shot('10-version-mismatch');
+
+  await mock('__setVersion', { version: '10.0' });
 });
 
 await t('브라우저 콘솔에 오류가 없다', () => {

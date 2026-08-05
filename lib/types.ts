@@ -44,6 +44,8 @@ export type GuildState = {
   /** 재화 단위 표기 ('다이아') */
   unit: string;
   season: number;
+  /** 구글시트에 붙여넣은 .gs 의 버전. 앱 버전과 다르면 재배포가 안 된 것이다 */
+  version?: string;
 };
 
 /** 멤버DB E·F·G 열 — 정산에 쓰이는 건 weight 뿐이고 나머지는 표시용이다 */

@@ -21,6 +21,8 @@ const FUND_RATE = 0.1;
 const DEFAULT_WEIGHT = 100;
 const UNIT = '다이아';
 const SERVER_LIST = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+// 앱이 기대하는 버전과 같은 값 — 화면에 "버전 불일치" 경고가 뜨지 않아야 정상이다
+let MOCK_GS_VERSION = '10.0';
 
 /** 실제 로스터를 흉내 낸 표본 — 한글·한자·영문 혼합, 이름 길이도 다양하게 */
 function freshState() {
@@ -193,7 +195,7 @@ function add(name, amount) {
 }
 
 const handlers = {
-  ping: () => ({ ok: true, version: '8.0-mock', unit: UNIT }),
+  ping: () => ({ ok: true, version: MOCK_GS_VERSION, unit: UNIT }),
 
   state: () => ({
     ok: true,
@@ -211,6 +213,7 @@ const handlers = {
       notice: topNotice(),
       unit: UNIT,
       season: S.season,
+      version: MOCK_GS_VERSION,
     },
   }),
 
@@ -669,7 +672,14 @@ const handlers = {
   // 테스트가 매번 같은 상태에서 시작할 수 있도록
   __reset: () => {
     S = freshState();
+    MOCK_GS_VERSION = '10.0';
     return { ok: true, msg: '초기화됨' };
+  },
+
+  // "시트만 옛 버전인" 상황을 만들어 보기 위한 것 (테스트 전용)
+  __setVersion: ({ version }) => {
+    MOCK_GS_VERSION = String(version || '10.0');
+    return { ok: true, msg: '버전 ' + MOCK_GS_VERSION };
   },
 };
 
