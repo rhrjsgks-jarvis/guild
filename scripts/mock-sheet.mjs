@@ -77,6 +77,7 @@ const TOOLS = [
   { id: 'recalcCounts', name: '🔁 참여횟수 재계산', desc: '등록 이력을 다시 세어 참여횟수를 맞춥니다.', danger: 1, confirm: '', inputs: [] },
   { id: 'tidy', name: '📐 시트 정돈', desc: '시트 순서와 행 높이를 표준으로 되돌립니다.', danger: 1, confirm: '', inputs: [] },
   { id: 'discord', name: '🔗 디스코드 알림 설정', desc: '등록·분배 시 자동 알림을 보냅니다.', danger: 1, confirm: '', inputs: [{ key: 'url', label: '웹훅 주소' }] },
+  { id: 'importSeasons', name: '📚 지난 시즌 기록만 가져오기', desc: '옛 파일의 [시즌N] 시트만 복사합니다.', danger: 2, confirm: '', inputs: [{ key: 'url', label: '옛 스프레드시트 주소' }] },
   { id: 'seasonServer', name: '🗺️ 이번 시즌 서버 설정', desc: '이번 시즌의 서버 이름을 지정합니다.', danger: 1, confirm: '', inputs: [{ key: 'server', label: '서버 이름' }] },
   { id: 'renameFund', name: '🏦 혈비 계정을 혈맹운영비로 통일', desc: 'v9 이하의 계정명을 v10 이름으로 바꿉니다.', danger: 2, confirm: '', inputs: [] },
   { id: 'seasonEnd', name: '🏁 시즌 종료', desc: '기록을 보존하고 초기화합니다.', danger: 3, confirm: '시즌종료', inputs: [] },
@@ -518,6 +519,12 @@ const handlers = {
       S.done = [];
       S.rows.forEach((r) => { r.pending = 0; r.paid = 0; r.cnt = 0; });
       return { ok: true, msg: `✅ 시즌을 종료했습니다. (시즌 ${S.season} 시작)` };
+    }
+    if (id === 'importSeasons') {
+      if (!String(params?.url || '').match(/[-\w]{25,}/)) {
+        return { ok: false, msg: '주소에서 파일 ID를 찾지 못했습니다.' };
+      }
+      return { ok: true, msg: '✅ 시즌1, 시즌2 을(를) 가져왔습니다. 이제 시즌 3 입니다.' };
     }
     if (id === 'seasonServer') {
       S.seasonServer = String(params?.server || '').trim();

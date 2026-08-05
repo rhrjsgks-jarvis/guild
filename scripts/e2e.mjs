@@ -758,10 +758,25 @@ await t('상단 시즌 칩으로 지난 시즌을 연다', async () => {
 
   await page.getByRole('button', { name: /시즌 2/ }).first().click();
   await page.waitForTimeout(900);
-  if (!(await page.getByText('최종 잔액현황').first().isVisible())) {
-    throw new Error('시즌 상세가 열리지 않았습니다.');
+
+  // 기본 화면은 "캐릭터명 + 정산 다이아" 만 보여준다 (표가 아니라 목록)
+  const body = await page.locator('.sheet').innerText();
+  for (const want of ['가이', '62,400', 'TC무식']) {
+    if (!body.includes(want)) throw new Error(`정산 목록에 ${want} 이(가) 없습니다:\n${body}`);
   }
+  if (body.includes('최종 잔액현황')) throw new Error('기본 화면에 표 제목이 그대로 나옵니다.');
+  // 큰 금액이 위로 — TC무식(62,400)이 가이(48,200)보다 먼저 나와야 한다
+  if (body.indexOf('62,400') > body.indexOf('48,200')) throw new Error('정산액 내림차순 정렬이 아닙니다.');
   await shot('06-season');
+
+  // [자세히 보기] 를 눌러야 원래 표들이 펼쳐진다
+  await page.getByRole('button', { name: /자세히 보기/ }).click();
+  await page.waitForTimeout(400);
+  if (!(await page.getByText('최종 잔액현황').first().isVisible())) {
+    throw new Error('자세히 보기에서 표가 열리지 않았습니다.');
+  }
+  await shot('07-season-detail');
+
   await page.getByRole('button', { name: '시즌 목록으로' }).click();
   await page.waitForTimeout(300);
 });

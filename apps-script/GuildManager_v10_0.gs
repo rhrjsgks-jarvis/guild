@@ -3851,6 +3851,63 @@ function _toolRegistry() {
       }
     },
 
+    // 시즌 아카이브만 옮긴다. [📥 기존 파일에서 가져오기] 는 멤버DB 이름을
+    // 통째로 덮어쓰기 때문에, 새 파일에서 이미 개명·추가를 한 뒤에는 쓸 수 없다.
+    // 지난 시즌 기록만 필요할 때를 위한 안전한 경로.
+    importSeasons: {
+      name: '📚 지난 시즌 기록만 가져오기',
+      desc: '옛 파일의 [시즌N] 시트만 복사합니다. 멤버·잔액·아이템·작업기록은 전혀 건드리지 않습니다. ' +
+            '이미 있는 시즌은 건너뜁니다.',
+      danger: 2,
+      inputs: [{ key: 'url', label: '옛 스프레드시트 주소', placeholder: 'https://docs.google.com/spreadsheets/d/...' }],
+      run: function (ss, params, email) {
+        const raw = String(params.url || '').trim();
+        const m = raw.match(/[-\w]{25,}/);
+        if (!m) return { ok: false, msg: '주소에서 파일 ID를 찾지 못했습니다.' };
+        if (m[0] === ss.getId()) return { ok: false, msg: '지금 이 파일입니다. 옛 파일 주소를 넣어주세요.' };
+
+        let old;
+        try {
+          old = SpreadsheetApp.openById(m[0]);
+        } catch (e) {
+          return { ok: false, msg: '파일을 열 수 없습니다: ' + e.message + ' (주소와 열람 권한을 확인해주세요)' };
+        }
+
+        const found = old.getSheets().filter(function (s) { return /^시즌\d+$/.test(s.getName()); });
+        if (found.length === 0) return { ok: false, msg: '옛 파일에서 [시즌N] 시트를 찾지 못했습니다.' };
+
+        // 대상별 개별 try/catch — 하나가 실패해도 나머지는 계속 옮긴다
+        const copied = [];
+        const skipped = [];
+        const failed = [];
+        found.forEach(function (sh) {
+          const nm = sh.getName();
+          try {
+            if (ss.getSheetByName(nm)) { skipped.push(nm); return; }
+            sh.copyTo(ss).setName(nm);
+            copied.push(nm);
+          } catch (e) { failed.push(nm + ' (' + e.message + ')'); }
+        });
+
+        if (copied.length > 0) {
+          _reorderSheets(ss);
+          // 시즌 번호는 존재하는 시트를 세어 스스로 맞춰지지만, 문서 속성도 함께 올려둔다
+          const maxNum = Math.max.apply(null, copied.concat(skipped).map(function (n) {
+            return Number(n.replace('시즌', '')) || 0;
+          }));
+          PropertiesService.getDocumentProperties().setProperty('SEASON_NUM', String(maxNum + 1));
+          _logAction(ss, '시즌가져오기', old.getName(), _getActorEmail(email), copied.join(', ') + ' 복사');
+        }
+
+        let msg = copied.length > 0
+          ? '✅ ' + copied.join(', ') + ' 을(를) 가져왔습니다. 이제 시즌 ' + _currentSeason(ss) + ' 입니다.'
+          : 'ℹ️ 새로 가져올 시즌이 없습니다.';
+        if (skipped.length) msg += '\n(이미 있어 건너뜀: ' + skipped.join(', ') + ')';
+        if (failed.length) msg += '\n⚠️ 실패: ' + failed.join(', ');
+        return { ok: copied.length > 0 || skipped.length > 0, msg: msg };
+      }
+    },
+
     seasonServer: {
       name: '🗺️ 이번 시즌 서버 설정',
       desc: '새 시즌이 시작될 때 이번 시즌의 서버 이름을 지정합니다. 표시 전용이라 정산에는 영향이 없습니다.',
