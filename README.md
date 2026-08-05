@@ -115,6 +115,8 @@ public/
   manifest.webmanifest  앱 이름·아이콘·전체화면 설정
   sw.js                 서비스워커 (오프라인 껍데기)
   icon-*.png            아이콘 (scripts/make-icons.mjs 로 생성)
+                        ※ 직접 만든 이미지를 쓰려면 이 파일들과 app/icon.png,
+                          app/apple-icon.png 를 같은 크기 PNG로 덮어쓰면 됩니다
 apps-script/
   GuildManager_v10_0.gs  ★ 구글시트에 붙여넣는 코드 (정산 로직 전부)
 ```
