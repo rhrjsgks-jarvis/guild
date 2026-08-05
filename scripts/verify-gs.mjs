@@ -7,13 +7,13 @@
  *
  * 검사 항목은 아래 CHECKS 배열이 전부다. 새 규칙이 생기면 여기에 추가하면 된다.
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v9_2.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v10_0.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 const gs = readFileSync(GS_PATH, 'utf8');
@@ -135,6 +135,9 @@ check('API 라우터 — 필요한 액션 노출 / 위험한 액션 차단', () 
     'itemsAll', 'previewReverse', 'correctItem', 'deleteItem',
     'lastPayout', 'undoPayout', 'tools', 'runTool',
     'seasons', 'season',
+    'renameHistory', 'posts', 'addPost', 'deletePost',
+    'alliance', 'addAlliance', 'deleteAlliance', 'countPhoto',
+    'updateMember', 'checkPin', 'setAppName', 'setAdminPin', 'setSeasonServer',
   ];
   const missing = required.filter((a) => !routed.includes(a));
   if (missing.length) throw new Error(`누락된 액션: ${missing.join(', ')}`);
@@ -153,7 +156,8 @@ check('쓰기 액션은 전부 LockService 대상', () => {
   if (!list) throw new Error('API_WRITE_ACTIONS 상수를 찾을 수 없습니다.');
   const actions = list.replace(/['\s]/g, '').split(',').filter(Boolean);
   const mustLock = ['register', 'distribute', 'payout', 'rename', 'addMember', 'removeMember',
-                    'correctItem', 'deleteItem', 'undoPayout', 'runTool'];
+                    'correctItem', 'deleteItem', 'undoPayout', 'runTool',
+                    'addAlliance', 'updateMember', 'setAppName', 'setAdminPin'];
   const unlocked = mustLock.filter((a) => !actions.includes(a));
   if (unlocked.length) throw new Error(`락이 걸리지 않는 쓰기 액션: ${unlocked.join(', ')}`);
   if (!/lock\.waitLock\(/.test(gs)) throw new Error('waitLock 호출이 없습니다.');
@@ -184,49 +188,156 @@ check('토큰 비교는 상수시간', () => {
 
 check('분배 산식: 다이아 보존 + 앱/시트 이중구현 일치', () => {
   // .gs 쪽
-  const gsCtx = vm.createContext({ FUND_RATE: 0.1 });
-  vm.runInContext(`${extractFn(gs, '_calcSplit')}; __split = _calcSplit;`, gsCtx);
+  const gsCtx = vm.createContext({ FUND_RATE: 0.1, DEFAULT_WEIGHT: 100 });
+  vm.runInContext(
+    `${extractFn(gs, '_normWeights')}\n${extractFn(gs, '_calcSplit')}; __split = _calcSplit;`,
+    gsCtx,
+  );
   const gsSplit = gsCtx.__split;
 
   // 앱 쪽 (TS 타입만 벗겨서 같은 함수를 꺼낸다)
-  const tsFn = clientTs.slice(clientTs.indexOf('export function calcSplit'));
-  const jsFn = tsFn
-    .slice(0, tsFn.indexOf('\n}') + 2)
-    .replace(/export /, '')
+  const cut = (name) => {
+    const from = clientTs.slice(clientTs.indexOf(`function ${name}(`));
+    return from.slice(0, from.indexOf('\n}') + 2);
+  };
+  const jsFn = (cut('calcSplit') + '\n' + cut('normWeights'))
+    .replace(/export /g, '')
+    // 타입 주석만 벗긴다 — 인자 타입(유니언 포함) → 반환 타입 → 남은 단순 타입 순서로
+    .replace(/(\w+): number \| number\[\]/g, '$1')
+    .replace(/\): number\[\]/g, ')')
+    .replace(/: number\[\]/g, '')
     .replace(/: number/g, '');
   const appCtx = vm.createContext({});
   vm.runInContext(`${jsFn}; __split = calcSplit;`, appCtx);
   const appSplit = appCtx.__split;
 
   const cases = [];
-  // 경계값 + 무작위
+  // ① 사용자가 직접 확인해준 기준 예시 — 이 한 건이 틀리면 나머지는 볼 것도 없다
+  cases.push([10_000, [100, 100, 100, 100, 100, 100, 100, 100, 100, 50]]);
+  // ② 경계값: 전원 100%
   for (const total of [1, 2, 9, 10, 11, 99, 100, 5000, 50000, 999999]) {
     for (const n of [1, 2, 3, 7, 19, 50]) cases.push([total, n]);
   }
+  // ③ 경계값: 전원 1% / 전원 100% 를 배열로
+  for (const total of [1, 10, 9999, 1_000_000]) {
+    cases.push([total, Array.from({ length: 10 }, () => 1)]);
+    cases.push([total, Array.from({ length: 10 }, () => 100)]);
+  }
+  // ④ 무작위 비중
   for (let i = 0; i < 5000; i++) {
-    cases.push([1 + Math.floor(Math.random() * 10_000_000), 1 + Math.floor(Math.random() * 50)]);
+    const n = 1 + Math.floor(Math.random() * 50);
+    cases.push([
+      1 + Math.floor(Math.random() * 10_000_000),
+      Array.from({ length: n }, () => 1 + Math.floor(Math.random() * 100)),
+    ]);
   }
 
-  for (const [total, n] of cases) {
-    const a = gsSplit(total, n);
-    const b = appSplit(total, n, 0.1);
+  for (const [total, w] of cases) {
+    const a = gsSplit(total, w);
+    const b = appSplit(total, w, 0.1);
+    const n = typeof w === 'number' ? w : w.length;
+    const paid = a.shares.reduce((x, y) => x + y, 0);
 
     // ① 다이아 보존 불변식 — 이게 깨지면 다이아가 사라지거나 생겨난다
-    if (a.fund + a.perPerson * n + a.remainder !== total) {
-      throw new Error(`보존 위반: total=${total}, n=${n} → ${JSON.stringify(a)}`);
+    //    v10: 잔여분(1/N 버림 + 비중 미달분)은 전액 혈맹운영비로 귀속된다
+    if (a.fundTotal + paid !== total) {
+      throw new Error(`보존 위반: total=${total}, n=${n} → fundTotal=${a.fundTotal} + shares=${paid}`);
     }
-    // ② 나머지는 항상 인원수보다 작아야 한다 (아니면 더 나눠줄 수 있었다는 뜻)
-    if (a.remainder < 0 || a.remainder >= n) {
+    if (a.fund + a.remainder !== a.fundTotal) {
+      throw new Error(`운영비 합산 위반: total=${total}, n=${n} → ${JSON.stringify(a)}`);
+    }
+    // ② 잔여분은 음수가 될 수 없고, 아무도 기본 1인당보다 많이 받을 수 없다
+    if (a.remainder < 0) throw new Error(`잔여분 음수: total=${total}, n=${n}`);
+    if (a.shares.some((x) => x < 0 || x > a.perPerson)) {
+      throw new Error(`개인 분배액 범위 위반: total=${total}, n=${n} → ${JSON.stringify(a.shares)}`);
+    }
+    // ③ 전원 100% 이면 잔여분은 인원수보다 작아야 한다 (더 나눠줄 수 있었다는 뜻이 되므로)
+    const allFull = typeof w === 'number' || w.every((x) => x === 100);
+    if (allFull && a.remainder >= n) {
       throw new Error(`나머지 범위 위반: total=${total}, n=${n} → remainder=${a.remainder}`);
     }
-    // ③ 앱의 미리보기와 시트의 실제 계산이 한 다이아도 달라선 안 된다
-    if (a.fund !== b.fund || a.perPerson !== b.perPerson || a.remainder !== b.remainder) {
+    // ④ 앱의 미리보기와 시트의 실제 계산이 한 다이아도 달라선 안 된다
+    if (
+      a.fund !== b.fund ||
+      a.perPerson !== b.perPerson ||
+      a.remainder !== b.remainder ||
+      a.fundTotal !== b.fundTotal ||
+      a.shares.join() !== b.shares.join()
+    ) {
       throw new Error(
         `앱/시트 불일치: total=${total}, n=${n}\n     시트=${JSON.stringify(a)}\n     앱  =${JSON.stringify(b)}`,
       );
     }
   }
-  return `${cases.length.toLocaleString()}건 (보존·범위·이중구현 일치)`;
+
+  // 사용자 기준 예시를 숫자로 못박아 둔다
+  const ex = gsSplit(10_000, [100, 100, 100, 100, 100, 100, 100, 100, 100, 50]);
+  if (ex.fund !== 1000 || ex.perPerson !== 900 || ex.shares[9] !== 450 || ex.fundTotal !== 1450) {
+    throw new Error(`기준 예시 불일치: ${JSON.stringify(ex)}`);
+  }
+
+  return `${cases.length.toLocaleString()}건 (보존·범위·이중구현 일치 · 1만/10명/50% 예시 검증)`;
+});
+
+check('나머지는 특정 캐릭터가 아니라 혈맹운영비로 간다', () => {
+  // v9 까지는 1/N 버림분이 REMAINDER_NAME(군주 캐릭터)에게 적립됐다.
+  // v10 부터 전액 운영비 귀속이므로, 분배 코어에 옛 귀속 로직이 남아 있으면 안 된다.
+  const core = extractFn(gs, '_distributeCore');
+  if (/REMAINDER_NAME/.test(core.replace(/LEGACY_REMAINDER_NAME/g, ''))) {
+    throw new Error('_distributeCore 에 옛 나머지 귀속 로직이 남아 있습니다.');
+  }
+  if (!/fundTotal/.test(core)) {
+    throw new Error('_distributeCore 가 잔여분을 포함한 fundTotal 을 적립하지 않습니다.');
+  }
+  // 옛 이름은 "v9 행을 되돌릴 때"에만 쓰여야 한다
+  const plan = extractFn(gs, '_reversalPlan');
+  if (!/LEGACY_REMAINDER_NAME/.test(plan)) {
+    throw new Error('_reversalPlan 이 v9 이전 행의 나머지 귀속처를 복원하지 않습니다.');
+  }
+  return '분배=운영비 귀속 · 되돌리기=옛 귀속처 복원';
+});
+
+check('되돌리기는 분배 시점 금액을 그대로 쓴다', () => {
+  // 비중은 언제든 바뀔 수 있다. 되돌릴 때 "지금 비중"으로 다시 계산하면
+  // 실제로 준 금액과 어긋나 잔액이 틀어진다. 그래서 분배내역(O열)을 남긴다.
+  const ctx = vm.createContext({
+    FUND_NAME: '혈맹운영비',
+    FUND_RATE: 0.1,
+    DEFAULT_WEIGHT: 100,
+    LEGACY_REMAINDER_NAME: 'TC무식',
+  });
+  vm.runInContext(
+    [
+      extractFn(gs, '_normWeights'),
+      extractFn(gs, '_calcSplit'),
+      extractFn(gs, '_decodeSplits'),
+      extractFn(gs, '_encodeSplits'),
+      extractFn(gs, '_coreName'),
+      extractFn(gs, '_reversalPlan'),
+      '__plan = _reversalPlan; __enc = _encodeSplits; __dec = _decodeSplits;',
+    ].join('\n'),
+    ctx,
+  );
+
+  // 왕복: 인코딩한 분배내역이 그대로 복원되는가
+  const names = ['가이', '대서과Z', '詹阿呆'];
+  const shares = [900, 450, 900];
+  const decoded = ctx.__dec(ctx.__enc(names, shares));
+  if (decoded.map((d) => `${d.name}:${d.amount}`).join('|') !== '가이:900|대서과Z:450|詹阿呆:900') {
+    throw new Error(`분배내역 왕복 실패: ${JSON.stringify(decoded)}`);
+  }
+
+  // 스냅샷이 있으면 지금 비중과 무관하게 그 금액으로 되돌린다
+  const ss = { getSheetByName: () => null };
+  const info = { amount: 10_000, n: 3, participants: names, splits: decoded };
+  const plan = ctx.__plan(ss, info);
+  const back = plan.plan.reduce((a, e) => a + e.amount, 0);
+  if (back !== 10_000) throw new Error(`되돌릴 총액이 원금과 다릅니다: ${back}`);
+  const fundLine = plan.plan.find((e) => e.isFund);
+  if (!fundLine || fundLine.amount !== 10_000 - 2250) {
+    throw new Error(`운영비 회수액이 틀립니다: ${JSON.stringify(fundLine)}`);
+  }
+  return '분배내역 왕복 + 회수 총액 = 원금';
 });
 
 check('아이디 변경: 병합은 반드시 재확인을 거친다', () => {
@@ -247,11 +358,12 @@ check('아이디 변경: 병합은 반드시 재확인을 거친다', () => {
 check('탈퇴 처리: 기록을 지우지 않는다', () => {
   const fn = extractFn(gs, 'api_removeMember');
 
-  // 잔액이 남았거나 나머지 귀속 대상이면 한 번 더 물어봐야 한다
+  // 잔액이 남아 있으면 한 번 더 물어봐야 한다
+  // (v10 부터 나머지는 특정 캐릭터가 아니라 운영비로 가므로 그 경고는 없어졌다)
   if (!fn.includes('confirmRemove !== true')) throw new Error('재확인 절차가 없습니다.');
   if (!fn.includes('needsConfirm')) throw new Error('앱에 재확인을 요청하는 응답이 없습니다.');
-  if (!fn.includes('REMAINDER_NAME')) throw new Error('나머지 귀속 대상 경고가 없습니다.');
-  if (!fn.includes('FUND_NAME')) throw new Error('혈비 계정 보호가 없습니다.');
+  if (!/pending > 0/.test(fn)) throw new Error('잔액 잔존 경고가 없습니다.');
+  if (!fn.includes('FUND_NAME')) throw new Error('운영비 계정 보호가 없습니다.');
 
   // 이력이 남아 있으면 '(미등록)'으로 보존하고, 전부 0일 때만 행을 지운다
   if (!/pending === 0 && paid === 0 && cnt === 0/.test(fn)) {
@@ -288,6 +400,8 @@ check('도구 실행: 위험도 3은 확인 문구 없이는 절대 실행되지
     },
     Utilities: { formatDate: () => '2026-01-01 00:00' },
     Session: { getScriptTimeZone: () => 'Asia/Seoul' },
+    FUND_NAME: '혈맹운영비',
+    FUND_NAME_LEGACY: ['유일배분(혈비)', '유일배분'],
     console,
   });
   for (const fn of ['_uiAdapter', '_adapterResult', '_toolRegistry', 'api_getTools', 'api_runTool']) {
@@ -457,9 +571,84 @@ check('이름 매칭은 _normName 경유', () => {
   return '직접 비교 없음';
 });
 
+/* ─────────── Vercel 서버 라우트 (권한 경계) ─────────── */
+
+/** app/api 아래 route.ts 를 전부 읽어 { 경로: 내용 } 으로 돌려준다 */
+function readRoutes(dir = resolve(ROOT, 'app/api'), out = {}) {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const full = resolve(dir, e.name);
+    if (e.isDirectory()) readRoutes(full, out);
+    else if (e.name === 'route.ts') out[full.replace(ROOT + '/', '')] = readFileSync(full, 'utf8');
+  }
+  return out;
+}
+
+const routes = readRoutes();
+
+check('관리자 라우트는 전부 인증으로 시작한다', () => {
+  const adminRoutes = Object.entries(routes).filter(([p]) => p.includes('app/api/admin/'));
+  if (adminRoutes.length === 0) throw new Error('관리자 라우트를 하나도 찾지 못했습니다.');
+
+  const bad = [];
+  for (const [path, src] of adminRoutes) {
+    // login/logout 은 인증을 만드는 쪽이라 예외
+    if (/\/(login|logout)\//.test(path)) continue;
+    for (const m of src.matchAll(/export async function (GET|POST|DELETE|PUT|PATCH)\s*\([^)]*\)\s*\{/g)) {
+      const body = src.slice(m.index, src.indexOf('\n}', m.index));
+      if (!/requireAdmin\(\)|requireMaster\(\)/.test(body)) bad.push(`${path} ${m[1]}`);
+    }
+  }
+  if (bad.length) throw new Error(`인증 없이 열려 있는 관리자 핸들러: ${bad.join(', ')}`);
+  return `${adminRoutes.length}개 라우트`;
+});
+
+check('마스터 전용 라우트는 requireMaster 로 막힌다', () => {
+  const src = routes['app/api/master/route.ts'];
+  if (!src) throw new Error('app/api/master/route.ts 가 없습니다.');
+  if (!/requireMaster\(\)/.test(src)) throw new Error('requireMaster 검사가 없습니다.');
+  // 앱 이름·PIN 교체는 마스터만 — requireAdmin 으로 낮춰 놓으면 안 된다
+  if (/requireAdmin\(\)/.test(src)) throw new Error('마스터 라우트가 requireAdmin 으로 낮춰져 있습니다.');
+  // PIN 값을 응답이나 로그로 흘리지 않는다
+  if (/console\.(log|error|warn)/.test(src)) throw new Error('PIN 을 다루는 라우트에 콘솔 출력이 있습니다.');
+  return 'requireMaster · 콘솔 출력 없음';
+});
+
+check('공지 권한은 요청 본문이 아니라 쿠키로 정해진다', () => {
+  // 게시판 글쓰기는 앱에서 유일하게 인증 없이 열려 있는 쓰기 경로다.
+  // 여기서 body.notice 를 그대로 믿으면 누구나 공지를 띄울 수 있게 된다.
+  const src = routes['app/api/board/route.ts'];
+  if (!src) throw new Error('app/api/board/route.ts 가 없습니다.');
+  if (!/isNotice\s*=\s*body\.notice === true && \(await isAdmin\(\)\)/.test(src)) {
+    throw new Error('공지 여부를 관리자 세션과 함께 판정하지 않습니다.');
+  }
+  if (!/rateLimit\(/.test(src)) throw new Error('공개 쓰기 경로에 속도 제한이 없습니다.');
+  return '쿠키 판정 + 속도 제한';
+});
+
+check('서버 라우트는 확인값을 임의로 채우지 않는다', () => {
+  // confirm / confirmText / confirmMerge / confirmRemove 를 라우트가 스스로
+  // true 로 만들면 2·3단계 확인 장치가 통째로 무력화된다.
+  const bad = [];
+  const stripComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  for (const [path, raw] of Object.entries(routes)) {
+    const src = stripComments(raw);
+    for (const m of src.matchAll(/(confirm|confirmText|confirmMerge|confirmRemove)\s*:\s*([^,\n]+)/g)) {
+      const value = m[2].trim().replace(/[}\s]+$/, '');
+      const okShapes =
+        /^body\.\w+ === true$/.test(value) ||           // 엄격 전달
+        /^String\(body\.\w+ \?\? ''\)$/.test(value) || // 문구 그대로 전달
+        value === 'confirm' ||
+        value === 'confirmText';
+      if (!okShapes) bad.push(`${path}: ${m[1]}: ${value}`);
+    }
+  }
+  if (bad.length) throw new Error(`확인값을 그대로 전달하지 않습니다 →\n     ${bad.join('\n     ')}`);
+  return '전부 사용자 입력 그대로 전달';
+});
+
 /* ────────────────────────────────────────────── */
 
-console.log(`\n🔍 ${GS_PATH.replace(ROOT + '/', '')} 검사\n`);
+console.log(`\n🔍 ${GS_PATH.replace(ROOT + '/', '')} + app/api 검사\n`);
 notes.forEach((n) => console.log(n));
 
 if (failures.length) {

@@ -14,11 +14,13 @@ import { api, calcSplit, fmt, getStoredEmail } from '@/lib/client';
 export default function LedgerCard({
   unit,
   fundRate,
+  fundName,
   onChanged,
   toast,
 }: {
   unit: string;
   fundRate: number;
+  fundName: string;
   onChanged: () => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
@@ -69,6 +71,7 @@ export default function LedgerCard({
           entry={target}
           unit={unit}
           fundRate={fundRate}
+          fundName={fundName}
           onClose={() => setTarget(null)}
           onDone={() => {
             setTarget(null);
@@ -88,6 +91,7 @@ function ItemSheet({
   entry,
   unit,
   fundRate,
+  fundName,
   onClose,
   onDone,
   toast,
@@ -95,6 +99,7 @@ function ItemSheet({
   entry: LedgerEntry;
   unit: string;
   fundRate: number;
+  fundName: string;
   onClose: () => void;
   onDone: () => void;
   toast: (msg: string, isError?: boolean) => void;
@@ -149,20 +154,12 @@ function ItemSheet({
                   {fmt(preview.amount)} {unit}
                 </strong>
               </div>
-              <div className="calc-line">
-                <span>되돌릴 1인당</span>
-                <strong>{fmt(preview.perPerson)}</strong>
-              </div>
-              <div className="calc-line">
-                <span>되돌릴 혈비</span>
-                <strong>{fmt(preview.fund)}</strong>
-              </div>
-              {preview.remainder ? (
-                <div className="calc-line">
-                  <span>되돌릴 나머지 ({preview.remainderTo})</span>
-                  <strong>{fmt(preview.remainder)}</strong>
+              {(preview.lines ?? []).map((l, i) => (
+                <div className="calc-line" key={l.name + i}>
+                  <span>↩️ {l.name}</span>
+                  <strong>{fmt(l.amount)}</strong>
                 </div>
-              ) : null}
+              ))}
             </div>
           ) : (
             <p className="hint">아직 분배되지 않은 아이템입니다. 되돌릴 금액이 없습니다.</p>
@@ -216,19 +213,23 @@ function ItemSheet({
           {newSplit ? (
             <div className="calc">
               <div className="calc-line">
-                <span>새 혈비</span>
+                <span>새 {fundName}</span>
                 <strong>{fmt(newSplit.fund)}</strong>
               </div>
               <div className="calc-line">
-                <span>새 1인당 × {entry.cnt}명</span>
+                <span>새 기본 1인당 × {entry.cnt}명</span>
                 <strong>{fmt(newSplit.perPerson)}</strong>
               </div>
               {newSplit.remainder > 0 ? (
                 <div className="calc-line">
-                  <span>새 나머지</span>
+                  <span>잔여분 → {fundName}</span>
                   <strong>{fmt(newSplit.remainder)}</strong>
                 </div>
               ) : null}
+              <p className="hint" style={{ marginTop: 6 }}>
+                비중이 100% 미만인 참여자가 있으면 그만큼 덜 받고, 남는 금액은 {fundName}로 갑니다.
+                정확한 금액은 재분배 직후 결과 메시지에 나옵니다.
+              </p>
             </div>
           ) : (
             <p className="hint">

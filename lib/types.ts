@@ -17,21 +17,44 @@ export type LedgerItem = {
   /** MM/DD */
   date: string;
   cnt: number;
+  /** 등록 당시 참여자 명단 — 분배 미리보기에서 비중을 적용하는 데 쓴다 */
+  names: string[];
 };
 
 export type GuildState = {
   rows: BalanceRow[];
   items: LedgerItem[];
   members: string[];
-  /** 혈비 적립 계정명 — 참여자 선택 목록에서는 제외한다 */
+  /** 멤버별 부가정보 (분배비중·서버·한자표기) */
+  memberInfo: MemberInfo[];
+  /** 혈맹운영비 적립 계정명 — 참여자 선택 목록에서는 제외한다 */
   fundName: string;
-  /** 1/N 나머지가 귀속되는 대상 */
-  remainderName: string;
-  /** 혈비 비율 (0.1 = 10%) */
+  /** 혈맹운영비 비율 (0.1 = 10%) */
   fundRate: number;
+  /** 비중을 지정하지 않은 멤버의 기본값 (100) */
+  defaultWeight: number;
+  /** 선택 가능한 서버 목록 ('01'~'12') */
+  serverList: string[];
+  /** 이번 시즌 서버 이름 (표시 전용, 비어 있을 수 있음) */
+  seasonServer: string;
+  /** 마스터관리자가 정한 앱 이름 */
+  appName: string;
+  /** 항상 최상단에 띄울 최신 공지 (없으면 null) */
+  notice: { id: number; title: string; at: string } | null;
   /** 재화 단위 표기 ('다이아') */
   unit: string;
   season: number;
+};
+
+/** 멤버DB E·F·G 열 — 정산에 쓰이는 건 weight 뿐이고 나머지는 표시용이다 */
+export type MemberInfo = {
+  name: string;
+  /** 분배비중 1~100 (%). 비워두면 100 */
+  weight: number;
+  /** '01'~'12' 또는 빈 문자열 */
+  server: string;
+  /** 중국어권 혈맹원용 한자 표기 — 관리자가 눈으로 확인해 저장한 값만 들어온다 */
+  hanja: string;
 };
 
 export type LookupResult = {
@@ -47,8 +70,60 @@ export type RosterEntry = {
   /** 멤버DB D열 — 게임 표시 이름이 DB 표기와 다를 때만 채워진다 */
   displayName: string;
   pending: number;
-  /** 혈비 계정은 앱에서 바꿀 수 없다 */
+  /** 혈맹운영비 계정은 앱에서 바꿀 수 없다 */
   isFund: boolean;
+  weight?: number;
+  server?: string;
+  hanja?: string;
+};
+
+/** 아이디 변경 이력 — 변경 전/후를 나란히 보여준다 */
+export type RenameRecord = {
+  at: string;
+  before: string;
+  after: string;
+  by: string;
+  /** 이미 있는 이름으로 바꿔 두 계정이 합쳐진 건 */
+  merged: boolean;
+  detail: string;
+};
+
+/** 게시판 글 — kind 'notice' 는 앱에서 항상 맨 위에 고정된다 */
+export type BoardPost = {
+  id: number;
+  kind: 'notice' | 'post';
+  title: string;
+  body: string;
+  author: string;
+  at: string;
+};
+
+/** 연합 정산 — 혈맹 내부 분배와 완전히 분리된 장부 */
+export type AllianceRow = {
+  row: number;
+  date: string;
+  server: string;
+  item: string;
+  amount: number;
+  pct: number;
+  people: number;
+  credited: number;
+  photo: string;
+};
+
+export type AllianceTotal = {
+  server: string;
+  credited: number;
+  amount: number;
+  count: number;
+  people: number;
+};
+
+export type AllianceState = {
+  rows: AllianceRow[];
+  totals: AllianceTotal[];
+  serverList: string[];
+  unit: string;
 };
 
 /** 전체 아이템 (미분배 + 분배완료) — 정정·삭제 대상 선택용 */
@@ -70,10 +145,13 @@ export type ReversePreview = {
   n: number;
   amount: number;
   needsReverse: boolean;
-  perPerson?: number;
+  fundName?: string;
+  /** 참여자에게서 회수할 합계 */
+  toMembers?: number;
+  /** 혈맹운영비에서 회수할 금액 */
   fund?: number;
-  remainder?: number;
-  remainderTo?: string;
+  /** 누구에게서 얼마를 빼는지 — 분배 시점 금액 그대로 */
+  lines?: { name: string; amount: number }[];
   /** 이미 지급된 사람이 있어 되돌릴 수 없는 상태 */
   blocked: boolean;
   insufficient?: string[];

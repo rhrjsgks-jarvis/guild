@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Sheet from './Sheet';
-import type { RosterEntry } from '@/lib/types';
+import type { RenameRecord, RosterEntry } from '@/lib/types';
 import { api, fmt, getStoredEmail } from '@/lib/client';
 
 /**
@@ -14,10 +14,12 @@ import { api, fmt, getStoredEmail } from '@/lib/client';
  */
 export default function RosterCard({
   unit,
+  servers,
   onChanged,
   toast,
 }: {
   unit: string;
+  servers: string[];
   onChanged: () => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
@@ -83,12 +85,14 @@ export default function RosterCard({
                     {m.name}
                     {m.isFund ? (
                       <span className="badge" style={{ marginLeft: 6 }}>
-                        혈비
+                        운영비
                       </span>
                     ) : null}
                   </div>
                   <div className="row-sub">
-                    {m.displayName ? `게임표시명 ${m.displayName} · ` : ''}
+                    {m.hanja ? `${m.hanja} · ` : ''}
+                    {m.server ? `${m.server}서버 · ` : ''}
+                    {m.weight !== undefined && m.weight !== 100 ? `비중 ${m.weight}% · ` : ''}
                     분배전 {fmt(m.pending)} {unit}
                   </div>
                 </div>
@@ -101,10 +105,75 @@ export default function RosterCard({
         )}
       </div>
 
+      <RenameHistoryCard />
+
       {adding ? <AddSheet onClose={() => setAdding(false)} onDone={done} toast={toast} /> : null}
       {target ? (
-        <MemberSheet member={target} unit={unit} onClose={() => setTarget(null)} onDone={done} toast={toast} />
+        <MemberSheet
+          member={target}
+          unit={unit}
+          servers={servers}
+          onClose={() => setTarget(null)}
+          onDone={done}
+          toast={toast}
+        />
       ) : null}
+    </>
+  );
+}
+
+/* ─────────────── 아이디 변경 이력 (변경 전 → 변경 후) ─────────────── */
+
+function RenameHistoryCard() {
+  const [rows, setRows] = useState<RenameRecord[] | null>(null);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open || rows) return;
+    void (async () => {
+      const res = await api('/api/admin/rename-history');
+      setRows(res.ok ? (res.data as RenameRecord[]) : []);
+    })();
+  }, [open, rows]);
+
+  return (
+    <>
+      <div className="sect">🕘 아이디 변경 이력</div>
+      <div className="card">
+        {!open ? (
+          <div className="field">
+            <button className="btn ghost block" onClick={() => setOpen(true)}>
+              이력 보기
+            </button>
+            <p className="hint">누가 언제 어떤 이름에서 어떤 이름으로 바뀌었는지 [작업기록]에서 가져옵니다.</p>
+          </div>
+        ) : !rows ? (
+          <div className="field">
+            <div className="skeleton" style={{ width: '70%' }} />
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="empty">아직 아이디를 바꾼 기록이 없습니다.</div>
+        ) : (
+          rows.map((r, i) => (
+            <div className="row" key={i}>
+              <div className="row-main">
+                <div className="row-name">
+                  {r.before} <span style={{ color: 'var(--text-dim)' }}>→</span> {r.after}
+                  {r.merged ? (
+                    <span className="badge" style={{ marginLeft: 6 }}>
+                      병합
+                    </span>
+                  ) : null}
+                </div>
+                <div className="row-sub">
+                  {r.at}
+                  {r.by ? ` · ${r.by}` : ''}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </>
   );
 }
@@ -171,12 +240,14 @@ type Mode = 'edit' | 'confirmMerge' | 'confirmRemove';
 function MemberSheet({
   member,
   unit,
+  servers,
   onClose,
   onDone,
   toast,
 }: {
   member: RosterEntry;
   unit: string;
+  servers: string[];
   onClose: () => void;
   onDone: () => void;
   toast: (msg: string, isError?: boolean) => void;
@@ -185,6 +256,29 @@ function MemberSheet({
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<Mode>('edit');
   const [warning, setWarning] = useState('');
+
+  const [weight, setWeight] = useState(member.weight ?? 100);
+  const [server, setServer] = useState(member.server ?? '');
+  const [hanja, setHanja] = useState(member.hanja ?? '');
+
+  const settingsChanged =
+    weight !== (member.weight ?? 100) ||
+    server !== (member.server ?? '') ||
+    hanja !== (member.hanja ?? '');
+
+  async function saveSettings() {
+    setBusy(true);
+    const res = await api('/api/admin/member-settings', {
+      name: member.name,
+      weight,
+      server,
+      hanja,
+      email: getStoredEmail(),
+    });
+    setBusy(false);
+    toast(res.msg ?? (res.ok ? '저장했습니다.' : '저장하지 못했습니다.'), !res.ok);
+    if (res.ok) onDone();
+  }
 
   const trimmed = newName.trim();
   const changed = trimmed.length > 0 && trimmed !== member.name;
@@ -293,6 +387,55 @@ function MemberSheet({
         </button>
         <button className="btn" disabled={!changed || busy} onClick={() => rename(false)}>
           {busy ? '처리 중…' : '변경하기'}
+        </button>
+      </div>
+
+      <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--line)' }}>
+        <label className="fl" htmlFor="mw">
+          분배비중 (%)
+        </label>
+        <select id="mw" value={weight} onChange={(e) => setWeight(Number(e.target.value))}>
+          {Array.from({ length: 100 }, (_, i) => 100 - i).map((n) => (
+            <option key={n} value={n}>
+              {n}%
+            </option>
+          ))}
+        </select>
+        <p className="hint">
+          기본 1인당 금액의 이 비율만 받습니다. 남는 금액은 <strong>전액 혈맹운영비로 귀속</strong>됩니다.
+          이미 분배된 아이템에는 영향이 없습니다 (그때 금액이 그대로 기록돼 있습니다).
+        </p>
+
+        <label className="fl" htmlFor="ms" style={{ marginTop: 10 }}>
+          서버
+        </label>
+        <select id="ms" value={server} onChange={(e) => setServer(e.target.value)}>
+          <option value="">(지정 안 함)</option>
+          {servers.map((s) => (
+            <option key={s} value={s}>
+              {s} 서버
+            </option>
+          ))}
+        </select>
+
+        <label className="fl" htmlFor="mh" style={{ marginTop: 10 }}>
+          한자표기 (중국어)
+        </label>
+        <input
+          id="mh"
+          type="text"
+          maxLength={30}
+          placeholder="예: 车武植"
+          value={hanja}
+          onChange={(e) => setHanja(e.target.value)}
+        />
+        <p className="hint">
+          중국어권 혈맹원에게 <strong>{member.name} ({hanja || '漢字'})</strong> 형태로 함께 보여줍니다.
+          이름은 시스템이 추측하지 않습니다 — 게임에서 쓰는 표기를 직접 확인해 넣어주세요.
+        </p>
+
+        <button className="btn block" style={{ marginTop: 12 }} disabled={!settingsChanged || busy} onClick={saveSettings}>
+          {busy ? '저장 중…' : '설정 저장'}
         </button>
       </div>
 

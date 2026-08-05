@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Sheet from './Sheet';
 import type { GuildState, LedgerItem } from '@/lib/types';
-import { api, calcSplit, fmt, getStoredEmail } from '@/lib/client';
+import { api, calcSplit, fmt, getStoredEmail, weightsOf } from '@/lib/client';
 
 export default function DistributeSheet({
   item,
@@ -22,9 +22,14 @@ export default function DistributeSheet({
 }) {
   const [raw, setRaw] = useState('');
 
+  const names = item.names?.length ? item.names : [];
+  // 명단을 받지 못한 옛 데이터는 전원 100%로 본다 (시트 쪽 계산과 같은 결과)
+  const weights = names.length ? weightsOf(state, names) : item.cnt;
+  const reduced = names.filter((_, i) => (weights as number[])[i] !== undefined && (weights as number[])[i] < 100);
+
   const amount = Number(raw.replace(/[,\s]/g, ''));
   const valid = Number.isInteger(amount) && amount > 0;
-  const split = valid ? calcSplit(amount, item.cnt, state.fundRate) : null;
+  const split = valid ? calcSplit(amount, weights, state.fundRate) : null;
 
   async function run() {
     if (!valid) return;
@@ -45,7 +50,7 @@ export default function DistributeSheet({
   return (
     <Sheet
       title={`📦 ${item.item}`}
-      subtitle={`참여 ${item.cnt}명 · 혈비 ${Math.round(state.fundRate * 100)}% 공제 후 1/N 분배`}
+      subtitle={`참여 ${item.cnt}명 · ${state.fundName} ${Math.round(state.fundRate * 100)}% 공제 후 1/N 분배`}
       onClose={onClose}
     >
       <label className="fl" htmlFor="amt">
@@ -70,19 +75,34 @@ export default function DistributeSheet({
             </strong>
           </div>
           <div className="calc-line">
-            <span>🏦 혈비 ({state.fundName})</span>
+            <span>🏦 {state.fundName} ({Math.round(state.fundRate * 100)}%)</span>
             <strong>{fmt(split.fund)}</strong>
           </div>
           <div className="calc-line">
-            <span>👥 {item.cnt}명 × 1인당</span>
+            <span>👥 기본 1인당 × {item.cnt}명</span>
             <strong>{fmt(split.perPerson)}</strong>
           </div>
+          {reduced.map((nm, i) => {
+            const idx = names.indexOf(nm);
+            return (
+              <div className="calc-line" key={nm + i}>
+                <span>
+                  ⚖️ {nm} ({(weights as number[])[idx]}%)
+                </span>
+                <strong>{fmt(split.shares[idx])}</strong>
+              </div>
+            );
+          })}
           {split.remainder > 0 ? (
             <div className="calc-line">
-              <span>➕ 나머지 → {state.remainderName}</span>
+              <span>➕ 잔여분 → {state.fundName}</span>
               <strong>{fmt(split.remainder)}</strong>
             </div>
           ) : null}
+          <div className="calc-line" style={{ borderTop: '1px solid rgba(0,0,0,.12)', paddingTop: 6, marginTop: 2 }}>
+            <span>🏦 {state.fundName} 최종 적립</span>
+            <strong>{fmt(split.fundTotal)}</strong>
+          </div>
         </div>
       ) : (
         <p className="hint" style={{ marginTop: 10 }}>

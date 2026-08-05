@@ -23,8 +23,8 @@ export const viewport: Viewport = {
   // 노치 영역까지 헤더 배경이 이어지게 한다
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#262a9e' },
-    { media: '(prefers-color-scheme: dark)', color: '#0e1014' },
+    { media: '(prefers-color-scheme: light)', color: '#111a33' },
+    { media: '(prefers-color-scheme: dark)', color: '#0d111f' },
   ],
 };
 

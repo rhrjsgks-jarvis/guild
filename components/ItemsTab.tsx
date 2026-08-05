@@ -291,6 +291,7 @@ export default function ItemsTab({
           <LedgerCard
             unit={state.unit}
             fundRate={state.fundRate}
+            fundName={state.fundName}
             onChanged={onDone}
             toast={toast}
           />

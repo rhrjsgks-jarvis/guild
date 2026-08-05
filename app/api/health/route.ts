@@ -1,5 +1,5 @@
 import { callGas, gasConfigured } from '@/lib/gas';
-import { adminConfigured } from '@/lib/auth';
+import { adminConfigured, masterConfigured } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -14,6 +14,8 @@ export async function GET() {
     GAS_TOKEN: Boolean(process.env.GAS_TOKEN),
     ADMIN_PIN: Boolean(process.env.ADMIN_PIN),
     SESSION_SECRET: Boolean(process.env.SESSION_SECRET),
+    // 선택 항목 — 없으면 마스터관리자 기능만 잠기고 나머지는 그대로 동작한다
+    MASTER_PIN: masterConfigured(),
   };
 
   if (!gasConfigured()) {
@@ -35,6 +37,8 @@ export async function GET() {
       ? '구글시트 연결 실패 — ' + ping.msg
       : !adminConfigured()
         ? '시트 연결은 정상입니다. ADMIN_PIN / SESSION_SECRET 을 마저 채워주세요.'
-        : '모든 설정이 정상입니다. 🎉',
+        : masterConfigured()
+          ? '모든 설정이 정상입니다. 🎉'
+          : '모든 설정이 정상입니다. 🎉 (MASTER_PIN 을 넣으면 앱 이름·관리자 PIN 을 앱에서 바꿀 수 있습니다)',
   });
 }

@@ -31,7 +31,21 @@ export type GasAction =
   | 'tools'
   | 'runTool'
   | 'seasons'
-  | 'season';
+  | 'season'
+  /* v10.0 */
+  | 'renameHistory'
+  | 'posts'
+  | 'addPost'
+  | 'deletePost'
+  | 'alliance'
+  | 'addAlliance'
+  | 'deleteAlliance'
+  | 'countPhoto'
+  | 'updateMember'
+  | 'checkPin'
+  | 'setAppName'
+  | 'setAdminPin'
+  | 'setSeasonServer';
 
 export type GasResponse = Record<string, unknown> & { ok: boolean; msg?: string };
 

@@ -1,7 +1,31 @@
 // ═══════════════════════════════════════════════════════════════
-//  길드 정산 시스템 v9.2  (지난 시즌 조회 + 시즌 번호 자가보정)
+//  길드 정산 시스템 v10.0  (분배비중 · 연합 · 게시판 · 마스터관리자)
 //  시트 구성: [사용안내] [멤버DB] [참여자현황] [분배대기중] [잔액현황]
-//            [지급기록] + [시즌1] [시즌2] ...  ← 이 순서로 항상 정렬됨
+//            [지급기록] [연합] [게시판] [작업기록] + [시즌1] [시즌2] ...
+//            ← 이 순서로 항상 정렬됨
+// ═══════════════════════════════════════════════════════════════
+//  변경점 v9.2 → v10.0
+//
+//  ⚠️ 붙여넣은 뒤 [⚙️ 관리] → 관리 도구 →
+//     [🏦 혈비 계정을 혈맹운영비로 통일] 을 한 번 실행하세요.
+//     안 하면 다음 분배 때 운영비 계정이 하나 더 생깁니다.
+//
+//   - ★ 분배비중 (멤버DB E열, 1~100%). 기본 100%.
+//       각자 = floor(기본1인당 × 비중 ÷ 100)
+//       예) 10,000 / 10명, 그중 1명이 50%
+//           → 운영비 1,000, 기본1인당 900, 50% 대상자 450,
+//             남은 450은 운영비로 추가귀속 → 운영비 1,450
+//   - ★ 1/N 버림 나머지가 더 이상 특정 캐릭터(TC무식)에게 가지 않고
+//       전액 혈맹운영비로 귀속된다. REMAINDER_NAME 상수 폐지.
+//       (v9 이하에서 이미 분배된 행을 되돌릴 때만 옛 귀속처를 쓴다)
+//   - ★ 혈비 계정명 '유일배분(혈비)' → '혈맹운영비'
+//   - ★ [분배대기중] O열 "분배내역": 분배 시점에 각자 실제로 받은 금액을
+//       기록한다. 비중이 나중에 바뀌어도 정정·삭제가 정확히 되돌아간다
+//   - ★ 멤버DB F열 "서버"(01~12), G열 "한자표기(중국어)" 추가
+//   - ★ [게시판] 시트: 자유 글쓰기(누구나) + 공지(관리자 전용, 앱 최상단 고정)
+//   - ★ [연합] 시트: 서버·금액·비중(%)으로 서버별 누적. 인증샷은 인원수만 센다
+//   - ★ 마스터관리자(개발자) 권한: 앱 명칭 변경 · 관리자 PIN 원격 변경
+//   - ★ 아이디 변경 이력 조회 (작업기록에서 개명 기록만 추출)
 // ═══════════════════════════════════════════════════════════════
 //  변경점 v9.1 → v9.2 (지난 시즌 조회)
 //   - ★ _currentSeason(ss): 시즌 번호를 SEASON_NUM 속성 하나에만
@@ -313,19 +337,28 @@
 //     '누적기록'을 그대로 찾음 (하위 호환, 리네이밍과 무관)
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION = '9.2';
+const VERSION = '10.0';
 const T2S_MAP = {'國':'国','學':'学','這':'这','個':'个','們':'们','說':'说','話':'话','對':'对','時':'时','間':'间','現':'现','場':'场','開':'开','關':'关','內':'内','東':'东','車':'车','馬':'马','龍':'龙','風':'风','陽':'阳','陰':'阴','電':'电','語':'语','讀':'读','寫':'写','書':'书','紙':'纸','筆':'笔','長':'长','門':'门','問':'问','聽':'听','見':'见','覺':'觉','讓':'让','誰':'谁','還':'还','進':'进','運':'运','動':'动','靜':'静','樂':'乐','藥':'药','華':'华','蘭':'兰','葉':'叶','黃':'黄','麗':'丽','寶':'宝','貴':'贵','財':'财','買':'买','賣':'卖','錢':'钱','銀':'银','鐵':'铁','鋼':'钢','陳':'陈','劉':'刘','張':'张','楊':'杨','蔣':'蒋','鄭':'郑','謝':'谢','呂':'吕','蘇':'苏','韓':'韩','馮':'冯','於':'于','鳳':'凤','雲':'云','劍':'剑','斷':'断','亂':'乱','愛':'爱','聲':'声','醫':'医','藝':'艺','頭':'头','臉':'脸','腳':'脚','氣':'气','樓':'楼','橋':'桥','飛':'飞','機':'机','網':'网','線':'线','條':'条','裡':'里','邊':'边','錯':'错','壞':'坏','舊':'旧','寬':'宽','淺':'浅','週':'周','節':'节','業':'业','後':'后','來':'来','終':'终','結':'结','敗':'败','勝':'胜','負':'负','輸':'输','贏':'赢','強':'强','難':'难','簡':'简','單':'单','複':'复','雜':'杂','純':'纯','淨':'净','髒':'脏','齊':'齐','穩':'稳','變':'变','轉':'转','換':'换','顯':'显','樣':'样','種':'种','類':'类','團':'团','體':'体','統':'统','織':'织','組':'组','構':'构','設':'设','計':'计','劃':'划','數':'数','課':'课','題':'题','試':'试','練':'练','習':'习','師':'师','員':'员','職':'职','務':'务','責':'责','權':'权','應':'应','該':'该','須':'须','願':'愿','夢':'梦','憶':'忆','識':'识','認':'认','歡':'欢','醜':'丑','帥':'帅','靈':'灵','獸':'兽','鷹':'鹰','鶴':'鹤','鴻':'鸿','鱷':'鳄','鯨':'鲸','鯊':'鲨','蝦':'虾','殼':'壳','冑':'胄','戰':'战','爭':'争','鬥':'斗','擊':'击','禦':'御','護':'护','衛':'卫','謀':'谋','陣':'阵','營':'营','軍':'军','隊':'队','將':'将','嬪':'嫔','宮':'宫','廟':'庙','觀':'观','閣':'阁','蓮':'莲','楓':'枫','樺':'桦','檜':'桧','樹':'树','實':'实','幹':'干','莖':'茎','穫':'获','採':'采','鮮':'鲜','籠':'笼','傷':'伤','殺':'杀','斬':'斩','豬':'猪','雞':'鸡','鴨':'鸭','鵝':'鹅','龜':'龟','蟬':'蝉','蟻':'蚁','螞':'蚂','鴉':'鸦','鵰':'雕','鴛':'鸳','鴦':'鸯','賽':'赛','廠':'厂','廣':'广','麼':'么','誒':'诶','歲':'岁','歷':'历','歸':'归','殘':'残','蟲':'虫','貓':'猫','氈':'毡','貫':'贯','質':'质','貨':'货','貼':'贴','費':'费','資':'资','賬':'账','賺':'赚','贈':'赠','賀':'贺','賢':'贤','賦':'赋','賤':'贱','賓':'宾','賴':'赖','齲':'龋','齒':'齿','龄':'齡','齡':'龄','齣':'出','岡':'冈','剛':'刚','剮':'剐','創':'创','劇':'剧','勵':'励','勸':'劝','勻':'匀','匯':'汇','醬':'酱','醞':'酝','釀':'酿','釋':'释','釘':'钉','針':'针','釣':'钓','鈍':'钝','鈴':'铃','鈔':'钞','鉛':'铅','鋸':'锯','鋒':'锋','鍵':'键','鎖':'锁','鑄':'铸','鑼':'锣','錶':'表','鐘':'钟','鏡':'镜','鑽':'钻','鑑':'鉴','閉':'闭','閃':'闪','閏':'闰','閱':'阅','闆':'板','闖':'闯','陸':'陆','隱':'隐','雖':'虽','雙':'双','雛':'雏','靂':'雳','韋':'韦','韌':'韧','頁':'页','頂':'顶','項':'项','順':'顺','頌':'颂','預':'预','頑':'顽','頒':'颁','頗':'颇','領':'领','頡':'颉','頜':'颌','頸':'颈','頻':'频','頹':'颓','顆':'颗','額':'额','顏':'颜','顛':'颠','顧':'顾','飄':'飘','饑':'饥','餃':'饺','餅':'饼','館':'馆','饒':'饶','饞':'馋','馳':'驰','駕':'驾','駛':'驶','駐':'驻','駱':'骆','駭':'骇','騎':'骑','騰':'腾','驅':'驱','驚':'惊','驕':'骄','驗':'验','骯':'肮','髮':'发','鬍':'胡','鬧':'闹','鮑':'鲍','鯉':'鲤','鰲':'鳌','鱉':'鳖','鳥':'鸟','鳴':'鸣','鹹':'咸','麥':'麦','麵':'面','黨':'党'};  // 번체→간체 상용한자 (서체 변환 전용, 다른 뜻 글자는 포함하지 않음)
 const UNIT = '다이아';                 // 재화 단위 표기
 const MAX_MEMBERS = 50;               // 최대 멤버 수
 const INPUT_SHEET = '참여자현황';       // 아이템 등록 시트 (구 입금입력)
 const LEDGER_SHEET = '분배대기중';      // 아이템 파이프라인 시트 (구 누적기록)
 const MEMBER_START_ROW = 5;           // 참여자현황: 멤버 목록 시작 행
-const FUND_NAME = '유일배분(혈비)';     // 혈비 적립 계정명 (멤버DB 표기와 정확히 일치해야 함)
-const REMAINDER_NAME = 'TC무식';       // 분배 나머지(1/N 버림 후 잔여분) 귀속 대상 — 군주 캐릭터
-const FUND_RATE = 0.1;                // 혈비 비율 (0.1 = 10%)
+const FUND_NAME = '혈맹운영비';         // 운영비 적립 계정명 (멤버DB 표기와 정확히 일치해야 함)
+const FUND_NAME_LEGACY = ['유일배분(혈비)', '유일배분'];  // v9 이하 계정명 — 자동 개칭 대상
+// v10.0: REMAINDER_NAME 폐지. 1/N 나머지와 비중 미달분은 전액 FUND_NAME 으로 귀속된다.
+// 아래 이름은 "v9 이하에서 분배된 행을 되돌릴 때"만 쓰인다 (그때 나머지가 이쪽으로 갔으므로).
+const LEGACY_REMAINDER_NAME = 'TC무식';
+const FUND_RATE = 0.1;                // 혈맹운영비 비율 (0.1 = 10%)
 const FUND_RATE_STR = String(FUND_RATE);
-const LEDGER_HEADERS = ['등록일','아이템명','상태','참여인원','참여자명단','인증샷','분배✓','판매금액','혈비','1인당','분배일','입력자','분배자','수정자'];
-const LG = { DATE:1, ITEM:2, STATUS:3, CNT:4, NAMES:5, PHOTO:6, CHECK:7, AMOUNT:8, FUND:9, PER:10, DIST:11, INPUTBY:12, DISTBY:13, EDITBY:14 };
+const DEFAULT_WEIGHT = 100;           // 멤버 기본 분배비중 (%)
+const LEDGER_HEADERS = ['등록일','아이템명','상태','참여인원','참여자명단','인증샷','분배✓','판매금액','혈맹운영비','1인당(기본)','분배일','입력자','분배자','수정자','분배내역'];
+const LG = { DATE:1, ITEM:2, STATUS:3, CNT:4, NAMES:5, PHOTO:6, CHECK:7, AMOUNT:8, FUND:9, PER:10, DIST:11, INPUTBY:12, DISTBY:13, EDITBY:14, SPLIT:15 };
+// 멤버DB 컬럼 (v10.0에서 E·F·G 추가)
+const MEM_COL = { NO:1, NAME:2, STATUS:3, DISPLAY:4, WEIGHT:5, SERVER:6, HANJA:7 };
+const SERVER_LIST = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+const BOARD_SHEET = '게시판';           // 자유 게시판 + 공지사항
+const ALLIANCE_SHEET = '연합';          // 연합 정산 누적
 const AUDIT_SHEET = '작업기록';         // 등록·분배·정정·삭제 영구 감사 로그 (행 삭제되어도 이력 보존)
 const ST_WAIT = '⏳미분배';
 const ST_DONE = '✅분배완료';
@@ -334,7 +367,8 @@ const BAL_COL = { NAME: 1, PENDING: 2, PAID: 3, CNT: 4, CHECK: 5, AMT: 6 };
 const PROTECT_MODE = 'warn';           // 'warn'=경고 모드 | 'block'=공유자 차단
 
 // 표준 시트 순서 (시즌N 제외 — 시즌은 번호순 정렬 후 맨 뒤 추가)
-const BASE_SHEET_ORDER = ['사용안내', '멤버DB', INPUT_SHEET, LEDGER_SHEET, '잔액현황', PAYOUT_SHEET, AUDIT_SHEET];
+const BASE_SHEET_ORDER = ['사용안내', '멤버DB', INPUT_SHEET, LEDGER_SHEET, '잔액현황', PAYOUT_SHEET,
+                          ALLIANCE_SHEET, BOARD_SHEET, AUDIT_SHEET];
 
 // ─────────────────────────────────────────
 // 📐 시트 정돈: 표준 순서 정렬 + 행높이 통일 + (확인 후) 불필요 시트 삭제
@@ -491,13 +525,44 @@ function _adapterResult(ui, fallbackMsg) {
 // ═══════════════════════════════════════════════════════════════
 
 // 되돌릴 대상과 금액을 계산하고, 실제로 되돌릴 수 있는 상태인지 확인한다.
-function _reverseCheck(ss, balance, participants, oldAmount) {
-  const n = participants.length;
-  const split = _calcSplit(oldAmount, n);
-  const members = _getMembers(ss);
-  const remainderTarget = members.filter(function (m) { return _coreName(m) === _coreName(REMAINDER_NAME); })[0] ||
-                          members.filter(function (m) { return m !== FUND_NAME; })[0];
+// ─────────────────────────────────────────
+// 되돌리기 계획 (v10.0)
+//   "누구에게서 얼마를 빼야 하는가"를 한 벌로 만든다.
+//   ① 분배내역(O열)이 있으면 → 분배 시점 금액을 그대로 사용 (비중이 바뀌어도 정확)
+//   ② 없으면(v9 이하 행) → 당시 산식으로 복원: 전원 동일 1/N + 나머지는 옛 귀속처
+//   운영비 몫은 "총액 - 참여자 합계"로 계산하므로 어느 경우든 다이아가 남지 않는다.
+// ─────────────────────────────────────────
+function _reversalPlan(ss, info) {
+  const plan = [];
+  let legacyRemainderTo = '';
 
+  if (info.splits && info.splits.length > 0) {
+    info.splits.forEach(function (s) {
+      if (s.amount > 0) plan.push({ name: s.name, amount: s.amount, label: s.name });
+    });
+  } else {
+    const split = _calcSplit(info.amount, info.n);   // 전원 100% = v9 산식과 동일
+    info.participants.forEach(function (p) {
+      if (split.perPerson > 0) plan.push({ name: p, amount: split.perPerson, label: p });
+    });
+    if (split.remainder > 0) {
+      const members = _getMembers(ss);
+      legacyRemainderTo = members.filter(function (m) { return _coreName(m) === _coreName(LEGACY_REMAINDER_NAME); })[0] ||
+                          members.filter(function (m) { return m !== FUND_NAME; })[0] || '';
+      if (legacyRemainderTo) {
+        plan.push({ name: legacyRemainderTo, amount: split.remainder, label: legacyRemainderTo + '(나머지분)' });
+      }
+    }
+  }
+
+  const toMembers = plan.reduce(function (a, e) { return a + e.amount; }, 0);
+  const fundBack = info.amount - toMembers;
+  if (fundBack > 0) plan.push({ name: FUND_NAME, amount: fundBack, label: FUND_NAME, isFund: true });
+
+  return { plan: plan, toMembers: toMembers, fundBack: Math.max(fundBack, 0), legacyRemainderTo: legacyRemainderTo };
+}
+
+function _reverseCheck(ss, balance, plan) {
   const balData = balance.getRange(2, 1, Math.max(balance.getLastRow() - 1, 1), 4).getValues();
   const map = {};
   balData.forEach(function (r, i) {
@@ -520,13 +585,10 @@ function _reverseCheck(ss, balance, participants, oldAmount) {
       insufficient.push((label || name) + ' (분배전 ' + pending.toLocaleString() + ' < 필요 ' + amount.toLocaleString() + ')');
     }
   };
-  participants.forEach(function (p) { need(p, split.perPerson); });
-  need(FUND_NAME, split.fund);
-  need(remainderTarget, split.remainder, remainderTarget + '(나머지분)');
+  plan.forEach(function (e) { need(e.name, e.amount, e.label); });
 
   return {
-    split: split,
-    remainderTarget: remainderTarget,
+    plan: plan,
     insufficient: insufficient,
     findRow: findRow,
     pendingOf: pendingOf
@@ -534,43 +596,24 @@ function _reverseCheck(ss, balance, participants, oldAmount) {
 }
 
 // 실제로 되돌린다. 대상별 개별 try/catch — 부분 실패를 절대 침묵시키지 않는다.
-function _reverseAmounts(balance, participants, chk) {
+function _reverseAmounts(balance, chk) {
   const reversed = [];
   const failed = [];
-  const split = chk.split;
 
-  participants.forEach(function (p) {
+  chk.plan.forEach(function (e) {
+    if (e.amount <= 0) return;
     try {
-      const row = chk.findRow(p);
-      if (!row) { failed.push(p + ' (잔액현황에 없음)'); return; }
-      balance.getRange(row, BAL_COL.PENDING).setValue(chk.pendingOf(row) - split.perPerson);
-      reversed.push(p);
-    } catch (e) { failed.push(p + ' (' + e.message + ')'); }
+      const row = chk.findRow(e.name);
+      if (!row) { failed.push(e.label + ' (잔액현황에 없음)'); return; }
+      balance.getRange(row, BAL_COL.PENDING).setValue(chk.pendingOf(row) - e.amount);
+      // 혈맹운영비 행의 CNT는 "분배 이벤트 횟수"이므로 되돌릴 때 1 줄인다
+      if (e.isFund) {
+        const cnt = Number(balance.getRange(row, BAL_COL.CNT).getValue()) || 0;
+        balance.getRange(row, BAL_COL.CNT).setValue(Math.max(cnt - 1, 0));
+      }
+      reversed.push(e.label);
+    } catch (err) { failed.push(e.label + ' (' + err.message + ')'); }
   });
-
-  if (split.fund > 0) {
-    try {
-      const fr = chk.findRow(FUND_NAME);
-      if (!fr) failed.push(FUND_NAME + ' (잔액현황에 없음)');
-      else {
-        const cnt = Number(balance.getRange(fr, BAL_COL.CNT).getValue()) || 0;
-        balance.getRange(fr, BAL_COL.PENDING).setValue(chk.pendingOf(fr) - split.fund);
-        balance.getRange(fr, BAL_COL.CNT).setValue(Math.max(cnt - 1, 0));
-        reversed.push(FUND_NAME);
-      }
-    } catch (e) { failed.push(FUND_NAME + ' (' + e.message + ')'); }
-  }
-
-  if (split.remainder > 0) {
-    try {
-      const rr = chk.findRow(chk.remainderTarget);
-      if (!rr) failed.push(chk.remainderTarget + '(나머지) (잔액현황에 없음)');
-      else {
-        balance.getRange(rr, BAL_COL.PENDING).setValue(chk.pendingOf(rr) - split.remainder);
-        reversed.push(chk.remainderTarget + '(나머지)');
-      }
-    } catch (e) { failed.push(chk.remainderTarget + '(나머지) (' + e.message + ')'); }
-  }
 
   return { reversed: reversed, failed: failed };
 }
@@ -578,7 +621,8 @@ function _reverseAmounts(balance, participants, chk) {
 // 아이템 행을 읽어 정정·삭제에 필요한 정보를 꺼낸다
 function _readLedgerRow(ledger, row) {
   if (row < 2 || row > ledger.getLastRow()) return null;
-  const data = ledger.getRange(row, 1, 1, 14).getValues()[0];
+  const width = Math.min(ledger.getMaxColumns(), LG.SPLIT);
+  const data = ledger.getRange(row, 1, 1, width).getValues()[0];
   const participants = String(data[LG.NAMES - 1]).trim().split(',')
     .map(function (s) { return s.trim(); }).filter(Boolean);
   return {
@@ -588,6 +632,7 @@ function _readLedgerRow(ledger, row) {
     amount: Number(data[LG.AMOUNT - 1]) || 0,
     participants: participants,
     n: participants.length,
+    splits: _decodeSplits(data[LG.SPLIT - 1]),
     data: data
   };
 }
@@ -606,7 +651,7 @@ function _correctCore(ss, row, newAmount, email) {
   if (info.status !== ST_DONE) return { ok: false, reason: 'notdone', msg: '분배완료 상태인 아이템만 정정할 수 있습니다.' };
   if (info.n === 0) return { ok: false, reason: 'nonames', msg: '참여자 명단을 읽을 수 없습니다.' };
 
-  const chk = _reverseCheck(ss, balance, info.participants, info.amount);
+  const chk = _reverseCheck(ss, balance, _reversalPlan(ss, info).plan);
   if (chk.insufficient.length > 0) {
     return {
       ok: false,
@@ -617,7 +662,7 @@ function _correctCore(ss, row, newAmount, email) {
     };
   }
 
-  const rev = _reverseAmounts(balance, info.participants, chk);
+  const rev = _reverseAmounts(balance, chk);
   if (rev.failed.length > 0) {
     // 하나라도 실패하면 상태를 바꾸지 않는다 — "상태와 실제 데이터가 다른" 상황을 만들지 않기 위해
     return {
@@ -634,7 +679,7 @@ function _correctCore(ss, row, newAmount, email) {
 
   const actor = _getActorEmail(email);
   ledger.getRange(row, LG.STATUS).setValue(ST_WAIT);
-  [LG.AMOUNT, LG.FUND, LG.PER, LG.DIST].forEach(function (c) { ledger.getRange(row, c).clearContent(); });
+  [LG.AMOUNT, LG.FUND, LG.PER, LG.DIST, LG.SPLIT].forEach(function (c) { ledger.getRange(row, c).clearContent(); });
   ledger.getRange(row, LG.CHECK).insertCheckboxes().setValue(false);
   ledger.getRange(row, LG.EDITBY).setValue(actor);
   _logAction(ss, '정정-되돌리기', info.item, actor, info.amount.toLocaleString() + UNIT + ' 분배를 되돌림');
@@ -665,8 +710,8 @@ function _correctCore(ss, row, newAmount, email) {
   _logAction(ss, '정정-재분배', info.item, actor, info.amount.toLocaleString() + ' → ' + amt.toLocaleString() + UNIT);
 
   let msg = '✅ "' + info.item + '" 정정 완료 — ' + info.amount.toLocaleString() + ' → ' + amt.toLocaleString() + UNIT +
-            '\n혈비 ' + r.fund.toLocaleString() + ' / ' + r.n + '명 × ' + r.perPerson.toLocaleString();
-  if (r.remainder > 0) msg += ' / 나머지 ' + r.remainder + '→' + r.remainderTo;
+            '\n' + FUND_NAME + ' ' + r.fundTotal.toLocaleString() + ' / ' + r.n + '명 기본 ' + r.perPerson.toLocaleString();
+  if (r.remainder > 0) msg += ' (잔여 ' + r.remainder.toLocaleString() + ' 운영비 귀속)';
   return { ok: true, redistributed: true, item: info.item, msg: msg };
 }
 
@@ -684,7 +729,7 @@ function _deleteItemCore(ss, row, email) {
   if (info.status === ST_DONE) {
     if (!balance) return { ok: false, reason: 'nosheet', msg: '잔액현황 시트가 없어 안전하게 삭제할 수 없습니다.' };
 
-    const chk = _reverseCheck(ss, balance, info.participants, info.amount);
+    const chk = _reverseCheck(ss, balance, _reversalPlan(ss, info).plan);
     if (chk.insufficient.length > 0) {
       return {
         ok: false, reason: 'insufficient', insufficient: chk.insufficient,
@@ -692,7 +737,7 @@ function _deleteItemCore(ss, row, email) {
              chk.insufficient.join('\n')
       };
     }
-    const rev = _reverseAmounts(balance, info.participants, chk);
+    const rev = _reverseAmounts(balance, chk);
     if (rev.failed.length > 0) {
       return {
         ok: false, reason: 'partial', reversed: rev.reversed, failed: rev.failed,
@@ -1093,8 +1138,8 @@ function _processDistribute(ss, ledger, row) {
     else if (r.reason === 'noparts') ss.toast('참여자명단이 비어 있습니다.', '⚠️ 분배', 5);
     return;
   }
-  let msg = `"${r.item}" ${r.amount.toLocaleString()}${UNIT} 분배 완료 — 혈비 ${r.fund.toLocaleString()} / ${r.n}명 × ${r.perPerson.toLocaleString()}${r.fundNote}`;
-  if (r.remainder > 0) msg += ` / 나머지 ${r.remainder}${UNIT} → ${r.remainderTo}`;
+  let msg = `"${r.item}" ${r.amount.toLocaleString()}${UNIT} 분배 완료 — ${FUND_NAME} ${r.fundTotal.toLocaleString()} / ${r.n}명 기본 ${r.perPerson.toLocaleString()}${r.fundNote}`;
+  if (r.remainder > 0) msg += ` (잔여 ${r.remainder.toLocaleString()}${UNIT} 운영비 귀속)`;
   if (r.missing.length > 0) msg += ` ⚠️ 미발견: ${r.missing.join(', ')}`;
   ss.toast(msg, '💎 분배', 7);
 }
@@ -1250,10 +1295,10 @@ function correctDistribution() {
   if (!target) { ui.alert('⚠️ "' + itemName + '" 이름의 분배완료 항목을 찾지 못했습니다.'); return; }
 
   const info = _readLedgerRow(ss.getSheetByName(LEDGER_SHEET), target);
-  const oldSplit = _calcSplit(info.amount, info.n);
+  const oldPlan = _reversalPlan(ss, info);
   const r2 = ui.prompt('🔄 분배 정정 — ' + itemName,
     '현재 판매금액: ' + info.amount.toLocaleString() + ' ' + UNIT + ' (' + info.n + '명)\n' +
-    '되돌릴 내역: 1인당 ' + oldSplit.perPerson.toLocaleString() + ' / 혈비 ' + oldSplit.fund.toLocaleString() + '\n\n' +
+    '되돌릴 내역: 참여자 ' + oldPlan.toMembers.toLocaleString() + ' / ' + FUND_NAME + ' ' + oldPlan.fundBack.toLocaleString() + '\n\n' +
     '새 판매금액을 입력하세요.\n· 숫자 → 되돌린 뒤 새 금액으로 재분배\n· 빈칸 → 되돌리기만 하고 ' + ST_WAIT + ' 복귀',
     ui.ButtonSet.OK_CANCEL);
   if (r2.getSelectedButton() !== ui.Button.OK) return;
@@ -1766,6 +1811,83 @@ function _getMembers(ss) {
 }
 
 // ─────────────────────────────────────────
+// 멤버DB 전체 읽기 (v10.0) — 이름 · 게임표시명 · 분배비중 · 서버 · 한자표기
+//   비중은 비어 있으면 100%. 1 미만/100 초과는 잘라낸다.
+// ─────────────────────────────────────────
+function _getMemberRows(ss) {
+  const db = ss.getSheetByName('멤버DB');
+  if (!db) return [];
+  const vals = db.getRange(2, MEM_COL.NAME, MAX_MEMBERS, MEM_COL.HANJA - MEM_COL.NAME + 1).getValues();
+  const out = [];
+  vals.forEach(function (r, i) {
+    const name = String(r[0]).trim();
+    if (!name) return;
+    const rawW = String(r[MEM_COL.WEIGHT - MEM_COL.NAME]).trim();
+    let w = rawW === '' ? DEFAULT_WEIGHT : Math.round(Number(String(rawW).replace('%', '')));
+    if (!isFinite(w) || w < 1) w = 1;
+    if (w > 100) w = 100;
+    out.push({
+      row: i + 2,
+      name: name,
+      display: String(r[MEM_COL.DISPLAY - MEM_COL.NAME]).trim(),
+      weight: w,
+      server: String(r[MEM_COL.SERVER - MEM_COL.NAME]).trim(),
+      hanja: String(r[MEM_COL.HANJA - MEM_COL.NAME]).trim()
+    });
+  });
+  return out;
+}
+
+// 이름(정규화) → 비중(%) 맵. 명단에 없는 이름은 기본 100%.
+function _getWeightMap(ss) {
+  const map = {};
+  _getMemberRows(ss).forEach(function (m) { map[_normName(m.name)] = m.weight; });
+  return map;
+}
+
+// 참여자 배열 → 비중 배열 (멤버DB 기준, 없으면 100%)
+function _weightsFor(ss, participants) {
+  const map = _getWeightMap(ss);
+  return participants.map(function (p) {
+    const w = map[_normName(p)];
+    return (w === undefined || w === null) ? DEFAULT_WEIGHT : w;
+  });
+}
+
+// 분배내역 직렬화/역직렬화 — 되돌리기가 "그때 실제로 준 금액"을 그대로 쓰게 한다.
+//   비중은 언제든 바뀔 수 있으므로, 분배 시점 금액을 반드시 행에 남긴다.
+function _encodeSplits(participants, shares) {
+  return participants.map(function (p, i) {
+    return String(p).replace(/[|:]/g, ' ') + ':' + (shares[i] || 0);
+  }).join('|');
+}
+
+function _decodeSplits(text) {
+  const out = [];
+  String(text || '').split('|').forEach(function (pair) {
+    const i = pair.lastIndexOf(':');
+    if (i <= 0) return;
+    const name = pair.slice(0, i).trim();
+    const amt = Number(pair.slice(i + 1));
+    if (name && isFinite(amt)) out.push({ name: name, amount: amt });
+  });
+  return out;
+}
+
+// 기존 시트에 분배내역(O열)이 없으면 헤더를 만들어준다 (구버전에서 올라온 파일 대응)
+function _ensureLedgerSplitCol(ledger) {
+  try {
+    if (ledger.getMaxColumns() < LG.SPLIT) ledger.insertColumnsAfter(ledger.getMaxColumns(), LG.SPLIT - ledger.getMaxColumns());
+    const cur = String(ledger.getRange(1, LG.SPLIT).getValue()).trim();
+    if (cur !== LEDGER_HEADERS[LG.SPLIT - 1]) {
+      ledger.getRange(1, LG.SPLIT).setValue(LEDGER_HEADERS[LG.SPLIT - 1])
+        .setBackground('#37474F').setFontColor('#FFF').setFontWeight('bold').setHorizontalAlignment('center');
+      ledger.setColumnWidth(LG.SPLIT, 240);
+    }
+  } catch (e) { /* 서식 실패는 분배를 막지 않는다 */ }
+}
+
+// ─────────────────────────────────────────
 // 🚀 최초 설치: 새 파일에서 1회 실행 → 전체 시트 자동 세팅
 //    이미 설치된 파일에서는 아무것도 삭제하지 않고 안내만 함
 // ─────────────────────────────────────────
@@ -1799,6 +1921,8 @@ function firstTimeInstall(opts) {
     _buildBalance(ss, []);
     _getOrCreatePayoutLog(ss);
     _getOrCreateAuditLog(ss);
+    _getOrCreateAlliance(ss);
+    _getOrCreateBoard(ss);
     _reorderSheets(ss);
     _normalizeRowHeights(ss);
     _applyMemberNameFormatting(ss);
@@ -1850,6 +1974,8 @@ function firstTimeSetup(opts) {
     _buildBalance(ss, []);
     _getOrCreatePayoutLog(ss);
     _getOrCreateAuditLog(ss);
+    _getOrCreateAlliance(ss);
+    _getOrCreateBoard(ss);
     _logAction(ss, '공장초기화', '-', _getActorEmail(), '전체 시트 재생성 (작업기록은 보존됨)');
     _reorderSheets(ss);
     _normalizeRowHeights(ss);
@@ -1931,6 +2057,8 @@ function upgradeKeepData() {
     _buildBalance(ss, members);
     _getOrCreatePayoutLog(ss);
     _getOrCreateAuditLog(ss);
+    _getOrCreateAlliance(ss);
+    _getOrCreateBoard(ss);
     _rebuildGuide(ss);   // 사용안내도 최신 버전으로 갱신
 
     // ── 복원 1: 누적기록 (신 14열 스키마) ──
@@ -2056,10 +2184,12 @@ function _rebuildGuide(ss) {
     ['① [' + LEDGER_SHEET + ']에서 판매된 아이템의 "분배✓" 체크', 'b'],
     ['② 판매금액 입력 팝업 → 금액 입력 → 확인', 'b'],
     ['   (판매금액 열에 미리 적고 체크하면 팝업 생략 — 모바일 앱 호환)', 'b'],
-    ['③ 혈비 공제 후 등록 당시 참여자에게 자동 1/N 분배', 'b'],
-    ['   ⚖️ 규칙: 참여자는 예외 없이 전원 동일한 금액을 받습니다', 'b'],
-    ['   (버림 계산 후 남는 나머지는 참여 여부와 무관하게 항상', 'b'],
-    ['   "' + REMAINDER_NAME + '"에게 별도 적립되며, 참여횟수에는 포함되지 않습니다)', 'b'],
+    ['③ ' + FUND_NAME + ' 공제 후 등록 당시 참여자에게 자동 1/N 분배', 'b'],
+    ['   ⚖️ v10 규칙: 기본은 전원 동일하되, 멤버DB E열 "분배비중(%)"이', 'b'],
+    ['   지정된 사람은 기본 1인당 금액의 그 비율만 받습니다', 'b'],
+    ['   (예: 10,000 → 운영비 1,000 / 기본 1인당 900 / 50% 대상자 450)', 'b'],
+    ['   1/N 버림분과 비중 미달분은 전액 "' + FUND_NAME + '"로 귀속됩니다', 'b'],
+    ['   → 각자에게 실제로 들어간 금액은 [분배내역] 열에 남습니다', 'b'],
     ['   → 상태 ' + ST_DONE + ' + 분배일 기록, 잔액현황 분배전 가산', 'b'],
     ['※ ' + ST_WAIT + ' 행은 주황색으로 강조됩니다', 'b'],
     [''  , 'sp'],
@@ -2284,18 +2414,35 @@ function _buildMemberDB(ss, existingMembers) {
   sheet.setColumnWidth(2, 160);
   sheet.setColumnWidth(3, 80);
   sheet.setColumnWidth(4, 160);
-  sheet.getRange('A1:D1').setValues([['번호','멤버 이름','상태','게임표시명(선택, OCR용)']])
+  sheet.setColumnWidth(MEM_COL.WEIGHT, 90);
+  sheet.setColumnWidth(MEM_COL.SERVER, 70);
+  sheet.setColumnWidth(MEM_COL.HANJA, 140);
+  sheet.getRange(1, 1, 1, MEM_COL.HANJA)
+    .setValues([['번호','멤버 이름','상태','게임표시명(선택, OCR용)','분배비중(%)','서버','한자표기(중국어)']])
     .setBackground('#1A237E').setFontColor('#FFF').setFontWeight('bold').setHorizontalAlignment('center');
   sheet.getRange('D1').setNote('인증샷 자동 인식(OCR)이 이 멤버를 못 찾을 때 사용합니다.\n게임 화면에 실제로 표시되는 이름을 그대로 입력해두면\n이후 사진 속에서 정확히 매칭됩니다. 비워두면 기존처럼\n멤버 이름(코어) 및 괄호 안 표기로만 매칭을 시도합니다.');
+  sheet.getRange(1, MEM_COL.WEIGHT).setNote('분배비중 1~100 (%). 비워두면 100%입니다.\n예) 50 → 기본 1인당 금액의 50%만 받고,\n남는 금액은 전액 ' + FUND_NAME + '로 귀속됩니다.\n앱 [⚙️ 관리] → 혈맹원 관리에서 바꾸는 편이 안전합니다.');
+  sheet.getRange(1, MEM_COL.SERVER).setNote('이 캐릭터가 속한 서버 (01~12). 정산에는 영향을 주지 않는 표시용 정보입니다.');
+  sheet.getRange(1, MEM_COL.HANJA).setNote('중국어권 혈맹원이 볼 한자 표기입니다. 앱에서 "한글 (漢字)" 형태로 함께 보여줍니다.\n※ 자동 생성된 추천값은 반드시 눈으로 확인한 뒤 저장하세요 — 이름은 추측하지 않습니다.');
   for (let i = 0; i < MAX_MEMBERS; i++) {
     const r = i + 2;
     sheet.getRange(r, 1).setValue(i + 1).setHorizontalAlignment('center').setFontColor('#999');
     sheet.getRange(r, 2).setBackground('#FFF9C4');
     sheet.getRange(r, 4).setBackground('#F1F8FF');
+    sheet.getRange(r, MEM_COL.WEIGHT).setBackground('#FFF3E0').setHorizontalAlignment('center');
+    sheet.getRange(r, MEM_COL.SERVER).setBackground('#F1F8E9').setHorizontalAlignment('center');
+    sheet.getRange(r, MEM_COL.HANJA).setBackground('#F3E5F5');
     if (existingMembers[i]) sheet.getRange(r, 2).setValue(existingMembers[i]);
   }
   const rule = SpreadsheetApp.newDataValidation().requireValueInList(['활성','비활성'], true).build();
   sheet.getRange(2, 3, MAX_MEMBERS, 1).setDataValidation(rule);
+  const svRule = SpreadsheetApp.newDataValidation().requireValueInList(SERVER_LIST, true).build();
+  sheet.getRange(2, MEM_COL.SERVER, MAX_MEMBERS, 1).setDataValidation(svRule);
+  const wRule = SpreadsheetApp.newDataValidation()
+    .requireNumberBetween(1, 100)
+    .setHelpText('분배비중은 1~100 사이의 정수여야 합니다. 비워두면 100%입니다.')
+    .build();
+  sheet.getRange(2, MEM_COL.WEIGHT, MAX_MEMBERS, 1).setDataValidation(wRule);
   sheet.setFrozenRows(1);
   sheet.setTabColor('#2196F3');
 }
@@ -2360,7 +2507,7 @@ function _buildInputSheet(ss, members) {
 // ─────────────────────────────────────────
 function _buildLedger(ss) {
   const sheet = ss.insertSheet(LEDGER_SHEET);
-  const widths = [110, 150, 90, 60, 260, 80, 60, 100, 90, 90, 110, 160, 160, 160];
+  const widths = [110, 150, 90, 60, 260, 80, 60, 100, 100, 100, 110, 160, 160, 160, 240];
   widths.forEach((w, i) => sheet.setColumnWidth(i + 1, w));
   sheet.getRange(1, 1, 1, LEDGER_HEADERS.length).setValues([LEDGER_HEADERS])
     .setBackground('#37474F').setFontColor('#FFF').setFontWeight('bold').setHorizontalAlignment('center');
@@ -2368,6 +2515,7 @@ function _buildLedger(ss) {
   sheet.getRange(1, LG.INPUTBY).setNote('아이템을 등록한 사람의 이메일 — 자동 기록, 수정하지 마세요.');
   sheet.getRange(1, LG.DISTBY).setNote('분배✓를 실행한 사람의 이메일 — 자동 기록, 수정하지 마세요.');
   sheet.getRange(1, LG.EDITBY).setNote('[🔄 분배 정정]을 실행한 사람의 이메일(최근 1건) — 자동 기록, 수정하지 마세요.\n전체 이력은 [' + AUDIT_SHEET + '] 시트에서 확인 가능합니다.');
+  sheet.getRange(1, LG.SPLIT).setNote('분배 시점에 각자에게 실제로 들어간 금액입니다 — 자동 기록, 수정하지 마세요.\n비중(멤버DB E열)이 나중에 바뀌어도 정정·삭제가 정확히 되돌려지도록 남겨둡니다.');
   // 상태 조건부서식: 미분배 행 강조
   const rule = SpreadsheetApp.newConditionalFormatRule()
     .whenTextContains(ST_WAIT)
@@ -2598,13 +2746,53 @@ function recalcParticipationMenu() {
   }
 }
 
-// 분배 산식 (단일 소스)
-function _calcSplit(totalGold, n) {
+// 비중 배열 정규화. 숫자를 넘기면 "그 인원 전원 100%"로 본다 (v9 호환).
+function _normWeights(weights) {
+  if (typeof weights === 'number') {
+    const out = [];
+    for (let i = 0; i < weights; i++) out.push(DEFAULT_WEIGHT);
+    return out;
+  }
+  return (weights || []).map(function (p) {
+    const v = Math.round(Number(p));
+    if (!isFinite(v) || v < 1) return 1;
+    return v > 100 ? 100 : v;
+  });
+}
+
+// ─────────────────────────────────────────
+// 분배 산식 (단일 소스) — v10.0
+//
+//   혈맹운영비 = floor(총액 × 0.1)
+//   분배가능   = 총액 - 혈맹운영비
+//   기본1인당  = floor(분배가능 / 인원)          ← 비중 100% 기준
+//   각자       = floor(기본1인당 × 비중% / 100)
+//   잔여       = 분배가능 - Σ각자                ← 1/N 버림 + 비중 미달분
+//   운영비적립 = 혈맹운영비 + 잔여               ← 전액 운영비로 귀속
+//
+//   불변식: 운영비적립 + Σ각자 = 총액
+//   예) 10,000 / 10명, 그중 1명이 50%
+//       → 운영비 1,000, 기본1인당 900, 50% 대상자 450,
+//         잔여 450 → 운영비적립 1,450, 합계 1,450 + 8,550 = 10,000
+// ─────────────────────────────────────────
+function _calcSplit(totalGold, weights) {
+  const w = _normWeights(weights);
+  const n = w.length;
   const fund = Math.floor(totalGold * FUND_RATE);
   const distributable = totalGold - fund;
-  const perPerson = Math.floor(distributable / n);
-  const remainder = distributable - perPerson * n;
-  return { fund: fund, distributable: distributable, perPerson: perPerson, remainder: remainder };
+  const perPerson = n > 0 ? Math.floor(distributable / n) : 0;
+  const shares = w.map(function (p) { return Math.floor(perPerson * p / 100); });
+  const paid = shares.reduce(function (a, b) { return a + b; }, 0);
+  const remainder = distributable - paid;
+  return {
+    fund: fund,                 // 정률 혈맹운영비 (10%)
+    distributable: distributable,
+    perPerson: perPerson,       // 비중 100% 기준 1인당
+    weights: w,
+    shares: shares,             // 참여자별 실지급액 (참여자 배열과 같은 순서)
+    remainder: remainder,       // 운영비로 추가 귀속되는 잔여분
+    fundTotal: fund + remainder // 잔액현황 혈맹운영비 행에 실제로 더해지는 값
+  };
 }
 
 // ─────────────────────────────────────────
@@ -2626,11 +2814,10 @@ function _distributeCore(ss, ledger, row, amount, clientEmail) {
   const balance = ss.getSheetByName('잔액현황');
   if (!balance) return { ok: false, reason: 'nobal' };
 
-  const s = _calcSplit(amount, participants.length);
-  const members = _getMembers(ss);
-  // 나머지 잔여분 귀속 대상: REMAINDER_NAME(고정 지정) 우선, 못 찾으면 첫 번째 멤버로 폴백
-  const remainderTarget = members.find(m => _coreName(m) === REMAINDER_NAME) ||
-                          (members.filter(m => m !== FUND_NAME)[0]) || participants[0];
+  // ★ v10.0: 참여자별 분배비중(멤버DB E열)을 적용한다.
+  const weights = _weightsFor(ss, participants);
+  const s = _calcSplit(amount, weights);
+  _ensureLedgerSplitCol(ledger);
 
   // 잔액현황 이름→행 맵 (_normName 매칭)
   const balData = balance.getRange(2, 1, Math.max(balance.getLastRow() - 1, 1), 4).getValues();
@@ -2647,44 +2834,42 @@ function _distributeCore(ss, ledger, row, amount, clientEmail) {
   //   참여횟수(CNT)는 등록 시점(_registerCore)에 이미 확정되어 있으므로
   //   여기서는 절대 건드리지 않는다 — 분배 금액과 완전히 독립.
   const missing = [];
-  participants.forEach(p => {
+  const paidList = [];
+  participants.forEach((p, i) => {
     const r2 = findRow(p);
-    if (!r2) { missing.push(p); return; }
+    if (!r2) { missing.push(p); paidList.push(0); return; }
     const curPending = Number(String(balance.getRange(r2, BAL_COL.PENDING).getValue()).replace(/,/g, '')) || 0;
-    balance.getRange(r2, BAL_COL.PENDING).setValue(curPending + s.perPerson);
+    balance.getRange(r2, BAL_COL.PENDING).setValue(curPending + s.shares[i]);
+    paidList.push(s.shares[i]);
   });
-  // ★ 나머지 잔여분은 참여 여부와 무관하게 항상 REMAINDER_NAME에게 별도 적립
-  //   (참여횟수는 증가시키지 않음 — 실제 참여 이력과 분리된 순수 잔여분 적립)
-  if (s.remainder > 0) {
-    const r2 = findRow(remainderTarget);
-    if (r2) {
-      const cur = Number(String(balance.getRange(r2, BAL_COL.PENDING).getValue()).replace(/,/g, '')) || 0;
-      balance.getRange(r2, BAL_COL.PENDING).setValue(cur + s.remainder);
-    }
-  }
-  // 혈비 적립
+  // ★ v10.0: 1/N 버림분과 비중 미달분(잔여)은 전액 혈맹운영비로 귀속된다.
+  //   잔액현황에 없어 지급하지 못한 참여자 몫도 여기로 흡수해 다이아가 증발하지 않게 한다.
+  const unpaid = s.shares.reduce((a, b) => a + b, 0) - paidList.reduce((a, b) => a + b, 0);
+  const fundTotal = s.fundTotal + unpaid;
+
   let fundNote = '';
-  if (s.fund > 0) {
+  if (fundTotal > 0) {
     const fr = findRow(FUND_NAME);
     if (fr) {
       const curP = Number(String(balance.getRange(fr, BAL_COL.PENDING).getValue()).replace(/,/g, '')) || 0;
       const curC = Number(balance.getRange(fr, BAL_COL.CNT).getValue()) || 0;
-      balance.getRange(fr, BAL_COL.PENDING).setValue(curP + s.fund);
+      balance.getRange(fr, BAL_COL.PENDING).setValue(curP + fundTotal);
       balance.getRange(fr, BAL_COL.CNT).setValue(curC + 1);
     } else {
       const insertAt = totalRowIdx > 0 ? totalRowIdx : balance.getLastRow() + 1;
       if (totalRowIdx > 0) balance.insertRowBefore(totalRowIdx);
-      _writeBalanceRow(balance, insertAt, FUND_NAME, s.fund, 0, 1, false);
+      _writeBalanceRow(balance, insertAt, FUND_NAME, fundTotal, 0, 1, false);
       _rewriteBalanceTotal(balance);
-      fundNote = ' (유일배분 행 신규 생성)';
+      fundNote = ' (' + FUND_NAME + ' 행 신규 생성)';
     }
   }
 
-  // 누적기록 행 갱신: 금액·혈비·1인당·분배일·상태
+  // 누적기록 행 갱신: 금액·운영비·기본1인당·분배일·상태·분배내역
   const actor = _getActorEmail(clientEmail);
   ledger.getRange(row, LG.AMOUNT).setValue(amount).setNumberFormat('#,##0');
-  ledger.getRange(row, LG.FUND).setValue(s.fund).setNumberFormat('#,##0');
+  ledger.getRange(row, LG.FUND).setValue(fundTotal).setNumberFormat('#,##0');
   ledger.getRange(row, LG.PER).setValue(s.perPerson).setNumberFormat('#,##0');
+  ledger.getRange(row, LG.SPLIT).setValue(_encodeSplits(participants, paidList));
   ledger.getRange(row, LG.DIST).setValue(new Date()).setNumberFormat('yyyy-mm-dd hh:mm');
   ledger.getRange(row, LG.STATUS).setValue(ST_DONE);
   ledger.getRange(row, LG.CHECK).setValue(false);
@@ -2695,8 +2880,9 @@ function _distributeCore(ss, ledger, row, amount, clientEmail) {
   const pm = photoFormula.match(/HYPERLINK\("([^"]+)"/);
   _notifyDiscord(_formatDiscordMsg(distRow, true) + (pm ? `\n📷 인증샷: ${pm[1]}` : ''));
 
-  return { ok: true, item: itemName, amount: amount, fund: s.fund, perPerson: s.perPerson,
-           remainder: s.remainder, remainderTo: remainderTarget, n: participants.length, missing: missing, fundNote: fundNote };
+  return { ok: true, item: itemName, amount: amount, fund: s.fund, fundTotal: fundTotal,
+           perPerson: s.perPerson, shares: paidList, weights: s.weights,
+           remainder: fundTotal - s.fund, n: participants.length, missing: missing, fundNote: fundNote };
 }
 
 // ─────────────────────────────────────────
@@ -3134,12 +3320,15 @@ function api_getRoster() {
     });
   }
 
-  return _getMembers(ss).map(function (name) {
+  return _getMemberRows(ss).map(function (m) {
     return {
-      name: name,
-      displayName: displayMap[name] || '',
-      pending: pendingMap[_normName(name)] || 0,
-      isFund: name === FUND_NAME
+      name: m.name,
+      displayName: displayMap[m.name] || m.display || '',
+      pending: pendingMap[_normName(m.name)] || 0,
+      isFund: m.name === FUND_NAME,
+      weight: m.weight,
+      server: m.server,
+      hanja: m.hanja
     };
   });
 }
@@ -3282,21 +3471,12 @@ function api_removeMember(name, email, confirmRemove) {
     });
   }
 
-  const isRemainder = _coreName(name) === _coreName(REMAINDER_NAME);
-
   // 되돌리기 어려운 상황이면 한 번 더 물어본다
-  if (confirmRemove !== true && (pending > 0 || isRemainder)) {
+  if (confirmRemove !== true && pending > 0) {
     let warn = '"' + name + '" 을(를) 명단에서 뺍니다.\n\n';
-    if (pending > 0) {
-      warn += '⚠️ 아직 받지 않은 분배전 잔액이 ' + pending.toLocaleString() + UNIT + ' 남아 있습니다.\n' +
-              '지급하지 않고 빼면 이 금액은 "(미등록)" 상태로 남습니다.\n' +
-              '먼저 [잔액] 탭에서 지급 처리하는 편이 깔끔합니다.\n\n';
-    }
-    if (isRemainder) {
-      warn += '⚠️ 이 사람은 분배 나머지가 적립되는 대상입니다.\n' +
-              '빼고 나면 이후 분배에서 나머지가 갈 곳이 없어집니다.\n' +
-              'PC 시트에서 REMAINDER_NAME 을 먼저 바꿔주세요.\n\n';
-    }
+    warn += '⚠️ 아직 받지 않은 분배전 잔액이 ' + pending.toLocaleString() + UNIT + ' 남아 있습니다.\n' +
+            '지급하지 않고 빼면 이 금액은 "(미등록)" 상태로 남습니다.\n' +
+            '먼저 [잔액] 탭에서 지급 처리하는 편이 깔끔합니다.\n\n';
     warn += '그래도 진행할까요?';
     return { ok: false, needsConfirm: true, msg: warn };
   }
@@ -3672,6 +3852,43 @@ function _toolRegistry() {
       }
     },
 
+    seasonServer: {
+      name: '🗺️ 이번 시즌 서버 설정',
+      desc: '새 시즌이 시작될 때 이번 시즌의 서버 이름을 지정합니다. 표시 전용이라 정산에는 영향이 없습니다.',
+      danger: 1,
+      inputs: [{ key: 'server', label: '서버 이름', placeholder: '예) 아덴-03' }],
+      run: function (ss, params, email) {
+        return api_setSeasonServer(params.server, email);
+      }
+    },
+
+    // v9 이하에서 쓰던 '유일배분(혈비)' 계정을 v10 이름으로 옮긴다.
+    // 계정명이 코드 상수와 어긋나면 분배할 때마다 계정이 하나 더 생기므로,
+    // 붙여넣기 직후 이 도구를 한 번 실행해야 한다.
+    renameFund: {
+      name: '🏦 혈비 계정을 혈맹운영비로 통일',
+      desc: 'v9 이하의 "유일배분(혈비)" 계정을 v10 이름("' + FUND_NAME + '")으로 바꿉니다. ' +
+            '잔액과 참여횟수는 그대로 따라갑니다. 이미 바뀌어 있으면 아무 일도 하지 않습니다.',
+      danger: 2,
+      inputs: [],
+      run: function (ss, params, email) {
+        const members = _getMembers(ss);
+        if (members.indexOf(FUND_NAME) >= 0) {
+          return { ok: true, msg: '✅ 이미 "' + FUND_NAME + '" 으로 되어 있습니다. 바꿀 것이 없습니다.' };
+        }
+        const legacy = FUND_NAME_LEGACY.filter(function (n) {
+          return members.some(function (m) { return _normName(m) === _normName(n); });
+        })[0];
+        if (!legacy) {
+          return { ok: true, msg: 'ℹ️ 옛 혈비 계정을 찾지 못했습니다. 다음 분배 때 "' + FUND_NAME + '" 행이 자동으로 만들어집니다.' };
+        }
+        const actual = members.filter(function (m) { return _normName(m) === _normName(legacy); })[0];
+        const r = _renameCore(ss, actual, FUND_NAME, email);
+        if (!r || r.ok === false) return { ok: false, msg: (r && r.msg) || '계정명을 바꾸지 못했습니다.' };
+        return { ok: true, msg: '✅ "' + actual + '" → "' + FUND_NAME + '" 으로 통일했습니다. 잔액·참여횟수는 그대로입니다.' };
+      }
+    },
+
     install: {
       name: '🚀 최초 설치',
       desc: '빈 스프레드시트에 시트 구조를 만듭니다. 이미 설치된 파일에서는 실행하지 마세요.',
@@ -3788,7 +4005,8 @@ function api_previewReverse(row) {
     return { ok: true, data: { item: info.item, status: info.status, n: info.n, amount: 0, needsReverse: false, blocked: false } };
   }
 
-  const chk = _reverseCheck(ss, balance, info.participants, info.amount);
+  const rp = _reversalPlan(ss, info);
+  const chk = _reverseCheck(ss, balance, rp.plan);
   return {
     ok: true,
     data: {
@@ -3797,10 +4015,10 @@ function api_previewReverse(row) {
       n: info.n,
       amount: info.amount,
       needsReverse: true,
-      perPerson: chk.split.perPerson,
-      fund: chk.split.fund,
-      remainder: chk.split.remainder,
-      remainderTo: chk.remainderTarget,
+      fundName: FUND_NAME,
+      toMembers: rp.toMembers,
+      fund: rp.fundBack,
+      lines: rp.plan.map(function (e) { return { name: e.label, amount: e.amount }; }),
       blocked: chk.insufficient.length > 0,
       insufficient: chk.insufficient
     }
@@ -3842,10 +4060,424 @@ function api_undoPayout(email, confirm) {
 //   ※ 코드 수정 후에는 [배포 관리] → 기존 배포 편집 → 새 버전
 //     (새 배포로 만들면 URL이 바뀌므로 Vercel 환경변수도 함께 갱신할 것)
 // ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+//  📋 게시판 · 공지사항 (v10.0)
+//    · 일반 글은 혈맹원 누구나 쓸 수 있다 (PIN 불필요)
+//    · 공지는 관리자·마스터만. 앱에서 항상 최상단에 고정된다.
+//    · 삭제는 관리자·마스터만.
+// ═══════════════════════════════════════════════════════════════
+const BOARD_HEADERS = ['번호', '구분', '제목', '내용', '작성자', '작성일'];
+const BOARD_MAX_TITLE = 60;
+const BOARD_MAX_BODY = 1500;
+const BOARD_MAX_ROWS = 500;
+
+function _buildBoard(ss) {
+  const sheet = ss.insertSheet(BOARD_SHEET);
+  [60, 70, 240, 460, 140, 150].forEach(function (w, i) { sheet.setColumnWidth(i + 1, w); });
+  sheet.getRange(1, 1, 1, BOARD_HEADERS.length).setValues([BOARD_HEADERS])
+    .setBackground('#00695C').setFontColor('#FFF').setFontWeight('bold').setHorizontalAlignment('center');
+  sheet.getRange(1, 2).setNote('공지 = 앱 최상단 고정 (관리자·마스터만 작성). 일반 = 혈맹원 누구나.');
+  sheet.setFrozenRows(1);
+  sheet.setTabColor('#009688');
+  return sheet;
+}
+
+function _getOrCreateBoard(ss) {
+  return ss.getSheetByName(BOARD_SHEET) || _buildBoard(ss);
+}
+
+function _readBoard(ss) {
+  const sheet = ss.getSheetByName(BOARD_SHEET);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, BOARD_HEADERS.length).getValues();
+  const out = [];
+  vals.forEach(function (r) {
+    const id = Number(r[0]);
+    if (!id) return;
+    out.push({
+      id: id,
+      kind: String(r[1]).trim() === '공지' ? 'notice' : 'post',
+      title: String(r[2]).trim(),
+      body: String(r[3]),
+      author: String(r[4]).trim(),
+      at: _cellText(r[5])
+    });
+  });
+  return out;
+}
+
+// 앱 헤더에 항상 띄울 최신 공지 1건 (없으면 null)
+function _topNotice(ss) {
+  const notices = _readBoard(ss).filter(function (p) { return p.kind === 'notice'; });
+  if (notices.length === 0) return null;
+  const latest = notices[notices.length - 1];
+  return { id: latest.id, title: latest.title, at: latest.at };
+}
+
+// 공지 먼저, 그 다음 최신순
+function api_getPosts() {
+  const all = _readBoard(SpreadsheetApp.getActiveSpreadsheet());
+  const notices = all.filter(function (p) { return p.kind === 'notice'; }).reverse();
+  const posts = all.filter(function (p) { return p.kind !== 'notice'; }).reverse();
+  return notices.concat(posts);
+}
+
+// 글쓰기. isNotice 는 서버 라우트가 관리자 여부를 확인한 뒤에만 true 로 넘어온다.
+function api_addPost(title, body, author, isNotice) {
+  title = String(title || '').trim();
+  body = String(body || '').trim();
+  author = String(author || '').trim() || '익명';
+
+  if (!title) return { ok: false, msg: '제목을 입력해주세요.' };
+  if (title.length > BOARD_MAX_TITLE) return { ok: false, msg: '제목이 너무 깁니다 (' + BOARD_MAX_TITLE + '자 이내).' };
+  if (body.length > BOARD_MAX_BODY) return { ok: false, msg: '내용이 너무 깁니다 (' + BOARD_MAX_BODY + '자 이내).' };
+  if (author.length > 30) author = author.slice(0, 30);
+
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(10000); } catch (e) { return { ok: false, msg: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.' }; }
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = _getOrCreateBoard(ss);
+
+    // 오래된 글부터 정리 — 시트가 무한정 커지지 않게 한다 (공지는 남긴다)
+    if (sheet.getLastRow() - 1 >= BOARD_MAX_ROWS) {
+      for (let r = 2; r <= sheet.getLastRow(); r++) {
+        if (String(sheet.getRange(r, 2).getValue()).trim() !== '공지') { sheet.deleteRow(r); break; }
+      }
+    }
+
+    let maxId = 0;
+    if (sheet.getLastRow() > 1) {
+      sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues().forEach(function (r) {
+        const v = Number(r[0]);
+        if (v > maxId) maxId = v;
+      });
+    }
+    const id = maxId + 1;
+    const row = sheet.getLastRow() + 1;
+    sheet.getRange(row, 1, 1, BOARD_HEADERS.length)
+      .setValues([[id, isNotice === true ? '공지' : '일반', title, body, author, new Date()]]);
+    sheet.getRange(row, 6).setNumberFormat('yyyy-mm-dd hh:mm');
+    sheet.getRange(row, 4).setWrap(true);
+    return { ok: true, id: id, msg: isNotice === true ? '✅ 공지를 등록했습니다.' : '✅ 글을 등록했습니다.' };
+  } catch (e) {
+    return { ok: false, msg: '오류: ' + e.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function api_deletePost(id, email) {
+  id = Number(id);
+  if (!id) return { ok: false, msg: '삭제할 글을 찾을 수 없습니다.' };
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(BOARD_SHEET);
+  if (!sheet || sheet.getLastRow() < 2) return { ok: false, msg: '게시판이 비어 있습니다.' };
+
+  const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, 3).getValues();
+  for (let i = 0; i < vals.length; i++) {
+    if (Number(vals[i][0]) === id) {
+      const title = String(vals[i][2]).trim();
+      sheet.deleteRow(i + 2);
+      _logAction(ss, '게시글삭제', title, _getActorEmail(email), '#' + id + ' 삭제');
+      return { ok: true, msg: '✅ 삭제했습니다.' };
+    }
+  }
+  return { ok: false, msg: '이미 삭제된 글입니다.' };
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  🤝 연합 정산 (v10.0)
+//    혈맹 내부 분배와 완전히 분리된 장부다.
+//    아이디 판별을 하지 않고 인증샷에서 "인원수"만 센다.
+//    서버·금액·아이템명·비중(%)을 받아 서버별로 누적한다.
+// ═══════════════════════════════════════════════════════════════
+const ALLIANCE_HEADERS = ['등록일', '서버', '아이템명', '금액', '비중(%)', '인원수', '적립액', '인증샷', '입력자'];
+
+function _buildAlliance(ss) {
+  const sheet = ss.insertSheet(ALLIANCE_SHEET);
+  [110, 70, 180, 110, 80, 80, 110, 80, 160].forEach(function (w, i) { sheet.setColumnWidth(i + 1, w); });
+  sheet.getRange(1, 1, 1, ALLIANCE_HEADERS.length).setValues([ALLIANCE_HEADERS])
+    .setBackground('#4E342E').setFontColor('#FFF').setFontWeight('bold').setHorizontalAlignment('center');
+  sheet.getRange(1, 5).setNote('그 서버에 귀속시킬 비율입니다. 적립액 = floor(금액 × 비중 ÷ 100).');
+  sheet.getRange(1, 6).setNote('인증샷에서 자동으로 센 인원수입니다. 누구인지는 판별하지 않습니다.');
+  sheet.setFrozenRows(1);
+  sheet.setTabColor('#795548');
+  return sheet;
+}
+
+function _getOrCreateAlliance(ss) {
+  return ss.getSheetByName(ALLIANCE_SHEET) || _buildAlliance(ss);
+}
+
+// 연합 적립액 산식 (단일 소스 — lib/client.ts 의 calcAlliance 와 반드시 일치)
+function _calcAlliance(amount, pct) {
+  const a = Math.floor(Number(amount) || 0);
+  let p = Math.round(Number(pct));
+  if (!isFinite(p) || p < 1) p = 1;
+  if (p > 100) p = 100;
+  return { amount: a, pct: p, credited: Math.floor(a * p / 100) };
+}
+
+function api_getAlliance() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(ALLIANCE_SHEET);
+  const rows = [];
+  const totals = {};
+  SERVER_LIST.forEach(function (s) { totals[s] = { server: s, credited: 0, amount: 0, count: 0, people: 0 }; });
+
+  if (sheet && sheet.getLastRow() > 1) {
+    const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, ALLIANCE_HEADERS.length).getValues();
+    vals.forEach(function (r, i) {
+      const server = String(r[1]).trim();
+      if (!server) return;
+      const rec = {
+        row: i + 2,
+        date: _cellText(r[0]),
+        server: server,
+        item: String(r[2]).trim(),
+        amount: Number(String(r[3]).replace(/,/g, '')) || 0,
+        pct: Number(r[4]) || 0,
+        people: Number(r[5]) || 0,
+        credited: Number(String(r[6]).replace(/,/g, '')) || 0,
+        photo: String(r[7]).trim()
+      };
+      rows.push(rec);
+      if (!totals[server]) totals[server] = { server: server, credited: 0, amount: 0, count: 0, people: 0 };
+      totals[server].credited += rec.credited;
+      totals[server].amount += rec.amount;
+      totals[server].people += rec.people;
+      totals[server].count += 1;
+    });
+  }
+
+  return {
+    rows: rows.reverse(),
+    totals: SERVER_LIST.map(function (s) { return totals[s]; }),
+    serverList: SERVER_LIST,
+    unit: UNIT
+  };
+}
+
+function api_addAlliance(server, item, amount, pct, people, photoLink, email) {
+  server = String(server || '').trim();
+  item = String(item || '').trim();
+  if (SERVER_LIST.indexOf(server) < 0) return { ok: false, msg: '서버를 01~12 중에서 선택해주세요.' };
+  if (!item) return { ok: false, msg: '아이템명을 입력해주세요.' };
+
+  const amt = Number(String(amount).replace(/,/g, ''));
+  if (!amt || amt <= 0 || amt !== Math.floor(amt)) return { ok: false, msg: '금액은 양의 정수여야 합니다.' };
+
+  const s = _calcAlliance(amt, pct);
+  const n = Math.max(Math.floor(Number(people) || 0), 0);
+
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(15000); } catch (e) { return { ok: false, msg: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.' }; }
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = _getOrCreateAlliance(ss);
+    const row = sheet.getLastRow() + 1;
+    const actor = _getActorEmail(email);
+    sheet.getRange(row, 1, 1, ALLIANCE_HEADERS.length)
+      .setValues([[new Date(), server, item, s.amount, s.pct, n, s.credited, '', actor]]);
+    sheet.getRange(row, 1).setNumberFormat('yyyy-mm-dd hh:mm');
+    sheet.getRange(row, 4, 1, 1).setNumberFormat('#,##0');
+    sheet.getRange(row, 7, 1, 1).setNumberFormat('#,##0');
+    if (photoLink) sheet.getRange(row, 8).setFormula('=HYPERLINK("' + photoLink + '","📷")');
+    _logAction(ss, '연합등록', item, actor,
+      server + '서버 ' + s.amount.toLocaleString() + UNIT + ' × ' + s.pct + '% = ' + s.credited.toLocaleString() + ' (' + n + '명)');
+    return {
+      ok: true, credited: s.credited, server: server,
+      msg: '✅ ' + server + '서버에 ' + s.credited.toLocaleString() + UNIT + ' 누적했습니다 (' + n + '명 참여).'
+    };
+  } catch (e) {
+    return { ok: false, msg: '오류: ' + e.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function api_deleteAlliance(row, email) {
+  row = Number(row);
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(ALLIANCE_SHEET);
+  if (!sheet || row < 2 || row > sheet.getLastRow()) return { ok: false, msg: '기록을 찾을 수 없습니다.' };
+  const r = sheet.getRange(row, 1, 1, ALLIANCE_HEADERS.length).getValues()[0];
+  const detail = String(r[1]) + '서버 ' + String(r[2]) + ' ' + Number(r[6]).toLocaleString() + UNIT;
+  sheet.deleteRow(row);
+  _logAction(ss, '연합삭제', String(r[2]), _getActorEmail(email), detail + ' 삭제');
+  return { ok: true, msg: '✅ 삭제했습니다 — ' + detail };
+}
+
+// 연합 인증샷: 아이디는 전혀 판별하지 않고 인원수만 센다.
+function api_countPhoto(base64) {
+  const r = api_analyzePhoto(base64);
+  if (!r.ok) return r;
+
+  // ① 우리 혈맹원으로 매칭된 수 ② 못 잡으면 OCR 텍스트의 이름 줄 수
+  const matched = (r.matched || []).length;
+  let guess = matched;
+  if (guess === 0) {
+    const lines = String(r.ocrPreview || '').split(/\r?\n/)
+      .map(function (s) { return s.trim(); })
+      .filter(function (s) { return s.length >= 2; });
+    guess = lines.length;
+  }
+  return {
+    ok: true,
+    people: guess,
+    photoUrl: r.photoUrl || '',
+    msg: guess > 0
+      ? '📷 사진에서 ' + guess + '명으로 읽었습니다. 실제 인원과 다르면 숫자를 직접 고쳐주세요.'
+      : '📷 사진은 저장했지만 인원수를 읽지 못했습니다. 직접 입력해주세요.'
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  👤 멤버 설정 (분배비중 · 서버 · 한자표기) — v10.0
+// ═══════════════════════════════════════════════════════════════
+function api_updateMember(name, patch, email) {
+  name = String(name || '').trim();
+  patch = patch || {};
+  if (!name) return { ok: false, msg: '대상을 찾을 수 없습니다.' };
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const db = ss.getSheetByName('멤버DB');
+  if (!db) return { ok: false, msg: '멤버DB 시트를 찾을 수 없습니다.' };
+
+  const target = _getMemberRows(ss).filter(function (m) { return _normName(m.name) === _normName(name); })[0];
+  if (!target) return { ok: false, msg: '"' + name + '" 을(를) 명단에서 찾지 못했습니다.' };
+
+  const changes = [];
+
+  if (patch.weight !== undefined && patch.weight !== null && patch.weight !== '') {
+    const w = Math.round(Number(patch.weight));
+    if (!isFinite(w) || w < 1 || w > 100) return { ok: false, msg: '분배비중은 1~100 사이의 정수여야 합니다.' };
+    if (w !== target.weight) {
+      db.getRange(target.row, MEM_COL.WEIGHT).setValue(w);
+      changes.push('비중 ' + target.weight + '% → ' + w + '%');
+    }
+  }
+
+  if (patch.server !== undefined && patch.server !== null) {
+    const sv = String(patch.server).trim();
+    if (sv && SERVER_LIST.indexOf(sv) < 0) return { ok: false, msg: '서버는 01~12 중에서 선택해주세요.' };
+    if (sv !== target.server) {
+      db.getRange(target.row, MEM_COL.SERVER).setValue(sv);
+      changes.push('서버 ' + (target.server || '-') + ' → ' + (sv || '-'));
+    }
+  }
+
+  // ★ 한자표기는 관리자가 눈으로 확인하고 저장한 값만 들어온다.
+  //   시스템이 추측해서 채우지 않는다 (엉뚱한 사람에게 다이아가 가는 사고를 막기 위한 규칙).
+  if (patch.hanja !== undefined && patch.hanja !== null) {
+    const hj = String(patch.hanja).trim();
+    if (hj.length > 30) return { ok: false, msg: '한자표기가 너무 깁니다 (30자 이내).' };
+    if (hj !== target.hanja) {
+      db.getRange(target.row, MEM_COL.HANJA).setValue(hj);
+      changes.push('한자 ' + (target.hanja || '-') + ' → ' + (hj || '-'));
+    }
+  }
+
+  if (changes.length === 0) return { ok: true, msg: '바뀐 내용이 없습니다.' };
+
+  _logAction(ss, '멤버설정', name, _getActorEmail(email), changes.join(' · '));
+  return { ok: true, msg: '✅ ' + name + ' — ' + changes.join(' · ') };
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  🕘 아이디 변경 이력 (v10.0) — 작업기록에서 이름 변경만 뽑아온다
+// ═══════════════════════════════════════════════════════════════
+function api_getRenameHistory() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const log = ss.getSheetByName(AUDIT_SHEET);
+  if (!log || log.getLastRow() < 2) return [];
+
+  const vals = log.getRange(2, 1, log.getLastRow() - 1, 5).getValues();
+  const out = [];
+  vals.forEach(function (r) {
+    const action = String(r[1]).trim();
+    if (action !== '개명' && action.indexOf('이름변경') < 0 && action.indexOf('아이디변경') < 0) return;
+    const detail = String(r[4]).trim();
+    // 상세는 '"옛이름" → "새이름" (…)' 형태로 기록된다
+    const strip = function (s) { return String(s).replace(/^["']|["']$/g, '').trim(); };
+    const m = detail.match(/^\s*(.+?)\s*(?:→|->)\s*([^(\n]+)/);
+    out.push({
+      at: _cellText(r[0]),
+      before: m ? strip(m[1]) : String(r[2]).trim(),
+      after: m ? strip(m[2]) : String(r[2]).trim(),
+      by: String(r[3]).trim(),
+      merged: detail.indexOf('병합') >= 0,
+      detail: detail
+    });
+  });
+  return out.reverse();   // 최신순
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  🛡️ 앱 설정 · 관리자 PIN (v10.0)
+//    마스터관리자(개발자)만 접근한다. 마스터 여부 판정은 Vercel 서버가
+//    MASTER_PIN 으로 하고, 여기로는 이미 통과한 요청만 들어온다.
+// ═══════════════════════════════════════════════════════════════
+const APP_NAME_PROP = 'APP_NAME';
+const ADMIN_PIN_PROP = 'ADMIN_PIN_OVERRIDE';
+
+function api_setAppName(name, email) {
+  name = String(name || '').trim();
+  if (!name) return { ok: false, msg: '앱 이름을 입력해주세요.' };
+  if (name.length > 20) return { ok: false, msg: '앱 이름이 너무 깁니다 (20자 이내).' };
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  PropertiesService.getDocumentProperties().setProperty(APP_NAME_PROP, name);
+  _logAction(ss, '앱이름변경', name, _getActorEmail(email), '앱 명칭을 "' + name + '" 으로 변경');
+  return { ok: true, msg: '✅ 앱 이름을 "' + name + '" 으로 바꿨습니다.' };
+}
+
+// 관리자 PIN 원격 변경. 여기 저장된 값이 있으면 Vercel 의 ADMIN_PIN 환경변수보다 우선한다.
+//   → 관리자가 바뀌어도 마스터가 앱에서 바로 PIN 을 갈 수 있다 (재배포 불필요).
+function api_setAdminPin(pin, email) {
+  pin = String(pin || '').trim();
+  if (pin && !/^[0-9A-Za-z!@#$%^&*_-]{6,32}$/.test(pin)) {
+    return { ok: false, msg: 'PIN 은 6~32자여야 하며 공백은 쓸 수 없습니다.' };
+  }
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const props = PropertiesService.getDocumentProperties();
+  if (pin) props.setProperty(ADMIN_PIN_PROP, pin);
+  else props.deleteProperty(ADMIN_PIN_PROP);
+  // ★ PIN 값 자체는 어떤 로그에도 남기지 않는다.
+  _logAction(ss, '관리자PIN변경', '-', _getActorEmail(email), pin ? '새 PIN 으로 교체' : '환경변수 PIN 으로 복귀');
+  return { ok: true, msg: pin ? '✅ 관리자 PIN 을 바꿨습니다. 기존 관리자 기기는 다음 로그인부터 새 PIN 이 필요합니다.' : '✅ 시트에 저장된 PIN 을 지웠습니다 — Vercel 환경변수 PIN 으로 돌아갑니다.' };
+}
+
+// Vercel 로그인 라우트가 부른다. 시트에 저장된 PIN 이 없으면 hasOverride:false 를 돌려주고,
+// 그때는 Vercel 이 자기 환경변수로 판정한다. PIN 값은 절대 밖으로 내보내지 않는다.
+function api_checkPin(pin) {
+  const stored = String(PropertiesService.getDocumentProperties().getProperty(ADMIN_PIN_PROP) || '');
+  if (!stored) return { ok: true, hasOverride: false, match: false };
+  return { ok: true, hasOverride: true, match: _tokenEq(stored, String(pin || '')) };
+}
+
+// 시즌 서버 이름 (시즌 시작 시 지정 — 표시 전용)
+function api_setSeasonServer(server, email) {
+  const sv = String(server || '').trim();
+  if (sv.length > 20) return { ok: false, msg: '서버 이름이 너무 깁니다 (20자 이내).' };
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  PropertiesService.getDocumentProperties().setProperty('SEASON_SERVER', sv);
+  _logAction(ss, '시즌서버설정', sv || '-', _getActorEmail(email), '시즌 ' + _currentSeason(ss) + ' 서버명: ' + (sv || '(없음)'));
+  return { ok: true, msg: sv ? '✅ 이번 시즌 서버를 "' + sv + '" 로 설정했습니다.' : '✅ 시즌 서버명을 비웠습니다.' };
+}
+
 const API_TOKEN_PROP = 'API_TOKEN';
 // 쓰기(잔액·원장을 바꾸는) 액션 — LockService로 직렬화한다
+// 관리자(PIN) 인증이 필요한 쓰기 작업. Vercel 쪽 app/api/admin/ 라우트와 1:1로 대응한다.
+//   ※ 'addPost'(일반 글쓰기)는 의도적으로 빠져 있다 — 혈맹원 누구나 쓸 수 있어야 하므로.
+//     공지 여부(isNotice)만 관리자 라우트에서 넘어온다.
 const API_WRITE_ACTIONS = ['register', 'distribute', 'payout', 'rename', 'addMember', 'removeMember',
-                           'correctItem', 'deleteItem', 'undoPayout', 'runTool'];
+                           'correctItem', 'deleteItem', 'undoPayout', 'runTool',
+                           'deletePost', 'addAlliance', 'deleteAlliance', 'updateMember',
+                           'setAppName', 'setAdminPin', 'setSeasonServer'];
+
+// 마스터관리자(개발자)만 부를 수 있는 작업 — Vercel 의 requireMaster 가 지킨다.
+const API_MASTER_ACTIONS = ['setAppName', 'setAdminPin'];
 
 // 🔑 토큰 발급·확인·재발급 (메뉴)
 function manageApiToken() {
@@ -4005,6 +4637,49 @@ function _apiRoute(action, req) {
     case 'runTool':
       return api_runTool(req.id, req.params, req.email, req.confirmText);
 
+    /* ── v10.0 ── */
+
+    case 'renameHistory':
+      return { ok: true, data: api_getRenameHistory() };
+
+    case 'posts':
+      return { ok: true, data: api_getPosts() };
+
+    // 일반 글은 혈맹원 누구나 쓸 수 있다. 공지(isNotice)는 서버 라우트가
+    // 관리자 인증을 통과시킨 요청에서만 true 로 넘어온다.
+    case 'addPost':
+      return api_addPost(req.title, req.body, req.author, req.isNotice === true);
+
+    case 'deletePost':
+      return api_deletePost(req.id, req.email);
+
+    case 'alliance':
+      return { ok: true, data: api_getAlliance() };
+
+    case 'addAlliance':
+      return api_addAlliance(req.server, req.item, req.amount, req.pct, req.people, req.photoLink, req.email);
+
+    case 'deleteAlliance':
+      return api_deleteAlliance(req.row, req.email);
+
+    case 'countPhoto':
+      return api_countPhoto(req.base64);
+
+    case 'updateMember':
+      return api_updateMember(req.name, req.patch, req.email);
+
+    case 'checkPin':
+      return api_checkPin(req.pin);
+
+    case 'setAppName':
+      return api_setAppName(req.name, req.email);
+
+    case 'setAdminPin':
+      return api_setAdminPin(req.pin, req.email);
+
+    case 'setSeasonServer':
+      return api_setSeasonServer(req.server, req.email);
+
     // v9.0 부터는 모든 관리 기능이 앱에 노출된다. 대신 위험도에 따라
     // ① 구체적인 숫자를 보여주는 2단계 확인(정정·삭제·지급취소)
     // ② 정해진 문구를 정확히 입력해야 실행되는 3단계 확인(시즌종료·초기화 등)
@@ -4119,19 +4794,30 @@ function api_getState() {
           row: i + 2,
           item: String(r[LG.ITEM - 1]),
           date: Utilities.formatDate(new Date(r[LG.DATE - 1]), Session.getScriptTimeZone(), 'MM/dd'),
-          cnt: Number(r[LG.CNT - 1]) || 0
+          cnt: Number(r[LG.CNT - 1]) || 0,
+          // 앱이 분배 미리보기에서 참여자별 비중을 적용하려면 명단이 필요하다
+          names: String(r[LG.NAMES - 1]).split(',').map(function (s) { return s.trim(); }).filter(Boolean)
         });
       }
     });
   }
   const season = _currentSeason(ss);
+  const props = PropertiesService.getDocumentProperties();
+  const memberRows = _getMemberRows(ss);
   return {
     rows: rows,
     items: items,
-    members: _getMembers(ss),
+    members: memberRows.map(function (m) { return m.name; }),
+    memberInfo: memberRows.map(function (m) {
+      return { name: m.name, weight: m.weight, server: m.server, hanja: m.hanja };
+    }),
     fundName: FUND_NAME,
-    remainderName: REMAINDER_NAME,
     fundRate: FUND_RATE,
+    defaultWeight: DEFAULT_WEIGHT,
+    serverList: SERVER_LIST,
+    seasonServer: String(props.getProperty('SEASON_SERVER') || ''),
+    appName: String(props.getProperty('APP_NAME') || '길드정산'),
+    notice: _topNotice(ss),
     unit: UNIT,
     season: season
   };
@@ -4277,9 +4963,9 @@ function api_distribute(row, amount, email) {
     if (r.reason === 'invalid') return { ok: false, msg: '⚠️ 판매금액은 양의 정수여야 합니다.' };
     return { ok: false, msg: '분배할 수 없는 행입니다.' };
   }
-  let msg = '✅ "' + r.item + '" ' + r.amount.toLocaleString() + UNIT + ' 분배 완료 — 혈비 ' +
-            r.fund.toLocaleString() + ' / ' + r.n + '명 × ' + r.perPerson.toLocaleString();
-  if (r.remainder > 0) msg += ' / 나머지 ' + r.remainder + UNIT + ' → ' + r.remainderTo;
+  let msg = '✅ "' + r.item + '" ' + r.amount.toLocaleString() + UNIT + ' 분배 완료 — ' + FUND_NAME + ' ' +
+            r.fundTotal.toLocaleString() + ' / ' + r.n + '명 기본 ' + r.perPerson.toLocaleString();
+  if (r.remainder > 0) msg += ' (잔여 ' + r.remainder.toLocaleString() + UNIT + ' 운영비 귀속)';
   if (r.missing.length > 0) msg += ' (⚠️ 미발견: ' + r.missing.join(', ') + ')';
   return { ok: true, msg: msg };
 }

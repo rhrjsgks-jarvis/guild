@@ -7,9 +7,11 @@
   --text-dim: #6b7280;
   --text-faint: #9aa1ac;
 
-  --brand: #3b3fd8;
-  --brand-deep: #262a9e;
+  /* 아이콘(흑금 방패)과 같은 계열 — v10.0 */
+  --brand: #2f3a63;
+  --brand-deep: #111a33;
   --brand-soft: #eceefe;
+  --gold: #d9a740;
 
   --pending: #e06a00;
   --pending-soft: #fff2e4;
@@ -452,20 +454,48 @@ select:focus {
 
 .nav button {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
   height: var(--nav-h);
-  font-size: 10.5px;
+  /* 탭이 6개라 좁은 폰에서도 글자가 잘리지 않게 살짝 줄인다 */
+  font-size: 9.5px;
   font-weight: 600;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
   color: var(--text-faint);
 }
 
 .nav button .ico {
-  font-size: 19px;
+  font-size: 18px;
   line-height: 1;
+}
+
+/* 공지 띠 — 어느 탭에 있든 항상 화면 맨 위에 붙는다 */
+.notice-bar {
+  display: block;
+  width: 100%;
+  padding: 9px 16px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: #7a4b00;
+  background: #FFF3CD;
+  border-bottom: 1px solid #F0D48A;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-color-scheme: dark) {
+  .notice-bar {
+    color: #FFE39B;
+    background: #3A2F12;
+    border-bottom-color: #5A4A1E;
+  }
 }
 
 .nav button.on {

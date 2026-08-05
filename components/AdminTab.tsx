@@ -5,15 +5,28 @@ import { api, getStoredEmail, setStoredEmail } from '@/lib/client';
 import ShareCard from './ShareCard';
 import RosterCard from './RosterCard';
 import ToolsCard from './ToolsCard';
+import MasterCard from './MasterCard';
+import type { Lang } from '@/lib/i18n';
+import { setLang } from '@/lib/i18n';
 
 export default function AdminTab({
   admin,
+  master,
   unit,
+  servers,
+  appName,
+  lang,
+  onLangChange,
   onAuthChange,
   toast,
 }: {
   admin: boolean;
+  master: boolean;
   unit: string;
+  servers: string[];
+  appName: string;
+  lang: Lang;
+  onLangChange: (l: Lang) => void;
   onAuthChange: () => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
@@ -47,14 +60,39 @@ export default function AdminTab({
 
   return (
     <div className="page">
-      <div className="sect">{admin ? '🔓 관리자 모드' : '🔒 관리자 인증'}</div>
+      <div className="sect">🌏 언어 / 语言</div>
+      <div className="card">
+        <div className="field" style={{ display: 'flex', gap: 8 }}>
+          {(['ko', 'zh'] as Lang[]).map((l) => (
+            <button
+              key={l}
+              className={'btn block' + (lang === l ? '' : ' ghost')}
+              onClick={() => {
+                setLang(l);
+                onLangChange(l);
+              }}
+            >
+              {l === 'ko' ? '한국어' : '中文'}
+            </button>
+          ))}
+        </div>
+        <div className="field" style={{ paddingTop: 0 }}>
+          <p className="hint">
+            화면에 고정된 문구만 바뀝니다. 사람 이름·아이템명은 번역하지 않습니다 — 기계가 이름을 바꾸면 다른
+            사람으로 읽힐 수 있기 때문입니다. 혈맹원 한자 표기는 [혈맹원 관리]에서 직접 넣어주세요.
+          </p>
+        </div>
+      </div>
+
+      <div className="sect">{master ? '👑 마스터관리자 모드' : admin ? '🔓 관리자 모드' : '🔒 관리자 인증'}</div>
 
       <div className="card">
         {admin ? (
           <div className="field">
             <p style={{ fontSize: 14, lineHeight: 1.6 }}>
-              관리자 모드가 켜져 있습니다. [잔액] 탭에서 <strong>지급</strong>, [아이템] 탭에서{' '}
-              <strong>등록 · 분배</strong>를 할 수 있습니다.
+              {master ? '마스터관리자' : '관리자'} 모드가 켜져 있습니다. [잔액] 탭에서 <strong>지급</strong>,
+              [아이템] 탭에서 <strong>등록 · 분배</strong>를 할 수 있습니다.
+              {master ? ' 여기에 더해 앱 이름과 관리자 PIN을 바꿀 수 있습니다.' : ''}
             </p>
             <p className="hint">이 기기에서 30일간 유지됩니다. 공용 기기라면 쓰고 나서 꼭 잠가주세요.</p>
             <button className="btn danger block" style={{ marginTop: 14 }} disabled={busy} onClick={logout}>
@@ -93,9 +131,11 @@ export default function AdminTab({
       {/* 아이디 관리와 기록용 이메일은 쓰기 작업을 하는 관리자에게만 의미가 있다 */}
       {admin ? (
         <>
-          <RosterCard unit={unit} onChanged={onAuthChange} toast={toast} />
+          <RosterCard unit={unit} servers={servers} onChanged={onAuthChange} toast={toast} />
 
           <ToolsCard unit={unit} onChanged={onAuthChange} toast={toast} />
+
+          {master ? <MasterCard appName={appName} onChanged={onAuthChange} toast={toast} /> : null}
 
           <div className="sect">📧 기록용 이메일</div>
           <div className="card">

@@ -28,6 +28,7 @@ const APP_PORT = 3101;
 const APP = `http://127.0.0.1:${APP_PORT}`;
 const MOCK = `http://127.0.0.1:${MOCK_PORT}/exec`;
 const PIN = '123456';
+const MASTER_PIN = 'master-9876';
 const SHOTS = process.env.E2E_SHOTS;
 
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
@@ -103,6 +104,14 @@ const send = (method) => (path, body, headers = {}) =>
 const post = send('POST');
 const del = send('DELETE');
 
+/** 모의 시트를 처음 상태로 되돌린다 (모의 시트에만 있는 기능) */
+const reset = () =>
+  fetch(MOCK, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: '__reset', token: 'TESTTOKEN' }),
+  });
+
 /* ────────────────────────────────────────────── */
 
 console.log('\n🧪 통합 테스트\n');
@@ -134,6 +143,7 @@ spawnBg('npx', ['next', 'start', '-p', String(APP_PORT)], {
   GAS_URL: MOCK,
   GAS_TOKEN: 'TESTTOKEN',
   ADMIN_PIN: PIN,
+  MASTER_PIN,
   SESSION_SECRET: 'e2e-secret-not-used-in-production',
 });
 
@@ -175,6 +185,10 @@ for (const path of [
   '/api/admin/payout',
   '/api/admin/photo',
   '/api/admin/rename',
+  '/api/admin/alliance',
+  '/api/admin/alliance-photo',
+  '/api/admin/member-settings',
+  '/api/master',
 ]) {
   await t(`인증 없이 ${path} → 401`, async () => {
     eq((await post(path, { name: '가이', amount: 100 })).status, 401, 'HTTP 상태');
@@ -337,9 +351,12 @@ await t('정정 미리보기가 되돌릴 금액을 알려준다', async () => {
   const d = (await res.json()).data;
   eq(d.needsReverse, true, 'needsReverse');
   eq(d.blocked, false, 'blocked');
-  // 3,000 → 혈비 300, 남은 2,700 을 3명이 나누면 1인당 900
-  eq(d.perPerson, 900, '되돌릴 1인당');
-  eq(d.fund, 300, '되돌릴 혈비');
+  // 3,000 → 운영비 300, 남은 2,700 을 3명(전원 100%)이 나누면 1인당 900.
+  // v10 부터는 "누구에게서 얼마" 목록으로 내려온다 — 되돌리는 금액이 원금과 딱 맞아야 한다.
+  eq(d.toMembers, 2700, '참여자에게서 회수할 합계');
+  eq(d.fund, 300, '운영비에서 회수할 금액');
+  eq(d.lines.length, 4, '회수 대상 줄 수 (참여자 3 + 운영비)');
+  eq(d.lines.reduce((a, b) => a + b.amount, 0), d.amount, '회수 총액 = 분배 금액');
 });
 
 await t('이미 지급된 아이템은 정정이 막힌다', async () => {
@@ -452,15 +469,184 @@ await t('지난 시즌: 목록과 상세를 누구나 볼 수 있다', async () 
   eq((await fetch(`${APP}/api/seasons?num=abc`)).status, 400, '잘못된 번호');
 });
 
+/* ── ①-b v10.0 새 기능 ── */
+
+await t('분배: 비중 50%인 사람은 절반만 받고 남는 몫은 운영비로 간다', async () => {
+  // 사용자가 확인해준 기준: 1만 / 10명 중 1명이 50%
+  //   → 운영비 1,000 · 기본 1인당 900 · 50% 대상자 450 · 잔여 450 도 운영비
+  await reset();
+
+  const before = (await (await fetch(`${APP}/api/state`)).json()).data;
+  const fundBefore = before.rows.find((r) => r.name === before.fundName).pending;
+  const halfBefore = before.rows.find((r) => r.name === '대서과Z').pending;
+  const fullBefore = before.rows.find((r) => r.name === '가이').pending;
+
+  // 기란 세금(row 2)의 참여자는 가이 · TC무식 · 대서과Z(50%)
+  const res = await post('/api/admin/distribute', { row: 2, amount: 10000 }, { Cookie: cookie });
+  eq((await res.json()).ok, true, '분배 ok');
+
+  const after = (await (await fetch(`${APP}/api/state`)).json()).data;
+  const find = (n) => after.rows.find((r) => r.name === n).pending;
+
+  // 총액 10,000 · 운영비 1,000 · 분배가능 9,000 · 3명이므로 기본 1인당 3,000
+  eq(find('가이') - fullBefore, 3000, '100% 대상자');
+  eq(find('대서과Z') - halfBefore, 1500, '50% 대상자');
+  // 운영비 = 1,000 + 잔여 1,500
+  eq(find(after.fundName) - fundBefore, 2500, '운영비 적립');
+});
+
+await t('되돌리기는 분배 시점 금액을 그대로 쓴다 (비중을 바꿔도)', async () => {
+  await reset();
+  await post('/api/admin/distribute', { row: 2, amount: 10000 }, { Cookie: cookie });
+
+  // 분배 뒤에 비중을 100%로 올려도, 되돌릴 때는 그때 준 1,500 을 빼야 한다
+  const upd = await post(
+    '/api/admin/member-settings',
+    { name: '대서과Z', weight: 100 },
+    { Cookie: cookie },
+  );
+  eq((await upd.json()).ok, true, '비중 변경 ok');
+
+  const before = (await (await fetch(`${APP}/api/state`)).json()).data;
+  const del2 = await post('/api/admin/items', { op: 'delete', row: 2, confirm: true }, { Cookie: cookie });
+  eq((await del2.json()).ok, true, '삭제 ok');
+
+  const after = (await (await fetch(`${APP}/api/state`)).json()).data;
+  const diff = (n) =>
+    before.rows.find((r) => r.name === n).pending - after.rows.find((r) => r.name === n).pending;
+  eq(diff('대서과Z'), 1500, '50%였던 사람에게서 회수한 금액');
+  eq(diff('가이'), 3000, '100%였던 사람에게서 회수한 금액');
+  eq(diff(before.fundName), 2500, '운영비에서 회수한 금액');
+});
+
+await t('비중은 1~100 밖이면 거부된다', async () => {
+  for (const w of [0, 101, 1.5, -5]) {
+    const res = await post('/api/admin/member-settings', { name: '가이', weight: w }, { Cookie: cookie });
+    eq(res.status, 400, `비중 ${w}`);
+  }
+});
+
+await t('게시판: 글은 누구나 쓰고, 공지는 관리자만', async () => {
+  await reset();
+
+  // 비로그인 글쓰기 — 통과해야 하고, 공지로는 올라가면 안 된다
+  const anon = await (await post('/api/board', { title: '일반글', body: '내용', author: '혈맹원', notice: true })).json();
+  eq(anon.ok, true, '비로그인 글쓰기');
+
+  const list = (await (await fetch(`${APP}/api/board`)).json()).data;
+  const mine = list.find((p) => p.title === '일반글');
+  eq(mine.kind, 'post', '요청 본문의 notice:true 가 무시되었는가');
+
+  // 관리자 공지 — 목록 맨 위에 온다
+  const asAdmin = await (await post('/api/board', { title: '진짜공지', notice: true }, { Cookie: cookie })).json();
+  eq(asAdmin.ok, true, '관리자 공지');
+  const list2 = (await (await fetch(`${APP}/api/board`)).json()).data;
+  eq(list2[0].title, '진짜공지', '공지가 최상단');
+  eq(list2[0].kind, 'notice', '공지 구분');
+
+  // 헤더에 띄울 공지도 함께 내려온다
+  const st = (await (await fetch(`${APP}/api/state`)).json()).data;
+  eq(st.notice.title, '진짜공지', 'state.notice');
+});
+
+await t('게시판: 삭제는 관리자만', async () => {
+  const list = (await (await fetch(`${APP}/api/board`)).json()).data;
+  const target = list[0];
+  eq((await del('/api/admin/board', { id: target.id })).status, 401, '비로그인 삭제');
+  eq((await (await del('/api/admin/board', { id: target.id }, { Cookie: cookie })).json()).ok, true, '관리자 삭제');
+});
+
+await t('연합: 조회는 누구나, 등록은 관리자만', async () => {
+  await reset();
+  const pub = await (await fetch(`${APP}/api/alliance`)).json();
+  eq(pub.ok, true, '공개 조회');
+  eq(Array.isArray(pub.data.totals), true, '서버별 합계');
+  eq(pub.data.totals.length, 12, '01~12 서버');
+
+  eq((await post('/api/alliance', {})).status, 405, '연합 공개 라우트에는 쓰기가 없다');
+
+  const add = await (
+    await post('/api/admin/alliance', { server: '05', item: '연합 보스', amount: 30000, pct: 40, people: 15 }, { Cookie: cookie })
+  ).json();
+  eq(add.ok, true, '등록 ok');
+  eq(add.credited, 12000, '적립액 = 30000 × 40%');
+
+  const after = (await (await fetch(`${APP}/api/alliance`)).json()).data;
+  const s05 = after.totals.find((x) => x.server === '05');
+  eq(s05.credited, 12000, '05서버 누적');
+  eq(s05.people, 15, '05서버 인원 합계');
+});
+
+await t('연합: 잘못된 서버·비중·금액은 거부된다', async () => {
+  const bad = [
+    { server: '13', item: 'x', amount: 100, pct: 50 },
+    { server: '05', item: '', amount: 100, pct: 50 },
+    { server: '05', item: 'x', amount: 0, pct: 50 },
+    { server: '05', item: 'x', amount: 100, pct: 0 },
+    { server: '05', item: 'x', amount: 100, pct: 101 },
+  ];
+  for (const b of bad) {
+    eq((await post('/api/admin/alliance', b, { Cookie: cookie })).status, 400, JSON.stringify(b));
+  }
+});
+
+await t('아이디 변경 이력이 변경 전/후로 남는다', async () => {
+  await reset();
+  await post('/api/admin/rename', { oldName: '팩맨', newName: '팩맨2' }, { Cookie: cookie });
+  const hist = (await (await fetch(`${APP}/api/admin/rename-history`, { headers: { Cookie: cookie } })).json()).data;
+  const hit = hist.find((h) => h.before === '팩맨');
+  if (!hit) throw new Error('변경 이력이 남지 않았습니다.');
+  eq(hit.after, '팩맨2', '변경 후 이름');
+});
+
+let masterCookie = '';
+await t('마스터 PIN 은 관리자와 다른 등급을 준다', async () => {
+  const res = await post('/api/admin/login', { pin: MASTER_PIN });
+  eq(res.status, 200, 'HTTP 상태');
+  eq((await res.json()).role, 'master', '등급');
+  masterCookie = (res.headers.get('set-cookie') ?? '').split(';')[0];
+
+  const st = await (await fetch(`${APP}/api/state`, { headers: { Cookie: masterCookie } })).json();
+  eq(st.master, true, 'state.master');
+
+  // 일반 관리자 쿠키로는 master 플래그가 서지 않는다
+  const asAdmin = await (await fetch(`${APP}/api/state`, { headers: { Cookie: cookie } })).json();
+  eq(asAdmin.admin, true, '관리자');
+  eq(asAdmin.master, false, '관리자는 마스터가 아니다');
+});
+
+await t('앱 이름·관리자 PIN 변경은 마스터만 할 수 있다', async () => {
+  eq((await post('/api/master', { action: 'appName', value: '새이름' }, { Cookie: cookie })).status, 401, '관리자 시도');
+
+  const ok = await (await post('/api/master', { action: 'appName', value: '테스트길드' }, { Cookie: masterCookie })).json();
+  eq(ok.ok, true, '마스터 시도');
+  const st = (await (await fetch(`${APP}/api/state`)).json()).data;
+  eq(st.appName, '테스트길드', '앱 이름 반영');
+
+  // 짧은 PIN 은 거부
+  eq((await post('/api/master', { action: 'adminPin', value: '123' }, { Cookie: masterCookie })).status, 400, '짧은 PIN');
+});
+
+await t('마스터가 바꾼 PIN 이 환경변수 PIN 보다 우선한다', async () => {
+  const set = await (await post('/api/master', { action: 'adminPin', value: 'newpin123' }, { Cookie: masterCookie })).json();
+  eq(set.ok, true, 'PIN 교체');
+
+  // 옛 PIN(환경변수)은 더 이상 통하지 않는다
+  eq((await post('/api/admin/login', { pin: PIN })).status, 401, '옛 PIN');
+  const res = await post('/api/admin/login', { pin: 'newpin123' });
+  eq(res.status, 200, '새 PIN');
+  eq((await res.json()).role, 'admin', '등급');
+
+  // 되돌린다 — 뒤에 오는 테스트가 원래 PIN 을 쓴다
+  await post('/api/master', { action: 'adminPin', value: '' }, { Cookie: masterCookie });
+  eq((await post('/api/admin/login', { pin: PIN })).status, 200, '환경변수 PIN 복귀');
+});
+
 /* ── ② 화면 흐름 (브라우저) ── */
 
 // 앞의 API 테스트가 데이터를 많이 바꿔놨다. 화면 테스트가 그 결과에 얽매이지
 // 않도록 모의 시트를 처음 상태로 되돌린다 (모의 시트에만 있는 기능 — 앱 API 에는 없다).
-await fetch(MOCK, {
-  method: 'POST',
-  headers: { 'Content-Type': 'text/plain' },
-  body: JSON.stringify({ action: '__reset', token: 'TESTTOKEN' }),
-});
+await reset();
 
 const browser = await chromium.launch({ executablePath: chromiumPath() });
 const ctx = await browser.newContext({
@@ -539,9 +725,12 @@ await t('분배 미리보기가 혈비·1인당을 정확히 계산한다', asyn
   await shot('04-distribute');
 
   const text = await page.locator('.calc').innerText();
-  // 50,000 → 혈비 5,000 / 남은 45,000 을 19명이 나누면 1인당 2,368, 나머지 8
-  if (!text.includes('5,000')) throw new Error(`혈비 5,000 이 보이지 않습니다:\n${text}`);
-  if (!text.includes('2,368')) throw new Error(`1인당 2,368 이 보이지 않습니다:\n${text}`);
+  // 첫 아이템 참여자는 가이·TC무식·대서과Z(50%).
+  // 50,000 → 운영비 5,000 / 남은 45,000 ÷ 3명 = 기본 1인당 15,000
+  //          50% 대상자는 7,500 만 받고, 남은 7,500 은 운영비로 → 운영비 12,500
+  for (const want of ['5,000', '15,000', '7,500', '12,500']) {
+    if (!text.includes(want)) throw new Error(`${want} 이(가) 보이지 않습니다:\n${text}`);
+  }
   await page.getByRole('button', { name: '취소' }).click();
 });
 

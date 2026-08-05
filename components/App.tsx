@@ -3,36 +3,46 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { BalanceRow, GuildState, LedgerItem } from '@/lib/types';
 import { api } from '@/lib/client';
+import { getLang, makeT, type Lang } from '@/lib/i18n';
 import BalanceTab from './BalanceTab';
 import ItemsTab from './ItemsTab';
+import BoardTab from './BoardTab';
+import AllianceTab from './AllianceTab';
 import MeTab from './MeTab';
 import AdminTab from './AdminTab';
 import DistributeSheet from './DistributeSheet';
 import PayoutSheet from './PayoutSheet';
 import SeasonSheet from './SeasonSheet';
 
-type Tab = 'balance' | 'items' | 'me' | 'admin';
+type Tab = 'balance' | 'items' | 'board' | 'alliance' | 'me' | 'admin';
 
-const TABS: { id: Tab; icon: string; label: string }[] = [
-  { id: 'balance', icon: '💰', label: '잔액' },
-  { id: 'items', icon: '📦', label: '아이템' },
-  { id: 'me', icon: '🙋', label: '내 정보' },
-  { id: 'admin', icon: '⚙️', label: '관리' },
+const TABS: { id: Tab; icon: string; key: string }[] = [
+  { id: 'balance', icon: '💰', key: 'tab.balance' },
+  { id: 'items', icon: '📦', key: 'tab.items' },
+  { id: 'board', icon: '📋', key: 'tab.board' },
+  { id: 'alliance', icon: '🤝', key: 'tab.alliance' },
+  { id: 'me', icon: '🙋', key: 'tab.me' },
+  { id: 'admin', icon: '⚙️', key: 'tab.admin' },
 ];
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('balance');
   const [state, setState] = useState<GuildState | null>(null);
   const [admin, setAdmin] = useState(false);
+  const [master, setMaster] = useState(false);
+  const [lang, setLangState] = useState<Lang>('ko');
   const [loadError, setLoadError] = useState('');
   const [busy, setBusy] = useState(false);
   const [toastMsg, setToastMsg] = useState<{ text: string; err: boolean } | null>(null);
 
   const [seasonOpen, setSeasonOpen] = useState(false);
+  // 공지 띠를 눌렀을 때 게시판에서 그 글을 바로 펼치기 위한 값
+  const [focusPostId, setFocusPostId] = useState<number | null>(null);
   const [payTarget, setPayTarget] = useState<BalanceRow | null>(null);
   const [distTarget, setDistTarget] = useState<LedgerItem | null>(null);
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const t = makeT(lang);
 
   const toast = useCallback((text: string, err = false) => {
     setToastMsg({ text, err });
@@ -43,6 +53,7 @@ export default function App() {
   const refresh = useCallback(async () => {
     const res = await api('/api/state');
     setAdmin(Boolean(res.admin));
+    setMaster(Boolean(res.master));
     if (!res.ok) {
       setLoadError(res.msg ?? '불러오지 못했습니다.');
       return;
@@ -52,6 +63,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    setLangState(getLang());
     void refresh();
   }, [refresh]);
 
@@ -72,12 +84,14 @@ export default function App() {
     });
   }, []);
 
+  const title = state?.appName?.trim() || '길드정산';
+
   return (
     <>
       <header className="header">
-        <h1>🎮 길드정산</h1>
+        <h1>🛡️ {title}</h1>
         <div className="meta">
-          {admin ? <span className="chip">🔓 관리자</span> : null}
+          {master ? <span className="chip">👑 {t('common.master')}</span> : admin ? <span className="chip">🔓 {t('common.admin')}</span> : null}
           {state ? (
             <button
               className="chip"
@@ -85,12 +99,13 @@ export default function App() {
               aria-label="지난 시즌 기록 보기"
               style={{ color: '#fff' }}
             >
-              시즌 {state.season} ▾
+              {t('common.season')} {state.season}
+              {state.seasonServer ? ` · ${state.seasonServer}` : ''} ▾
             </button>
           ) : null}
           <button
             onClick={() => void refresh()}
-            aria-label="새로고침"
+            aria-label={t('common.refresh')}
             style={{ color: '#fff', fontSize: 17, padding: '2px 4px' }}
           >
             ↻
@@ -98,18 +113,31 @@ export default function App() {
         </div>
       </header>
 
+      {/* 공지는 어느 탭에 있든 항상 맨 위에 보인다 — 눌러서 게시판으로 */}
+      {state?.notice ? (
+        <button
+          className="notice-bar"
+          onClick={() => {
+            setTab('board');
+            setFocusPostId(state.notice?.id ?? null);
+          }}
+        >
+          📌 {state.notice.title}
+        </button>
+      ) : null}
+
       {loadError ? (
         <div className="page">
           <div className="card">
             <div className="field">
               <div className="note" style={{ background: 'transparent', padding: 0 }}>
-                ⚠️ 데이터를 불러오지 못했습니다.
+                ⚠️ {t('common.loadFailed')}
               </div>
               <p className="hint" style={{ marginTop: 8, fontSize: 13 }}>
                 {loadError}
               </p>
               <button className="btn block" style={{ marginTop: 14 }} onClick={() => void refresh()}>
-                다시 시도
+                {t('common.retry')}
               </button>
               <a className="btn ghost block" style={{ marginTop: 8 }} href="/api/health" target="_blank" rel="noreferrer">
                 설정 점검하기
@@ -140,23 +168,46 @@ export default function App() {
               setBusy={setBusy}
             />
           ) : null}
+          {tab === 'board' ? (
+            <BoardTab
+              admin={admin}
+              lang={lang}
+              focusPostId={focusPostId}
+              onFocusHandled={() => setFocusPostId(null)}
+              toast={toast}
+              onChanged={() => void refresh()}
+            />
+          ) : null}
+          {tab === 'alliance' ? (
+            <AllianceTab admin={admin} lang={lang} toast={toast} setBusy={setBusy} />
+          ) : null}
           {tab === 'me' ? <MeTab state={state} /> : null}
           {tab === 'admin' ? (
-            <AdminTab admin={admin} unit={state.unit} onAuthChange={() => void refresh()} toast={toast} />
+            <AdminTab
+              admin={admin}
+              master={master}
+              unit={state.unit}
+              servers={state.serverList ?? []}
+              appName={title}
+              lang={lang}
+              onLangChange={setLangState}
+              onAuthChange={() => void refresh()}
+              toast={toast}
+            />
           ) : null}
         </main>
       )}
 
       <nav className="nav">
-        {TABS.map((t) => (
+        {TABS.map((tb) => (
           <button
-            key={t.id}
-            className={tab === t.id ? 'on' : ''}
-            onClick={() => setTab(t.id)}
-            aria-current={tab === t.id ? 'page' : undefined}
+            key={tb.id}
+            className={tab === tb.id ? 'on' : ''}
+            onClick={() => setTab(tb.id)}
+            aria-current={tab === tb.id ? 'page' : undefined}
           >
-            <span className="ico">{t.icon}</span>
-            {t.label}
+            <span className="ico">{tb.icon}</span>
+            {t(tb.key)}
           </button>
         ))}
       </nav>

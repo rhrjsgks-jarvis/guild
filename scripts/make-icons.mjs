@@ -13,26 +13,60 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-const BRAND_TOP = [0x26, 0x2a, 0x9e];
-const BRAND_BOTTOM = [0x4b, 0x50, 0xf0];
+/* ─────────────────────────────────────────────────────────
+   문장(紋章) 아이콘 — 리니지W 느낌의 어두운 방패 + 금색 'W'.
+   게임 로고를 베끼지 않고, 같은 분위기(흑금·각진 방패·W 이니셜)로
+   처음부터 그린 도형이다. 색·굵기는 아래 상수만 고치면 된다.
+   ───────────────────────────────────────────────────────── */
 
-// 다이아몬드 실루엣 (0~1 정규화 좌표)
-const GEM = [
-  [0.34, 0.24],
-  [0.66, 0.24],
-  [0.84, 0.38],
-  [0.5, 0.79],
-  [0.16, 0.38],
+const BG_TOP = [0x0d, 0x11, 0x1f];      // 배경 그라데이션 위
+const BG_BOTTOM = [0x1c, 0x24, 0x44];   // 배경 그라데이션 아래
+const SHIELD_TOP = [0x22, 0x2b, 0x4e];  // 방패 면 위
+const SHIELD_BOTTOM = [0x11, 0x16, 0x2c];
+const GOLD_TOP = [0xf6, 0xdd, 0x93];    // 금색 위 (밝은 쪽)
+const GOLD_BOTTOM = [0xc8, 0x91, 0x2e]; // 금색 아래
+
+/** 각진 방패 실루엣 (0~1 정규화) — 위는 넓고 아래로 뾰족하게 */
+const SHIELD = (() => {
+  const pts = [
+    [0.16, 0.11],
+    [0.84, 0.11],
+    [0.84, 0.44],
+  ];
+  // 오른쪽 아래 → 꼭짓점 → 왼쪽 위로 곡선을 근사한다
+  for (let i = 1; i <= 16; i++) {
+    const t = i / 16;
+    pts.push([0.84 - 0.34 * t * t, 0.44 + 0.46 * Math.sin((t * Math.PI) / 2)]);
+  }
+  for (let i = 16; i >= 1; i--) {
+    const t = i / 16;
+    pts.push([0.16 + 0.34 * t * t, 0.44 + 0.46 * Math.sin((t * Math.PI) / 2)]);
+  }
+  pts.push([0.16, 0.44]);
+  return pts;
+})();
+
+/** 금색 'W' 획 — 방패 가운데를 가로지르는 네 개의 선분 */
+const W_STROKES = [
+  [[0.28, 0.29], [0.37, 0.62]],
+  [[0.37, 0.62], [0.5, 0.40]],
+  [[0.5, 0.40], [0.63, 0.62]],
+  [[0.63, 0.62], [0.72, 0.29]],
 ];
-const FACETS = [
-  [[0.16, 0.38], [0.84, 0.38]],
-  [[0.34, 0.24], [0.28, 0.38]],
-  [[0.66, 0.24], [0.72, 0.38]],
-  [[0.28, 0.38], [0.5, 0.79]],
-  [[0.72, 0.38], [0.5, 0.79]],
+const W_WIDTH = 0.052;
+
+/** 아래쪽 칼날 — 'W' 밑에서 방패 꼭짓점을 향해 좁아지는 삼각형 */
+const BLADE = [
+  [0.468, 0.615],
+  [0.532, 0.615],
+  [0.5, 0.855],
 ];
 
 /* ── 기하 헬퍼 ── */
+
+function mix(a, b, t) {
+  return a.map((c, i) => Math.round(c + (b[i] - c) * Math.max(0, Math.min(1, t))));
+}
 
 function inPolygon(px, py, poly) {
   let inside = false;
@@ -52,16 +86,37 @@ function distToSegment(px, py, [ax, ay], [bx, by]) {
   return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
 }
 
+/** 다각형 경계까지의 거리 — 테두리를 그리는 데 쓴다 */
+function distToPolygon(px, py, poly) {
+  let best = Infinity;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    best = Math.min(best, distToSegment(px, py, poly[j], poly[i]));
+  }
+  return best;
+}
+
 /** 한 점의 색 — 3x3 슈퍼샘플링으로 계단현상을 없앤다 */
 function sample(nx, ny) {
-  const bg = BRAND_TOP.map((c, i) => Math.round(c + (BRAND_BOTTOM[i] - c) * ny));
-  if (!inPolygon(nx, ny, GEM)) return bg;
+  const gold = mix(GOLD_TOP, GOLD_BOTTOM, (ny - 0.25) / 0.5);
 
-  // 보석 안 — 흰색, 단, 면 경계선은 배경색으로 얇게 판다
-  for (const [a, b] of FACETS) {
-    if (distToSegment(nx, ny, a, b) < 0.011) return bg;
+  // ① 'W' 와 칼날이 가장 위 — 방패 밖으로 새어나가지 않도록 방패 안에서만 그린다
+  const insideShield = inPolygon(nx, ny, SHIELD);
+  if (insideShield) {
+    for (const [a, b] of W_STROKES) {
+      if (distToSegment(nx, ny, a, b) < W_WIDTH) return gold;
+    }
+    if (inPolygon(nx, ny, BLADE)) return gold;
   }
-  return [0xff, 0xff, 0xff];
+
+  // ② 방패 테두리 (금색)
+  const edge = distToPolygon(nx, ny, SHIELD);
+  if (edge < 0.022 && (insideShield || edge < 0.012)) return gold;
+
+  // ③ 방패 면
+  if (insideShield) return mix(SHIELD_TOP, SHIELD_BOTTOM, (ny - 0.1) / 0.8);
+
+  // ④ 배경
+  return mix(BG_TOP, BG_BOTTOM, ny);
 }
 
 function renderPixel(x, y, size) {

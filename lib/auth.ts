@@ -9,6 +9,14 @@ import { cookies } from 'next/headers';
 const COOKIE_NAME = 'gm_admin';
 const MAX_AGE_SEC = 60 * 60 * 24 * 30; // 30일
 
+/**
+ * 권한 등급 (v10.0)
+ *   admin  — 기존 관리자. 정산 업무 전부.
+ *   master — 마스터관리자(개발자). admin 이 할 수 있는 것 전부 + 앱 명칭 변경·관리자 PIN 교체.
+ * 마스터 여부는 MASTER_PIN 환경변수로만 판정한다. 시트에는 저장하지 않는다.
+ */
+export type Role = 'admin' | 'master';
+
 const encoder = new TextEncoder();
 
 function b64url(buf: ArrayBuffer): string {
@@ -45,15 +53,28 @@ export function adminConfigured(): boolean {
   return Boolean(process.env.ADMIN_PIN && process.env.SESSION_SECRET);
 }
 
+export function masterConfigured(): boolean {
+  return Boolean(process.env.MASTER_PIN && process.env.SESSION_SECRET);
+}
+
+/** 환경변수 MASTER_PIN 과 일치하는가. 관리자 PIN 과 같은 값이면 마스터로 치지 않는다. */
+export async function verifyMasterPin(pin: string): Promise<boolean> {
+  const expected = process.env.MASTER_PIN;
+  if (!expected) return false;
+  if (expected === process.env.ADMIN_PIN) return false;
+  return safeEqual(pin, expected);
+}
+
+/** 환경변수 ADMIN_PIN 과 일치하는가. 시트에 저장된 PIN 은 로그인 라우트가 따로 확인한다. */
 export async function verifyPin(pin: string): Promise<boolean> {
   const expected = process.env.ADMIN_PIN;
   if (!expected) return false;
   return safeEqual(pin, expected);
 }
 
-export async function startAdminSession(): Promise<void> {
+export async function startAdminSession(role: Role = 'admin'): Promise<void> {
   const exp = Date.now() + MAX_AGE_SEC * 1000;
-  const value = `${exp}.${await sign(`admin.${exp}`)}`;
+  const value = `${role}.${exp}.${await sign(`${role}.${exp}`)}`;
   (await cookies()).set(COOKIE_NAME, value, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -67,22 +88,35 @@ export async function endAdminSession(): Promise<void> {
   (await cookies()).delete(COOKIE_NAME);
 }
 
-export async function isAdmin(): Promise<boolean> {
-  if (!process.env.SESSION_SECRET) return false;
+/** 쿠키에서 권한 등급을 꺼낸다. 위조·만료된 쿠키는 null. */
+export async function currentRole(): Promise<Role | null> {
+  if (!process.env.SESSION_SECRET) return null;
   const raw = (await cookies()).get(COOKIE_NAME)?.value;
-  if (!raw) return false;
+  if (!raw) return null;
 
-  const dot = raw.indexOf('.');
-  if (dot < 0) return false;
-  const exp = Number(raw.slice(0, dot));
-  const sig = raw.slice(dot + 1);
-  if (!Number.isFinite(exp) || exp < Date.now()) return false;
+  const parts = raw.split('.');
+  // v10.0: "role.exp.sig" · v9 이하: "exp.sig" (관리자 등급으로 본다)
+  const role: Role = parts.length === 3 && parts[0] === 'master' ? 'master' : 'admin';
+  const [expRaw, sig] = parts.length === 3 ? [parts[1], parts[2]] : [parts[0], parts[1]];
+
+  const exp = Number(expRaw);
+  if (!sig || !Number.isFinite(exp) || exp < Date.now()) return null;
 
   try {
-    return await safeEqual(sig, await sign(`admin.${exp}`));
+    const payload = parts.length === 3 ? `${role}.${exp}` : `admin.${exp}`;
+    return (await safeEqual(sig, await sign(payload))) ? role : null;
   } catch {
-    return false;
+    return null;
   }
+}
+
+export async function isAdmin(): Promise<boolean> {
+  return (await currentRole()) !== null;
+}
+
+/** 마스터관리자만 통과 */
+export async function isMaster(): Promise<boolean> {
+  return (await currentRole()) === 'master';
 }
 
 /** 관리자 전용 라우트의 첫 줄에서 부른다 */
@@ -90,6 +124,15 @@ export async function requireAdmin(): Promise<Response | null> {
   if (await isAdmin()) return null;
   return Response.json(
     { ok: false, msg: '관리자 인증이 필요합니다. [관리] 탭에서 PIN을 입력해주세요.' },
+    { status: 401 },
+  );
+}
+
+/** 마스터관리자 전용 라우트의 첫 줄에서 부른다 */
+export async function requireMaster(): Promise<Response | null> {
+  if (await isMaster()) return null;
+  return Response.json(
+    { ok: false, msg: '마스터관리자(개발자) 권한이 필요합니다.' },
     { status: 401 },
   );
 }
