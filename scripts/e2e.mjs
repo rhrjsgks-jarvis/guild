@@ -436,6 +436,22 @@ await t('알 수 없는 도구는 거부된다', async () => {
   eq((await res.json()).ok, false, 'ok');
 });
 
+await t('지난 시즌: 목록과 상세를 누구나 볼 수 있다', async () => {
+  // 조회 기능이라 로그인 없이 열려야 한다
+  const list = await (await fetch(`${APP}/api/seasons`)).json();
+  eq(list.ok, true, '목록 ok');
+  if (!Array.isArray(list.data) || list.data.length === 0) throw new Error('시즌 목록이 비었습니다.');
+
+  const newest = list.data[0];
+  const detail = await (await fetch(`${APP}/api/seasons?num=${newest.num}`)).json();
+  eq(detail.ok, true, '상세 ok');
+  if (!detail.data.sections.some((x) => x.rows.length > 0)) throw new Error('내용이 있는 섹션이 없습니다.');
+
+  // 없는 시즌·잘못된 번호는 거부
+  eq((await fetch(`${APP}/api/seasons?num=999`)).status, 404, '없는 시즌');
+  eq((await fetch(`${APP}/api/seasons?num=abc`)).status, 400, '잘못된 번호');
+});
+
 /* ── ② 화면 흐름 (브라우저) ── */
 
 // 앞의 API 테스트가 데이터를 많이 바꿔놨다. 화면 테스트가 그 결과에 얽매이지
@@ -539,6 +555,23 @@ await t('아이템을 등록하면 목록에 나타난다', async () => {
     throw new Error('등록한 아이템이 목록에 나타나지 않습니다.');
   }
   await shot('05-registered');
+});
+
+await t('상단 시즌 칩으로 지난 시즌을 연다', async () => {
+  await page.locator('.nav button', { hasText: /잔액/ }).click();
+  await page.waitForTimeout(400);
+  await page.getByRole('button', { name: /지난 시즌 기록 보기/ }).click();
+  await page.waitForTimeout(900);
+  if (!(await page.getByText('지난 시즌').first().isVisible())) throw new Error('시즌 목록이 열리지 않았습니다.');
+
+  await page.getByRole('button', { name: /시즌 2/ }).first().click();
+  await page.waitForTimeout(900);
+  if (!(await page.getByText('최종 잔액현황').first().isVisible())) {
+    throw new Error('시즌 상세가 열리지 않았습니다.');
+  }
+  await shot('06-season');
+  await page.getByRole('button', { name: '시즌 목록으로' }).click();
+  await page.waitForTimeout(300);
 });
 
 await t('브라우저 콘솔에 오류가 없다', () => {

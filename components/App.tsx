@@ -9,6 +9,7 @@ import MeTab from './MeTab';
 import AdminTab from './AdminTab';
 import DistributeSheet from './DistributeSheet';
 import PayoutSheet from './PayoutSheet';
+import SeasonSheet from './SeasonSheet';
 
 type Tab = 'balance' | 'items' | 'me' | 'admin';
 
@@ -27,6 +28,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [toastMsg, setToastMsg] = useState<{ text: string; err: boolean } | null>(null);
 
+  const [seasonOpen, setSeasonOpen] = useState(false);
   const [payTarget, setPayTarget] = useState<BalanceRow | null>(null);
   const [distTarget, setDistTarget] = useState<LedgerItem | null>(null);
 
@@ -76,7 +78,16 @@ export default function App() {
         <h1>🎮 길드정산</h1>
         <div className="meta">
           {admin ? <span className="chip">🔓 관리자</span> : null}
-          {state ? <span className="chip">시즌 {state.season}</span> : null}
+          {state ? (
+            <button
+              className="chip"
+              onClick={() => setSeasonOpen(true)}
+              aria-label="지난 시즌 기록 보기"
+              style={{ color: '#fff' }}
+            >
+              시즌 {state.season} ▾
+            </button>
+          ) : null}
           <button
             onClick={() => void refresh()}
             aria-label="새로고침"
@@ -149,6 +160,10 @@ export default function App() {
           </button>
         ))}
       </nav>
+
+      {seasonOpen && state ? (
+        <SeasonSheet current={state.season} onClose={() => setSeasonOpen(false)} />
+      ) : null}
 
       {payTarget && state ? (
         <PayoutSheet

@@ -97,6 +97,23 @@ export type Tool = {
   inputs: { key: string; label: string; placeholder?: string }[];
 };
 
+/** 보관된 시즌 목록 항목 */
+export type SeasonInfo = {
+  num: number;
+  name: string;
+  /** 시트 첫 줄 제목 (종료일·정산 건수 포함) */
+  title: string;
+  summary: { label: string; value: string }[];
+};
+
+/** 시즌 상세 — 시트의 섹션(잔액·아이템·요약·지급)을 그대로 표로 */
+export type SeasonDetail = {
+  num: number;
+  name: string;
+  title: string;
+  sections: { title: string; headers: string[]; rows: string[][] }[];
+};
+
 export type PhotoResult = {
   photoUrl?: string;
   matched?: string[];

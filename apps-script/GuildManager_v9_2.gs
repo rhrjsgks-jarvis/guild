@@ -1,7 +1,19 @@
 // ═══════════════════════════════════════════════════════════════
-//  길드 정산 시스템 v9.1  (보안 수정: 인증 없는 쓰기 경로 제거)
+//  길드 정산 시스템 v9.2  (지난 시즌 조회 + 시즌 번호 자가보정)
 //  시트 구성: [사용안내] [멤버DB] [참여자현황] [분배대기중] [잔액현황]
 //            [지급기록] + [시즌1] [시즌2] ...  ← 이 순서로 항상 정렬됨
+// ═══════════════════════════════════════════════════════════════
+//  변경점 v9.1 → v9.2 (지난 시즌 조회)
+//   - ★ _currentSeason(ss): 시즌 번호를 SEASON_NUM 속성 하나에만
+//     의존하지 않고, 실제로 존재하는 [시즌N] 시트를 보고 스스로 보정한다.
+//     문서 속성은 파일을 새로 만들거나 스크립트를 갈아끼우면 따라오지
+//     않아서, 시즌3인데 앱에 "시즌 1"로 표시되는 일이 실제로 있었다.
+//     시트는 데이터와 함께 옮겨지므로 이쪽이 진실에 더 가깝다
+//   - ★ api_getSeasons / api_getSeason: 보관된 시즌 기록을 앱에서 조회.
+//     시즌 시트는 사람이 읽는 보고서 형식이라, 섹션 제목(💰/📄/📊/💸)을
+//     기준으로 잘라 표 형태로 돌려준다
+//   - ★ 가져오기가 [시즌N] 시트도 함께 옮기고 시즌 번호를 맞춘다
+//     (v9.1 까지는 시즌 아카이브가 이관에서 누락됐다)
 // ═══════════════════════════════════════════════════════════════
 //  변경점 v9.0 → v9.1 (긴급 보안 수정)
 //
@@ -301,7 +313,7 @@
 //     '누적기록'을 그대로 찾음 (하위 호환, 리네이밍과 무관)
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION = '9.1';
+const VERSION = '9.2';
 const T2S_MAP = {'國':'国','學':'学','這':'这','個':'个','們':'们','說':'说','話':'话','對':'对','時':'时','間':'间','現':'现','場':'场','開':'开','關':'关','內':'内','東':'东','車':'车','馬':'马','龍':'龙','風':'风','陽':'阳','陰':'阴','電':'电','語':'语','讀':'读','寫':'写','書':'书','紙':'纸','筆':'笔','長':'长','門':'门','問':'问','聽':'听','見':'见','覺':'觉','讓':'让','誰':'谁','還':'还','進':'进','運':'运','動':'动','靜':'静','樂':'乐','藥':'药','華':'华','蘭':'兰','葉':'叶','黃':'黄','麗':'丽','寶':'宝','貴':'贵','財':'财','買':'买','賣':'卖','錢':'钱','銀':'银','鐵':'铁','鋼':'钢','陳':'陈','劉':'刘','張':'张','楊':'杨','蔣':'蒋','鄭':'郑','謝':'谢','呂':'吕','蘇':'苏','韓':'韩','馮':'冯','於':'于','鳳':'凤','雲':'云','劍':'剑','斷':'断','亂':'乱','愛':'爱','聲':'声','醫':'医','藝':'艺','頭':'头','臉':'脸','腳':'脚','氣':'气','樓':'楼','橋':'桥','飛':'飞','機':'机','網':'网','線':'线','條':'条','裡':'里','邊':'边','錯':'错','壞':'坏','舊':'旧','寬':'宽','淺':'浅','週':'周','節':'节','業':'业','後':'后','來':'来','終':'终','結':'结','敗':'败','勝':'胜','負':'负','輸':'输','贏':'赢','強':'强','難':'难','簡':'简','單':'单','複':'复','雜':'杂','純':'纯','淨':'净','髒':'脏','齊':'齐','穩':'稳','變':'变','轉':'转','換':'换','顯':'显','樣':'样','種':'种','類':'类','團':'团','體':'体','統':'统','織':'织','組':'组','構':'构','設':'设','計':'计','劃':'划','數':'数','課':'课','題':'题','試':'试','練':'练','習':'习','師':'师','員':'员','職':'职','務':'务','責':'责','權':'权','應':'应','該':'该','須':'须','願':'愿','夢':'梦','憶':'忆','識':'识','認':'认','歡':'欢','醜':'丑','帥':'帅','靈':'灵','獸':'兽','鷹':'鹰','鶴':'鹤','鴻':'鸿','鱷':'鳄','鯨':'鲸','鯊':'鲨','蝦':'虾','殼':'壳','冑':'胄','戰':'战','爭':'争','鬥':'斗','擊':'击','禦':'御','護':'护','衛':'卫','謀':'谋','陣':'阵','營':'营','軍':'军','隊':'队','將':'将','嬪':'嫔','宮':'宫','廟':'庙','觀':'观','閣':'阁','蓮':'莲','楓':'枫','樺':'桦','檜':'桧','樹':'树','實':'实','幹':'干','莖':'茎','穫':'获','採':'采','鮮':'鲜','籠':'笼','傷':'伤','殺':'杀','斬':'斩','豬':'猪','雞':'鸡','鴨':'鸭','鵝':'鹅','龜':'龟','蟬':'蝉','蟻':'蚁','螞':'蚂','鴉':'鸦','鵰':'雕','鴛':'鸳','鴦':'鸯','賽':'赛','廠':'厂','廣':'广','麼':'么','誒':'诶','歲':'岁','歷':'历','歸':'归','殘':'残','蟲':'虫','貓':'猫','氈':'毡','貫':'贯','質':'质','貨':'货','貼':'贴','費':'费','資':'资','賬':'账','賺':'赚','贈':'赠','賀':'贺','賢':'贤','賦':'赋','賤':'贱','賓':'宾','賴':'赖','齲':'龋','齒':'齿','龄':'齡','齡':'龄','齣':'出','岡':'冈','剛':'刚','剮':'剐','創':'创','劇':'剧','勵':'励','勸':'劝','勻':'匀','匯':'汇','醬':'酱','醞':'酝','釀':'酿','釋':'释','釘':'钉','針':'针','釣':'钓','鈍':'钝','鈴':'铃','鈔':'钞','鉛':'铅','鋸':'锯','鋒':'锋','鍵':'键','鎖':'锁','鑄':'铸','鑼':'锣','錶':'表','鐘':'钟','鏡':'镜','鑽':'钻','鑑':'鉴','閉':'闭','閃':'闪','閏':'闰','閱':'阅','闆':'板','闖':'闯','陸':'陆','隱':'隐','雖':'虽','雙':'双','雛':'雏','靂':'雳','韋':'韦','韌':'韧','頁':'页','頂':'顶','項':'项','順':'顺','頌':'颂','預':'预','頑':'顽','頒':'颁','頗':'颇','領':'领','頡':'颉','頜':'颌','頸':'颈','頻':'频','頹':'颓','顆':'颗','額':'额','顏':'颜','顛':'颠','顧':'顾','飄':'飘','饑':'饥','餃':'饺','餅':'饼','館':'馆','饒':'饶','饞':'馋','馳':'驰','駕':'驾','駛':'驶','駐':'驻','駱':'骆','駭':'骇','騎':'骑','騰':'腾','驅':'驱','驚':'惊','驕':'骄','驗':'验','骯':'肮','髮':'发','鬍':'胡','鬧':'闹','鮑':'鲍','鯉':'鲤','鰲':'鳌','鱉':'鳖','鳥':'鸟','鳴':'鸣','鹹':'咸','麥':'麦','麵':'面','黨':'党'};  // 번체→간체 상용한자 (서체 변환 전용, 다른 뜻 글자는 포함하지 않음)
 const UNIT = '다이아';                 // 재화 단위 표기
 const MAX_MEMBERS = 50;               // 최대 멤버 수
@@ -797,9 +809,8 @@ function seasonEnd(opts) {
   const ui = (opts && opts._ui) ? opts._ui : _uiAdapter(opts && opts.silent);
   const props = PropertiesService.getDocumentProperties();
 
-  // 시즌 번호 결정 (저장값 우선, 시트 이름 충돌 시 자동 증가)
-  let season = Number(props.getProperty('SEASON_NUM')) || 1;
-  while (ss.getSheetByName('시즌' + season)) season++;
+  // 시즌 번호 결정 — 존재하는 시즌 시트를 기준으로 자가보정한다
+  const season = _currentSeason(ss);
 
   const ledger = ss.getSheetByName(LEDGER_SHEET);
   const bal = ss.getSheetByName('잔액현황');
@@ -2108,12 +2119,20 @@ function _rebuildGuide(ss) {
     ['  공유할 수 있습니다 (매니저는 기존 링크를 계속 사용)', 'b'],
     [''  , 'sp'],
 
+    ['🗓️ 지난 시즌 보기 (v9.2)', 'sec'],
+    ['앱 상단의 [시즌 N] 을 누르면 지난 시즌 기록을 볼 수 있습니다.', 'b'],
+    ['최종 잔액·아이템 이력·요약 통계·지급 이력이 그대로 보관됩니다.', 'b'],
+    ['· 시즌 번호는 [시즌N] 시트를 기준으로 자동 계산됩니다', 'b'],
+    ['  (파일을 옮겨도 번호가 어긋나지 않습니다)', 'b'],
+    ['', 'sp'],
+
     ['🚚 운영 중인 파일에서 이 파일로 옮기기 (v8.1)', 'sec'],
     ['쓰던 파일을 건드리지 않고 새 파일에서 준비한 뒤 한 번에 옮깁니다.', 'b'],
     ['① 이 파일에서 [🚀 최초 설치] 실행 (빈 시트 구성)', 'b'],
     ['② 앱까지 연결해서 충분히 확인 (이 동안 옛 파일로 계속 정산)', 'b'],
     ['③ 옮길 준비가 되면 [📥 기존 길드정산 파일에서 가져오기]', 'b'],
-    ['   → 옛 파일 URL 붙여넣기 → 멤버DB·잔액·아이템·지급·작업기록 이관', 'b'],
+    ['   → 옛 파일 URL 붙여넣기 → 멤버DB·잔액·아이템·지급·작업기록·', 'b'],
+    ['     지난 시즌 기록까지 전부 이관', 'b'],
     ['④ [🔁 참여횟수 재계산] 으로 출석 수치 정리', 'b'],
     ['· 덮어쓰기 방식이라 여러 번 실행해도 결과가 같습니다', 'b'],
     ['· 옛 파일은 읽기만 하고 전혀 바꾸지 않습니다', 'b'],
@@ -2987,6 +3006,114 @@ function removeProtectionsMenu() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  🗓️ 시즌 (v9.2)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 지금이 몇 번째 시즌인가.
+ *
+ * SEASON_NUM 문서 속성만 믿으면 안 된다 — 파일을 새로 만들거나 스크립트를
+ * 갈아끼우면 이 속성은 따라오지 않는다(실제로 시즌3인데 "시즌 1"로 표시된
+ * 사고가 있었다). 반면 [시즌N] 시트는 데이터와 함께 옮겨진다.
+ * 그래서 속성값에서 출발하되, 존재하는 시즌 시트만큼 앞으로 밀어준다.
+ */
+function _currentSeason(ss) {
+  let n = Number(PropertiesService.getDocumentProperties().getProperty('SEASON_NUM')) || 1;
+  while (ss.getSheetByName('시즌' + n)) n++;
+  return n;
+}
+
+/** 보관된 시즌 시트 목록 (최근 시즌이 앞) */
+function _seasonSheets(ss) {
+  return ss.getSheets()
+    .map(function (sh) { return sh.getName(); })
+    .filter(function (nm) { return /^시즌\d+$/.test(nm); })
+    .map(function (nm) { return { name: nm, num: Number(nm.replace('시즌', '')) }; })
+    .sort(function (a, b) { return b.num - a.num; });
+}
+
+/** 셀 값을 화면에 그대로 쓸 수 있는 문자열로 */
+function _cellText(v) {
+  if (v === null || v === undefined || v === '') return '';
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
+  if (typeof v === 'number') return v.toLocaleString();
+  return String(v).trim();
+}
+
+// 앱 [지난 시즌] 목록 — 시즌 번호와 한 줄 요약
+function api_getSeasons() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  return _seasonSheets(ss).map(function (s) {
+    const sh = ss.getSheetByName(s.name);
+    let title = '';
+    let summary = [];
+    try {
+      title = _cellText(sh.getRange(1, 1).getValue());
+      // 요약 통계 섹션에서 눈에 띄는 두어 줄만 뽑아 목록에 보여준다
+      const last = Math.min(sh.getLastRow(), 200);
+      const vals = sh.getRange(1, 1, last, 2).getValues();
+      let inSummary = false;
+      for (let i = 0; i < vals.length; i++) {
+        const a = _cellText(vals[i][0]);
+        if (a.indexOf('📊') === 0) { inSummary = true; continue; }
+        if (inSummary) {
+          if (!a) break;
+          if (a === '항목') continue;
+          summary.push({ label: a, value: _cellText(vals[i][1]) });
+        }
+      }
+    } catch (e) { /* 형식이 달라도 목록 자체는 보여준다 */ }
+    return { num: s.num, name: s.name, title: title, summary: summary };
+  });
+}
+
+/**
+ * 시즌 상세.
+ * 시즌 시트는 사람이 읽는 보고서 형식이라, 섹션 제목 줄을 기준으로 잘라
+ * { 제목, 헤더, 행들 } 묶음으로 돌려준다.
+ */
+function api_getSeason(num) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const name = '시즌' + Number(num);
+  const sh = ss.getSheetByName(name);
+  if (!sh) return { ok: false, msg: name + ' 기록을 찾을 수 없습니다.' };
+
+  const lastRow = sh.getLastRow();
+  const lastCol = Math.max(sh.getLastColumn(), 1);
+  if (lastRow < 1) return { ok: false, msg: name + ' 기록이 비어 있습니다.' };
+
+  const vals = sh.getRange(1, 1, lastRow, lastCol).getValues();
+  const title = _cellText(vals[0][0]);
+  const sections = [];
+  let cur = null;
+
+  for (let i = 1; i < vals.length; i++) {
+    const row = vals[i].map(_cellText);
+    const head = row[0];
+
+    // 섹션 제목 줄 (_archiveSection 이 이 이모지로 시작하게 쓴다)
+    if (/^(💰|📄|📊|💸)/.test(head)) {
+      cur = { title: head, headers: [], rows: [] };
+      sections.push(cur);
+      continue;
+    }
+    if (!cur) continue;
+    if (row.every(function (c) { return c === ''; })) continue;
+
+    if (cur.headers.length === 0) {
+      // 뒤쪽 빈 칸을 잘라내 표 폭을 정한다
+      let w = row.length;
+      while (w > 1 && row[w - 1] === '') w--;
+      cur.headers = row.slice(0, w);
+      continue;
+    }
+    cur.rows.push(row.slice(0, cur.headers.length));
+  }
+
+  return { ok: true, data: { num: Number(num), name: name, title: title, sections: sections } };
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  👥 혈맹원 명단 · 아이디 변경 API (v8.1)
 // ═══════════════════════════════════════════════════════════════
 
@@ -3423,6 +3550,25 @@ function _importCore(ss, old, srcDb, srcBal, srcLedger, srcPay, srcLog) {
     report.push(name + ' ' + n + '건');
   });
 
+  // ── ⑥ 시즌 아카이브 — 지난 시즌 기록도 함께 옮긴다 ──
+  //    (v9.1 까지는 이게 빠져서, 옮기고 나면 지난 시즌이 사라지고
+  //     시즌 번호도 1로 되돌아가 보였다)
+  const seasons = old.getSheets().filter(function (sh) { return /^시즌\d+$/.test(sh.getName()); });
+  if (seasons.length > 0) {
+    seasons.forEach(function (sh) {
+      const nm = sh.getName();
+      const dup = ss.getSheetByName(nm);
+      if (dup) ss.deleteSheet(dup);          // 덮어쓰기 — 여러 번 실행해도 결과가 같다
+      sh.copyTo(ss).setName(nm);             // 옛 파일은 읽기만 한다
+    });
+    const maxNum = Math.max.apply(null, seasons.map(function (sh) {
+      return Number(sh.getName().replace('시즌', ''));
+    }));
+    PropertiesService.getDocumentProperties().setProperty('SEASON_NUM', String(maxNum + 1));
+    report.push('시즌 기록 ' + seasons.length + '개 (다음 시즌 ' + (maxNum + 1) + ')');
+  }
+
+  _reorderSheets(ss);
   _applyProtections(ss);
   _applyMemberNameFormatting(ss);
   return report;
@@ -3847,6 +3993,12 @@ function _apiRoute(action, req) {
     case 'undoPayout':
       return api_undoPayout(req.email, req.confirm === true);
 
+    case 'seasons':
+      return { ok: true, data: api_getSeasons() };
+
+    case 'season':
+      return api_getSeason(req.num);
+
     case 'tools':
       return { ok: true, data: api_getTools() };
 
@@ -3935,7 +4087,7 @@ function api_lookupBalance(name) {
     }
   });
   if (!found) return { ok: false, msg: '멤버DB에서 찾지 못했습니다. 이름을 다시 확인해주세요.' };
-  return { ok: true, unit: UNIT, season: Number(PropertiesService.getDocumentProperties().getProperty('SEASON_NUM')) || 1, data: found };
+  return { ok: true, unit: UNIT, season: _currentSeason(ss), data: found };
 }
 
 // 상태 조회 API
@@ -3972,7 +4124,7 @@ function api_getState() {
       }
     });
   }
-  const season = Number(PropertiesService.getDocumentProperties().getProperty('SEASON_NUM')) || 1;
+  const season = _currentSeason(ss);
   return {
     rows: rows,
     items: items,

@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v9_1.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v9_2.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 const gs = readFileSync(GS_PATH, 'utf8');
@@ -134,6 +134,7 @@ check('API 라우터 — 필요한 액션 노출 / 위험한 액션 차단', () 
     'roster', 'rename', 'addMember', 'removeMember',
     'itemsAll', 'previewReverse', 'correctItem', 'deleteItem',
     'lastPayout', 'undoPayout', 'tools', 'runTool',
+    'seasons', 'season',
   ];
   const missing = required.filter((a) => !routed.includes(a));
   if (missing.length) throw new Error(`누락된 액션: ${missing.join(', ')}`);
@@ -396,6 +397,33 @@ check('되돌리기: 부분 실패면 상태를 바꾸지 않는다', () => {
     throw new Error('행을 지운 뒤에 로그를 남기려 합니다 (기록이 유실됩니다).');
   }
   return '정정·삭제 순서 보장';
+});
+
+check('시즌 번호는 시즌 시트를 보고 자가보정한다', () => {
+  // 문서 속성만 믿으면 파일을 옮겼을 때 시즌3이 "시즌 1"로 보인다 (실제 사고)
+  const fn = extractFn(gs, '_currentSeason');
+  if (!/getSheetByName\('시즌'/.test(fn)) throw new Error('시즌 시트를 확인하지 않습니다.');
+
+  const made = new Set(['시즌1', '시즌2']);
+  const ctx = vm.createContext({
+    PropertiesService: { getDocumentProperties: () => ({ getProperty: () => null }) },
+  });
+  vm.runInContext(`${fn}; __cur = _currentSeason;`, ctx);
+  const ss = { getSheetByName: (n) => (made.has(n) ? {} : null) };
+  const got = ctx.__cur(ss);
+  if (got !== 3) throw new Error(`시즌1·시즌2 가 있으면 3 이어야 하는데 ${got} 입니다.`);
+
+  // 속성이 뒤처져 있어도 시트 쪽으로 맞춰야 한다
+  const ctx2 = vm.createContext({
+    PropertiesService: { getDocumentProperties: () => ({ getProperty: () => '1' }) },
+  });
+  vm.runInContext(`${fn}; __cur = _currentSeason;`, ctx2);
+  if (ctx2.__cur(ss) !== 3) throw new Error('속성이 뒤처졌을 때 보정하지 못합니다.');
+
+  // 시즌 번호를 읽는 곳이 헬퍼를 쓰는지 (속성 직접 조회가 남아 있으면 또 어긋난다)
+  const direct = [...gs.matchAll(/getProperty\('SEASON_NUM'\)/g)];
+  if (direct.length > 1) throw new Error(`SEASON_NUM 을 직접 읽는 곳이 ${direct.length}군데 있습니다 (_currentSeason 만 읽어야 합니다).`);
+  return '시트 기준 보정 · 단일 진입점';
 });
 
 check('가져오기: 옛 파일은 읽기만 한다', () => {

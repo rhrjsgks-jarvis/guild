@@ -63,6 +63,55 @@ const TOOLS = [
   { id: 'factoryReset', name: '⚠️ 공장 초기화', desc: '전부 삭제하고 처음 상태로 되돌립니다.', danger: 3, confirm: '전부삭제', inputs: [] },
 ];
 
+/** 보관된 시즌 기록 (실제 시트의 섹션 구조를 흉내낸다) */
+const SEASONS = [
+  {
+    num: 2,
+    title: '🏁 시즌 2 최종 기록  (종료일: 2026-07-10 · 정산 14건)',
+    summary: [
+      { label: '총 분배액', value: '182,000 다이아' },
+      { label: '총 혈비 적립', value: '18,200 다이아' },
+      { label: '이번 시즌 참여 인원(고유)', value: '21명' },
+    ],
+    sections: [
+      {
+        title: '💰 최종 잔액현황',
+        headers: ['멤버', '분배전(다이아)', '분배완료(다이아)', '참여횟수'],
+        rows: [
+          ['가이', '0', '48,200', '18'],
+          ['TC무식', '0', '62,400', '22'],
+          ['PlusS', '0', '11,300', '7'],
+        ],
+      },
+      {
+        title: '📊 시즌 요약 통계',
+        headers: ['항목', '값'],
+        rows: [
+          ['총 분배액', '182,000 다이아'],
+          ['총 혈비 적립', '18,200 다이아'],
+          ['이번 시즌 참여 인원(고유)', '21명'],
+          ['최다 참여자', 'TC무식 (22회)'],
+        ],
+      },
+    ],
+  },
+  {
+    num: 1,
+    title: '🏁 시즌 1 최종 기록  (종료일: 2026-05-30 · 정산 9건)',
+    summary: [
+      { label: '총 분배액', value: '95,000 다이아' },
+      { label: '이번 시즌 참여 인원(고유)', value: '15명' },
+    ],
+    sections: [
+      {
+        title: '💰 최종 잔액현황',
+        headers: ['멤버', '분배전(다이아)', '분배완료(다이아)', '참여횟수'],
+        rows: [['가이', '0', '21,000', '9']],
+      },
+    ],
+  },
+];
+
 let S = freshState();
 
 /** .gs 의 _normName — 공백과 '(미등록)' 을 무시하고 비교한다 */
@@ -376,6 +425,18 @@ const handlers = {
       r.paid = Math.max(r.paid - rec.amount, 0);
     }
     return { ok: true, msg: `✅ "${rec.name}" ${rec.amount.toLocaleString()}${UNIT}가 분배전으로 복구되었습니다.` };
+  },
+
+  seasons: () => ({
+    ok: true,
+    data: SEASONS.map((x) => ({ num: x.num, name: '시즌' + x.num, title: x.title, summary: x.summary })),
+  }),
+
+  season: ({ num }) => {
+    const s = SEASONS.find((x) => x.num === Number(num));
+    return s
+      ? { ok: true, data: { num: s.num, name: '시즌' + s.num, title: s.title, sections: s.sections } }
+      : { ok: false, msg: '시즌' + num + ' 기록을 찾을 수 없습니다.' };
   },
 
   tools: () => ({ ok: true, data: TOOLS }),

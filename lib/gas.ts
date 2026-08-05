@@ -29,7 +29,9 @@ export type GasAction =
   | 'lastPayout'
   | 'undoPayout'
   | 'tools'
-  | 'runTool';
+  | 'runTool'
+  | 'seasons'
+  | 'season';
 
 export type GasResponse = Record<string, unknown> & { ok: boolean; msg?: string };
 
