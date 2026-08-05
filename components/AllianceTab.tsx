@@ -27,11 +27,18 @@ export default function AllianceTab({
 }) {
   const t = makeT(lang);
   const [data, setData] = useState<AllianceState | null>(null);
+  const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
 
   const load = useCallback(async () => {
     const res = await api('/api/alliance');
-    if (res.ok) setData(res.data as AllianceState);
+    if (res.ok) {
+      setError('');
+      setData(res.data as AllianceState);
+      return;
+    }
+    // 시트가 아직 v10 이 아니면 이 액션 자체가 없다 — 뼈대만 계속 돌리지 말고 이유를 말해준다
+    setError(res.msg ?? '연합 기록을 불러오지 못했습니다.');
   }, []);
 
   useEffect(() => {
@@ -48,6 +55,27 @@ export default function AllianceTab({
 
   const unit = data?.unit ?? '다이아';
   const grand = (data?.totals ?? []).reduce((a, b) => a + b.credited, 0);
+
+  if (error) {
+    return (
+      <div className="page">
+        <div className="sect">🤝 {t('alliance.title')}</div>
+        <div className="card">
+          <div className="field">
+            <div className="note" style={{ whiteSpace: 'pre-wrap' }}>
+              ⚠️ {error}
+              {'\n\n'}
+              구글시트 쪽 코드가 아직 v10.0 이 아니면 [연합] 기능이 없습니다. Apps Script 에 새
+              코드를 붙여넣고 [배포 관리] → 새 버전으로 배포한 뒤 다시 열어주세요.
+            </div>
+            <button className="btn block" style={{ marginTop: 12 }} onClick={() => void load()}>
+              {t('common.retry')}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page">

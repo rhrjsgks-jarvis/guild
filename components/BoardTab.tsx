@@ -29,13 +29,20 @@ export default function BoardTab({
 }) {
   const t = makeT(lang);
   const [posts, setPosts] = useState<BoardPost[] | null>(null);
+  const [error, setError] = useState('');
   const [open, setOpen] = useState<BoardPost | null>(null);
   const [writing, setWriting] = useState(false);
 
   const load = useCallback(async () => {
     const res = await api('/api/board');
-    if (res.ok) setPosts(res.data as BoardPost[]);
-    else setPosts([]);
+    if (res.ok) {
+      setError('');
+      setPosts(res.data as BoardPost[]);
+      return;
+    }
+    // 글이 없는 것과 불러오지 못한 것은 다르다 — 빈 목록으로 얼버무리지 않는다
+    setError(res.msg ?? '게시판을 불러오지 못했습니다.');
+    setPosts([]);
   }, []);
 
   useEffect(() => {
@@ -74,6 +81,18 @@ export default function BoardTab({
             {[70, 90, 60].map((w, i) => (
               <div key={i} className="skeleton" style={{ width: `${w}%`, marginBottom: 10 }} />
             ))}
+          </div>
+        ) : error ? (
+          <div className="field">
+            <div className="note" style={{ whiteSpace: 'pre-wrap' }}>
+              ⚠️ {error}
+              {'\n\n'}
+              구글시트 쪽 코드가 아직 v10.0 이 아니면 [게시판] 기능이 없습니다. Apps Script 에 새
+              코드를 붙여넣고 [배포 관리] → 새 버전으로 배포한 뒤 다시 열어주세요.
+            </div>
+            <button className="btn block" style={{ marginTop: 12 }} onClick={() => void load()}>
+              {t('common.retry')}
+            </button>
           </div>
         ) : posts.length === 0 ? (
           <div className="empty">{t('board.empty')}</div>
