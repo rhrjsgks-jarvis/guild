@@ -366,9 +366,8 @@ const PAYOUT_SHEET = '지급기록';
 const BAL_COL = { NAME: 1, PENDING: 2, PAID: 3, CNT: 4, CHECK: 5, AMT: 6 };
 const PROTECT_MODE = 'warn';           // 'warn'=경고 모드 | 'block'=공유자 차단
 
-// 표준 시트 순서 (시즌N 제외 — 시즌은 번호순 정렬 후 맨 뒤 추가)
-const BASE_SHEET_ORDER = ['사용안내', '멤버DB', INPUT_SHEET, LEDGER_SHEET, '잔액현황', PAYOUT_SHEET,
-                          ALLIANCE_SHEET, BOARD_SHEET, AUDIT_SHEET];
+// 표준 시트 순서입니다 (시즌N 제외 — 시즌은 번호순 정렬 후 맨 뒤에 붙습니다)
+const BASE_SHEET_ORDER = ['사용안내', '멤버DB', INPUT_SHEET, LEDGER_SHEET, '잔액현황', PAYOUT_SHEET, ALLIANCE_SHEET, BOARD_SHEET, AUDIT_SHEET];
 
 // ─────────────────────────────────────────
 // 📐 시트 정돈: 표준 순서 정렬 + 행높이 통일 + (확인 후) 불필요 시트 삭제
