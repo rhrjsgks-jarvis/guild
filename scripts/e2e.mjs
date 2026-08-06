@@ -1245,6 +1245,68 @@ await t('연합: 사진 등록 → 나중에 금액 넣기 (화면 흐름)', asy
   if (!body.includes('50,000')) throw new Error('정산 결과가 화면에 반영되지 않았습니다.');
 });
 
+await t('관리자 화면에는 마스터 전용 기능이 아예 보이지 않는다', async () => {
+  await reset();
+
+  /*
+   * 등급을 바꿀 때마다 화면에서 로그인하면 로그인 횟수 제한(10분 10회)에 걸린다.
+   * 앞에서 이미 받아둔 쿠키를 브라우저에 그대로 심어 등급만 갈아끼운다 —
+   * 확인하려는 것은 "그 등급에서 무엇이 보이는가" 뿐이다.
+   */
+  const asRole = async (raw) => {
+    const [name, value] = raw.split('=');
+    await ctx.addCookies([{ name, value, url: APP }]);
+    await page.goto(APP, { waitUntil: 'networkidle' });
+  };
+
+  await asRole(cookie);   // ── 관리자 ──
+
+  // ① 아이템 탭 — 정정·삭제 카드가 통째로 없어야 한다
+  await page.locator('.nav button').filter({ hasText: /아이템/ }).click();
+  await page.waitForTimeout(700);
+  let body = await page.locator('main').innerText();
+  if (/정정/.test(body)) throw new Error('관리자에게 정정·삭제 카드가 보입니다.');
+
+  // ② 관리 탭 — 되돌릴 수 없는 도구와 지급취소가 없어야 한다
+  await page.locator('.nav button').last().click();
+  await page.waitForTimeout(900);
+  body = await page.locator('main').innerText();
+  for (const gone of ['시즌 종료', '공장 초기화', '최초 설치', '기존 파일에서 가져오기', '지급 취소']) {
+    if (body.includes(gone)) throw new Error(`관리자에게 "${gone}" 이(가) 보입니다.`);
+  }
+  // 일상 도구는 그대로 보여야 한다 — 권한을 과하게 조이면 업무가 막힌다
+  for (const stay of ['참여횟수 재계산', '시트 정돈']) {
+    if (!body.includes(stay)) throw new Error(`관리자에게 "${stay}" 이(가) 없습니다.`);
+  }
+  // 잠긴 버튼을 남겨두면 "왜 안 되냐"를 묻게 된다
+  // ('🔒 관리자 모드 잠그기' 는 정상 버튼이라 제외한다)
+  const lockedBtns = await page.evaluate(() =>
+    [...document.querySelectorAll('main button')]
+      .filter((b) => b.textContent?.trim() === '🔒' || (b.disabled && b.textContent?.includes('🔒')))
+      .map((b) => b.textContent?.trim()),
+  );
+  if (lockedBtns.length) throw new Error(`잠긴 버튼이 남아 있습니다: ${lockedBtns.join(', ')}`);
+  await shot('19-admin-view');
+
+  await asRole(masterCookie);   // ── 마스터 ──
+
+  await page.locator('.nav button').last().click();
+  await page.waitForTimeout(900);
+  body = await page.locator('main').innerText();
+  for (const shown of ['시즌 종료', '공장 초기화', '지급 취소']) {
+    if (!body.includes(shown)) throw new Error(`마스터에게 "${shown}" 이(가) 안 보입니다.`);
+  }
+  await shot('20-master-view');
+
+  await page.locator('.nav button').filter({ hasText: /아이템/ }).click();
+  await page.waitForTimeout(700);
+  if (!/정정/.test(await page.locator('main').innerText())) {
+    throw new Error('마스터에게 정정·삭제 카드가 안 보입니다.');
+  }
+
+  await asRole(cookie);   // 뒤 검사들은 관리자 화면을 기대한다
+});
+
 await t('헤더의 새로고침 버튼이 보이고, 눌러서 최신 값을 받아온다', async () => {
   await reset();
   await page.reload({ waitUntil: 'networkidle' });

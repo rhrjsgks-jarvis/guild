@@ -260,14 +260,16 @@ export default function ItemsTab({
             </div>
           </div>
 
-          <LedgerCard
-            unit={unit(state.unit)}
-            fundRate={state.fundRate}
-            fundName={state.fundName}
-            master={master}
-            onChanged={onDone}
-            toast={toast}
-          />
+          {/* 정정·삭제는 마스터관리자 몫이라 관리자에게는 카드째로 보이지 않는다 */}
+          {master ? (
+            <LedgerCard
+              unit={unit(state.unit)}
+              fundRate={state.fundRate}
+              fundName={state.fundName}
+              onChanged={onDone}
+              toast={toast}
+            />
+          ) : null}
         </>
       )}
 

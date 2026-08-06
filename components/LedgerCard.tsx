@@ -12,20 +12,20 @@ import { useT } from '@/lib/i18n';
  *
  * 둘 다 잔액을 되돌리는 작업이라, 실행 전에 서버에서 "무엇을 얼마나 되돌리는지"
  * 를 받아 그대로 보여준다. 이미 지급✓ 된 사람이 있으면 서버가 아예 막는다.
+ *
+ * ★ 이 카드 전체가 마스터관리자 전용이다 (ItemsTab 이 master 일 때만 그린다).
+ *   이미 끝난 분배를 되돌리는 자리라, 관리자에게는 존재 자체를 보이지 않는다.
  */
 export default function LedgerCard({
   unit,
   fundRate,
   fundName,
-  master,
   onChanged,
   toast,
 }: {
   unit: string;
   fundRate: number;
   fundName: string;
-  /** 정정·삭제는 이미 끝난 분배를 되돌리는 작업이라 마스터관리자만 할 수 있다 */
-  master: boolean;
   onChanged: (res?: ApiResult) => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
@@ -44,9 +44,7 @@ export default function LedgerCard({
 
   return (
     <>
-      <div className="sect">
-        {t('led.sect')} {master ? '' : `· 👑 ${t('c.master')}`}
-      </div>
+      <div className="sect">{t('led.sect')}</div>
       <div className="card">
         {!items ? (
           <div className="field">
@@ -66,19 +64,12 @@ export default function LedgerCard({
                   {it.amount > 0 ? ` · ${fmt(it.amount)} ${unit}` : ''}
                 </div>
               </div>
-              {/* 정정·삭제는 이미 끝난 분배를 되돌리는 작업이라 마스터관리자만.
-                  화면에서도 왜 못 누르는지 보여준다 (막힌 뒤에 알면 늦다). */}
-              <button className="btn ghost" disabled={!master} onClick={() => setTarget(it)}>
-                {master ? t('c.manage') : '🔒'}
+              <button className="btn ghost" onClick={() => setTarget(it)}>
+                {t('c.manage')}
               </button>
             </div>
           ))
         )}
-        {!master ? (
-          <div className="field" style={{ borderTop: '1px solid var(--line)' }}>
-            <p className="hint">{t('led.masterOnly')}</p>
-          </div>
-        ) : null}
       </div>
 
       {target ? (

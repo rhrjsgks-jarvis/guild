@@ -667,16 +667,31 @@ check('되돌릴 수 없는 작업은 마스터관리자에게만 열린다', ()
   const undoPost = (undo.match(/export async function POST[\s\S]*?\n\}/) ?? [''])[0];
   if (!/requireMaster\(\)/.test(undoPost)) throw new Error('지급 취소가 마스터를 요구하지 않습니다.');
 
-  // ③ 앱: 왜 못 누르는지 화면에서 보여야 한다 (막힌 뒤에 알면 늦다)
+  // ③ 앱: 관리자에게는 **아예 보이지 않아야** 한다.
+  //    잠긴 버튼을 남겨두면 "왜 안 되냐"를 묻게 되고, 되돌릴 수 없는 작업이
+  //    목록에 계속 보이는 것 자체가 실수를 부른다.
   const tc = readFileSync(resolve(ROOT, 'components/ToolsCard.tsx'), 'utf8');
   if (!/master: boolean/.test(tc)) throw new Error('ToolsCard 가 마스터 여부를 받지 않습니다.');
-  if (!/tl\.master === true \|\| tl\.danger >= 3\) && !master/.test(tc)) {
-    throw new Error('마스터 전용 도구를 관리자에게 잠그지 않습니다.');
+  if (!/const visible = \(tools \?\? \[\]\)\.filter/.test(tc)) {
+    throw new Error('마스터 전용 도구를 목록에서 걸러내지 않습니다.');
+  }
+  if (!/master \|\| !\(tl\.master === true \|\| tl\.danger >= 3\)/.test(tc)) {
+    throw new Error('걸러내는 기준이 마스터 전용 판정과 다릅니다.');
+  }
+  // 걸러낸 목록으로 그려야 의미가 있다 — 원본을 그대로 돌리면 다시 보인다
+  if (/tools\.map\(/.test(tc)) throw new Error('ToolsCard 가 걸러내지 않은 원본 목록을 그립니다.');
+  if (!/\{master \? \(/.test(tc)) throw new Error('지급 취소 구역이 관리자에게 그대로 보입니다.');
+
+  const itemsTab = readFileSync(resolve(ROOT, 'components/ItemsTab.tsx'), 'utf8');
+  if (!/\{master \? \(\s*<LedgerCard/.test(itemsTab)) {
+    throw new Error('정정·삭제 카드가 관리자에게 보입니다 — 카드째로 감춰야 합니다.');
   }
   const lc = readFileSync(resolve(ROOT, 'components/LedgerCard.tsx'), 'utf8');
-  if (!/disabled=\{!master\}/.test(lc)) throw new Error('정정·삭제 버튼이 관리자에게 열려 있습니다.');
+  if (/disabled=\{!master\}/.test(lc)) {
+    throw new Error('정정·삭제가 아직 "잠금" 방식입니다 — 감추는 방식이어야 합니다.');
+  }
 
-  return `위험도3 도구 ${d3}개 · 정정·삭제·지급취소 · 시트 판정 · 실패 시 차단 · 화면 잠금`;
+  return `위험도3 도구 ${d3}개 · 정정·삭제·지급취소 · 시트 판정 · 실패 시 차단 · 관리자에게 비표시`;
 });
 
 check('마스터 PIN: 공백이 붙어도 통하고, 관리자 PIN 과 같으면 거부한다', () => {

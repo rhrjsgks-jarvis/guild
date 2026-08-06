@@ -55,9 +55,22 @@ export default function ToolsCard({
     }
   }
 
+  /**
+   * 관리자에게는 마스터 전용 도구를 **아예 보여주지 않는다.**
+   *
+   * 잠긴 버튼을 남겨두면 "왜 안 되냐"를 묻게 되고, 되돌릴 수 없는 작업이
+   * 목록에 계속 보이는 것 자체가 실수를 부른다.
+   * (차단은 서버가 한다 — 화면에서 감추는 것은 그 위에 얹는 배려일 뿐이다.)
+   */
+  const visible = (tools ?? []).filter((tl) => master || !(tl.master === true || tl.danger >= 3));
+
   return (
     <>
-      {/* 지급 취소는 자주 쓰는 기능이라 도구 목록보다 위에 둔다 */}
+      {/* 지급 취소는 이미 준 것을 되돌리는 작업이라 마스터관리자 몫이다.
+          관리자에게는 아예 보이지 않는다 — 못 누르는 버튼을 보여주면
+          "왜 안 되냐"를 묻게 되고, 그 자체가 불필요한 마찰이다. */}
+      {master ? (
+        <>
       <div className="sect">{t('tool.undoSect')}</div>
       <div className="card">
         <div className="field">
@@ -75,16 +88,18 @@ export default function ToolsCard({
                   </strong>
                 </div>
               </div>
-              <button className="btn ghost block" disabled={busy || !master} onClick={() => setUndoing(true)}>
-                {master ? t('tool.undoBtn') : `🔒 ${t('tool.undoBtn')}`}
+              <button className="btn ghost block" disabled={busy} onClick={() => setUndoing(true)}>
+                {t('tool.undoBtn')}
               </button>
-              <p className="hint">{master ? t('tool.undoHint') : t('tool.masterOnly')}</p>
+              <p className="hint">{t('tool.undoHint')}</p>
             </>
           ) : (
             <p className="hint">{t('tool.undoNone')}</p>
           )}
         </div>
       </div>
+        </>
+      ) : null}
 
       <div className="sect">{t('tool.sect')}</div>
       <div className="card">
@@ -95,43 +110,29 @@ export default function ToolsCard({
             ))}
           </div>
         ) : (
-          tools.map((tl) => {
-            // 되돌릴 수 없는 도구는 마스터관리자만. 서버가 최종 판정을 하지만,
-            // 화면에서도 왜 못 누르는지 보여줘야 한다 (막힌 뒤에 알면 늦다).
-            const locked = (tl.master === true || tl.danger >= 3) && !master;
-            return (
-              <div className="row" key={tl.id}>
-                <div className="row-main">
-                  <div className="row-name">
-                    {tl.name}
-                    {tl.danger >= 3 ? (
-                      <span
-                        className="badge"
-                        style={{ marginLeft: 6, background: 'var(--pending-soft)', color: 'var(--pending)' }}
-                      >
-                        {t('tool.irreversible')}
-                      </span>
-                    ) : null}
-                    {tl.master === true || tl.danger >= 3 ? (
-                      <span className="badge" style={{ marginLeft: 6 }}>
-                        👑 {t('c.master')}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="row-sub" style={{ whiteSpace: 'normal', lineHeight: 1.45 }}>
-                    {locked ? t('tool.masterOnly') : tl.desc}
-                  </div>
+          visible.map((tl) => (
+            <div className="row" key={tl.id}>
+              <div className="row-main">
+                <div className="row-name">
+                  {tl.name}
+                  {tl.danger >= 3 ? (
+                    <span
+                      className="badge"
+                      style={{ marginLeft: 6, background: 'var(--pending-soft)', color: 'var(--pending)' }}
+                    >
+                      {t('tool.irreversible')}
+                    </span>
+                  ) : null}
                 </div>
-                <button
-                  className={tl.danger >= 3 ? 'btn danger' : 'btn ghost'}
-                  disabled={locked}
-                  onClick={() => setActive(tl)}
-                >
-                  {locked ? '🔒' : t('c.run')}
-                </button>
+                <div className="row-sub" style={{ whiteSpace: 'normal', lineHeight: 1.45 }}>
+                  {tl.desc}
+                </div>
               </div>
-            );
-          })
+              <button className={tl.danger >= 3 ? 'btn danger' : 'btn ghost'} onClick={() => setActive(tl)}>
+                {t('c.run')}
+              </button>
+            </div>
+          ))
         )}
       </div>
 
