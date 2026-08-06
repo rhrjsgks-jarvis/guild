@@ -102,6 +102,7 @@ const send = (method) => (path, body, headers = {}) =>
   });
 
 const post = send('POST');
+const patch = send('PATCH');
 const del = send('DELETE');
 
 /** 모의 시트에만 있는 기능 (앱 API 에는 없다) */
@@ -191,6 +192,7 @@ for (const path of [
   '/api/admin/alliance',
   '/api/admin/alliance-photo',
   '/api/admin/member-settings',
+  '/api/admin/raid',
   '/api/master',
 ]) {
   await t(`인증 없이 ${path} → 401`, async () => {
@@ -489,15 +491,15 @@ await t('쓰기 직후 조회(?fresh=1)는 캐시를 건너뛴다', async () => 
   const state = async (q = '') => (await (await fetch(`${APP}/api/state${q}`)).json()).data.version;
 
   await reset();
-  eq(await state(), '10.7', '첫 조회 버전');
+  eq(await state(), '10.8', '첫 조회 버전');
 
   await mock('__setVersion', { version: '9.9' });
-  eq(await state(), '10.7', '캐시된 조회 (시트가 바뀌어도 그대로여야 정상)');
+  eq(await state(), '10.8', '캐시된 조회 (시트가 바뀌어도 그대로여야 정상)');
   eq(await state('?fresh=1'), '9.9', 'fresh 조회 (캐시를 건너뛴 값)');
   // fresh 조회는 캐시도 새 값으로 갈아둔다 — 다음 사람이 낡은 값을 보지 않는다
   eq(await state(), '9.9', 'fresh 이후의 일반 조회');
 
-  await mock('__setVersion', { version: '10.7' });
+  await mock('__setVersion', { version: '10.8' });
 });
 
 await t('쓰기 응답이 최신 상태를 같이 실어 온다 (조회 왕복 없음)', async () => {
@@ -512,7 +514,7 @@ await t('쓰기 응답이 최신 상태를 같이 실어 온다 (조회 왕복 �
     throw new Error('실어 온 상태에 방금 등록한 아이템이 없습니다.');
   }
   eq(typeof body.state.season, 'number', '실어 온 상태의 시즌');
-  eq(body.state.version, '10.7', '실어 온 상태의 버전');
+  eq(body.state.version, '10.8', '실어 온 상태의 버전');
 
   // 그 값이 캐시에도 들어가 있어야 한다 — 다른 사람도 시트를 거치지 않고 받는다
   const shared = (await (await fetch(`${APP}/api/state`)).json()).data;
@@ -689,6 +691,70 @@ await t('연합: 등록은 금액 없이 되고, 누적에는 들어가지 않�
   eq(twice.status, 400, '이미 정산된 건 재정산');
   const final = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
   eq(final.totals.find((x) => x.server === '05').credited, s05.credited, '거부 후 누적이 그대로');
+});
+
+/* ── 레이드 (v10.8) ── */
+
+await t('레이드: 조회는 누구나, 편집은 관리자 이상', async () => {
+  await reset();
+  const pub = await (await fetch(`${APP}/api/raid`)).json();
+  eq(pub.ok, true, '공개 조회');
+  eq(pub.data.days.length, 7, '요일 7개');
+  if (!pub.data.rows.length) throw new Error('시간표가 비어 있습니다.');
+
+  // 공개 라우트에 쓰기가 붙으면 링크만 아는 누구나 시간표를 바꿀 수 있다
+  eq((await post('/api/raid', {})).status, 405, '레이드 공개 라우트에는 쓰기가 없다');
+  eq((await patch('/api/admin/raid', { row: 2, day: 1, time: '20:20', boss: 'x' })).status, 401, '인증 없이 수정');
+  eq((await del('/api/admin/raid', { row: 2 })).status, 401, '인증 없이 삭제');
+});
+
+await t('레이드: 추가·수정·삭제가 요일별로 반영된다', async () => {
+  await reset();
+  const add = await (
+    await post('/api/admin/raid', { day: 3, time: '21:00', boss: '검사용보스', note: '젠 3시간' }, { Cookie: cookie })
+  ).json();
+  eq(add.ok, true, '추가 ok');
+
+  const mid = (await (await fetch(`${APP}/api/raid?fresh=1`)).json()).data;
+  const rec = mid.rows.find((r) => r.boss === '검사용보스');
+  if (!rec) throw new Error('추가한 보스가 목록에 없습니다.');
+  eq(rec.day, 3, '수요일에 들어감');
+  eq(rec.time, '21:00', '시간');
+  eq(rec.note, '젠 3시간', '비고');
+  // ★ 다른 요일에까지 나타나면 "오늘 것만 보여준다"가 통째로 무너진다
+  eq(mid.rows.filter((r) => r.boss === '검사용보스').length, 1, '한 요일에만 있다');
+
+  const up = await (
+    await patch('/api/admin/raid', { row: rec.row, day: 5, time: '22:30', boss: '검사용보스2', note: '' }, { Cookie: cookie })
+  ).json();
+  eq(up.ok, true, '수정 ok');
+
+  const after = (await (await fetch(`${APP}/api/raid?fresh=1`)).json()).data;
+  const moved = after.rows.find((r) => r.row === rec.row);
+  eq(moved.day, 5, '금요일로 옮겨짐');
+  eq(moved.time, '22:30', '시간도 바뀜');
+  eq(moved.boss, '검사용보스2', '이름도 바뀜');
+
+  eq((await (await del('/api/admin/raid', { row: rec.row }, { Cookie: cookie })).json()).ok, true, '삭제 ok');
+  const gone = (await (await fetch(`${APP}/api/raid?fresh=1`)).json()).data;
+  if (gone.rows.some((r) => r.row === rec.row)) throw new Error('삭제 뒤에도 남아 있습니다.');
+});
+
+await t('레이드: 잘못된 요일·시간·보스명은 거부된다', async () => {
+  const bad = [
+    { day: 0, time: '20:20', boss: 'x' },
+    { day: 8, time: '20:20', boss: 'x' },
+    { day: 1, time: '25:00', boss: 'x' },
+    { day: 1, time: '저녁쯤', boss: 'x' },
+    { day: 1, time: '20:20', boss: '' },
+    { day: 1, time: '20:20', boss: 'ㄱ'.repeat(41) },
+  ];
+  for (const b of bad) {
+    eq((await post('/api/admin/raid', b, { Cookie: cookie })).status, 400, JSON.stringify(b));
+  }
+  for (const b of [{ row: 1, day: 1, time: '20:20', boss: 'x' }, { row: 0, day: 1, time: '20:20', boss: 'x' }]) {
+    eq((await patch('/api/admin/raid', b, { Cookie: cookie })).status, 400, '잘못된 행 ' + b.row);
+  }
 });
 
 await t('연합: 잘못된 서버·아이템명·금액·비중은 거부된다', async () => {
@@ -1172,7 +1238,7 @@ await t('참여자 칩이 국문·한문 두 줄로 나오고 이름이 잘리�
   const chip = page.locator('.mchip').filter({ hasText: '잠단' }).first();
   if (!(await chip.isVisible())) throw new Error('참여자 칩을 찾지 못했습니다.');
   eq(await chip.locator('.nm b').innerText(), '잠단', '첫 줄 (국문)');
-  eq(await chip.locator('.nm i').innerText(), '(斬斷)', '둘째 줄 (한문)');
+  eq(await chip.locator('.nm i').innerText(), '斬斷', '둘째 줄 (한문)');
 
   // ★ 잘린 이름은 다른 사람으로 오인돼 엉뚱한 사람이 참여자로 체크된다.
   //   실제로 그려진 폭이 칩 안에 들어가는지 본다.
@@ -1197,6 +1263,15 @@ await t('참여자 칩이 국문·한문 두 줄로 나오고 이름이 잘리�
   });
   if (!(sizes['선륙소농포'] < sizes['가이'])) {
     throw new Error(`긴 이름이 줄지 않았습니다: ${JSON.stringify(sizes)}`);
+  }
+
+  // ★ 한자는 국문보다 커야 한다 (v10.8) — 중국 길드원에게는 이쪽이 본명이다
+  const pair = await chip.evaluate((el) => ({
+    ko: parseFloat(getComputedStyle(el.querySelector('.nm b')).fontSize),
+    hanja: parseFloat(getComputedStyle(el.querySelector('.nm i')).fontSize),
+  }));
+  if (!(pair.hanja > pair.ko)) {
+    throw new Error(`한자가 국문보다 작습니다: ${JSON.stringify(pair)}`);
   }
   await shot('16-two-line-names');
 });
@@ -1243,6 +1318,70 @@ await t('연합: 사진 등록 → 나중에 금액 넣기 (화면 흐름)', asy
   // 정산이 끝나면 대기 목록에서 빠지고 서버 누적에 잡힌다
   const body = await page.locator('main').innerText();
   if (!body.includes('50,000')) throw new Error('정산 결과가 화면에 반영되지 않았습니다.');
+});
+
+await t('레이드: 오늘 요일이 먼저 뜨고, 다른 요일로 바꿔 볼 수 있다 (화면)', async () => {
+  await reset();
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.locator('.nav button').filter({ hasText: /레이드/ }).click();
+  await page.waitForTimeout(900);
+
+  // 요일 칩 7개 — 오늘이 켜져 있어야 한다
+  eq(await page.locator('.daybar .daychip').count(), 7, '요일 칩 개수');
+  const js = new Date().getDay();
+  const today = js === 0 ? 7 : js;
+  const onIdx = await page.locator('.daybar .daychip.on').first().evaluate((el) =>
+    [...el.parentElement.children].indexOf(el),
+  );
+  eq(onIdx + 1, today, '기본으로 켜진 요일');
+  await shot('20-raid-today');
+
+  // 모의 데이터에서 '커츠'·'오만1층2층' 은 모든 요일에 있으므로 어느 요일에나 보인다
+  let body = await page.locator('main').innerText();
+  if (!body.includes('커츠')) throw new Error('오늘 목록에 매일 나오는 보스가 없습니다.');
+
+  // ★ 요일을 바꾸면 그 요일 것만 나와야 한다 — 월요일에만 있는 보스로 확인한다
+  await page.locator('.daybar .daychip').nth(0).click();   // 월
+  await page.waitForTimeout(400);
+  body = await page.locator('main').innerText();
+  if (!body.includes('다이아몬드골렘')) throw new Error('월요일 전용 보스가 보이지 않습니다.');
+  if (body.includes('칠흑데스')) throw new Error('일요일 전용 보스가 월요일에 보입니다.');
+
+  await page.locator('.daybar .daychip').nth(6).click();   // 일
+  await page.waitForTimeout(400);
+  body = await page.locator('main').innerText();
+  if (!body.includes('칠흑데스')) throw new Error('일요일 전용 보스가 보이지 않습니다.');
+  if (body.includes('다이아몬드골렘')) throw new Error('월요일 전용 보스가 일요일에 보입니다.');
+
+  // 공유 버튼은 있어야 한다 (게시판·관리에는 없어야 한다 — 아래 별도 검사)
+  eq(await page.locator('.share-btn').count() > 0, true, '공유 버튼');
+});
+
+await t('공유 버튼: 잔액·아이템·연합·레이드·내정보에만 있다 (화면)', async () => {
+  await page.reload({ waitUntil: 'networkidle' });
+  for (const tab of [/잔액/, /아이템/, /연합/, /레이드/]) {
+    await page.locator('.nav button').filter({ hasText: tab }).click();
+    await page.waitForTimeout(700);
+    if ((await page.locator('.share-btn').count()) === 0) {
+      throw new Error(`${tab} 탭에 공유 버튼이 없습니다.`);
+    }
+  }
+  // ★ 게시판·관리에는 없어야 한다
+  for (const tab of [/게시판/, /관리$/]) {
+    await page.locator('.nav button').filter({ hasText: tab }).click();
+    await page.waitForTimeout(700);
+    if ((await page.locator('.share-btn').count()) > 0) {
+      throw new Error(`${tab} 탭에 공유 버튼이 있습니다.`);
+    }
+  }
+});
+
+await t('탭 순서가 잔액·아이템·연합·레이드·내정보·게시판·관리다 (화면)', async () => {
+  await page.reload({ waitUntil: 'networkidle' });
+  const labels = await page.locator('.nav button').allInnerTexts();
+  const got = labels.map((s) => s.split('\n').pop().trim());
+  const want = ['잔액', '아이템', '연합', '레이드', '내 정보', '게시판', '관리'];
+  if (got.join(' ') !== want.join(' ')) throw new Error(`탭 순서: ${got.join(' ')} (기대 ${want.join(' ')})`);
 });
 
 await t('관리자 화면에는 마스터 전용 기능이 아예 보이지 않는다', async () => {
@@ -1325,7 +1464,7 @@ await t('헤더의 새로고침 버튼이 보이고, 눌러서 최신 값을 받
   if (!h1.includes('9.9')) throw new Error(`새로고침을 눌렀는데 최신 값이 아닙니다: ${h1}`);
   await shot('15-refresh');
 
-  await mock('__setVersion', { version: '10.7' });
+  await mock('__setVersion', { version: '10.8' });
   await btn.click();
   await page.waitForTimeout(1200);
 });
@@ -1335,7 +1474,7 @@ await t('제목 옆에 버전이 보이고, 시트가 옛 버전이면 경고가
   await page.reload({ waitUntil: 'networkidle' });
   const h1 = page.locator('.header h1');
   const same = await h1.innerText();
-  if (!same.includes('v10.7')) throw new Error(`제목 옆 버전이 없습니다: ${same}`);
+  if (!same.includes('v10.8')) throw new Error(`제목 옆 버전이 없습니다: ${same}`);
   if (same.includes('⚠️')) throw new Error(`버전이 같은데 경고가 떴습니다: ${same}`);
   await shot('09-version');
 
@@ -1353,7 +1492,7 @@ await t('제목 옆에 버전이 보이고, 시트가 옛 버전이면 경고가
   if (!warned.includes('⚠️')) throw new Error(`경고 표시가 없습니다: ${warned}`);
   await shot('10-version-mismatch');
 
-  await mock('__setVersion', { version: '10.7' });
+  await mock('__setVersion', { version: '10.8' });
 });
 
 await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', async () => {

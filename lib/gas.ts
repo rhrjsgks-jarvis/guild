@@ -47,6 +47,11 @@ export type GasAction =
   | 'countPhoto'
   | 'updateMember'
   | 'checkPin'
+  /* v10.8 — 보스 시간표 */
+  | 'raid'
+  | 'addRaid'
+  | 'updateRaid'
+  | 'deleteRaid'
   | 'setAppName'
   | 'setAdminPin'
   | 'setSeasonServer';

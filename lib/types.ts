@@ -208,6 +208,29 @@ export type PhotoResult = {
   msg?: string;
 };
 
+/**
+ * 보스 시간표 한 줄 (v10.8).
+ *
+ * 한 보스가 여러 요일에 나오면 **요일마다 한 줄**이다. 한 줄에 '월,수,금' 처럼
+ * 몰아 넣으면 오늘 것만 골라내는 계산이 불가능해진다.
+ */
+export type RaidRow = {
+  /** 시트 행 번호 — 수정·삭제에 쓴다 */
+  row: number;
+  /** 1=월 … 7=일. 자바스크립트 getDay()(0=일)와 다르다 */
+  day: number;
+  /** 'HH:MM' 24시간 */
+  time: string;
+  boss: string;
+  note: string;
+};
+
+export type RaidState = {
+  rows: RaidRow[];
+  /** ['월','화',…] — 시트가 쓰는 표기 그대로 (앱은 화면 언어로 다시 그린다) */
+  days: string[];
+};
+
 /** 모든 API 응답의 공통 봉투 */
 export type Envelope<T> =
   | ({ ok: true } & T)

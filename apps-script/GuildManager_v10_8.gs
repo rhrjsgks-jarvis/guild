@@ -1,8 +1,27 @@
 // ═══════════════════════════════════════════════════════════════
-//  길드 정산 시스템 v10.7  (분배비중 · 연합 · 게시판 · 마스터관리자 · 3개국어)
+//  길드 정산 시스템 v10.8  (분배비중 · 연합 · 레이드 · 게시판 · 마스터관리자 · 3개국어)
 //  시트 구성: [사용안내] [멤버DB] [참여자현황] [분배대기중] [잔액현황]
-//            [지급기록] [연합] [게시판] [작업기록] + [시즌1] [시즌2] ...
+//            [지급기록] [연합] [레이드] [게시판] [작업기록] + [시즌1] [시즌2] ...
 //            ← 이 순서로 항상 정렬됨
+// ═══════════════════════════════════════════════════════════════
+//  변경점 v10.7 → v10.8  (보스 시간표 — [레이드] 시트)
+//
+//   - ★ [레이드] 시트를 새로 만들었다. 열은 요일 · 시간 · 보스 · 비고 · 수정자 · 수정일.
+//       한 보스가 여러 요일에 나오면 **요일마다 한 줄**이다. 한 칸에 '월,수,금'
+//       처럼 몰아 넣으면 앱에서 요일로 걸러낼 수가 없다.
+//   - ★ 요일은 1(월)~7(일). 자바스크립트 `getDay()`(0=일)와 다르므로 앱에서 변환한다.
+//       사람이 시트를 직접 고칠 수 있어야 하니, 시트에는 '월'·'화' 로 적고
+//       `_normDay` 가 숫자로 바꾼다 ('월요일' 도 받는다).
+//   - ★ 시간은 'HH:MM' 24시간. `_normTime` 이 Date 셀·'20시20분'·'20:20' 을 모두
+//       같은 값으로 만든다. **못 읽으면 빈 값이다 — 지어내지 않는다.**
+//       요일·시간·보스 중 하나라도 비면 `api_getRaid` 가 그 줄을 건너뛴다.
+//   - ★ 추가·수정·삭제는 관리자 이상. 되돌릴 수 있는 작업이라(한 줄 다시 넣으면 끝)
+//       마스터 전용으로 두지 않았다.
+//   - ★ [🗡️ 보스 시간표 기본값 채우기] 도구(danger 2) — 처음 한 번 눌러 표를 채운다.
+//       기존 내용을 지우고 다시 쓰므로 확인을 받는다.
+//
+//  ※ 앱은 접속한 **오늘 요일**만 먼저 보여준다. 46종 전체를 한 화면에 띄우면
+//    폰에서 읽을 수가 없다는 것이 이 기능의 출발점이었다.
 // ═══════════════════════════════════════════════════════════════
 //  변경점 v10.6 → v10.7  (한자 인식률)
 //
@@ -464,7 +483,7 @@
 //     '누적기록'을 그대로 찾음 (하위 호환, 리네이밍과 무관)
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION = '10.7';
+const VERSION = '10.8';
 const T2S_MAP = {'國':'国','學':'学','這':'这','個':'个','們':'们','說':'说','話':'话','對':'对','時':'时','間':'间','現':'现','場':'场','開':'开','關':'关','內':'内','東':'东','車':'车','馬':'马','龍':'龙','風':'风','陽':'阳','陰':'阴','電':'电','語':'语','讀':'读','寫':'写','書':'书','紙':'纸','筆':'笔','長':'长','門':'门','問':'问','聽':'听','見':'见','覺':'觉','讓':'让','誰':'谁','還':'还','進':'进','運':'运','動':'动','靜':'静','樂':'乐','藥':'药','華':'华','蘭':'兰','葉':'叶','黃':'黄','麗':'丽','寶':'宝','貴':'贵','財':'财','買':'买','賣':'卖','錢':'钱','銀':'银','鐵':'铁','鋼':'钢','陳':'陈','劉':'刘','張':'张','楊':'杨','蔣':'蒋','鄭':'郑','謝':'谢','呂':'吕','蘇':'苏','韓':'韩','馮':'冯','於':'于','鳳':'凤','雲':'云','劍':'剑','斷':'断','亂':'乱','愛':'爱','聲':'声','醫':'医','藝':'艺','頭':'头','臉':'脸','腳':'脚','氣':'气','樓':'楼','橋':'桥','飛':'飞','機':'机','網':'网','線':'线','條':'条','裡':'里','邊':'边','錯':'错','壞':'坏','舊':'旧','寬':'宽','淺':'浅','週':'周','節':'节','業':'业','後':'后','來':'来','終':'终','結':'结','敗':'败','勝':'胜','負':'负','輸':'输','贏':'赢','強':'强','難':'难','簡':'简','單':'单','複':'复','雜':'杂','純':'纯','淨':'净','髒':'脏','齊':'齐','穩':'稳','變':'变','轉':'转','換':'换','顯':'显','樣':'样','種':'种','類':'类','團':'团','體':'体','統':'统','織':'织','組':'组','構':'构','設':'设','計':'计','劃':'划','數':'数','課':'课','題':'题','試':'试','練':'练','習':'习','師':'师','員':'员','職':'职','務':'务','責':'责','權':'权','應':'应','該':'该','須':'须','願':'愿','夢':'梦','憶':'忆','識':'识','認':'认','歡':'欢','醜':'丑','帥':'帅','靈':'灵','獸':'兽','鷹':'鹰','鶴':'鹤','鴻':'鸿','鱷':'鳄','鯨':'鲸','鯊':'鲨','蝦':'虾','殼':'壳','冑':'胄','戰':'战','爭':'争','鬥':'斗','擊':'击','禦':'御','護':'护','衛':'卫','謀':'谋','陣':'阵','營':'营','軍':'军','隊':'队','將':'将','嬪':'嫔','宮':'宫','廟':'庙','觀':'观','閣':'阁','蓮':'莲','楓':'枫','樺':'桦','檜':'桧','樹':'树','實':'实','幹':'干','莖':'茎','穫':'获','採':'采','鮮':'鲜','籠':'笼','傷':'伤','殺':'杀','斬':'斩','豬':'猪','雞':'鸡','鴨':'鸭','鵝':'鹅','龜':'龟','蟬':'蝉','蟻':'蚁','螞':'蚂','鴉':'鸦','鵰':'雕','鴛':'鸳','鴦':'鸯','賽':'赛','廠':'厂','廣':'广','麼':'么','誒':'诶','歲':'岁','歷':'历','歸':'归','殘':'残','蟲':'虫','貓':'猫','氈':'毡','貫':'贯','質':'质','貨':'货','貼':'贴','費':'费','資':'资','賬':'账','賺':'赚','贈':'赠','賀':'贺','賢':'贤','賦':'赋','賤':'贱','賓':'宾','賴':'赖','齲':'龋','齒':'齿','龄':'齡','齡':'龄','齣':'出','岡':'冈','剛':'刚','剮':'剐','創':'创','劇':'剧','勵':'励','勸':'劝','勻':'匀','匯':'汇','醬':'酱','醞':'酝','釀':'酿','釋':'释','釘':'钉','針':'针','釣':'钓','鈍':'钝','鈴':'铃','鈔':'钞','鉛':'铅','鋸':'锯','鋒':'锋','鍵':'键','鎖':'锁','鑄':'铸','鑼':'锣','錶':'表','鐘':'钟','鏡':'镜','鑽':'钻','鑑':'鉴','閉':'闭','閃':'闪','閏':'闰','閱':'阅','闆':'板','闖':'闯','陸':'陆','隱':'隐','雖':'虽','雙':'双','雛':'雏','靂':'雳','韋':'韦','韌':'韧','頁':'页','頂':'顶','項':'项','順':'顺','頌':'颂','預':'预','頑':'顽','頒':'颁','頗':'颇','領':'领','頡':'颉','頜':'颌','頸':'颈','頻':'频','頹':'颓','顆':'颗','額':'额','顏':'颜','顛':'颠','顧':'顾','飄':'飘','饑':'饥','餃':'饺','餅':'饼','館':'馆','饒':'饶','饞':'馋','馳':'驰','駕':'驾','駛':'驶','駐':'驻','駱':'骆','駭':'骇','騎':'骑','騰':'腾','驅':'驱','驚':'惊','驕':'骄','驗':'验','骯':'肮','髮':'发','鬍':'胡','鬧':'闹','鮑':'鲍','鯉':'鲤','鰲':'鳌','鱉':'鳖','鳥':'鸟','鳴':'鸣','鹹':'咸','麥':'麦','麵':'面','黨':'党'};  // 번체→간체 상용한자 (서체 변환 전용, 다른 뜻 글자는 포함하지 않음)
 const UNIT = '다이아';                 // 재화 단위 표기
 const MAX_MEMBERS = 100;              // 최대 멤버 수 (v10.5: 50 → 100)
@@ -533,6 +552,7 @@ const MEM_COL = { NO:1, NAME:2, STATUS:3, DISPLAY:4, WEIGHT:5, SERVER:6, HANJA:7
 const SERVER_LIST = ['01','02','03','04','05','06','07','08','09','10','11','12'];
 const BOARD_SHEET = '게시판';           // 자유 게시판 + 공지사항
 const ALLIANCE_SHEET = '연합';          // 연합 정산 누적
+const RAID_SHEET = '레이드';            // 보스 등장 시간표 (요일 × 시간)
 const AUDIT_SHEET = '작업기록';         // 등록·분배·정정·삭제 영구 감사 로그 (행 삭제되어도 이력 보존)
 const ST_WAIT = '⏳미분배';
 const ST_DONE = '✅분배완료';
@@ -541,7 +561,7 @@ const BAL_COL = { NAME: 1, PENDING: 2, PAID: 3, CNT: 4, CHECK: 5, AMT: 6 };
 const PROTECT_MODE = 'warn';           // 'warn'=경고 모드 | 'block'=공유자 차단
 
 // 표준 시트 순서입니다 (시즌N 제외 — 시즌은 번호순 정렬 후 맨 뒤에 붙습니다)
-const BASE_SHEET_ORDER = ['사용안내', '멤버DB', INPUT_SHEET, LEDGER_SHEET, '잔액현황', PAYOUT_SHEET, ALLIANCE_SHEET, BOARD_SHEET, AUDIT_SHEET];
+const BASE_SHEET_ORDER = ['사용안내', '멤버DB', INPUT_SHEET, LEDGER_SHEET, '잔액현황', PAYOUT_SHEET, ALLIANCE_SHEET, RAID_SHEET, BOARD_SHEET, AUDIT_SHEET];
 
 // ─────────────────────────────────────────
 // 📐 시트 정돈: 표준 순서 정렬 + 행높이 통일 + (확인 후) 불필요 시트 삭제
@@ -2355,7 +2375,25 @@ function _rebuildGuide(ss) {
     ['   ※ 이름은 "' + LEDGER_SHEET + '"이지만 분배완료 이력도 함께 보관됩니다', 'b'],
     ['🟡 잔액현황 → 멤버별 분배전/분배완료/참여횟수 + 지급✓ 버튼', 'b'],
     ['🔴 지급기록 → 중간정산 지급 이력 자동 저장', 'b'],
+    ['🤝 ' + ALLIANCE_SHEET + ' → 연합 정산 (서버별 누적, 혈맹 잔액과 무관)', 'b'],
+    ['🗡️ ' + RAID_SHEET + ' → 보스 등장 시간표 (요일 × 시간)', 'b'],
+    ['📢 ' + BOARD_SHEET + ' → 게시판·공지', 'b'],
     ['⬜ 시즌1, 시즌2... → 시즌 종료 시 자동 생성되는 보관 기록', 'b'],
+    ['', 'sp'],
+
+    ['🗡️ 보스 시간표 — [' + RAID_SHEET + '] 시트 (v10.8)', 'sec'],
+    ['· 열은 요일 · 시간 · 보스 · 비고 순입니다', 'b'],
+    ['· ⭐ 한 보스가 여러 요일에 나오면 요일마다 한 줄로 넣으세요', 'b'],
+    ['  ("월,수,금" 처럼 한 칸에 몰아 넣으면 앱이 요일로 가려낼 수 없습니다)', 'b'],
+    ['· 요일은 월·화·수·목·금·토·일 중 하나 ("월요일" 도 인식합니다)', 'b'],
+    ['· 시간은 24시간 형식 HH:MM (예 20:20) — 앱에서 오전/오후로 보여줍니다', 'b'],
+    ['· 앱 [🗡️ 레이드] 탭은 접속한 그날 요일 것만 먼저 보여줍니다', 'b'],
+    ['  (요일 칩을 누르면 다른 요일도 미리 볼 수 있습니다)', 'b'],
+    ['· 관리자·마스터관리자 모두 앱에서 추가·수정·삭제할 수 있습니다', 'b'],
+    ['💡 처음이라면 앱 [⚙️ 관리] → 관리 도구 →', 'b'],
+    ['   [🗡️ 보스 시간표 기본값 채우기] 를 한 번 실행하세요', 'b'],
+    ['※ 이 도구는 기존 내용을 지우고 다시 씁니다 — 손으로 고쳐둔 것이', 'warn'],
+    ['   있으면 먼저 다른 곳에 복사해두세요', 'warn'],
     ['', 'sp'],
 
     ['👥 멤버 관리 — 멤버DB B열만 수정하면 끝', 'sec'],
@@ -4129,6 +4167,35 @@ function _toolRegistry() {
       }
     },
 
+    // 레이드 시간표를 처음 채울 때만 쓴다. 기존 표를 통째로 지우고 다시 쓰므로
+    // 손으로 고쳐둔 것이 있으면 사라진다 — 그래서 danger 2 (확인 후 실행)다.
+    seedRaid: {
+      name: '🗡️ 보스 시간표 기본값 채우기',
+      desc: '[레이드] 시트를 기본 보스 시간표로 채웁니다. 이미 들어 있던 내용은 지워지고 다시 쓰입니다.',
+      danger: 2,
+      inputs: [],
+      run: function (ss, params, email) {
+        const sheet = _getOrCreateRaid(ss);
+        const actor = _getActorEmail(email);
+        const now = new Date();
+        const rows = [];
+        _defaultRaidTable().forEach(function (e) {
+          e.days.forEach(function (d) {
+            rows.push([RAID_DAYS[d - 1], e.time, e.boss, '', actor, now]);
+          });
+        });
+        if (sheet.getLastRow() > 1) {
+          sheet.getRange(2, 1, sheet.getLastRow() - 1, RAID_HEADERS.length).clearContent();
+        }
+        _ensureRows(sheet, rows.length + 1);
+        sheet.getRange(2, 1, rows.length, RAID_HEADERS.length).setValues(rows);
+        sheet.getRange(2, 6, rows.length, 1).setNumberFormat('yyyy-mm-dd hh:mm');
+        _logAction(ss, '레이드기본값', RAID_SHEET, actor, rows.length + '건');
+        return _rc({ ok: true, msg: '✅ 보스 시간표 ' + rows.length + '건을 채웠습니다.' },
+          'raid.seedOk', { n: rows.length });
+      }
+    },
+
     seasonServer: {
       name: '🗺️ 이번 시즌 서버 설정',
       desc: '새 시즌이 시작될 때 이번 시즌의 서버 이름을 지정합니다. 표시 전용이라 정산에는 영향이 없습니다.',
@@ -4770,6 +4837,184 @@ function api_updateMember(name, patch, email) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  ⚔️ 보스 시간표 (v10.8)
+//
+//  요일 × 시간 × 보스. 한 칸에 보스가 여럿이면 여러 줄로 넣는다
+//  (한 줄에 몰아넣으면 나중에 하나만 고칠 수가 없다).
+//
+//  ★ "오늘 뭐가 뜨는지"만 보면 되는 화면이라, 앱은 접속한 요일 것만 보여준다.
+//    전체 표를 그대로 띄우면 폰에서 읽을 수가 없다.
+//  ★ 요일은 1(월)~7(일). 자바스크립트의 getDay()(0=일)와 다르므로 앱에서 변환한다.
+// ═══════════════════════════════════════════════════════════════
+const RAID_HEADERS = ['요일', '시간', '보스', '비고', '수정자', '수정일'];
+const RAID_DAYS = ['월', '화', '수', '목', '금', '토', '일'];
+
+function _buildRaid(ss) {
+  const sheet = ss.insertSheet(RAID_SHEET);
+  [70, 80, 220, 200, 160, 130].forEach(function (w, i) { sheet.setColumnWidth(i + 1, w); });
+  sheet.getRange(1, 1, 1, RAID_HEADERS.length).setValues([RAID_HEADERS])
+    .setBackground('#37474F').setFontColor('#FFF').setFontWeight('bold').setHorizontalAlignment('center');
+  sheet.getRange(1, 1).setNote('월·화·수·목·금·토·일 중 하나입니다.');
+  sheet.getRange(1, 2).setNote('24시간 형식(HH:MM)으로 넣으세요. 예) 20:20\n앱에서는 오전/오후로 바꿔 보여줍니다.');
+  sheet.setFrozenRows(1);
+  sheet.setTabColor('#455A64');
+  return sheet;
+}
+
+function _getOrCreateRaid(ss) {
+  return ss.getSheetByName(RAID_SHEET) || _buildRaid(ss);
+}
+
+/** 'HH:MM' 로 정규화. 못 읽으면 빈 문자열 — 지어내지 않는다. */
+function _normTime(v) {
+  if (v instanceof Date) {
+    return Utilities.formatDate(v, Session.getScriptTimeZone(), 'HH:mm');
+  }
+  const m = String(v || '').trim().match(/^(\d{1,2})\s*[:시]\s*(\d{1,2})?/);
+  if (!m) return '';
+  const h = Math.min(Math.max(Number(m[1]), 0), 23);
+  const mi = Math.min(Math.max(Number(m[2] || 0), 0), 59);
+  return ('0' + h).slice(-2) + ':' + ('0' + mi).slice(-2);
+}
+
+/** 요일 표기를 1(월)~7(일) 숫자로. 못 읽으면 0. */
+function _normDay(v) {
+  const s = String(v || '').trim();
+  const n = Number(s);
+  if (n >= 1 && n <= 7) return n;
+  const i = RAID_DAYS.indexOf(s.replace(/요일$/, ''));
+  return i >= 0 ? i + 1 : 0;
+}
+
+function api_getRaid() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(RAID_SHEET);
+  const rows = [];
+  if (sheet && sheet.getLastRow() > 1) {
+    const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, RAID_HEADERS.length).getValues();
+    vals.forEach(function (r, i) {
+      const day = _normDay(r[0]);
+      const time = _normTime(r[1]);
+      const boss = String(r[2]).trim();
+      // 요일·시간·보스 중 하나라도 없으면 화면에 띄울 수 없다 — 조용히 건너뛴다
+      if (!day || !time || !boss) return;
+      rows.push({ row: i + 2, day: day, time: time, boss: boss, note: String(r[3]).trim() });
+    });
+  }
+  // 시간 → 보스 이름 순. 같은 시간대는 표에 적힌 순서를 존중해 안정 정렬한다
+  rows.sort(function (a, b) { return a.time === b.time ? a.row - b.row : (a.time < b.time ? -1 : 1); });
+  return { rows: rows, days: RAID_DAYS };
+}
+
+function api_addRaid(day, time, boss, note, email) {
+  const d = _normDay(day);
+  const t = _normTime(time);
+  const b = String(boss || '').trim();
+  if (!d) return _rc({ ok: false, msg: '요일을 골라주세요.' }, 'e.badDay');
+  if (!t) return _rc({ ok: false, msg: '시간을 24시간 형식(예 20:20)으로 넣어주세요.' }, 'e.badTime');
+  if (!b) return _rc({ ok: false, msg: '보스 이름을 입력해주세요.' }, 'e.bossEmpty');
+  if (b.length > 40) return _rc({ ok: false, msg: '보스 이름이 너무 깁니다 (40자 이내).' }, 'e.bossLong');
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = _getOrCreateRaid(ss);
+  const actor = _getActorEmail(email);
+  sheet.appendRow([RAID_DAYS[d - 1], t, b, String(note || '').trim(), actor, new Date()]);
+  sheet.getRange(sheet.getLastRow(), 6).setNumberFormat('yyyy-mm-dd hh:mm');
+  _logAction(ss, '레이드추가', b, actor, RAID_DAYS[d - 1] + ' ' + t);
+  return _rc({ ok: true, msg: '✅ ' + RAID_DAYS[d - 1] + '요일 ' + t + ' "' + b + '" 추가했습니다.' },
+    'raid.addOk', { day: RAID_DAYS[d - 1], time: t, boss: b });
+}
+
+function api_updateRaid(row, day, time, boss, note, email) {
+  row = Number(row);
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(RAID_SHEET);
+  if (!sheet || row < 2 || row > sheet.getLastRow()) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+
+  const d = _normDay(day);
+  const t = _normTime(time);
+  const b = String(boss || '').trim();
+  if (!d) return _rc({ ok: false, msg: '요일을 골라주세요.' }, 'e.badDay');
+  if (!t) return _rc({ ok: false, msg: '시간을 24시간 형식(예 20:20)으로 넣어주세요.' }, 'e.badTime');
+  if (!b) return _rc({ ok: false, msg: '보스 이름을 입력해주세요.' }, 'e.bossEmpty');
+
+  const actor = _getActorEmail(email);
+  sheet.getRange(row, 1, 1, RAID_HEADERS.length)
+    .setValues([[RAID_DAYS[d - 1], t, b, String(note || '').trim(), actor, new Date()]]);
+  sheet.getRange(row, 6).setNumberFormat('yyyy-mm-dd hh:mm');
+  _logAction(ss, '레이드수정', b, actor, RAID_DAYS[d - 1] + ' ' + t);
+  return _rc({ ok: true, msg: '✅ ' + RAID_DAYS[d - 1] + '요일 ' + t + ' "' + b + '" 으로 수정했습니다.' },
+    'raid.editOk', { day: RAID_DAYS[d - 1], time: t, boss: b });
+}
+
+function api_deleteRaid(row, email) {
+  row = Number(row);
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(RAID_SHEET);
+  if (!sheet || row < 2 || row > sheet.getLastRow()) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+  const r = sheet.getRange(row, 1, 1, 3).getValues()[0];
+  sheet.deleteRow(row);
+  _logAction(ss, '레이드삭제', String(r[2]), _getActorEmail(email), String(r[0]) + ' ' + _normTime(r[1]));
+  return _rc({ ok: true, msg: '✅ 삭제했습니다.' }, 'raid.delOk');
+}
+
+/**
+ * 기본 보스 시간표 (사용자가 쓰던 표 그대로).
+ * 요일은 1(월)~7(일). 한 칸에 여럿이면 보스마다 한 줄이다.
+ */
+function _defaultRaidTable() {
+  const ALL = [1, 2, 3, 4, 5, 6, 7];
+  return [
+    { time: '00:00', boss: '몽낙', days: ALL },
+    { time: '00:00', boss: '실렌', days: [7] },
+    { time: '00:10', boss: '잊섬(포악드킹)', days: [5, 6] },
+    { time: '08:10', boss: '잊섬(분노드킹)', days: [4, 5] },
+    { time: '13:00', boss: '몽낙', days: ALL },
+    { time: '16:00', boss: '야히5층죽음', days: [1, 3] },
+    { time: '16:00', boss: '발록5층굴라', days: [2, 4] },
+    { time: '16:00', boss: '타락/데몬', days: [5] },
+    { time: '16:00', boss: '여왕개미', days: [1, 2, 3, 4, 5] },
+    { time: '16:10', boss: '잊섬(분노드킹)', days: [4, 5] },
+    { time: '19:10', boss: '커츠', days: ALL },
+    { time: '19:10', boss: '오만1층2층', days: ALL },
+    { time: '19:15', boss: '아르피어', days: ALL },
+    { time: '19:15', boss: '오만3층4층', days: ALL },
+    { time: '19:20', boss: '오만5층6층', days: ALL },
+    { time: '19:20', boss: '마토르', days: ALL },
+    { time: '19:20', boss: '피닉스', days: [1, 3, 5, 7] },
+    { time: '19:20', boss: '타곤', days: [2, 4, 6] },
+    { time: '20:00', boss: '황혼산맥', days: [5, 6] },
+    { time: '20:10', boss: '네크로멘서', days: ALL },
+    { time: '20:10', boss: '알스카리아', days: ALL },
+    { time: '20:15', boss: '오만7층8층9층', days: ALL },
+    { time: '20:20', boss: '오만10층', days: ALL },
+    { time: '20:20', boss: '데스나이트', days: [1, 2, 3, 4, 5, 6] },
+    { time: '20:20', boss: '칠흑데스', days: [7] },
+    { time: '20:20', boss: '라이오스', days: ALL },
+    { time: '20:20', boss: '다이아몬드골렘', days: [1] },
+    { time: '20:20', boss: '칼립소', days: [2] },
+    { time: '20:20', boss: '거대드레이크', days: [3] },
+    { time: '20:20', boss: '자이언트웜', days: [4] },
+    { time: '20:20', boss: '대혹장로', days: [5] },
+    { time: '20:20', boss: '샤스키', days: [6] },
+    { time: '21:00', boss: '얼음여왕', days: [2] },
+    { time: '21:00', boss: '신수(무화/광신야)', days: [3] },
+    { time: '21:00', boss: '하딘', days: [4] },
+    { time: '21:00', boss: '지룡안타', days: [4] },
+    { time: '21:00', boss: '수룡파푸', days: [5] },
+    { time: '22:00', boss: '심연(라트모르)', days: [4] },
+    { time: '22:00', boss: '신계(메타트론)', days: [6] },
+    { time: '22:10', boss: '잊섬(미노)', days: [3] },
+    { time: '22:10', boss: '잊섬(에가)', days: [3] },
+    { time: '22:30', boss: '라스타바드', days: [1, 2] },
+    { time: '22:30', boss: '심연(락샤르)', days: [3] },
+    { time: '22:30', boss: '디아르', days: [7] },
+    { time: '23:00', boss: '테베(오시)', days: [4] },
+    { time: '23:00', boss: '티칼(제브)', days: [5] }
+  ];
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  📋 혈맹원 일괄 추가 (v10.4)
 //
 //  길드 명단을 사진이나 텍스트로 통째로 받아 한 번에 등록한다.
@@ -5228,6 +5473,7 @@ const API_WRITE_ACTIONS = ['register', 'distribute', 'payout', 'rename', 'addMem
                            'correctItem', 'deleteItem', 'undoPayout', 'runTool',
                            'deletePost', 'addAlliance', 'creditAlliance', 'deleteAlliance', 'updateMember',
                            'bulkAddMembers',
+                           'addRaid', 'updateRaid', 'deleteRaid',
                            'setAppName', 'setAdminPin', 'setSeasonServer'];
 
 // 마스터관리자(개발자)만 부를 수 있는 작업 — Vercel 의 requireMaster 가 지킨다.
@@ -5464,6 +5710,20 @@ function _apiRoute(action, req) {
 
     case 'deleteAlliance':
       return api_deleteAlliance(req.row, req.email);
+
+    /* ── v10.8 레이드 시간표 ── */
+
+    case 'raid':
+      return { ok: true, data: api_getRaid() };
+
+    case 'addRaid':
+      return api_addRaid(req.day, req.time, req.boss, req.note, req.email);
+
+    case 'updateRaid':
+      return api_updateRaid(req.row, req.day, req.time, req.boss, req.note, req.email);
+
+    case 'deleteRaid':
+      return api_deleteRaid(req.row, req.email);
 
     case 'countPhoto':
       return api_countPhoto(req.base64);

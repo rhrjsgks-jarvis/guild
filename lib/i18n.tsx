@@ -100,6 +100,18 @@ const DICT: Record<string, Entry> = {
   'c.done': ['완료', '完成', 'Paid'],
   'c.joined': ['참여', '参与', 'Joined'],
   'c.fundName': ['혈맹운영비', '血盟运营费', 'Guild fund'],
+  'c.edit': ['수정', '修改', 'Edit'],
+  'tab.raid': ['레이드', '副本', 'Raids'],
+
+  /* ── 공유 버튼 (v10.8) ── */
+  'sh.share': ['공유', '分享', 'Share'],
+  'sh.copied': ['📋 복사했습니다. 붙여넣기 하세요.', '📋 已复制，可以粘贴了。', '📋 Copied — paste it anywhere.'],
+  'sh.failed': [
+    '내보내지 못했습니다. 화면을 길게 눌러 직접 복사해주세요.',
+    '导出失败，请长按屏幕手动复制。',
+    'Could not export — long-press the screen and copy manually.',
+  ],
+  'sh.empty': ['공유할 내용이 없습니다.', '没有可分享的内容。', 'Nothing to share.'],
 
   /* ── 잔액 탭 ── */
   'bal.waitingItems': ['⏳ 미분배 아이템', '⏳ 未分配物品', '⏳ Undistributed'],
@@ -284,6 +296,57 @@ const DICT: Record<string, Entry> = {
     '구글시트 쪽 코드가 아직 v10.0 이 아니면 [연합] 기능이 없습니다. Apps Script 에 새 코드를 붙여넣고 [배포 관리] → 새 버전으로 배포한 뒤 다시 열어주세요.',
     '如果表格端代码还不是 v10.0，就没有[联盟]功能。请把新代码粘贴到 Apps Script，通过[管理部署]→新版本部署后再打开。',
     'Alliance needs sheet code v10.0. Paste the new code into Apps Script, deploy a new version under [Manage deployments], then reopen.',
+  ],
+
+  /* ── 레이드 (보스 시간표, v10.8) ── */
+  'raid.title': ['보스 시간표', '首领时间表', 'Boss timetable'],
+  'raid.d1': ['월', '周一', 'Mon'],
+  'raid.d2': ['화', '周二', 'Tue'],
+  'raid.d3': ['수', '周三', 'Wed'],
+  'raid.d4': ['목', '周四', 'Thu'],
+  'raid.d5': ['금', '周五', 'Fri'],
+  'raid.d6': ['토', '周六', 'Sat'],
+  'raid.d7': ['일', '周日', 'Sun'],
+  'raid.am': ['오전', '上午', 'AM'],
+  'raid.pm': ['오후', '下午', 'PM'],
+  'raid.pickDay': ['요일 고르기', '选择星期', 'Pick a day'],
+  'raid.todaySect': ['📅 오늘 ({d}) 등장 보스', '📅 今天（{d}）出现的首领', '📅 Today ({d})'],
+  'raid.daySect': ['📅 {d} 등장 보스', '📅 {d} 出现的首领', '📅 {d}'],
+  'raid.empty': ['이 요일에 등록된 보스가 없습니다.', '这一天没有登记的首领。', 'No bosses listed for this day.'],
+  'raid.add': ['보스 추가', '添加首领', 'Add a boss'],
+  'raid.addTitle': ['🗡️ 보스 추가', '🗡️ 添加首领', '🗡️ Add a boss'],
+  'raid.editTitle': ['🗡️ 보스 수정', '🗡️ 修改首领', '🗡️ Edit boss'],
+  'raid.sheetSub': [
+    '여러 요일에 나오는 보스는 요일마다 한 번씩 넣어주세요.',
+    '在多个星期出现的首领，请按星期分别添加。',
+    'A boss that appears on several days needs one entry per day.',
+  ],
+  'raid.day': ['요일', '星期', 'Day'],
+  'raid.time': ['시간', '时间', 'Time'],
+  'raid.timeHint': [
+    '게임 안 시계 기준으로 넣으세요. 화면에는 오전/오후로 보여줍니다.',
+    '请按游戏内时间填写，界面上会显示为上午/下午。',
+    'Use the in-game clock. The list shows it as AM/PM.',
+  ],
+  'raid.boss': ['보스 이름', '首领名称', 'Boss name'],
+  'raid.bossPh': ['예: 오만10층', '例：傲慢10层', 'e.g. Tower floor 10'],
+  'raid.note': ['비고 (선택)', '备注（可选）', 'Note (optional)'],
+  'raid.notePh': ['예: 젠 간격 3시간', '例：刷新间隔3小时', 'e.g. respawns every 3 h'],
+  'raid.needBoss': ['보스 이름을 입력해주세요.', '请输入首领名称。', 'Enter the boss name.'],
+  'raid.needTime': [
+    '시간을 24시간 형식(예 20:20)으로 넣어주세요.',
+    '请用24小时制填写时间（例 20:20）。',
+    'Enter the time in 24-hour form (e.g. 20:20).',
+  ],
+  'raid.viewerHint': [
+    '시간표는 관리자가 관리합니다. 틀린 부분이 있으면 게시판에 남겨주세요.',
+    '时间表由管理员维护。发现有误请在公告板留言。',
+    'Admins maintain this timetable. Post on the board if something is wrong.',
+  ],
+  'raid.needSheet': [
+    '구글시트 쪽 코드가 아직 v10.8 이 아니면 [레이드] 기능이 없습니다. Apps Script 에 새 코드를 붙여넣고 [배포 관리] → 새 버전으로 배포한 뒤, [⚙️ 관리] → 관리 도구 → [🗡️ 보스 시간표 기본값 채우기] 를 한 번 실행해주세요.',
+    '如果表格端代码还不是 v10.8，就没有[副本]功能。请把新代码粘贴到 Apps Script，通过[管理部署]→新版本部署，然后执行一次[⚙️ 管理]→管理工具→[🗡️ 填入首领时间表默认值]。',
+    'Raids need sheet code v10.8. Paste the new code into Apps Script, deploy a new version under [Manage deployments], then run [⚙️ Admin] → Tools → [🗡️ Fill the default boss timetable] once.',
   ],
 
   /* ── 지난 시즌 ── */
@@ -934,6 +997,36 @@ const DICT: Record<string, Entry> = {
   ],
   's.e.photoFailed': ['사진을 분석하지 못했습니다.', '照片分析失败。', 'Could not analyse the photo.'],
   's.e.payZero': ['"{name}" 분배전 금액이 0입니다.', '「{name}」的待分配金额为 0。', '"{name}" has no unpaid balance.'],
+
+  /* ── 레이드 (v10.8) — {day} 는 시트가 쓰는 '월'·'화' 표기 그대로 온다 ── */
+  's.raid.addOk': [
+    '✅ {day}요일 {time} "{boss}" 추가했습니다.',
+    '✅ 已添加 {day} {time}「{boss}」。',
+    '✅ Added "{boss}" at {time} on {day}.',
+  ],
+  's.raid.editOk': [
+    '✅ {day}요일 {time} "{boss}" 으로 수정했습니다.',
+    '✅ 已改为 {day} {time}「{boss}」。',
+    '✅ Changed to "{boss}" at {time} on {day}.',
+  ],
+  's.raid.delOk': ['✅ 삭제했습니다.', '✅ 已删除。', '✅ Deleted.'],
+  's.raid.seedOk': [
+    '✅ 보스 시간표 {n}건을 채웠습니다.',
+    '✅ 已填入 {n} 条首领时间表。',
+    '✅ Filled the timetable with {n} entries.',
+  ],
+  's.e.badDay': ['요일을 골라주세요.', '请选择星期。', 'Pick a day of the week.'],
+  's.e.badTime': [
+    '시간을 24시간 형식(예 20:20)으로 넣어주세요.',
+    '请用24小时制填写时间（例 20:20）。',
+    'Enter the time in 24-hour form (e.g. 20:20).',
+  ],
+  's.e.bossEmpty': ['보스 이름을 입력해주세요.', '请输入首领名称。', 'Enter the boss name.'],
+  's.e.bossLong': [
+    '보스 이름이 너무 깁니다 (40자 이내).',
+    '首领名称太长（40 字以内）。',
+    'That boss name is too long (40 characters max).',
+  ],
 };
 
 /* ────────────────────────── 컨텍스트 ────────────────────────── */

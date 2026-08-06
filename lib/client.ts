@@ -4,7 +4,11 @@
 
 export type ApiResult = Record<string, unknown> & { ok: boolean; msg?: string };
 
-export async function api(path: string, body?: unknown, method?: 'POST' | 'DELETE'): Promise<ApiResult> {
+export async function api(
+  path: string,
+  body?: unknown,
+  method?: 'POST' | 'PATCH' | 'DELETE',
+): Promise<ApiResult> {
   try {
     const res = await fetch(path, {
       method: method ?? (body === undefined ? 'GET' : 'POST'),
@@ -152,6 +156,24 @@ export function splitName(name: string): { main: string; sub: string } {
  * @param min  이 아래로는 줄이지 않는다 (읽을 수 없어지므로)
  * @param fits 이 폭(전각 글자 기준 개수)까지는 base 를 그대로 쓴다
  */
+/**
+ * 참여자 칩에서 이름이 실제로 쓸 수 있는 가로 폭(px).
+ * 칩 너비에서 체크박스와 여백을 뺀 값이고, 두 줄(국문·한문)이 이 하나를 나눠 쓴다.
+ *
+ * 이 값을 두고 크기를 정하는 이유: 국문과 한문의 기본 크기가 다르기 때문이다.
+ * 예전처럼 "몇 글자까지는 그대로"(fits)를 줄마다 손으로 맞추면, 한쪽 크기를
+ * 바꿀 때 다른 쪽 fits 를 같이 고쳐야 하는데 그걸 잊으면 글자가 삐져나간다.
+ */
+export const CHIP_NAME_PX = 64;
+
+/**
+ * 정해진 **폭(px)** 안에 들어가는 가장 큰 글씨 크기.
+ * `base` 보다 커지지 않고 `min` 보다 작아지지도 않는다.
+ */
+export function fitIn(text: string, maxPx: number, base: number, min: number): number {
+  return fitFont(text, base, min, maxPx / base);
+}
+
 export function fitFont(text: string, base: number, min: number, fits = 4.6): number {
   const width = [...String(text ?? '')].reduce((sum, ch) => {
     // 한글·한자·가나·전각기호는 전각(1), 나머지는 대략 0.55
@@ -253,6 +275,56 @@ export async function prepPhoto(file: File, mode: PhotoMode = 'text'): Promise<s
     }
   }
   return out;
+}
+
+/**
+ * 화면 내용을 밖으로 내보낸다 (v10.8) — 카카오톡·디스코드에 그대로 붙일 용도.
+ *
+ * 폰에서는 `navigator.share` 가 있으면 그걸 쓴다. 공유 시트가 떠서 어느 앱으로
+ * 보낼지 사람이 고르는 편이, 클립보드에 넣고 "복사했습니다" 만 띄우는 것보다
+ * 한 단계 짧다. 데스크톱·미지원 브라우저는 클립보드로 물러선다.
+ *
+ * ★ 사용자가 공유 시트를 그냥 닫는 것은 실패가 아니다 (AbortError).
+ *   그걸 오류로 띄우면 "안 됐나?" 싶어 같은 걸 여러 번 보내게 된다.
+ *
+ * @returns 'shared' 공유 시트로 보냄 · 'copied' 클립보드에 복사 ·
+ *          'cancelled' 사용자가 닫음 · 'failed' 둘 다 안 됨
+ */
+export async function shareText(title: string, text: string): Promise<'shared' | 'copied' | 'cancelled' | 'failed'> {
+  const body = String(text ?? '').trim();
+  if (!body) return 'failed';
+
+  if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+    try {
+      await navigator.share({ title, text: body });
+      return 'shared';
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return 'cancelled';
+      /* 공유가 막힌 환경이면 아래 클립보드로 넘어간다 */
+    }
+  }
+
+  try {
+    await navigator.clipboard.writeText(body);
+    return 'copied';
+  } catch {
+    /* 권한이 없거나 보안 컨텍스트가 아닌 경우 — 옛 방식으로 한 번 더 */
+  }
+
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = body;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok ? 'copied' : 'failed';
+  } catch {
+    return 'failed';
+  }
 }
 
 /** 연합 적립액 — Apps Script 의 `_calcAlliance` 와 같은 산식 */

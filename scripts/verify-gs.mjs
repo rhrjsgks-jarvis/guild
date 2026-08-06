@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v10_7.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v10_8.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 const gs = readFileSync(GS_PATH, 'utf8');
@@ -1352,13 +1352,45 @@ check('이름은 두 줄로 나뉘고 글자 수에 맞춰 줄어든다', () => 
   if (!(fit('선륙소농포', 14, 10) < fit('PlusS', 14, 10))) throw new Error('한글이 라틴보다 넓게 계산되지 않습니다.');
   if (fit('가'.repeat(40), 14, 10) < 10) throw new Error('최소 크기 아래로 줄어듭니다 — 읽을 수 없어집니다.');
 
+  /*
+   * v10.8 — 한자 줄은 국문보다 **크다**. 중국 길드원에게는 한자가 본명이라
+   * 작게 두면 자기 칸을 못 찾는다. 다만 키운 만큼 삐져나가면 안 되므로,
+   * 두 줄이 같은 폭 예산(CHIP_NAME_PX)을 쓰는지 실제로 계산해 확인한다.
+   */
+  vm.runInContext(pick('fitIn'), ctx);
+  const CHIP = Number((src.match(/export const CHIP_NAME_PX = (\d+)/) ?? [])[1]);
+  if (!CHIP) throw new Error('CHIP_NAME_PX 상수가 없습니다.');
+  const fitPx = (text, base, min) => {
+    ctx.__a = text; ctx.__b = base; ctx.__c = min; ctx.__d = CHIP;
+    return vm.runInContext('fitIn(__a, __d, __b, __c)', ctx);
+  };
+  const widthOf = (text) =>
+    [...text].reduce((n, ch) => n + (/[\u1100-\u11ff\u2e80-\u9fff\uac00-\ud7af\uf900-\ufaff\uff00-\uff60]/.test(ch) ? 1 : 0.55), 0);
+
+  // 짧은 한자는 국문(14)보다 크게 나와야 한다
+  if (!(fitPx('斬斷', 19, 12) > fitPx('잠단', 14, 10))) {
+    throw new Error('한자 줄이 국문보다 크지 않습니다.');
+  }
+  // 그리고 어떤 길이에서도 폭 예산을 넘지 않아야 한다 (최소 크기 하한은 예외 — 줄바꿈으로 처리)
+  for (const name of ['斬斷', '卡尔K', '鮮肉小籠包', '車武植']) {
+    const px = fitPx(name, 19, 12);
+    if (px > 19) throw new Error(`${name}: 기본 크기보다 커졌습니다 (${px}).`);
+    if (px > 12 && widthOf(name) * px > CHIP + 0.5) {
+      throw new Error(`${name}: ${px}px 로 ${Math.round(widthOf(name) * px)}px 를 차지해 칩(${CHIP}px)을 넘습니다.`);
+    }
+  }
+
   const items = readFileSync(resolve(ROOT, 'components/ItemsTab.tsx'), 'utf8');
-  if (!/splitName\(m\)/.test(items) || !/fitFont\(/.test(items)) {
+  if (!/splitName\(m\)/.test(items) || !/fitIn\(/.test(items)) {
     throw new Error('참여자 선택 칩이 두 줄 표기를 쓰지 않습니다.');
   }
+  // 잘리느니 줄바꿈이 낫다 — ellipsis 로 뭉개면 다른 사람으로 오인된다
   const css = readFileSync(resolve(ROOT, 'app/globals.css'), 'utf8');
   if (!/\.mchip \.nm/.test(css)) throw new Error('두 줄 이름 스타일이 없습니다.');
-  return '괄호 분리 · (미등록) 예외 · 크기 축소 하한 · 칩 적용';
+  const chipCss = (css.match(/\.mchip \.nm i \{[^}]*\}/) ?? [''])[0];
+  if (/text-overflow/.test(chipCss)) throw new Error('한자 줄을 ellipsis 로 잘라냅니다.');
+
+  return '괄호 분리 · (미등록) 예외 · 크기 축소 하한 · 한자 > 국문 · 폭 예산 4케이스';
 });
 
 check('잔액 목록에 서버 번호가 보인다', () => {
@@ -1423,6 +1455,100 @@ check('사전에 세 언어가 모두 채워져 있다', () => {
   }
   if (bad.length) throw new Error(`언어가 빠진 항목: ${bad.slice(0, 10).join(', ')}`);
   return `${entries.length}개 항목 × 3개 언어`;
+});
+
+check('보스 시간표는 요일별로 나뉘고 못 읽은 값을 지어내지 않는다', () => {
+  // 한 줄에 '월,수,금' 을 몰아 넣으면 오늘 것만 고르는 계산이 불가능해진다.
+  // 그래서 요일마다 한 줄이고, 요일·시간은 정규화 함수를 반드시 거친다.
+  for (const fn of ['api_getRaid', 'api_addRaid', 'api_updateRaid', 'api_deleteRaid', '_normDay', '_normTime']) {
+    if (!new RegExp(`function ${fn}\\b`).test(gs)) throw new Error(`${fn} 이(가) 없습니다.`);
+  }
+
+  // _normDay / _normTime 을 실제로 돌려본다 — "못 읽으면 빈 값" 이 지켜져야 한다
+  const ctx = vm.createContext({
+    RAID_DAYS: ['월', '화', '수', '목', '금', '토', '일'],
+    Utilities: { formatDate: () => '20:20' },
+    Session: { getScriptTimeZone: () => 'Asia/Seoul' },
+  });
+  vm.runInContext(extractFn(gs, '_normDay') + extractFn(gs, '_normTime'), ctx);
+
+  const dayCases = [['월', 1], ['일요일', 7], [3, 3], ['', 0], ['아무거나', 0], [9, 0]];
+  for (const [input, want] of dayCases) {
+    const got = ctx._normDay(input);
+    if (got !== want) throw new Error(`_normDay(${JSON.stringify(input)}) = ${got}, 기대 ${want}`);
+  }
+  const timeCases = [['20:20', '20:20'], ['8:5', '08:05'], ['20시20분', '20:20'], ['', ''], ['저녁쯤', '']];
+  for (const [input, want] of timeCases) {
+    const got = ctx._normTime(input);
+    if (got !== want) throw new Error(`_normTime(${JSON.stringify(input)}) = ${JSON.stringify(got)}, 기대 ${JSON.stringify(want)}`);
+  }
+
+  // 읽을 수 없는 줄을 화면에 올리면 "요일 없는 보스"가 목록에 낀다
+  const get = (gs.match(/function api_getRaid[\s\S]*?\n\}\n/) ?? [''])[0];
+  if (!/if \(!day \|\| !time \|\| !boss\) return;/.test(get)) {
+    throw new Error('요일·시간·보스가 빈 줄을 건너뛰지 않습니다.');
+  }
+
+  // 라우터·쓰기목록
+  for (const action of ['raid', 'addRaid', 'updateRaid', 'deleteRaid']) {
+    if (!new RegExp(`case '${action}':`).test(gs)) throw new Error(`라우터에 ${action} 이(가) 없습니다.`);
+  }
+  if (!/'addRaid', 'updateRaid', 'deleteRaid'/.test(gs)) {
+    throw new Error('레이드 쓰기 액션이 API_WRITE_ACTIONS 에 없습니다.');
+  }
+  if (!/const RAID_SHEET\s*=/.test(gs)) throw new Error('RAID_SHEET 상수가 없습니다.');
+  if (!/const BASE_SHEET_ORDER[^\n]*RAID_SHEET/.test(gs)) {
+    throw new Error('[레이드] 시트가 시트 순서(BASE_SHEET_ORDER)에 없습니다.');
+  }
+
+  // 편집은 관리자 이상 — app/api/admin/raid 아래에 있어야 인증이 강제된다
+  const route = readFileSync(resolve(ROOT, 'app/api/admin/raid/route.ts'), 'utf8');
+  for (const method of ['POST', 'PATCH', 'DELETE']) {
+    if (!new RegExp(`export async function ${method}`).test(route)) throw new Error(`관리자 라우트에 ${method} 가 없습니다.`);
+  }
+  const pub = readFileSync(resolve(ROOT, 'app/api/raid/route.ts'), 'utf8');
+  if (/export async function (POST|PATCH|DELETE)/.test(pub)) {
+    throw new Error('공개 /api/raid 에 쓰기 메서드가 있습니다 — 인증 없이 시간표가 바뀝니다.');
+  }
+  if (!/dropIfFresh\(req, 'raid'\)/.test(pub)) throw new Error('/api/raid 가 fresh 조회를 지원하지 않습니다.');
+
+  // 앱: 오늘 요일이 기본이고, 시트(1=월)와 getDay()(0=일)의 차이를 변환해야 한다
+  const tab = readFileSync(resolve(ROOT, 'components/RaidTab.tsx'), 'utf8');
+  if (!/js === 0 \? 7 : js/.test(tab)) throw new Error('getDay()(0=일) → 시트 요일(1=월) 변환이 없습니다.');
+  if (!/useState\(\(\) => todayDay\(\)\)/.test(tab)) throw new Error('기본 요일이 오늘이 아닙니다.');
+
+  return `요일·시간 정규화 ${dayCases.length + timeCases.length}케이스 · 빈 줄 제외 · 라우터 4종 · 공개 라우트 읽기 전용`;
+});
+
+check('공유 버튼은 게시판·관리 탭에 없다', () => {
+  // 게시판 글은 그 자체가 이미 공유물이고, 관리 탭에는 PIN·도구처럼
+  // 밖으로 나가면 안 되는 것이 섞여 있다.
+  const want = ['BalanceTab', 'ItemsTab', 'AllianceTab', 'RaidTab', 'MeTab'];
+  const forbid = ['BoardTab', 'AdminTab', 'ToolsCard', 'MasterCard', 'RosterCard', 'LedgerCard'];
+
+  for (const name of want) {
+    const src = readFileSync(resolve(ROOT, `components/${name}.tsx`), 'utf8');
+    if (!/<ShareBtn/.test(src)) throw new Error(`${name} 에 공유 버튼이 없습니다.`);
+  }
+  for (const name of forbid) {
+    const src = readFileSync(resolve(ROOT, `components/${name}.tsx`), 'utf8');
+    if (/<ShareBtn/.test(src)) throw new Error(`${name} 에 공유 버튼이 있습니다 — 여기는 공유 대상이 아닙니다.`);
+  }
+
+  // 공유 시트를 그냥 닫은 것을 실패로 알리면 같은 걸 여러 번 보내게 된다
+  if (!/AbortError/.test(clientTs)) throw new Error('공유 취소(AbortError)를 실패와 구분하지 않습니다.');
+  const btn = readFileSync(resolve(ROOT, 'components/ShareBtn.tsx'), 'utf8');
+  if (!/r === 'copied'/.test(btn)) throw new Error('클립보드로 물러섰을 때 사용자에게 알리지 않습니다.');
+
+  // 탭 순서 (사용자가 지정한 순서 그대로)
+  const app = readFileSync(resolve(ROOT, 'components/App.tsx'), 'utf8');
+  const order = [...app.matchAll(/\{ id: '(\w+)', icon:/g)].map((m) => m[1]);
+  const expected = ['balance', 'items', 'alliance', 'raid', 'me', 'board', 'admin'];
+  if (order.join(',') !== expected.join(',')) {
+    throw new Error(`탭 순서가 다릅니다: ${order.join(' ')} (기대 ${expected.join(' ')})`);
+  }
+
+  return `공유 ${want.length}곳 · 제외 ${forbid.length}곳 · 탭 순서 ${expected.length}개`;
 });
 
 check('화면에 한국어가 직접 박혀 있지 않다', () => {

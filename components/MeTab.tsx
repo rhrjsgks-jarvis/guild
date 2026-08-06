@@ -4,13 +4,20 @@ import { useEffect, useState } from 'react';
 import type { GuildState, LookupResult } from '@/lib/types';
 import { api, fmt, getStoredName, setStoredName } from '@/lib/client';
 import { useT } from '@/lib/i18n';
+import ShareBtn from './ShareBtn';
 
 /**
  * 내 다이아 조회. 전체 목록은 [잔액] 탭에도 있지만,
  * 여기서는 공유 캐시를 거치지 않고 시트에서 바로 읽어온다
  * (지급받은 직후 내 숫자가 맞는지 확인하는 용도라 신선도가 중요하다).
  */
-export default function MeTab({ state }: { state: GuildState }) {
+export default function MeTab({
+  state,
+  toast,
+}: {
+  state: GuildState;
+  toast: (msg: string, isError?: boolean) => void;
+}) {
   const { t, unit, srv } = useT();
   const [name, setName] = useState('');
   const [result, setResult] = useState<LookupResult | null>(null);
@@ -107,6 +114,19 @@ export default function MeTab({ state }: { state: GuildState }) {
             <div style={{ marginTop: 14, fontSize: 13, color: 'var(--text-dim)' }}>
               {t('me.meta', { s: state.season, n: result.cnt, unit: u })}
             </div>
+            <ShareBtn
+              title={result.name}
+              className="btn ghost block share-mine"
+              build={() =>
+                [
+                  `🙋 ${result.name} — ${t('c.season')} ${state.season}`,
+                  `${t('c.pending')} ${fmt(result.pending)} ${u}`,
+                  `${t('c.paid')} ${fmt(result.paid)} ${u}`,
+                  `${t('c.joined')} ${t('c.times', { n: result.cnt })}`,
+                ].join('\n')
+              }
+              toast={toast}
+            />
           </div>
         </div>
       ) : null}

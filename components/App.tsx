@@ -10,6 +10,7 @@ import BalanceTab from './BalanceTab';
 import ItemsTab from './ItemsTab';
 import BoardTab from './BoardTab';
 import AllianceTab from './AllianceTab';
+import RaidTab from './RaidTab';
 import MeTab from './MeTab';
 import AdminTab from './AdminTab';
 import DistributeSheet from './DistributeSheet';
@@ -28,14 +29,21 @@ const DEFAULT_APP_NAME = '길드정산';
  */
 const POLL_MS = 25_000;
 
-type Tab = 'balance' | 'items' | 'board' | 'alliance' | 'me' | 'admin';
+type Tab = 'balance' | 'items' | 'alliance' | 'raid' | 'me' | 'board' | 'admin';
 
+/**
+ * 아래 탭 줄의 순서 (v10.8).
+ *
+ * 자주 여는 것부터 왼쪽에 둔다 — 잔액·아이템은 매일, 게시판은 가끔이다.
+ * 관리는 항상 맨 끝: 엄지가 닿기 쉬운 자리에 두면 잘못 눌린다.
+ */
 const TABS: { id: Tab; icon: string; key: string }[] = [
   { id: 'balance', icon: '💰', key: 'tab.balance' },
   { id: 'items', icon: '📦', key: 'tab.items' },
-  { id: 'board', icon: '📋', key: 'tab.board' },
   { id: 'alliance', icon: '🤝', key: 'tab.alliance' },
+  { id: 'raid', icon: '🗡️', key: 'tab.raid' },
   { id: 'me', icon: '🙋', key: 'tab.me' },
+  { id: 'board', icon: '📋', key: 'tab.board' },
   { id: 'admin', icon: '⚙️', key: 'tab.admin' },
 ];
 
@@ -262,7 +270,9 @@ export default function App() {
         </div>
       ) : (
         <main>
-          {tab === 'balance' ? <BalanceTab state={state} admin={admin} onPayout={setPayTarget} /> : null}
+          {tab === 'balance' ? (
+            <BalanceTab state={state} admin={admin} onPayout={setPayTarget} toast={toast} />
+          ) : null}
           {tab === 'items' ? (
             <ItemsTab
               state={state}
@@ -284,7 +294,8 @@ export default function App() {
             />
           ) : null}
           {tab === 'alliance' ? <AllianceTab admin={admin} toast={toast} setBusy={setBusy} /> : null}
-          {tab === 'me' ? <MeTab state={state} /> : null}
+          {tab === 'raid' ? <RaidTab admin={admin} toast={toast} setBusy={setBusy} /> : null}
+          {tab === 'me' ? <MeTab state={state} toast={toast} /> : null}
           {tab === 'admin' ? (
             <AdminTab
               admin={admin}

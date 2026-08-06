@@ -2,10 +2,11 @@
 
 import { useMemo, useRef, useState } from 'react';
 import type { GuildState, LedgerItem, PhotoResult } from '@/lib/types';
-import { api, fitFont, fmt, getStoredEmail, prepPhoto, splitName } from '@/lib/client';
+import { CHIP_NAME_PX, api, fitIn, fmt, getStoredEmail, prepPhoto, splitName } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 import LedgerCard from './LedgerCard';
+import ShareBtn from './ShareBtn';
 
 type PhotoState = {
   preview: string;
@@ -120,7 +121,19 @@ export default function ItemsTab({
 
   return (
     <div className="page">
-      <div className="sect">{admin ? t('items.sectAdmin') : t('items.sect')}</div>
+      <div className="sect-row">
+        <div className="sect">{admin ? t('items.sectAdmin') : t('items.sect')}</div>
+        <ShareBtn
+          title={t('tab.items')}
+          build={() =>
+            [
+              `📦 ${t('items.sect')} (${t('c.cases', { n: state.items.length })})`,
+              ...state.items.map((it) => `· ${it.item} — ${it.date} · ${t('c.persons', { n: it.cnt })}`),
+            ].join('\n')
+          }
+          toast={toast}
+        />
+      </div>
       <div className="card">
         {state.items.length === 0 ? (
           <div className="empty">{t('items.empty')}</div>
@@ -233,13 +246,18 @@ export default function ItemsTab({
                 {selectable.map((m) => {
                   // 국문 위 · 한문 아래. 잘린 이름은 다른 사람으로 오인돼
                   // 엉뚱한 사람이 참여자로 체크되므로, 줄이더라도 끝까지 보여준다.
+                  //
+                  // ★ 한자를 국문보다 **크게** 잡는다 (v10.8). 중국 길드원에게는
+                  //   이쪽이 본명이라 여기가 안 읽히면 자기 칸을 못 찾는다.
+                  //   괄호는 붙이지 않는다 — 폭을 20% 넘게 먹는데, 두 줄로 나뉜
+                  //   자리와 색만으로도 한자 표기인 것은 이미 드러난다.
                   const { main, sub } = splitName(m);
                   return (
                     <label key={m} className={'mchip' + (picked.has(m) ? ' sel' : '')}>
                       <input type="checkbox" checked={picked.has(m)} onChange={() => toggle(m)} />
                       <span className="nm">
-                        <b style={{ fontSize: fitFont(main, 14, 10) }}>{main}</b>
-                        {sub ? <i style={{ fontSize: fitFont(`(${sub})`, 12, 9) }}>({sub})</i> : null}
+                        <b style={{ fontSize: fitIn(main, CHIP_NAME_PX, 14, 10) }}>{main}</b>
+                        {sub ? <i style={{ fontSize: fitIn(sub, CHIP_NAME_PX, 19, 12) }}>{sub}</i> : null}
                       </span>
                     </label>
                   );

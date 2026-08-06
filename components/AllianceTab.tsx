@@ -6,6 +6,7 @@ import type { AllianceRow, AllianceState } from '@/lib/types';
 import { api, calcAlliance, fmt, getStoredEmail, prepPhoto } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
+import ShareBtn from './ShareBtn';
 
 /**
  * 연합 정산 — 혈맹 내부 분배와 완전히 분리된 장부다.
@@ -87,7 +88,21 @@ export default function AllianceTab({
 
   return (
     <div className="page">
-      <div className="sect">🤝 {t('ali.title')}</div>
+      <div className="sect-row">
+        <div className="sect">🤝 {t('ali.title')}</div>
+        <ShareBtn
+          title={t('tab.alliance')}
+          build={() =>
+            [
+              `🤝 ${t('ali.title')} — ${t('c.total')} ${fmt(grand)} ${u}`,
+              ...(data?.totals ?? []).map(
+                (s) => `· ${t('ali.serverN', { s: s.server })}  ${fmt(s.credited)} ${u} (${t('c.cases', { n: s.count })})`,
+              ),
+            ].join('\n')
+          }
+          toast={toast}
+        />
+      </div>
 
       {admin ? (
         <button className="btn block" onClick={() => setAdding(true)}>

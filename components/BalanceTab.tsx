@@ -4,15 +4,18 @@ import { useMemo, useState } from 'react';
 import type { BalanceRow, GuildState } from '@/lib/types';
 import { fmt, normName, splitName } from '@/lib/client';
 import { useT } from '@/lib/i18n';
+import ShareBtn from './ShareBtn';
 
 export default function BalanceTab({
   state,
   admin,
   onPayout,
+  toast,
 }: {
   state: GuildState;
   admin: boolean;
   onPayout: (row: BalanceRow) => void;
+  toast: (msg: string, isError?: boolean) => void;
 }) {
   const { t, unit } = useT();
   const [q, setQ] = useState('');
@@ -50,6 +53,21 @@ export default function BalanceTab({
     return { list: filtered, totalPending: tp, totalPaid: td, owedCount: owed };
   }, [state.rows, q, onlyOwed]);
 
+  /**
+   * 공유용 글 — 지금 화면에 보이는 목록 그대로 내보낸다.
+   *
+   * 검색어·필터를 걸어둔 채 누르면 그 결과만 나가는 것이 맞다. 전체를 내보내면
+   * "지급할 사람만 뽑아 보내려던 것"이 명단 전체가 돼버린다.
+   */
+  function buildShare(): string {
+    const head = `💰 ${t('tab.balance')} (${t('c.season')} ${state.season})`;
+    const lines = list.map(
+      (r) => `${splitName(r.name).main}  ${t('c.pending')} ${fmt(r.pending)} / ${t('c.paid')} ${fmt(r.paid)}`,
+    );
+    const foot = `${t('bal.pendingTotal')} ${fmt(totalPending)} ${u}`;
+    return [head, ...lines, '', foot].join('\n');
+  }
+
   return (
     <div className="page">
       <div className="dash">
@@ -67,7 +85,10 @@ export default function BalanceTab({
         </div>
       </div>
 
-      <div className="sect">{t('bal.sect', { v: `${fmt(totalPaid)} ${u}` })}</div>
+      <div className="sect-row">
+        <div className="sect">{t('bal.sect', { v: `${fmt(totalPaid)} ${u}` })}</div>
+        <ShareBtn title={t('tab.balance')} build={buildShare} toast={toast} />
+      </div>
 
       <div className="card">
         <div className="field">

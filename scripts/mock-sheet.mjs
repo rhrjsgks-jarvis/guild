@@ -25,7 +25,7 @@ const MAX_MEMBERS = 100;   // .gs 의 MAX_MEMBERS 와 반드시 같아야 한다
 const ST_WAIT = '⏳미분배';
 const ST_DONE = '✅분배완료';
 // 앱이 기대하는 버전과 같은 값 — 화면에 "버전 불일치" 경고가 뜨지 않아야 정상이다
-let MOCK_GS_VERSION = '10.7';
+let MOCK_GS_VERSION = '10.8';
 
 /**
  * .gs 의 `_rc` 와 같은 모양으로 결과에 코드·값을 붙인다.
@@ -43,6 +43,7 @@ const WRITE_ACTIONS = ['register', 'distribute', 'payout', 'rename', 'addMember'
                        'correctItem', 'deleteItem', 'undoPayout', 'runTool',
                        'deletePost', 'addAlliance', 'creditAlliance', 'deleteAlliance', 'updateMember',
                        'bulkAddMembers',
+                       'addRaid', 'updateRaid', 'deleteRaid',
                        'setAppName', 'setAdminPin', 'setSeasonServer'];
 
 /**
@@ -103,6 +104,21 @@ function freshState() {
       { row: 3, date: '08/05 21:00', server: '05', item: '연합 레이드', amount: 0, pct: 0, people: 18, credited: 0, photo: '', done: false },
     ],
     nextAllianceRow: 4,
+    // 보스 시간표 (v10.8) — 요일은 1(월)~7(일). 요일마다 한 줄이다.
+    raid: [
+      { row: 2, day: 1, time: '20:20', boss: '다이아몬드골렘', note: '' },
+      { row: 3, day: 2, time: '20:20', boss: '칼립소', note: '' },
+      { row: 4, day: 3, time: '20:20', boss: '거대드레이크', note: '' },
+      { row: 5, day: 4, time: '20:20', boss: '자이언트웜', note: '' },
+      { row: 6, day: 5, time: '20:20', boss: '대혹장로', note: '' },
+      { row: 7, day: 6, time: '20:20', boss: '샤스키', note: '' },
+      { row: 8, day: 7, time: '20:20', boss: '칠흑데스', note: '' },
+      // 요일 전체에 나오는 보스 — 어느 요일을 눌러도 하나는 보이게 해 둔다
+      ...[1, 2, 3, 4, 5, 6, 7].map((d, i) => ({ row: 9 + i, day: d, time: '19:10', boss: '커츠', note: '' })),
+      // 같은 시간에 둘 이상 겹치는 경우 (묶어서 보여주는지 확인용)
+      ...[1, 2, 3, 4, 5, 6, 7].map((d, i) => ({ row: 16 + i, day: d, time: '19:10', boss: '오만1층2층', note: '' })),
+    ],
+    nextRaidRow: 23,
     adminPinOverride: '',
     renames: [
       { at: '07/12 09:30', before: '옛닉네임', after: '가이', by: 'admin@example.com', merged: false, detail: '"옛닉네임" → "가이"' },
@@ -120,12 +136,28 @@ const TOOLS = [
   { id: 'discord', name: '🔗 디스코드 알림 설정', desc: '등록·분배 시 자동 알림을 보냅니다.', danger: 1, confirm: '', inputs: [{ key: 'url', label: '웹훅 주소' }] },
   { id: 'importSeasons', name: '📚 지난 시즌 기록만 가져오기', desc: '옛 파일의 [시즌N] 시트만 복사합니다.', danger: 2, confirm: '', inputs: [{ key: 'url', label: '옛 스프레드시트 주소' }] },
   { id: 'seasonServer', name: '🗺️ 이번 시즌 서버 설정', desc: '이번 시즌의 서버 이름을 지정합니다.', danger: 1, confirm: '', inputs: [{ key: 'server', label: '서버 이름' }] },
+  { id: 'seedRaid', name: '🗡️ 보스 시간표 기본값 채우기', desc: '[레이드] 시트를 기본 보스 시간표로 채웁니다.', danger: 2, confirm: '', inputs: [] },
   { id: 'renameFund', name: '🏦 혈비 계정을 혈맹운영비로 통일', desc: 'v9 이하의 계정명을 v10 이름으로 바꿉니다.', danger: 2, confirm: '', inputs: [] },
   { id: 'seasonEnd', name: '🏁 시즌 종료', desc: '기록을 보존하고 초기화합니다.', danger: 3, confirm: '시즌종료', inputs: [] },
   { id: 'importData', name: '📥 기존 파일에서 가져오기', desc: '쓰던 시트의 데이터를 옮깁니다.', danger: 3, confirm: '가져오기', inputs: [{ key: 'url', label: '기존 스프레드시트 주소' }] },
   { id: 'install', name: '🚀 최초 설치', desc: '빈 시트에 구조를 만듭니다.', danger: 3, confirm: '설치', inputs: [] },
   { id: 'factoryReset', name: '⚠️ 공장 초기화', desc: '전부 삭제하고 처음 상태로 되돌립니다.', danger: 3, confirm: '전부삭제', inputs: [] },
 ];
+
+const RAID_DAYS = ['월', '화', '수', '목', '금', '토', '일'];
+
+/** .gs 의 api_addRaid / api_updateRaid 와 같은 순서로 검사한다 */
+function checkRaid(day, time, boss) {
+  const d = Number(day);
+  if (!Number.isInteger(d) || d < 1 || d > 7) return rc({ ok: false, msg: '요일을 골라주세요.' }, 'e.badDay');
+  if (!/^([01]?\d|2[0-3]):[0-5]\d$/.test(String(time || ''))) {
+    return rc({ ok: false, msg: '시간을 24시간 형식(예 20:20)으로 넣어주세요.' }, 'e.badTime');
+  }
+  const b = String(boss || '').trim();
+  if (!b) return rc({ ok: false, msg: '보스 이름을 입력해주세요.' }, 'e.bossEmpty');
+  if (b.length > 40) return rc({ ok: false, msg: '보스 이름이 너무 깁니다 (40자 이내).' }, 'e.bossLong');
+  return null;
+}
 
 /** 보관된 시즌 기록 (실제 시트의 섹션 구조를 흉내낸다) */
 const SEASONS = [
@@ -582,6 +614,18 @@ const handlers = {
       S.seasonServer = String(params?.server || '').trim();
       return { ok: true, msg: S.seasonServer ? `✅ 이번 시즌 서버를 "${S.seasonServer}" 로 설정했습니다.` : '✅ 시즌 서버명을 비웠습니다.' };
     }
+    if (id === 'seedRaid') {
+      // 실제 시트와 같이 통째로 지우고 다시 채운다
+      S.raid = [];
+      let row = 2;
+      [
+        { time: '19:10', boss: '커츠', days: [1, 2, 3, 4, 5, 6, 7] },
+        { time: '20:20', boss: '오만10층', days: [1, 2, 3, 4, 5, 6, 7] },
+        { time: '20:20', boss: '칠흑데스', days: [7] },
+      ].forEach((e) => e.days.forEach((d) => S.raid.push({ row: row++, day: d, time: e.time, boss: e.boss, note: '' })));
+      S.nextRaidRow = row;
+      return rc({ ok: true, msg: `✅ 보스 시간표 ${S.raid.length}건을 채웠습니다.` }, 'raid.seedOk', { n: S.raid.length });
+    }
     if (id === 'renameFund') {
       return { ok: true, msg: `✅ 이미 "${FUND_NAME}" 으로 되어 있습니다. 바꿀 것이 없습니다.` };
     }
@@ -695,6 +739,45 @@ const handlers = {
     const [rec] = S.alliance.splice(i, 1);
     return rc({ ok: true, msg: `✅ 삭제했습니다 — ${rec.server}서버 ${rec.item} ${rec.credited.toLocaleString()}${UNIT}` },
       'ally.delOk', { s: rec.server, item: rec.item, credited: rec.credited });
+  },
+
+  /* ── 레이드 (v10.8) — 실제 시트와 같은 판정을 흉내낸다 ── */
+
+  raid: () => ({
+    ok: true,
+    data: {
+      rows: [...S.raid].sort((a, b) => (a.time === b.time ? a.row - b.row : a.time < b.time ? -1 : 1)),
+      days: RAID_DAYS,
+    },
+  }),
+
+  addRaid: ({ day, time, boss, note }) => {
+    const f = checkRaid(day, time, boss);
+    if (f) return f;
+    const row = S.nextRaidRow++;
+    S.raid.push({ row, day: Number(day), time: String(time), boss: String(boss).trim(), note: String(note || '').trim() });
+    return rc({ ok: true, msg: `✅ ${RAID_DAYS[day - 1]}요일 ${time} "${boss}" 추가했습니다.` },
+      'raid.addOk', { day: RAID_DAYS[day - 1], time, boss });
+  },
+
+  updateRaid: ({ row, day, time, boss, note }) => {
+    const rec = S.raid.find((r) => r.row === Number(row));
+    if (!rec) return rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+    const f = checkRaid(day, time, boss);
+    if (f) return f;
+    rec.day = Number(day);
+    rec.time = String(time);
+    rec.boss = String(boss).trim();
+    rec.note = String(note || '').trim();
+    return rc({ ok: true, msg: `✅ ${RAID_DAYS[day - 1]}요일 ${time} "${boss}" 으로 수정했습니다.` },
+      'raid.editOk', { day: RAID_DAYS[day - 1], time, boss });
+  },
+
+  deleteRaid: ({ row }) => {
+    const i = S.raid.findIndex((r) => r.row === Number(row));
+    if (i < 0) return rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+    S.raid.splice(i, 1);
+    return rc({ ok: true, msg: '✅ 삭제했습니다.' }, 'raid.delOk');
   },
 
   countPhoto: () => ({
@@ -880,13 +963,13 @@ const handlers = {
   // 테스트가 매번 같은 상태에서 시작할 수 있도록
   __reset: () => {
     S = freshState();
-    MOCK_GS_VERSION = '10.7';
+    MOCK_GS_VERSION = '10.8';
     return { ok: true, msg: '초기화됨' };
   },
 
   // "시트만 옛 버전인" 상황을 만들어 보기 위한 것 (테스트 전용)
   __setVersion: ({ version }) => {
-    MOCK_GS_VERSION = String(version || '10.7');
+    MOCK_GS_VERSION = String(version || '10.8');
     return { ok: true, msg: '버전 ' + MOCK_GS_VERSION };
   },
 };
