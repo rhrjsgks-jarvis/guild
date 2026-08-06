@@ -7,7 +7,7 @@
  *
  * 검사 항목은 아래 CHECKS 배열이 전부다. 새 규칙이 생기면 여기에 추가하면 된다.
  */
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
@@ -1667,6 +1667,65 @@ check('공유 버튼은 게시판·관리 탭에 없다', () => {
   }
 
   return `공유 ${want.length}곳 · 제외 ${forbid.length}곳 · 탭 순서 ${expected.length}개`;
+});
+
+check('아이콘을 바꾸면 폰에서도 실제로 바뀐다', () => {
+  /*
+   * 아이콘을 갈았는데 폰에는 옛 그림이 그대로 나오던 일이 있었다.
+   * 원인은 서비스워커였다 — JS·CSS 는 파일명에 빌드 해시가 붙어서 캐시 우선으로
+   * 둬도 되지만, 아이콘과 manifest 는 **주소가 늘 같다.** 한 번 캐시에 들어가면
+   * 파일을 바꿔도 영원히 옛 그림이 나온다.
+   */
+  const sw = readFileSync(resolve(ROOT, 'public/sw.js'), 'utf8');
+  const noHash = sw.match(/const NO_HASH = (\/.*\/);/);
+  if (!noHash) throw new Error('sw.js 에 주소가 고정된 파일 목록(NO_HASH)이 없습니다.');
+
+  const re = new RegExp(noHash[1].slice(1, -1));
+  // 주소가 고정된 것은 네트워크 우선이어야 한다
+  for (const p of ['/manifest.webmanifest', '/favicon.ico', '/icon-192.png', '/icon-512.png', '/apple-icon.png']) {
+    if (!re.test(p)) throw new Error(`${p} 이(가) 네트워크 우선 대상에서 빠졌습니다 — 갱신되지 않습니다.`);
+  }
+  // 해시가 붙은 것까지 네트워크 우선으로 만들면 캐시가 무의미해진다
+  if (re.test('/_next/static/chunks/app/page-a87a505e.js')) {
+    throw new Error('해시가 붙은 자산까지 네트워크 우선입니다 — 캐시가 무의미해집니다.');
+  }
+  if (!/caches\.match\(req\)/.test(sw.slice(sw.indexOf('NO_HASH.test')))) {
+    throw new Error('네트워크가 끊겼을 때 캐시로 물러서지 않습니다.');
+  }
+
+  // 아이콘 파일이 실제로 있고, 빈 껍데기가 아닌지
+  const need = [
+    ['app/icon.png', 5_000],
+    ['app/apple-icon.png', 5_000],
+    ['app/favicon.ico', 1_000],
+    ['public/icon-192.png', 5_000],
+    ['public/icon-512.png', 20_000],
+    ['public/icon-maskable-512.png', 20_000],
+  ];
+  for (const [file, min] of need) {
+    const size = statSync(resolve(ROOT, file)).size;
+    if (size < min) throw new Error(`${file} 이(가) 너무 작습니다 (${size}바이트) — 제대로 만들어지지 않았습니다.`);
+    // 설치할 때마다 받는 파일이라 너무 커도 곤란하다
+    if (size > 400_000) throw new Error(`${file} 이(가) 너무 큽니다 (${Math.round(size / 1024)}KB).`);
+  }
+
+  // manifest 가 가리키는 파일이 전부 있어야 한다 — 없으면 설치 시 아이콘이 비어버린다
+  const mf = JSON.parse(readFileSync(resolve(ROOT, 'public/manifest.webmanifest'), 'utf8'));
+  for (const ic of mf.icons) {
+    statSync(resolve(ROOT, 'public' + ic.src));
+  }
+  /*
+   * ★ maskable 은 안드로이드가 원·사각형 등으로 잘라낸다. 안쪽 80% 밖은 잘려나가므로
+   *   여백을 넣은 별도 파일이어야 한다. 같은 파일을 쓰면 귀가 잘린다.
+   */
+  const any = mf.icons.filter((i) => i.purpose === 'any').map((i) => i.src);
+  const mask = mf.icons.filter((i) => i.purpose === 'maskable').map((i) => i.src);
+  if (mask.length === 0) throw new Error('manifest 에 maskable 아이콘이 없습니다.');
+  if (mask.some((m) => any.includes(m))) {
+    throw new Error('maskable 이 일반 아이콘과 같은 파일입니다 — 잘릴 때 얼굴이 잘려나갑니다.');
+  }
+
+  return `네트워크 우선 5종 · 아이콘 ${need.length}개 · manifest ${mf.icons.length}개 · maskable 분리`;
 });
 
 check('화면에 한국어가 직접 박혀 있지 않다', () => {
