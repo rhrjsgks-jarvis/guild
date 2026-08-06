@@ -252,7 +252,8 @@ function RegisterSheet({
     setBusy(true);
     setPhotoMsg('');
     // 원본을 그대로 보내면 요청이 비대해지고 OCR 도 더 못 읽는다
-    const jpeg = await prepPhoto(file);
+    // 여기는 인원수만 센다 — 이름을 읽지 않으므로 강한 보정이 유리하다
+    const jpeg = await prepPhoto(file, 'count');
     if (!jpeg) {
       setBusy(false);
       toast(t('items.formatFailed'), true);

@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v10_6.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v10_7.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 const gs = readFileSync(GS_PATH, 'utf8');
@@ -1126,11 +1126,52 @@ check('사진 인식: 여러 언어로 읽고, 실패 이유를 감추지 않는
     if (/readAsDataURL/.test(src)) throw new Error(`${f} 에 보정 없는 옛 경로가 남아 있습니다.`);
   }
 
-  // 보정 함수가 실제로 크기를 줄이는지 (숫자를 눈으로만 믿지 않는다)
+  // ★ 한자는 획이 빽빽해서 조금만 줄여도 뭉개지고, 대비를 세게 올리면
+  //   획 사이가 메워져 통글자가 된다. '읽기'용과 '세기'용을 구분해야 한다.
   const client = readFileSync(resolve(ROOT, 'lib/client.ts'), 'utf8');
-  if (!/maxDim = 1600/.test(client)) throw new Error('사진 축소 상한이 없습니다.');
-  if (!/contrast\(160%\)/.test(client)) throw new Error('명암비 보정이 없습니다.');
-  return '3개 언어 · 부분성공 허용 · 설정안내 · 보정 3화면 공유';
+  const prep = (client.match(/export async function prepPhoto[\s\S]*?\n\}/) ?? [''])[0];
+  if (!prep) throw new Error('prepPhoto 를 찾지 못했습니다.');
+  if (!/mode: PhotoMode/.test(prep)) throw new Error('읽기용·세기용을 구분하지 않습니다.');
+
+  const readMax = Number((prep.match(/mode === 'text' \? (\d+) : \d+/) ?? [])[1] ?? 0);
+  if (readMax < 2000) throw new Error(`이름을 읽는 사진을 ${readMax}px 로 줄입니다 — 한자가 뭉개집니다.`);
+  // 대비를 세게 주면 획이 붙는다. 읽기용은 부드러워야 한다.
+  const readFilter = (prep.match(/mode === 'text' \? '([^']+)'/g) ?? []).join(' ');
+  const readContrast = Number((readFilter.match(/contrast\((\d+)%\)/) ?? [])[1] ?? 999);
+  if (readContrast > 130) throw new Error(`읽기용 대비가 ${readContrast}% 입니다 — 한자 획이 서로 붙습니다.`);
+  // 작게 찍힌 화면은 오히려 키워야 읽힌다
+  if (!/minDim/.test(prep)) throw new Error('작은 사진을 키우는 경로가 없습니다.');
+  // 해상도를 올린 만큼 용량 상한을 스스로 맞춰야 한다 (안 그러면 원인 모를 실패)
+  if (!/LIMIT/.test(prep)) throw new Error('용량 상한을 맞추는 경로가 없습니다.');
+  // 세기용은 예전 값을 유지 (줄 수만 세면 되므로 강한 보정이 유리하다)
+  if (!/contrast\(160%\)/.test(prep)) throw new Error('세기용 강한 보정이 사라졌습니다.');
+
+  const ali = readFileSync(resolve(ROOT, 'components/AllianceTab.tsx'), 'utf8');
+  if (!/prepPhoto\(file, 'count'\)/.test(ali)) throw new Error('연합 인원수 세기가 읽기용 보정을 씁니다.');
+
+  return `읽기 ${readMax}px/대비 ${readContrast}% · 세기 별도 · 확대·용량 자동 조절`;
+});
+
+check('OCR 은 한자를 놓친 결과를 더 좋게 보지 않는다', () => {
+  // 글자 수로만 비교하면 한글 패스가 한자 줄을 통째로 놓치고도 이겨버린다.
+  // 실제로 그래서 "한자 인식률이 낮다" 는 문제가 있었다.
+  const ctx = vm.createContext({});
+  vm.runInContext((gs.match(/function _ocrScore[\s\S]*?\n\}/) ?? [''])[0], ctx);
+  const score = (txt) => { ctx.__t = txt; return vm.runInContext('_ocrScore(__t)', ctx); };
+
+  // 한글만 길게 읽은 결과 vs 한자를 제대로 읽은 짧은 결과
+  const koOnly = '가이\n팩맨\n향로셔틀\n마녀\n야수\n비타민';       // 한자 0개
+  const withHan = '가이\n鮮肉小籠包\n金豆握着奶\n曲终人散';          // 한자 13개
+  if (!(score(withHan) > score(koOnly))) {
+    throw new Error(`한자를 읽은 결과가 더 낮게 평가됩니다 (${score(withHan)} vs ${score(koOnly)}).`);
+  }
+
+  const multi = (gs.match(/function _ocrImageMulti[\s\S]*?\n\}\n/) ?? [''])[0];
+  // ★ 예전의 "40자 넘으면 그만" 은 한글만으로도 쉽게 넘어서 한자 패스를 건너뛰었다
+  if (/>= 40/.test(multi)) throw new Error('글자 수만 보고 다음 언어를 건너뜁니다.');
+  if (!/\['ko', 'zh-CN'\]\.forEach/.test(multi)) throw new Error('한글·한자 패스를 항상 돌리지 않습니다.');
+  if (!/_ocrScore\(/.test(multi)) throw new Error('점수로 고르지 않습니다.');
+  return `한자 가중치 확인 (${score(withHan)} > ${score(koOnly)}) · 두 패스 항상 실행`;
 });
 
 check('정원을 올려도 옛 시트에서 터지지 않는다', () => {

@@ -162,18 +162,36 @@ export function fitFont(text: string, base: number, min: number, fits = 4.6): nu
 }
 
 /**
- * 사진을 OCR 이 읽기 좋게 손본다 (v10.6).
+ * 사진 보정 방식 (v10.7).
  *
- * 폰 사진은 4,000px · 수 MB 라, 그대로 base64 로 보내면 요청이 비대해지고
- * 구글 OCR 도 오히려 더 못 읽는다. 게임 스크린샷은 명암비가 낮아서
- * 이 보정 없이는 줄을 통째로 놓친다 (v6.6 에서 실측으로 정한 값).
+ *   'text'  이름을 **읽어야** 할 때 (아이템 참여자·명단 일괄 추가)
+ *   'count' 줄 수만 **세면** 될 때 (연합 인원수)
+ */
+export type PhotoMode = 'text' | 'count';
+
+/**
+ * 사진을 OCR 이 읽기 좋게 손본다.
  *
- * 원래 아이템 탭에만 있던 처리인데, 명단 일괄 추가에서는 원본을 그대로
- * 보내고 있어서 "글자를 못 읽는" 주된 원인이었다. 한 곳으로 모은다.
+ * ★ 한자는 한글보다 훨씬 조심해서 다뤄야 한다.
+ *   `鮮`·`籠` 같은 글자는 같은 크기 안에 획이 몇 배로 들어차 있어서,
+ *   ① 조금만 줄여도 획이 뭉개지고
+ *   ② 대비를 세게 올리면 획 사이 빈 공간이 메워져 통글자가 된다.
+ *   원래 값(1600px 축소 + 대비 160%)은 한글 명단 기준으로 정한 것이라,
+ *   한자가 섞인 명단에서는 오히려 인식률을 떨어뜨리고 있었다.
+ *
+ * 그래서 '읽기'용은 크게·부드럽게, '세기'용만 예전처럼 강하게 간다.
  *
  * @returns data URL (실패하면 빈 문자열)
  */
-export async function prepPhoto(file: File, maxDim = 1600): Promise<string> {
+export async function prepPhoto(file: File, mode: PhotoMode = 'text'): Promise<string> {
+  // 읽기용은 해상도를 최대한 지킨다. 세기용은 줄 수만 세면 되므로 작아도 된다.
+  const maxDim = mode === 'text' ? 2600 : 1600;
+  const minDim = mode === 'text' ? 1500 : 0; // 이보다 작으면 키운다 (작은 글자는 OCR 이 놓친다)
+  const quality = mode === 'text' ? 0.92 : 0.82;
+  // 대비를 세게 주면 한자 획이 서로 붙는다. 읽기용은 최소한만 손댄다.
+  const filter =
+    mode === 'text' ? 'contrast(118%) brightness(104%)' : 'contrast(160%) brightness(112%) saturate(105%)';
+
   const dataUrl = await new Promise<string>((resolve) => {
     const fr = new FileReader();
     fr.onload = () => resolve(String(fr.result));
@@ -191,24 +209,50 @@ export async function prepPhoto(file: File, maxDim = 1600): Promise<string> {
   }
 
   let { width: w, height: h } = img;
-  if (w > maxDim || h > maxDim) {
-    const scale = maxDim / Math.max(w, h);
-    w = Math.round(w * scale);
-    h = Math.round(h * scale);
-  }
+  const long = Math.max(w, h);
+  let scale = 1;
+  if (long > maxDim) scale = maxDim / long;
+  // 작게 찍힌 화면은 오히려 키워야 읽힌다 — OCR 은 글자 높이가 너무 작으면 포기한다
+  else if (minDim && long < minDim) scale = Math.min(minDim / long, 2);
+  w = Math.round(w * scale);
+  h = Math.round(h * scale);
 
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
   if (!ctx) return dataUrl; // 보정만 못 할 뿐, 원본이라도 보내는 편이 낫다
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   try {
-    ctx.filter = 'contrast(160%) brightness(112%) saturate(105%)';
+    ctx.filter = filter;
   } catch {
     /* 미지원 브라우저는 원본 그대로 */
   }
   ctx.drawImage(img, 0, 0, w, h);
-  return canvas.toDataURL('image/jpeg', 0.82);
+
+  /*
+   * 요청 본문에는 상한이 있다. 해상도를 올린 만큼 용량도 커지므로,
+   * 넘치면 화질부터 낮추고 그래도 크면 크기를 줄인다.
+   * 여기서 알아서 맞추지 않으면 "왜 안 되는지 모를 실패"가 된다.
+   */
+  const LIMIT = 2_600_000; // base64 로 부풀어도 서버 상한 안쪽
+  let out = canvas.toDataURL('image/jpeg', quality);
+  for (let q = quality - 0.1; out.length > LIMIT && q >= 0.6; q -= 0.1) {
+    out = canvas.toDataURL('image/jpeg', q);
+  }
+  if (out.length > LIMIT) {
+    const shrunk = document.createElement('canvas');
+    shrunk.width = Math.round(w * 0.7);
+    shrunk.height = Math.round(h * 0.7);
+    const sctx = shrunk.getContext('2d');
+    if (sctx) {
+      sctx.imageSmoothingQuality = 'high';
+      sctx.drawImage(canvas, 0, 0, shrunk.width, shrunk.height);
+      out = shrunk.toDataURL('image/jpeg', 0.8);
+    }
+  }
+  return out;
 }
 
 /** 연합 적립액 — Apps Script 의 `_calcAlliance` 와 같은 산식 */

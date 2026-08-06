@@ -47,6 +47,13 @@ export async function POST(req: Request) {
     if (text.length > 20_000) {
       return Response.json({ ok: false, msg: '붙여넣은 내용이 너무 깁니다.' }, { status: 400 });
     }
+    // 앱이 알아서 줄여 보내지만, 손으로 만든 요청까지 통과시킬 이유는 없다
+    if (base64.length > 3_500_000) {
+      return Response.json(
+        { ok: false, msg: '사진이 너무 큽니다. 명단 부분만 잘라서 다시 찍어주세요.' },
+        { status: 413 },
+      );
+    }
     // 판정은 읽기만 한다 — 캐시를 건드릴 이유가 없다
     const res = await callGas('analyzeMembers', { text, base64 }, { timeoutMs: 55_000 });
     return Response.json(res, { status: res.ok ? 200 : 400 });

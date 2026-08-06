@@ -563,9 +563,9 @@ const DICT: Record<string, Entry> = {
   ],
   'bulk.fromPhoto': ['사진에서 읽기', '从照片识别', 'Read from a photo'],
   'bulk.photoHint': [
-    '게임 명단 스크린샷을 넣으면 글자를 읽어옵니다. 잘 못 읽으면 텍스트로 붙여넣어주세요.',
-    '可以识别游戏名单截图。识别不佳时请直接粘贴文本。',
-    'Reads a roster screenshot. If it reads poorly, paste the text instead.',
+    '게임 명단 스크린샷을 넣으면 글자를 읽어옵니다.\n· 한자 이름은 글자가 작으면 잘 안 읽힙니다 — 명단 부분만 크게 잘라서 넣어주세요\n· 화면을 확대한 뒤 찍거나, 한 번에 다 넣지 말고 나눠서 두세 번 읽는 편이 정확합니다\n· 그래도 빠지면 [인식된 텍스트 보기]로 확인하고 손으로 고쳐주세요',
+    '可以识别游戏名单截图。\n· 汉字名称在字太小时不易识别 — 请把名单部分放大裁切后再上传\n· 先放大屏幕再截图，或分两三次读取会更准确\n· 若仍有遗漏，请用[查看识别文字]确认并手动修正',
+    'Reads a roster screenshot.\n· Hanja names need large glyphs — crop to just the name list\n· Zoom in before capturing, or read the list in two or three batches\n· If names are still missing, open [Show recognised text] and fix them by hand',
   ],
   'bulk.analyze': ['확인하기', '开始检查', 'Check'],
   'bulk.serverLabel': ['서버 지정', '指定服务器', 'Assign a server'],

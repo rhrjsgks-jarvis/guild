@@ -25,7 +25,7 @@ const MAX_MEMBERS = 100;   // .gs 의 MAX_MEMBERS 와 반드시 같아야 한다
 const ST_WAIT = '⏳미분배';
 const ST_DONE = '✅분배완료';
 // 앱이 기대하는 버전과 같은 값 — 화면에 "버전 불일치" 경고가 뜨지 않아야 정상이다
-let MOCK_GS_VERSION = '10.6';
+let MOCK_GS_VERSION = '10.7';
 
 /**
  * .gs 의 `_rc` 와 같은 모양으로 결과에 코드·값을 붙인다.
@@ -110,8 +110,10 @@ function freshState() {
   };
 }
 
-/** 실제 Apps Script 의 _toolRegistry() 와 같은 모양 */
-/** .gs 의 _toolNeedsMaster 와 같은 규칙 — 되돌릴 수 없는 작업은 마스터 전용 */
+/**
+ * 실제 Apps Script 의 _toolRegistry() 와 같은 모양.
+ * master 플래그는 .gs 의 _toolNeedsMaster 와 같은 규칙(위험도 3)으로 붙인다.
+ */
 const TOOLS = [
   { id: 'recalcCounts', name: '🔁 참여횟수 재계산', desc: '등록 이력을 다시 세어 참여횟수를 맞춥니다.', danger: 1, confirm: '', inputs: [] },
   { id: 'tidy', name: '📐 시트 정돈', desc: '시트 순서와 행 높이를 표준으로 되돌립니다.', danger: 1, confirm: '', inputs: [] },
@@ -878,13 +880,13 @@ const handlers = {
   // 테스트가 매번 같은 상태에서 시작할 수 있도록
   __reset: () => {
     S = freshState();
-    MOCK_GS_VERSION = '10.6';
+    MOCK_GS_VERSION = '10.7';
     return { ok: true, msg: '초기화됨' };
   },
 
   // "시트만 옛 버전인" 상황을 만들어 보기 위한 것 (테스트 전용)
   __setVersion: ({ version }) => {
-    MOCK_GS_VERSION = String(version || '10.6');
+    MOCK_GS_VERSION = String(version || '10.7');
     return { ok: true, msg: '버전 ' + MOCK_GS_VERSION };
   },
 };
