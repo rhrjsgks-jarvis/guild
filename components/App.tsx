@@ -267,6 +267,7 @@ export default function App() {
             <ItemsTab
               state={state}
               admin={admin}
+              master={master}
               onDistribute={setDistTarget}
               onDone={refreshNow}
               toast={toast}

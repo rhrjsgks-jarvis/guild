@@ -177,6 +177,8 @@ export type Tool = {
   desc: string;
   /** 1=되돌릴 수 있음 · 2=데이터 변경 · 3=되돌릴 수 없음(확인 문구 필요) */
   danger: number;
+  /** 마스터관리자만 실행할 수 있는가 (되돌릴 수 없는 도구) */
+  master?: boolean;
   /** danger 3 일 때 정확히 입력해야 하는 문구 */
   confirm: string;
   inputs: { key: string; label: string; placeholder?: string }[];

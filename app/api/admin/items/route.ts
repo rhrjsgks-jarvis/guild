@@ -1,5 +1,5 @@
 import { callGas } from '@/lib/gas';
-import { requireAdmin } from '@/lib/auth';
+import { requireAdmin, requireMaster } from '@/lib/auth';
 import { syncStateCache } from '@/lib/fresh';
 
 export const dynamic = 'force-dynamic';
@@ -49,6 +49,14 @@ export async function POST(req: Request) {
   if (op === 'preview') {
     const res = await callGas('previewReverse', { row });
     return Response.json(res, { status: res.ok ? 200 : 400 });
+  }
+
+  // ★ 정정·삭제는 이미 끝난 분배를 되돌리는 작업이다.
+  //   관리자가 잘못 만진 것을 바로잡는 자리이므로 마스터관리자에게 귀속한다.
+  //   (미리보기는 읽기라 관리자도 볼 수 있다 — 무엇이 잘못됐는지는 알아야 하므로)
+  if (op === 'correct' || op === 'delete') {
+    const notMaster = await requireMaster();
+    if (notMaster) return notMaster;
   }
 
   if (op === 'correct') {

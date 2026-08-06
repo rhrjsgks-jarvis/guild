@@ -16,10 +16,13 @@ import { useT } from '@/lib/i18n';
  */
 export default function ToolsCard({
   unit,
+  master,
   onChanged,
   toast,
 }: {
   unit: string;
+  /** 마스터관리자인가 — 되돌릴 수 없는 도구·지급취소는 이 권한이 있어야 한다 */
+  master: boolean;
   onChanged: (res?: ApiResult) => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
@@ -72,10 +75,10 @@ export default function ToolsCard({
                   </strong>
                 </div>
               </div>
-              <button className="btn ghost block" disabled={busy} onClick={() => setUndoing(true)}>
-                {t('tool.undoBtn')}
+              <button className="btn ghost block" disabled={busy || !master} onClick={() => setUndoing(true)}>
+                {master ? t('tool.undoBtn') : `🔒 ${t('tool.undoBtn')}`}
               </button>
-              <p className="hint">{t('tool.undoHint')}</p>
+              <p className="hint">{master ? t('tool.undoHint') : t('tool.masterOnly')}</p>
             </>
           ) : (
             <p className="hint">{t('tool.undoNone')}</p>
@@ -92,29 +95,43 @@ export default function ToolsCard({
             ))}
           </div>
         ) : (
-          tools.map((tl) => (
-            <div className="row" key={tl.id}>
-              <div className="row-main">
-                <div className="row-name">
-                  {tl.name}
-                  {tl.danger >= 3 ? (
-                    <span
-                      className="badge"
-                      style={{ marginLeft: 6, background: 'var(--pending-soft)', color: 'var(--pending)' }}
-                    >
-                      {t('tool.irreversible')}
-                    </span>
-                  ) : null}
+          tools.map((tl) => {
+            // 되돌릴 수 없는 도구는 마스터관리자만. 서버가 최종 판정을 하지만,
+            // 화면에서도 왜 못 누르는지 보여줘야 한다 (막힌 뒤에 알면 늦다).
+            const locked = (tl.master === true || tl.danger >= 3) && !master;
+            return (
+              <div className="row" key={tl.id}>
+                <div className="row-main">
+                  <div className="row-name">
+                    {tl.name}
+                    {tl.danger >= 3 ? (
+                      <span
+                        className="badge"
+                        style={{ marginLeft: 6, background: 'var(--pending-soft)', color: 'var(--pending)' }}
+                      >
+                        {t('tool.irreversible')}
+                      </span>
+                    ) : null}
+                    {tl.master === true || tl.danger >= 3 ? (
+                      <span className="badge" style={{ marginLeft: 6 }}>
+                        👑 {t('c.master')}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="row-sub" style={{ whiteSpace: 'normal', lineHeight: 1.45 }}>
+                    {locked ? t('tool.masterOnly') : tl.desc}
+                  </div>
                 </div>
-                <div className="row-sub" style={{ whiteSpace: 'normal', lineHeight: 1.45 }}>
-                  {tl.desc}
-                </div>
+                <button
+                  className={tl.danger >= 3 ? 'btn danger' : 'btn ghost'}
+                  disabled={locked}
+                  onClick={() => setActive(tl)}
+                >
+                  {locked ? '🔒' : t('c.run')}
+                </button>
               </div>
-              <button className={tl.danger >= 3 ? 'btn danger' : 'btn ghost'} onClick={() => setActive(tl)}>
-                {t('c.run')}
-              </button>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 

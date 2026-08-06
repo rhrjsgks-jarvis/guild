@@ -499,6 +499,16 @@ const DICT: Record<string, Entry> = {
   'led.deleteDo': ['삭제합니다', '确认删除', 'Delete'],
 
   /* ── 관리 도구 ── */
+  'tool.masterOnly': [
+    '👑 마스터관리자만 실행할 수 있습니다. 되돌릴 수 없는 작업이라 등급을 나눠두었습니다.',
+    '👑 只有主管理员可以执行。这是无法撤销的操作，因此做了权限区分。',
+    '👑 Master admin only — this cannot be undone, so it is kept above the admin level.',
+  ],
+  'led.masterOnly': [
+    '👑 정정·삭제는 마스터관리자만 할 수 있습니다. 이미 끝난 분배를 되돌리는 작업이기 때문입니다.',
+    '👑 更正·删除只有主管理员可以操作，因为这会撤销已完成的分配。',
+    '👑 Corrections and deletions are master-only — they reverse a completed distribution.',
+  ],
   'tool.undoSect': ['↩️ 최근 지급 취소', '↩️ 撤销最近发放', '↩️ Undo last payout'],
   'tool.payAmount': ['지급액', '发放金额', 'Amount paid'],
   'tool.undoBtn': ['이 지급 되돌리기', '撤回这笔发放', 'Undo this payout'],

@@ -219,6 +219,16 @@ await t('맞는 PIN → 서명 쿠키 발급', async () => {
   if (!cookie.startsWith('gm_admin=')) throw new Error('gm_admin 쿠키가 없습니다.');
 });
 
+// 정정·삭제·지급취소·되돌릴 수 없는 도구는 마스터 전용이라, 뒤쪽 검사들이
+// 이 쿠키를 쓴다. 등급 자체를 확인하는 검사는 아래쪽에 따로 있다.
+let masterCookie = '';
+await t('마스터 PIN 으로도 쿠키를 받는다', async () => {
+  const res = await post('/api/admin/login', { pin: MASTER_PIN });
+  eq(res.status, 200, 'HTTP 상태');
+  masterCookie = (res.headers.get('set-cookie') ?? '').split(';')[0];
+  if (!masterCookie.startsWith('gm_admin=')) throw new Error('gm_admin 쿠키가 없습니다.');
+});
+
 await t('금액 검증: 음수·소수·초과 지급 거부', async () => {
   for (const amount of [-5, 0, 1.5, 99_999_999]) {
     const res = await post('/api/admin/payout', { name: '가이', amount }, { Cookie: cookie });
@@ -372,7 +382,7 @@ await t('이미 지급된 아이템은 정정이 막힌다', async () => {
 });
 
 await t('정정: 확인 없이는 실행되지 않는다', async () => {
-  const res = await post('/api/admin/items', { op: 'correct', row: 3, newAmount: 6000 }, { Cookie: cookie });
+  const res = await post('/api/admin/items', { op: 'correct', row: 3, newAmount: 6000 }, { Cookie: masterCookie });
   const body = await res.json();
   eq(body.ok, false, 'ok');
   eq(body.needsConfirm, true, 'needsConfirm');
@@ -383,7 +393,7 @@ await t('정정하면 참여자 잔액이 새 금액으로 맞춰진다', async 
   const res = await post(
     '/api/admin/items',
     { op: 'correct', row: 3, newAmount: 6000, confirm: true },
-    { Cookie: cookie },
+    { Cookie: masterCookie },
   );
   eq((await res.json()).ok, true, '정정 결과');
 
@@ -393,14 +403,14 @@ await t('정정하면 참여자 잔액이 새 금액으로 맞춰진다', async 
 });
 
 await t('삭제: 확인 없이는 실행되지 않는다', async () => {
-  const res = await post('/api/admin/items', { op: 'delete', row: 2 }, { Cookie: cookie });
+  const res = await post('/api/admin/items', { op: 'delete', row: 2 }, { Cookie: masterCookie });
   const body = await res.json();
   eq(body.ok, false, 'ok');
   eq(body.needsConfirm, true, 'needsConfirm');
 });
 
 await t('삭제하면 목록에서 사라진다', async () => {
-  const res = await post('/api/admin/items', { op: 'delete', row: 2, confirm: true }, { Cookie: cookie });
+  const res = await post('/api/admin/items', { op: 'delete', row: 2, confirm: true }, { Cookie: masterCookie });
   eq((await res.json()).ok, true, '삭제 결과');
   const list = (await (await fetch(`${APP}/api/admin/items`, { headers: { Cookie: cookie } })).json()).data;
   if (list.some((i) => i.row === 2)) throw new Error('아직 목록에 있습니다.');
@@ -412,10 +422,10 @@ await t('지급 취소: 분배완료가 분배전으로 돌아온다', async () 
   const before = (await (await post('/api/lookup', { name: last.name })).json()).data;
 
   // 확인 없이는 거부
-  const noConfirm = await post('/api/admin/payout-undo', {}, { Cookie: cookie });
+  const noConfirm = await post('/api/admin/payout-undo', {}, { Cookie: masterCookie });
   eq((await noConfirm.json()).needsConfirm, true, 'needsConfirm');
 
-  const res = await post('/api/admin/payout-undo', { confirm: true }, { Cookie: cookie });
+  const res = await post('/api/admin/payout-undo', { confirm: true }, { Cookie: masterCookie });
   eq((await res.json()).ok, true, '취소 결과');
 
   const after = (await (await post('/api/lookup', { name: last.name })).json()).data;
@@ -435,7 +445,7 @@ await t('시즌 종료: 문구가 틀리면 실행되지 않는다', async () =>
   // 실행되면 안 되는 입력만 보낸다 — '시즌종료 ' 처럼 공백만 다른 값은
   // 서버가 trim 해서 통과시키므로 여기서 보내면 진짜로 시즌이 끝난다
   for (const text of ['', '아무거나', '시즌종', '시즌종료요', 'season']) {
-    const res = await post('/api/admin/tools', { id: 'seasonEnd', confirmText: text }, { Cookie: cookie });
+    const res = await post('/api/admin/tools', { id: 'seasonEnd', confirmText: text }, { Cookie: masterCookie });
     const body = await res.json();
     if (body.ok !== false || body.needsConfirm !== true) {
       throw new Error(`"${text}" 로 시즌이 종료되었습니다.`);
@@ -577,7 +587,7 @@ await t('되돌리기는 분배 시점 금액을 그대로 쓴다 (비중을 바
   eq((await upd.json()).ok, true, '비중 변경 ok');
 
   const before = (await (await fetch(`${APP}/api/state`)).json()).data;
-  const del2 = await post('/api/admin/items', { op: 'delete', row: 2, confirm: true }, { Cookie: cookie });
+  const del2 = await post('/api/admin/items', { op: 'delete', row: 2, confirm: true }, { Cookie: masterCookie });
   eq((await del2.json()).ok, true, '삭제 ok');
 
   const after = (await (await fetch(`${APP}/api/state`)).json()).data;
@@ -849,7 +859,6 @@ await t('아이디 변경 이력이 변경 전/후로 남는다', async () => {
   eq(hit.after, '팩맨2', '변경 후 이름');
 });
 
-let masterCookie = '';
 await t('마스터 PIN 은 관리자와 다른 등급을 준다', async () => {
   const res = await post('/api/admin/login', { pin: MASTER_PIN });
   eq(res.status, 200, 'HTTP 상태');
@@ -925,6 +934,57 @@ await t('앱 이름을 두 줄로 넣을 수 있고, 헤더가 아래를 덮지 
   eq(long.status, 400, '25자는 거부');
 
   await post('/api/master', { action: 'appName', value: '길드정산' }, { Cookie: masterCookie });
+});
+
+await t('되돌릴 수 없는 도구·정정·삭제·지급취소는 관리자에게 막힌다', async () => {
+  await reset();
+  // cookie = 관리자, masterCookie = 마스터
+
+  // ① 위험도 3 도구 — 관리자는 확인 문구가 맞아도 못 돌린다
+  const seasonEnd = { id: 'seasonEnd', confirmText: '시즌종료' };
+  eq((await post('/api/admin/tools', seasonEnd, { Cookie: cookie })).status, 401, '관리자의 시즌 종료');
+  // 막혔으면 시즌이 그대로여야 한다
+  eq((await (await fetch(`${APP}/api/state?fresh=1`)).json()).data.season, 3, '거부 후 시즌');
+
+  for (const id of ['factoryReset', 'install', 'importData']) {
+    eq((await post('/api/admin/tools', { id, confirmText: 'x' }, { Cookie: cookie })).status, 401, `관리자의 ${id}`);
+  }
+
+  // ② 위험도 1~2 도구는 관리자도 쓸 수 있어야 한다 (권한을 과하게 조이면 업무가 막힌다)
+  const safe = await post('/api/admin/tools', { id: 'recalcCounts' }, { Cookie: cookie });
+  eq(safe.status, 200, '관리자의 참여횟수 재계산');
+
+  // ③ 정정·삭제 — 관리자는 막히고, 미리보기(읽기)는 열려 있어야 한다
+  eq((await post('/api/admin/items', { op: 'correct', row: 3, newAmount: 5000, confirm: true }, { Cookie: cookie })).status,
+     401, '관리자의 정정');
+  eq((await post('/api/admin/items', { op: 'delete', row: 3, confirm: true }, { Cookie: cookie })).status,
+     401, '관리자의 삭제');
+  eq((await post('/api/admin/items', { op: 'preview', row: 3 }, { Cookie: cookie })).status,
+     200, '관리자의 미리보기 (무엇이 잘못됐는지는 볼 수 있어야 한다)');
+
+  // ④ 지급 취소 — 쓰기는 막히고 조회는 열려 있어야 한다
+  eq((await post('/api/admin/payout-undo', { confirm: true }, { Cookie: cookie })).status, 401, '관리자의 지급취소');
+  eq((await fetch(`${APP}/api/admin/payout-undo`, { headers: { Cookie: cookie } })).status, 200, '관리자의 지급기록 조회');
+
+  // ⑤ 마스터는 전부 된다 — 관리자가 할 수 있는 것도 포함해서
+  eq((await post('/api/admin/tools', { id: 'recalcCounts' }, { Cookie: masterCookie })).status, 200, '마스터의 안전 도구');
+  const mUndo = await post('/api/admin/payout-undo', { confirm: true }, { Cookie: masterCookie });
+  eq(mUndo.status, 200, '마스터의 지급취소');
+  eq((await mUndo.json()).ok, true, '마스터의 지급취소 결과');
+});
+
+await t('도구 목록이 무엇이 마스터 전용인지 알려준다', async () => {
+  const list = (await (await fetch(`${APP}/api/admin/tools`, { headers: { Cookie: cookie } })).json()).data;
+  const byId = {};
+  list.forEach((t2) => { byId[t2.id] = t2; });
+  // 되돌릴 수 없는 것은 전부 마스터 전용이어야 한다
+  for (const id of ['seasonEnd', 'factoryReset', 'install', 'importData']) {
+    eq(byId[id].master, true, `${id} 의 master 플래그`);
+  }
+  // 일상 도구는 관리자도 쓸 수 있어야 한다
+  for (const id of ['recalcCounts', 'tidy']) {
+    eq(byId[id].master, false, `${id} 의 master 플래그`);
+  }
 });
 
 await t('마스터가 바꾼 PIN 이 환경변수 PIN 보다 우선한다', async () => {

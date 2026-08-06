@@ -111,6 +111,7 @@ function freshState() {
 }
 
 /** 실제 Apps Script 의 _toolRegistry() 와 같은 모양 */
+/** .gs 의 _toolNeedsMaster 와 같은 규칙 — 되돌릴 수 없는 작업은 마스터 전용 */
 const TOOLS = [
   { id: 'recalcCounts', name: '🔁 참여횟수 재계산', desc: '등록 이력을 다시 세어 참여횟수를 맞춥니다.', danger: 1, confirm: '', inputs: [] },
   { id: 'tidy', name: '📐 시트 정돈', desc: '시트 순서와 행 높이를 표준으로 되돌립니다.', danger: 1, confirm: '', inputs: [] },
@@ -549,7 +550,7 @@ const handlers = {
       : { ok: false, msg: '시즌' + num + ' 기록을 찾을 수 없습니다.' };
   },
 
-  tools: () => ({ ok: true, data: TOOLS }),
+  tools: () => ({ ok: true, data: TOOLS.map((t) => ({ ...t, master: t.danger >= 3 })) }),
 
   runTool: ({ id, params, confirmText }) => {
     const tool = TOOLS.find((t) => t.id === id);

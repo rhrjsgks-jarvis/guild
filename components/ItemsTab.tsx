@@ -16,6 +16,7 @@ type PhotoState = {
 export default function ItemsTab({
   state,
   admin,
+  master,
   onDistribute,
   onDone,
   toast,
@@ -23,6 +24,7 @@ export default function ItemsTab({
 }: {
   state: GuildState;
   admin: boolean;
+  master: boolean;
   onDistribute: (item: LedgerItem) => void;
   onDone: (res?: ApiResult) => void;
   toast: (msg: string, isError?: boolean) => void;
@@ -262,6 +264,7 @@ export default function ItemsTab({
             unit={unit(state.unit)}
             fundRate={state.fundRate}
             fundName={state.fundName}
+            master={master}
             onChanged={onDone}
             toast={toast}
           />

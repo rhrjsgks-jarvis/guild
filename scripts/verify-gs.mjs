@@ -433,7 +433,7 @@ check('도구 실행: 위험도 3은 확인 문구 없이는 절대 실행되지
     FUND_NAME_LEGACY: ['유일배분(혈비)', '유일배분'],
     console,
   });
-  for (const fn of ['_uiAdapter', '_adapterResult', '_toolRegistry', 'api_getTools', 'api_runTool']) {
+  for (const fn of ['_uiAdapter', '_adapterResult', '_toolRegistry', '_toolNeedsMaster', 'api_getTools', 'api_runTool']) {
     vm.runInContext(extractFn(gs, fn), ctx);
   }
   vm.runInContext('__tools = api_getTools(); __run = api_runTool;', ctx);
@@ -629,6 +629,54 @@ check('관리자 라우트는 전부 인증으로 시작한다', () => {
   }
   if (bad.length) throw new Error(`인증 없이 열려 있는 관리자 핸들러: ${bad.join(', ')}`);
   return `${adminRoutes.length}개 라우트`;
+});
+
+check('되돌릴 수 없는 작업은 마스터관리자에게만 열린다', () => {
+  // 마스터는 관리자의 상위 등급이다. 되돌릴 수 없는 것(시즌종료·이관·설치·초기화)과
+  // 관리자가 잘못 만진 것을 바로잡는 것(정정·삭제·지급취소)은 마스터 몫이다.
+
+  // ① 시트: 어떤 도구가 마스터 전용인지 알려줘야 앱·라우트가 판정할 수 있다
+  if (!/function _toolNeedsMaster/.test(gs)) throw new Error('_toolNeedsMaster 가 없습니다.');
+  const need = (gs.match(/function _toolNeedsMaster[\s\S]*?\n\}/) ?? [''])[0];
+  if (!/tool\.danger >= 3/.test(need)) throw new Error('위험도 3 을 마스터 전용으로 보지 않습니다.');
+  const getTools = (gs.match(/function api_getTools[\s\S]*?\n\}/) ?? [''])[0];
+  if (!/master: _toolNeedsMaster\(t\)/.test(getTools)) throw new Error('도구 목록에 master 플래그가 없습니다.');
+
+  // 위험도 3 도구가 실제로 있어야 이 검사가 의미가 있다
+  const reg = (gs.match(/function _toolRegistry[\s\S]*?\n\}\n/) ?? [''])[0];
+  const d3 = (reg.match(/danger: 3/g) ?? []).length;
+  if (d3 < 3) throw new Error(`위험도 3 도구가 너무 적습니다 (${d3}개) — 분류가 어긋났을 수 있습니다.`);
+
+  // ② 라우트: 마스터 판정을 **서버가** 한다
+  const tools = readFileSync(resolve(ROOT, 'app/api/admin/tools/route.ts'), 'utf8');
+  if (!/requireMaster\(\)/.test(tools)) throw new Error('도구 실행이 마스터를 요구하지 않습니다.');
+  // ★ 앱이 보낸 값으로 판정하면 앱을 고쳐서 우회할 수 있다
+  if (!/callGas\('tools'\)/.test(tools)) throw new Error('도구 등급을 시트에 물어보지 않습니다.');
+  if (/body\.(danger|master)/.test(tools)) throw new Error('앱이 보낸 등급으로 판정합니다 — 우회 가능합니다.');
+  // 목록을 못 받아오면 막는 쪽으로 판단해야 한다
+  if (!/if \(!res\.ok \|\| !Array\.isArray\(res\.data\)\) return true;/.test(tools)) {
+    throw new Error('도구 목록 조회 실패 시 통과시킵니다 — 막는 쪽이어야 합니다.');
+  }
+  if (!/if \(!tool\) return true;/.test(tools)) throw new Error('모르는 도구를 통과시킵니다.');
+
+  const items = readFileSync(resolve(ROOT, 'app/api/admin/items/route.ts'), 'utf8');
+  if (!/op === 'correct' \|\| op === 'delete'[\s\S]{0,120}?requireMaster\(\)/.test(items)) {
+    throw new Error('정정·삭제가 마스터를 요구하지 않습니다.');
+  }
+  const undo = readFileSync(resolve(ROOT, 'app/api/admin/payout-undo/route.ts'), 'utf8');
+  const undoPost = (undo.match(/export async function POST[\s\S]*?\n\}/) ?? [''])[0];
+  if (!/requireMaster\(\)/.test(undoPost)) throw new Error('지급 취소가 마스터를 요구하지 않습니다.');
+
+  // ③ 앱: 왜 못 누르는지 화면에서 보여야 한다 (막힌 뒤에 알면 늦다)
+  const tc = readFileSync(resolve(ROOT, 'components/ToolsCard.tsx'), 'utf8');
+  if (!/master: boolean/.test(tc)) throw new Error('ToolsCard 가 마스터 여부를 받지 않습니다.');
+  if (!/tl\.master === true \|\| tl\.danger >= 3\) && !master/.test(tc)) {
+    throw new Error('마스터 전용 도구를 관리자에게 잠그지 않습니다.');
+  }
+  const lc = readFileSync(resolve(ROOT, 'components/LedgerCard.tsx'), 'utf8');
+  if (!/disabled=\{!master\}/.test(lc)) throw new Error('정정·삭제 버튼이 관리자에게 열려 있습니다.');
+
+  return `위험도3 도구 ${d3}개 · 정정·삭제·지급취소 · 시트 판정 · 실패 시 차단 · 화면 잠금`;
 });
 
 check('마스터 PIN: 공백이 붙어도 통하고, 관리자 PIN 과 같으면 거부한다', () => {

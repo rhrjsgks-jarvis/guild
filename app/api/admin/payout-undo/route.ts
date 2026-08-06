@@ -1,5 +1,5 @@
 import { callGas } from '@/lib/gas';
-import { requireAdmin } from '@/lib/auth';
+import { requireAdmin, requireMaster } from '@/lib/auth';
 import { syncStateCache } from '@/lib/fresh';
 
 export const dynamic = 'force-dynamic';
@@ -15,9 +15,15 @@ export async function GET() {
   return Response.json(res, { status: 200 });
 }
 
-/** 마지막 지급 취소 — 분배완료 → 분배전으로 되돌린다 */
+/**
+ * 마지막 지급 취소 — 분배완료 → 분배전으로 되돌린다.
+ *
+ * ★ 마스터관리자 전용. 이미 지급한 것을 되돌리는 작업이라,
+ *   관리자가 잘못 만진 것을 바로잡는 자리다 (정정·삭제와 같은 성격).
+ *   조회(GET)는 관리자도 할 수 있다 — 무엇이 잘못됐는지는 알아야 하므로.
+ */
 export async function POST(req: Request) {
-  const denied = await requireAdmin();
+  const denied = await requireMaster();
   if (denied) return denied;
 
   let body: { email?: unknown; confirm?: unknown };

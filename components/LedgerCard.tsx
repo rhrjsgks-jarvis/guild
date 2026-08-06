@@ -17,12 +17,15 @@ export default function LedgerCard({
   unit,
   fundRate,
   fundName,
+  master,
   onChanged,
   toast,
 }: {
   unit: string;
   fundRate: number;
   fundName: string;
+  /** 정정·삭제는 이미 끝난 분배를 되돌리는 작업이라 마스터관리자만 할 수 있다 */
+  master: boolean;
   onChanged: (res?: ApiResult) => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
@@ -41,7 +44,9 @@ export default function LedgerCard({
 
   return (
     <>
-      <div className="sect">{t('led.sect')}</div>
+      <div className="sect">
+        {t('led.sect')} {master ? '' : `· 👑 ${t('c.master')}`}
+      </div>
       <div className="card">
         {!items ? (
           <div className="field">
@@ -61,12 +66,19 @@ export default function LedgerCard({
                   {it.amount > 0 ? ` · ${fmt(it.amount)} ${unit}` : ''}
                 </div>
               </div>
-              <button className="btn ghost" onClick={() => setTarget(it)}>
-                {t('c.manage')}
+              {/* 정정·삭제는 이미 끝난 분배를 되돌리는 작업이라 마스터관리자만.
+                  화면에서도 왜 못 누르는지 보여준다 (막힌 뒤에 알면 늦다). */}
+              <button className="btn ghost" disabled={!master} onClick={() => setTarget(it)}>
+                {master ? t('c.manage') : '🔒'}
               </button>
             </div>
           ))
         )}
+        {!master ? (
+          <div className="field" style={{ borderTop: '1px solid var(--line)' }}>
+            <p className="hint">{t('led.masterOnly')}</p>
+          </div>
+        ) : null}
       </div>
 
       {target ? (

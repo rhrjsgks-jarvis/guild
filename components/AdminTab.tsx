@@ -165,7 +165,7 @@ export default function AdminTab({
         <>
           <RosterCard unit={unitLabel(unit)} servers={servers} onChanged={onAuthChange} toast={toast} />
 
-          <ToolsCard unit={unitLabel(unit)} onChanged={onAuthChange} toast={toast} />
+          <ToolsCard unit={unitLabel(unit)} master={master} onChanged={onAuthChange} toast={toast} />
 
           {master ? <MasterCard appName={appName} onChanged={onAuthChange} toast={toast} /> : null}
 
