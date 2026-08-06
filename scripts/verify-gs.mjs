@@ -737,6 +737,89 @@ check('결과 문장의 자리표시자를 시트가 전부 채운다', () => {
   return `${supplied.size}개 코드의 자리표시자 대조 완료`;
 });
 
+check('쓰기 라우트는 쓴 뒤에 캐시를 버린다', () => {
+  // 캐시를 안 버리면 사용자가 방금 넣은 값이 TTL 동안 화면에 안 나온다.
+  // 실제로 "반영이 늦다" 는 민원의 원인이었다.
+  const dirs = ['app/api/admin', 'app/api/master'];
+  const files = [];
+  const walk = (rel) => {
+    for (const e of readdirSync(resolve(ROOT, rel), { withFileTypes: true })) {
+      if (e.isDirectory()) walk(`${rel}/${e.name}`);
+      else if (e.name === 'route.ts') files.push([`${rel}/${e.name}`, readFileSync(resolve(ROOT, rel, e.name), 'utf8')]);
+    }
+  };
+  dirs.forEach(walk);
+
+  // POST 지만 화면에 보이는 데이터를 바꾸지 않는 액션들 — 캐시를 버릴 것이 없다.
+  // 경로가 아니라 **액션 이름**으로 판정한다. 경로로 면제하면 나중에 같은 폴더에
+  // 진짜 쓰기가 들어와도 그냥 통과해버린다.
+  const READ_ONLY = ['photo', 'countPhoto', 'checkPin', 'previewReverse', 'lastPayout', 'tools', 'roster',
+                     'itemsAll', 'renameHistory', 'members', 'lookup', 'ping'];
+
+  const bad = [];
+  for (const [path, src] of files) {
+    // 쓰기 핸들러가 있는데 invalidate 가 한 번도 안 나오면 잡는다
+    const writes = /export async function (POST|DELETE|PUT|PATCH)/.test(src);
+    if (!writes) continue;
+    // 로그인·로그아웃은 시트 데이터를 바꾸지 않는다
+    if (/\/(login|logout)\/route\.ts$/.test(path)) continue;
+    if (/invalidate\(/.test(src)) continue;
+
+    const actions = [...src.matchAll(/callGas\(\s*'(\w+)'/g)].map((m) => m[1]);
+    if (actions.length && actions.every((a) => READ_ONLY.includes(a))) continue;
+    bad.push(`${path} (${actions.join(', ') || '액션 없음'})`);
+  }
+  if (bad.length) throw new Error(`쓰고 나서 캐시를 안 버리는 라우트: ${bad.join(', ')}`);
+  return `${files.length}개 라우트 검사`;
+});
+
+check('쓰기 직후 조회는 캐시를 건너뛴다', () => {
+  // 캐시는 서버 인스턴스 메모리에 있다. 쓰기를 처리한 인스턴스에서 캐시를 버려도
+  // 다음 조회가 낡은 값을 든 다른 인스턴스로 갈 수 있다. 그래서 쓰기 직후의
+  // 조회만 ?fresh=1 로 부른다.
+  const routes = {
+    'app/api/state/route.ts': 'state',
+    'app/api/board/route.ts': 'posts',
+    'app/api/alliance/route.ts': 'alliance',
+  };
+  for (const [path, key] of Object.entries(routes)) {
+    const src = readFileSync(resolve(ROOT, path), 'utf8');
+    if (!src.includes('dropIfFresh')) throw new Error(`${path} 가 fresh 재조회를 지원하지 않습니다.`);
+    if (!new RegExp(`dropIfFresh\\(req, '${key}'`).test(src)) {
+      throw new Error(`${path} 가 '${key}' 캐시를 버리지 않습니다.`);
+    }
+    // TTL 이 너무 길면 fresh 를 쓰지 않는 다른 사람 화면이 오래 낡은 채로 남는다
+    const ttl = Number((src.match(/cached\('[^']+',\s*([\d_]+)/) ?? [])[1]?.replace(/_/g, '') ?? 0);
+    if (!ttl || ttl > 10_000) throw new Error(`${path} 의 캐시 TTL 이 ${ttl}ms 입니다 (10초 이하여야 합니다).`);
+  }
+
+  // 앱: 쓰기 완료 콜백은 전부 fresh 로 불러야 한다
+  const app = readFileSync(resolve(ROOT, 'components/App.tsx'), 'utf8');
+  const stale = [...app.matchAll(/(onDone|onChanged|onAuthChange)=\{\(\) => void refresh\(\)\}/g)];
+  if (stale.length) {
+    throw new Error(`쓰기 완료 후 캐시된 값을 다시 읽는 곳이 ${stale.length}곳 있습니다 (refreshNow 를 쓰세요).`);
+  }
+  if (!/refresh\(true\)/.test(app)) throw new Error('App.tsx 에 fresh 재조회 경로가 없습니다.');
+
+  // 평소 조회(첫 로드·주기 갱신)까지 fresh 로 부르면 캐시가 무의미해진다
+  if (/setInterval\([\s\S]{0,160}?refresh\(true\)/.test(app)) {
+    throw new Error('주기 갱신이 캐시를 건너뜁니다 — Apps Script 할당량을 그대로 태웁니다.');
+  }
+  return `조회 3종 + 앱 쓰기 콜백 ${['onDone', 'onChanged', 'onAuthChange'].length}종`;
+});
+
+check('새로고침 버튼이 화면에 있다', () => {
+  const app = readFileSync(resolve(ROOT, 'components/App.tsx'), 'utf8');
+  if (!/className=\{'sync'/.test(app)) throw new Error('헤더에 새로고침 버튼이 없습니다.');
+  if (!/aria-label=\{t\('c\.refresh'\)\}/.test(app)) throw new Error('새로고침 버튼에 라벨이 없습니다.');
+  const css = readFileSync(resolve(ROOT, 'app/globals.css'), 'utf8');
+  if (!/button\.sync/.test(css)) throw new Error('새로고침 버튼 스타일이 없습니다.');
+  if (!/prefers-reduced-motion[\s\S]{0,200}?button\.sync/.test(css)) {
+    throw new Error('회전 애니메이션에 prefers-reduced-motion 예외가 없습니다.');
+  }
+  return '버튼 · 라벨 · 스타일 · 모션 예외';
+});
+
 check('확인 문구는 어느 언어에서도 번역되지 않는다', () => {
   // danger:3 도구는 사용자가 정해진 문구를 **정확히** 입력해야 실행된다.
   // 그 문구가 번역되면 서버 비교가 영원히 실패한다 (CLAUDE.md 규칙 5).

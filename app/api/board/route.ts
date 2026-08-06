@@ -1,14 +1,16 @@
 import { callGas } from '@/lib/gas';
 import { cached, invalidate } from '@/lib/cache';
+import { dropIfFresh } from '@/lib/fresh';
 import { isAdmin } from '@/lib/auth';
 import { clientKey, rateLimit } from '@/lib/ratelimit';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
-/** 게시판 조회 — 누구나 */
-export async function GET() {
-  const res = await cached('posts', 15_000, () => callGas('posts'), (r) => r.ok);
+/** 게시판 조회 — 누구나. `?fresh=1` 은 글쓰기·삭제 직후에만 쓴다 (lib/fresh.ts) */
+export async function GET(req: Request) {
+  dropIfFresh(req, 'posts');
+  const res = await cached('posts', 8_000, () => callGas('posts'), (r) => r.ok);
   return Response.json(res, { status: res.ok ? 200 : 502 });
 }
 

@@ -18,6 +18,15 @@ import SeasonSheet from './SeasonSheet';
 /** Apps Script 가 앱 이름을 정하지 않았을 때 내려주는 기본값 */
 const DEFAULT_APP_NAME = '길드정산';
 
+/**
+ * 앱을 켜둔 동안 자동으로 따라가는 주기.
+ *
+ * 서버 캐시(4초)가 뒤에서 요청을 흡수하므로, 사람이 몇 명이 보고 있든
+ * 구글시트가 실제로 열리는 횟수는 이 주기와 무관하게 제한된다.
+ * 화면이 보이지 않을 때는 아예 돌지 않는다.
+ */
+const POLL_MS = 25_000;
+
 type Tab = 'balance' | 'items' | 'board' | 'alliance' | 'me' | 'admin';
 
 const TABS: { id: Tab; icon: string; key: string }[] = [
@@ -37,6 +46,9 @@ export default function App() {
   const [master, setMaster] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncedAt, setSyncedAt] = useState(0);
+  const [nowTick, setNowTick] = useState(0);
   const [toastMsg, setToastMsg] = useState<{ text: string; err: boolean } | null>(null);
 
   const [seasonOpen, setSeasonOpen] = useState(false);
@@ -53,17 +65,34 @@ export default function App() {
     toastTimer.current = setTimeout(() => setToastMsg(null), 5000);
   }, []);
 
-  const refresh = useCallback(async () => {
-    const res = await api('/api/state');
-    setAdmin(Boolean(res.admin));
-    setMaster(Boolean(res.master));
-    if (!res.ok) {
-      setLoadError(srv(res));
-      return;
-    }
-    setLoadError('');
-    setState(res.data as GuildState);
-  }, [srv]);
+  /**
+   * 최신 상태 가져오기.
+   *
+   * `fresh` 는 등록·분배·지급 **직후**에만 켠다. 서버 캐시를 건너뛰게 해서
+   * "방금 넣었는데 숫자가 그대로다" 를 없앤다 (자세한 이유는 lib/fresh.ts).
+   * 평소 조회까지 fresh 로 부르면 캐시가 없는 것과 같아져 Apps Script
+   * 실행 할당량을 그대로 태운다.
+   */
+  const refresh = useCallback(
+    async (fresh = false) => {
+      setSyncing(true);
+      const res = await api(fresh ? '/api/state?fresh=1' : '/api/state');
+      setSyncing(false);
+      setAdmin(Boolean(res.admin));
+      setMaster(Boolean(res.master));
+      if (!res.ok) {
+        setLoadError(srv(res));
+        return;
+      }
+      setLoadError('');
+      setState(res.data as GuildState);
+      setSyncedAt(Date.now());
+    },
+    [srv],
+  );
+
+  /** 쓰기 직후 호출용 — 캐시를 건너뛰고 즉시 반영한다 */
+  const refreshNow = useCallback(() => void refresh(true), [refresh]);
 
   useEffect(() => {
     void refresh();
@@ -77,6 +106,24 @@ export default function App() {
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [refresh]);
+
+  /**
+   * 앱을 켜둔 채로 있으면 주기적으로 따라간다 — 다른 사람이 등록·분배한 것이
+   * 내 화면에도 저절로 나타난다. 화면이 꺼지거나 다른 앱으로 넘어가면
+   * (visibilityState !== 'visible') 멈춰서 할당량을 낭비하지 않는다.
+   */
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') void refresh();
+    }, POLL_MS);
+    return () => clearInterval(id);
+  }, [refresh]);
+
+  // "n초 전" 표시를 살아 있게 한다 (표시용 — 네트워크 호출과 무관)
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 10_000);
+    return () => clearInterval(id);
+  }, []);
 
   // 서비스워커 등록 (홈 화면 설치 + 오프라인 껍데기)
   useEffect(() => {
@@ -95,6 +142,16 @@ export default function App() {
   // 그 어긋남을 제목 옆에서 바로 보이게 한다.
   const sheetVersion = state?.version ?? '';
   const versionMismatch = Boolean(sheetVersion) && sheetVersion !== APP_VERSION;
+
+  // "지금 보는 숫자가 언제 것인지" 를 버튼에 같이 띄운다.
+  // 새로고침을 눌러야 할지 사용자가 스스로 판단할 수 있게 하는 것이 목적이다.
+  const ago = (() => {
+    if (!syncedAt) return '';
+    const sec = Math.max(Math.floor((Math.max(nowTick, Date.now()) - syncedAt) / 1000), 0);
+    if (sec < 30) return t('c.justNow');
+    if (sec < 3600) return t('c.agoMin', { n: Math.floor(sec / 60) || 1 });
+    return t('c.agoHour', { n: Math.floor(sec / 3600) });
+  })();
 
   return (
     <>
@@ -127,11 +184,16 @@ export default function App() {
             </button>
           ) : null}
           <button
-            onClick={() => void refresh()}
+            className={'sync' + (syncing ? ' on' : '')}
+            onClick={() => void refresh(true)}
+            disabled={syncing}
             aria-label={t('c.refresh')}
-            style={{ color: '#fff', fontSize: 17, padding: '2px 4px' }}
+            title={t('c.refresh')}
           >
-            ↻
+            <span className="ico" aria-hidden="true">
+              ↻
+            </span>
+            {syncing ? t('c.syncing') : ago}
           </button>
         </div>
       </header>
@@ -186,7 +248,7 @@ export default function App() {
               state={state}
               admin={admin}
               onDistribute={setDistTarget}
-              onDone={() => void refresh()}
+              onDone={refreshNow}
               toast={toast}
               setBusy={setBusy}
             />
@@ -197,7 +259,7 @@ export default function App() {
               focusPostId={focusPostId}
               onFocusHandled={() => setFocusPostId(null)}
               toast={toast}
-              onChanged={() => void refresh()}
+              onChanged={refreshNow}
             />
           ) : null}
           {tab === 'alliance' ? <AllianceTab admin={admin} toast={toast} setBusy={setBusy} /> : null}
@@ -209,7 +271,7 @@ export default function App() {
               unit={state.unit}
               servers={state.serverList ?? []}
               appName={title}
-              onAuthChange={() => void refresh()}
+              onAuthChange={refreshNow}
               toast={toast}
             />
           ) : null}
@@ -237,7 +299,7 @@ export default function App() {
           row={payTarget}
           state={state}
           onClose={() => setPayTarget(null)}
-          onDone={() => void refresh()}
+          onDone={refreshNow}
           toast={toast}
           setBusy={setBusy}
         />
@@ -248,7 +310,7 @@ export default function App() {
           item={distTarget}
           state={state}
           onClose={() => setDistTarget(null)}
-          onDone={() => void refresh()}
+          onDone={refreshNow}
           toast={toast}
           setBusy={setBusy}
         />

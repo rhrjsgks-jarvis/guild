@@ -31,8 +31,9 @@ export default function BoardTab({
   const [open, setOpen] = useState<BoardPost | null>(null);
   const [writing, setWriting] = useState(false);
 
-  const load = useCallback(async () => {
-    const res = await api('/api/board');
+  // fresh=true 는 내가 방금 쓴 직후에만 — 서버 캐시를 건너뛴다 (lib/fresh.ts)
+  const load = useCallback(async (fresh = false) => {
+    const res = await api(fresh ? '/api/board?fresh=1' : '/api/board');
     if (res.ok) {
       setError('');
       setPosts(res.data as BoardPost[]);
@@ -60,7 +61,7 @@ export default function BoardTab({
     toast(srv(res, res.ok ? 'r.deleted' : 'r.deleteFailed'), !res.ok);
     if (res.ok) {
       setOpen(null);
-      void load();
+      void load(true);
       onChanged();
     }
   }
@@ -140,7 +141,7 @@ export default function BoardTab({
           onClose={() => setWriting(false)}
           onDone={() => {
             setWriting(false);
-            void load();
+            void load(true);
             onChanged();
           }}
           toast={toast}

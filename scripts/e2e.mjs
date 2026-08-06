@@ -472,6 +472,40 @@ await t('지난 시즌: 목록과 상세를 누구나 볼 수 있다', async () 
   eq((await fetch(`${APP}/api/seasons?num=abc`)).status, 400, '잘못된 번호');
 });
 
+await t('쓰기 직후 조회(?fresh=1)는 캐시를 건너뛴다', async () => {
+  // 캐시가 실제로 동작하는지, 그리고 fresh 가 그걸 건너뛰는지 둘 다 본다.
+  // __setVersion 은 앱 라우트를 거치지 않고 모의 시트만 바꾸므로 서버 캐시가
+  // 그대로 남는다 — 두 경로를 정확히 구분해볼 수 있는 유일한 방법이다.
+  const state = async (q = '') => (await (await fetch(`${APP}/api/state${q}`)).json()).data.version;
+
+  await reset();
+  eq(await state(), '10.1', '첫 조회 버전');
+
+  await mock('__setVersion', { version: '9.9' });
+  eq(await state(), '10.1', '캐시된 조회 (시트가 바뀌어도 그대로여야 정상)');
+  eq(await state('?fresh=1'), '9.9', 'fresh 조회 (캐시를 건너뛴 값)');
+  // fresh 조회는 캐시도 새 값으로 갈아둔다 — 다음 사람이 낡은 값을 보지 않는다
+  eq(await state(), '9.9', 'fresh 이후의 일반 조회');
+
+  await mock('__setVersion', { version: '10.1' });
+});
+
+await t('등록하면 캐시가 만료되기를 기다리지 않아도 보인다', async () => {
+  await reset();
+  const items = async () => (await (await fetch(`${APP}/api/state`)).json()).data.items;
+
+  await items();                       // 캐시를 채운다
+  const before = (await items()).length;
+
+  const res = await post('/api/admin/register', { itemName: '캐시 테스트', participants: ['가이'] }, { Cookie: cookie });
+  eq((await res.json()).ok, true, '등록 결과');
+
+  // 쓰기 라우트가 캐시를 버렸으므로 TTL(4초)을 기다리지 않아도 바로 보여야 한다
+  const now = await items();
+  eq(now.length, before + 1, '등록 직후 아이템 수');
+  if (!now.some((i) => i.item === '캐시 테스트')) throw new Error('등록한 아이템이 즉시 보이지 않습니다.');
+});
+
 /* ── ①-b v10.0 새 기능 ── */
 
 await t('분배: 비중 50%인 사람은 절반만 받고 남는 몫은 운영비로 간다', async () => {
@@ -779,6 +813,29 @@ await t('상단 시즌 칩으로 지난 시즌을 연다', async () => {
 
   await page.getByRole('button', { name: '시즌 목록으로' }).click();
   await page.waitForTimeout(300);
+});
+
+await t('헤더의 새로고침 버튼이 보이고, 눌러서 최신 값을 받아온다', async () => {
+  await reset();
+  await page.reload({ waitUntil: 'networkidle' });
+
+  const btn = page.locator('.header .meta button.sync');
+  if (!(await btn.isVisible())) throw new Error('새로고침 버튼이 보이지 않습니다.');
+  // 마지막으로 받아온 시점을 같이 보여줘야 "지금 눌러야 하나"를 판단할 수 있다
+  const label = await btn.innerText();
+  if (!/방금|분 전|시간 전/.test(label)) throw new Error(`갱신 시각 표시가 없습니다: "${label}"`);
+
+  // 앱을 거치지 않고 시트만 바꾼 뒤, 버튼을 눌러야 반영되는지 본다
+  await mock('__setVersion', { version: '9.9' });
+  await btn.click();
+  await page.waitForTimeout(1500);
+  const h1 = await page.locator('.header h1').innerText();
+  if (!h1.includes('9.9')) throw new Error(`새로고침을 눌렀는데 최신 값이 아닙니다: ${h1}`);
+  await shot('15-refresh');
+
+  await mock('__setVersion', { version: '10.1' });
+  await btn.click();
+  await page.waitForTimeout(1200);
 });
 
 await t('제목 옆에 버전이 보이고, 시트가 옛 버전이면 경고가 붙는다', async () => {

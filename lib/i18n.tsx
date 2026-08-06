@@ -60,6 +60,10 @@ const DICT: Record<string, Entry> = {
   'tab.admin': ['관리', '管理', 'Admin'],
 
   'c.refresh': ['새로고침', '刷新', 'Refresh'],
+  'c.syncing': ['갱신 중', '更新中', 'Syncing'],
+  'c.justNow': ['방금', '刚刚', 'just now'],
+  'c.agoMin': ['{n}분 전', '{n}分钟前', '{n} min ago'],
+  'c.agoHour': ['{n}시간 전', '{n}小时前', '{n} h ago'],
   'c.retry': ['다시 시도', '重试', 'Try again'],
   'c.close': ['닫기', '关闭', 'Close'],
   'c.cancel': ['취소', '取消', 'Cancel'],

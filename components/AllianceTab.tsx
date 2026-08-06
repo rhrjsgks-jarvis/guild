@@ -28,8 +28,9 @@ export default function AllianceTab({
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
 
-  const load = useCallback(async () => {
-    const res = await api('/api/alliance');
+  // fresh=true 는 내가 방금 쓴 직후에만 — 서버 캐시를 건너뛴다 (lib/fresh.ts)
+  const load = useCallback(async (fresh = false) => {
+    const res = await api(fresh ? '/api/alliance?fresh=1' : '/api/alliance');
     if (res.ok) {
       setError('');
       setData(res.data as AllianceState);
@@ -48,7 +49,7 @@ export default function AllianceTab({
     const res = await api('/api/admin/alliance', { row, email: getStoredEmail() }, 'DELETE');
     setBusy(false);
     toast(srv(res, res.ok ? 'r.deleted' : 'r.deleteFailed'), !res.ok);
-    if (res.ok) void load();
+    if (res.ok) void load(true);
   }
 
   const u = unit(data?.unit ?? '다이아');
@@ -148,7 +149,7 @@ export default function AllianceTab({
           onClose={() => setAdding(false)}
           onDone={() => {
             setAdding(false);
-            void load();
+            void load(true);
           }}
           toast={toast}
           setBusy={setBusy}
