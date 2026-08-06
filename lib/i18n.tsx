@@ -331,6 +331,8 @@ const DICT: Record<string, Entry> = {
   'adm.pin': ['관리자 PIN', '管理员 PIN', 'Admin PIN'],
   'adm.pinPh': ['PIN 입력', '输入 PIN', 'Enter PIN'],
   'adm.unlock': ['🔓 잠금 해제', '🔓 解锁', '🔓 Unlock'],
+  'adm.pinShow': ['PIN 보기', '显示 PIN', 'Show PIN'],
+  'adm.pinHide': ['PIN 숨기기', '隐藏 PIN', 'Hide PIN'],
   'adm.pinHint': [
     'PIN 없이도 잔액·아이템 현황은 자유롭게 볼 수 있습니다. 등록·분배·지급만 관리자 전용입니다.',
     '没有 PIN 也可以自由查看余额和物品。只有登记·分配·发放才需要管理员。',

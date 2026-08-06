@@ -674,7 +674,22 @@ check('마스터 PIN: 공백이 붙어도 통하고, 관리자 PIN 과 같으면
   if (/process\.env\.(MASTER_PIN|ADMIN_PIN)(?!\s*\?\?|\s*\))/.test(health.replace(/Boolean\([^)]*\)/g, ''))) {
     throw new Error('health 가 PIN 값을 그대로 노출할 수 있습니다.');
   }
-  return '공백 제거(양쪽) · 동일값 거부 · 마스터 우선 · 값 없는 진단';
+  // ★ 폰에서 실제로 입력할 수 있어야 한다.
+  //   inputMode="numeric" 이면 숫자 키패드만 떠서, 문자가 섞인 PIN 은
+  //   아무리 정확히 알아도 입력할 방법이 없다 (마스터 PIN 이 그런 경우였다).
+  const adm = readFileSync(resolve(ROOT, 'components/AdminTab.tsx'), 'utf8');
+  const pinInput = (adm.match(/<input\s+id="pin"[\s\S]*?\/>/) ?? [''])[0];
+  if (!pinInput) throw new Error('PIN 입력칸을 찾지 못했습니다.');
+  if (/inputMode="numeric"/.test(pinInput)) {
+    throw new Error('PIN 칸이 숫자 키패드로 고정돼 있습니다 — 문자가 섞인 PIN 을 폰에서 입력할 수 없습니다.');
+  }
+  // iOS 는 첫 글자를 대문자로 바꾼다. PIN 은 대소문자를 가리므로 그것만으로 실패한다
+  if (!/autoCapitalize="off"/.test(pinInput)) throw new Error('PIN 칸이 자동 대문자를 끄지 않습니다.');
+  if (!/autoCorrect="off"/.test(pinInput)) throw new Error('PIN 칸이 자동 수정을 끄지 않습니다.');
+  // 무엇을 입력했는지 볼 수 없으면 오타인지 PIN 이 틀린 건지 구분할 수 없다
+  if (!/className="pin-eye"/.test(adm)) throw new Error('PIN 보기 전환 버튼이 없습니다.');
+
+  return '공백 제거(양쪽) · 동일값 거부 · 마스터 우선 · 값 없는 진단 · 폰에서 입력 가능';
 });
 
 check('마스터 전용 라우트는 requireMaster 로 막힌다', () => {

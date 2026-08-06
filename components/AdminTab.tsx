@@ -28,6 +28,7 @@ export default function AdminTab({
 }) {
   const { t, lang, setLang, unit: unitLabel, srv } = useT();
   const [pin, setPin] = useState('');
+  const [showPin, setShowPin] = useState(false);
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState('');
   const [standalone, setStandalone] = useState(false);
@@ -95,18 +96,40 @@ export default function AdminTab({
             <label className="fl" htmlFor="pin">
               {t('adm.pin')}
             </label>
-            <input
-              id="pin"
-              type="password"
-              inputMode="numeric"
-              autoComplete="current-password"
-              placeholder={t('adm.pinPh')}
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') void login();
-              }}
-            />
+            {/*
+              ★ inputMode 를 numeric 으로 두면 폰에서 **숫자 키패드만** 뜬다.
+                관리자 PIN 은 숫자였지만 마스터 PIN 은 문자를 섞을 수 있어서,
+                그런 PIN 은 폰에서 아예 입력할 방법이 없었다.
+              ★ 자동 대문자·자동 수정도 끈다. iOS 는 첫 글자를 대문자로 바꾸는데
+                PIN 은 대소문자를 가리므로 그것만으로 로그인이 실패한다.
+            */}
+            <div className="pin-wrap">
+              <input
+                id="pin"
+                type={showPin ? 'text' : 'password'}
+                autoComplete="current-password"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder={t('adm.pinPh')}
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void login();
+                }}
+              />
+              {/* 무엇을 입력했는지 눈으로 확인할 수 있어야 한다 —
+                  안 보이면 오타인지 PIN 이 틀린 건지 구분할 수 없다 */}
+              <button
+                type="button"
+                className="pin-eye"
+                aria-label={t(showPin ? 'adm.pinHide' : 'adm.pinShow')}
+                aria-pressed={showPin}
+                onClick={() => setShowPin((v) => !v)}
+              >
+                {showPin ? '🙈' : '👁'}
+              </button>
+            </div>
             <button className="btn block" style={{ marginTop: 12 }} disabled={busy || !pin} onClick={login}>
               {busy ? t('c.checking') : t('adm.unlock')}
             </button>

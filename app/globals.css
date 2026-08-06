@@ -883,3 +883,31 @@ select:focus {
   font-size: 11.5px;
   color: var(--pending);
 }
+
+/* PIN 입력 — 눈 아이콘이 글자를 가리지 않도록 오른쪽 여백을 준다 */
+.pin-wrap {
+  position: relative;
+}
+
+.pin-wrap input {
+  padding-right: 46px;
+}
+
+.pin-eye {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  line-height: 1;
+  border-radius: 9px;
+}
+
+.pin-eye:active {
+  background: var(--surface-2);
+}

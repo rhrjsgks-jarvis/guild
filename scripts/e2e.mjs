@@ -991,6 +991,31 @@ await t('PIN을 넣으면 관리 버튼이 나타난다', async () => {
   await shot('03-admin-balance');
 });
 
+await t('PIN 칸에 문자가 섞인 PIN 도 입력할 수 있다', async () => {
+  // inputMode="numeric" 이면 폰에서 숫자 키패드만 떠서, 문자가 섞인
+  // 마스터 PIN 은 아무리 정확히 알아도 입력할 방법이 없다.
+  await page.locator('.nav button').last().click();
+  await page.waitForTimeout(400);
+
+  const pin = page.locator('#pin');
+  if (await pin.count()) {
+    eq(await pin.getAttribute('inputmode'), null, 'PIN 칸의 inputmode (숫자 고정이면 안 됨)');
+    eq(await pin.getAttribute('autocapitalize'), 'off', '자동 대문자 끄기');
+
+    // 문자가 섞인 값이 그대로 들어가야 한다
+    await pin.fill(MASTER_PIN);
+    eq(await pin.inputValue(), MASTER_PIN, '입력된 값');
+
+    // 눈 버튼으로 입력한 내용을 확인할 수 있어야 한다
+    eq(await pin.getAttribute('type'), 'password', '기본은 가려짐');
+    await page.locator('.pin-eye').click();
+    await page.waitForTimeout(200);
+    eq(await pin.getAttribute('type'), 'text', '눈 버튼을 누르면 보임');
+    await page.locator('.pin-eye').click();
+    await pin.fill('');
+  }
+});
+
 await t('분배 미리보기가 혈비·1인당을 정확히 계산한다', async () => {
   await page.locator('.nav button', { hasText: /아이템/ }).click();
   await page.waitForTimeout(300);
