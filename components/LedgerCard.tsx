@@ -106,7 +106,7 @@ function ItemSheet({
   onDone: () => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
-  const { t } = useT();
+  const { t, srv } = useT();
   const [preview, setPreview] = useState<ReversePreview | null>(null);
   const [mode, setMode] = useState<Mode>('menu');
   const [raw, setRaw] = useState('');
@@ -133,7 +133,7 @@ function ItemSheet({
       confirm: true,
     });
     setBusy(false);
-    toast(res.msg ?? (res.ok ? t('r.done') : t('r.failed')), !res.ok);
+    toast(srv(res, res.ok ? 'r.done' : 'r.failed'), !res.ok);
     if (res.ok) onDone();
   }
 

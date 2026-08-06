@@ -23,7 +23,7 @@ export default function MasterCard({
   onChanged: () => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
-  const { t } = useT();
+  const { t, srv } = useT();
   const [name, setName] = useState(appName);
   const [pin, setPin] = useState('');
   const [pin2, setPin2] = useState('');
@@ -33,7 +33,7 @@ export default function MasterCard({
     setBusy(true);
     const res = await api('/api/master', { action: 'appName', value: name.trim(), email: getStoredEmail() });
     setBusy(false);
-    toast(res.msg ?? (res.ok ? t('r.changed') : t('r.changeFailed')), !res.ok);
+    toast(srv(res, res.ok ? 'r.changed' : 'r.changeFailed'), !res.ok);
     if (res.ok) onChanged();
   }
 
@@ -45,7 +45,7 @@ export default function MasterCard({
     setBusy(true);
     const res = await api('/api/master', { action: 'adminPin', value: pin, email: getStoredEmail() });
     setBusy(false);
-    toast(res.msg ?? (res.ok ? t('r.changed') : t('r.changeFailed')), !res.ok);
+    toast(srv(res, res.ok ? 'r.changed' : 'r.changeFailed'), !res.ok);
     if (res.ok) {
       setPin('');
       setPin2('');

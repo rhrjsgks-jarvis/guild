@@ -10,7 +10,7 @@ import { useT } from '@/lib/i18n';
  * 관리 도구 (관리자 전용) — 시즌 종료, 데이터 이관, 초기화 등.
  *
  * 목록은 서버(Apps Script)가 내려준다. 도구가 늘어도 이 화면은 고치지 않아도 된다.
- * 이름·설명은 시트가 한국어로 보내주므로, 중문 화면에서는 도구 id 로 갈아끼운다.
+ * 이름·설명·결과 메시지는 시트가 화면 언어에 맞춰 보내준다 (쿠키로 언어를 전달).
  * 되돌릴 수 없는 도구(danger 3)는 정해진 문구를 정확히 입력해야만 실행된다.
  */
 export default function ToolsCard({
@@ -22,7 +22,7 @@ export default function ToolsCard({
   onChanged: () => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
-  const { t, tool: toolText } = useT();
+  const { t, srv } = useT();
   const [tools, setTools] = useState<Tool[] | null>(null);
   const [lastPayout, setLastPayout] = useState<PayoutRecord | null>(null);
   const [active, setActive] = useState<Tool | null>(null);
@@ -44,7 +44,7 @@ export default function ToolsCard({
     const res = await api('/api/admin/payout-undo', { email: getStoredEmail(), confirm: true });
     setBusy(false);
     setUndoing(false);
-    toast(res.msg ?? (res.ok ? t('r.undone') : t('r.undoFailed')), !res.ok);
+    toast(srv(res, res.ok ? 'r.undone' : 'r.undoFailed'), !res.ok);
     if (res.ok) {
       void load();
       onChanged();
@@ -95,7 +95,7 @@ export default function ToolsCard({
             <div className="row" key={tl.id}>
               <div className="row-main">
                 <div className="row-name">
-                  {toolText(tl.id, 'name', tl.name)}
+                  {tl.name}
                   {tl.danger >= 3 ? (
                     <span
                       className="badge"
@@ -106,7 +106,7 @@ export default function ToolsCard({
                   ) : null}
                 </div>
                 <div className="row-sub" style={{ whiteSpace: 'normal', lineHeight: 1.45 }}>
-                  {toolText(tl.id, 'desc', tl.desc)}
+                  {tl.desc}
                 </div>
               </div>
               <button className={tl.danger >= 3 ? 'btn danger' : 'btn ghost'} onClick={() => setActive(tl)}>
@@ -164,7 +164,7 @@ function ToolSheet({
   onDone: () => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
-  const { t, tool: toolText, toolInput } = useT();
+  const { t, srv } = useT();
   const [values, setValues] = useState<Record<string, string>>({});
   const [confirmText, setConfirmText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -181,20 +181,20 @@ function ToolSheet({
       confirmText: confirmText.trim(),
     });
     setBusy(false);
-    toast(res.msg ?? (res.ok ? t('r.completed') : t('r.runFailed')), !res.ok);
+    toast(srv(res, res.ok ? 'r.completed' : 'r.runFailed'), !res.ok);
     if (res.ok) onDone();
   }
 
   return (
     <Sheet
-      title={toolText(tool.id, 'name', tool.name)}
-      subtitle={toolText(tool.id, 'desc', tool.desc)}
+      title={tool.name}
+      subtitle={tool.desc}
       onClose={onClose}
     >
       {tool.inputs.map((f) => (
         <div key={f.key} style={{ marginBottom: 12 }}>
           <label className="fl" htmlFor={`tool-${f.key}`}>
-            {toolInput(f.key, f.label)}
+            {f.label}
           </label>
           <input
             id={`tool-${f.key}`}

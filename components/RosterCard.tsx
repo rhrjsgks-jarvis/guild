@@ -24,7 +24,7 @@ export default function RosterCard({
   onChanged: () => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
-  const { t } = useT();
+  const { t, srv } = useT();
   const [roster, setRoster] = useState<RosterEntry[] | null>(null);
   const [error, setError] = useState('');
   const [target, setTarget] = useState<RosterEntry | null>(null);
@@ -33,12 +33,12 @@ export default function RosterCard({
   const load = useCallback(async () => {
     const res = await api('/api/admin/roster');
     if (!res.ok) {
-      setError(res.msg ?? '');
+      setError(srv(res));
       return;
     }
     setError('');
     setRoster(res.data as RosterEntry[]);
-  }, []);
+  }, [srv]);
 
   useEffect(() => {
     void load();
@@ -192,7 +192,7 @@ function AddSheet({
   onDone: () => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
-  const { t } = useT();
+  const { t, srv } = useT();
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -200,7 +200,7 @@ function AddSheet({
     setBusy(true);
     const res = await api('/api/admin/member', { name: name.trim(), email: getStoredEmail() });
     setBusy(false);
-    toast(res.msg ?? (res.ok ? t('r.added') : t('r.addFailed')), !res.ok);
+    toast(srv(res, res.ok ? 'r.added' : 'r.addFailed'), !res.ok);
     if (res.ok) onDone();
   }
 
@@ -253,7 +253,7 @@ function MemberSheet({
   onDone: () => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
-  const { t } = useT();
+  const { t, srv } = useT();
   const [newName, setNewName] = useState(member.name);
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<Mode>('edit');
@@ -278,7 +278,7 @@ function MemberSheet({
       email: getStoredEmail(),
     });
     setBusy(false);
-    toast(res.msg ?? (res.ok ? t('r.saved') : t('r.failed')), !res.ok);
+    toast(srv(res, res.ok ? 'r.saved' : 'r.failed'), !res.ok);
     if (res.ok) onDone();
   }
 
@@ -293,11 +293,11 @@ function MemberSheet({
     setBusy(false);
 
     if (res.needsConfirm) {
-      setWarning(String(res.msg ?? ''));
+      setWarning(srv(res));
       setMode('confirmMerge');
       return;
     }
-    toast(res.msg ?? (res.ok ? t('r.changed') : t('r.changeFailed')), !res.ok);
+    toast(srv(res, res.ok ? 'r.changed' : 'r.changeFailed'), !res.ok);
     if (res.ok) onDone();
   }
 
@@ -311,11 +311,11 @@ function MemberSheet({
     setBusy(false);
 
     if (res.needsConfirm) {
-      setWarning(String(res.msg ?? ''));
+      setWarning(srv(res));
       setMode('confirmRemove');
       return;
     }
-    toast(res.msg ?? (res.ok ? t('r.removed') : t('r.removeFailed')), !res.ok);
+    toast(srv(res, res.ok ? 'r.removed' : 'r.removeFailed'), !res.ok);
     if (res.ok) onDone();
   }
 

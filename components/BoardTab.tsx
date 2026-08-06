@@ -25,7 +25,7 @@ export default function BoardTab({
   toast: (msg: string, isError?: boolean) => void;
   onChanged: () => void;
 }) {
-  const { t } = useT();
+  const { t, srv } = useT();
   const [posts, setPosts] = useState<BoardPost[] | null>(null);
   const [error, setError] = useState('');
   const [open, setOpen] = useState<BoardPost | null>(null);
@@ -39,9 +39,9 @@ export default function BoardTab({
       return;
     }
     // 글이 없는 것과 불러오지 못한 것은 다르다 — 빈 목록으로 얼버무리지 않는다
-    setError(res.msg || ' ');
+    setError(srv(res) || ' ');
     setPosts([]);
-  }, []);
+  }, [srv]);
 
   useEffect(() => {
     void load();
@@ -57,7 +57,7 @@ export default function BoardTab({
 
   async function remove(post: BoardPost) {
     const res = await api('/api/admin/board', { id: post.id, email: getStoredEmail() }, 'DELETE');
-    toast(res.msg ?? (res.ok ? t('r.deleted') : t('r.deleteFailed')), !res.ok);
+    toast(srv(res, res.ok ? 'r.deleted' : 'r.deleteFailed'), !res.ok);
     if (res.ok) {
       setOpen(null);
       void load();
@@ -161,7 +161,7 @@ function WriteSheet({
   onDone: () => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
-  const { t } = useT();
+  const { t, srv } = useT();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [author, setAuthor] = useState(getStoredName());
@@ -173,7 +173,7 @@ function WriteSheet({
     setBusy(true);
     const res = await api('/api/board', { title, body, author, notice: admin && notice });
     setBusy(false);
-    toast(res.msg ?? (res.ok ? t('r.posted') : t('r.postFailed')), !res.ok);
+    toast(srv(res, res.ok ? 'r.posted' : 'r.postFailed'), !res.ok);
     if (res.ok) onDone();
   }
 

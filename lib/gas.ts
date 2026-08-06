@@ -1,4 +1,5 @@
 import 'server-only';
+import { cookies } from 'next/headers';
 
 /**
  * Apps Script(구글시트) JSON API 호출 래퍼 — 서버 전용.
@@ -49,6 +50,20 @@ export type GasAction =
 
 export type GasResponse = Record<string, unknown> & { ok: boolean; msg?: string };
 
+/**
+ * 화면 언어를 쿠키에서 읽는다. Apps Script 가 결과 메시지를 이 언어로 내려준다.
+ * 라우트마다 따로 넘기지 않는 이유: 하나만 빠뜨려도 그 화면만 한국어로 남는다.
+ */
+async function currentLang(): Promise<'ko' | 'zh' | 'en'> {
+  try {
+    const v = (await cookies()).get('gm_lang')?.value;
+    return v === 'zh' || v === 'en' ? v : 'ko';
+  } catch {
+    // 요청 바깥에서 불린 경우 — 기본값으로 둔다
+    return 'ko';
+  }
+}
+
 const DEFAULT_TIMEOUT_MS = 25_000;
 
 export function gasConfigured(): boolean {
@@ -91,13 +106,15 @@ export async function callGas(
     };
   }
 
+  const lang = await currentLang();
+
   let res: Response;
   try {
     res = await fetch(url, {
       method: 'POST',
       // text/plain 이면 Apps Script가 postData.contents로 그대로 받아준다.
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ ...payload, action, token }),
+      body: JSON.stringify({ ...payload, action, token, lang }),
       redirect: 'follow', // Apps Script는 googleusercontent.com 으로 302를 보낸다
       cache: 'no-store',
       signal: AbortSignal.timeout(opts.timeoutMs ?? DEFAULT_TIMEOUT_MS),

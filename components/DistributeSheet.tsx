@@ -21,7 +21,7 @@ export default function DistributeSheet({
   toast: (msg: string, isError?: boolean) => void;
   setBusy: (on: boolean) => void;
 }) {
-  const { t, unit } = useT();
+  const { t, unit, srv } = useT();
   const [raw, setRaw] = useState('');
 
   const u = unit(state.unit);
@@ -45,7 +45,7 @@ export default function DistributeSheet({
       email: getStoredEmail(),
     });
     setBusy(false);
-    toast(res.msg ?? (res.ok ? t('r.distributed') : t('r.distributeFailed')), !res.ok);
+    toast(srv(res, res.ok ? 'r.distributed' : 'r.distributeFailed'), !res.ok);
     if (res.ok) {
       onClose();
       onDone();

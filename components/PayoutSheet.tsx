@@ -21,7 +21,7 @@ export default function PayoutSheet({
   toast: (msg: string, isError?: boolean) => void;
   setBusy: (on: boolean) => void;
 }) {
-  const { t, unit } = useT();
+  const { t, unit, srv } = useT();
   // 기본값은 전액 — 대부분은 그대로 확인만 누르면 된다
   const [raw, setRaw] = useState(String(row.pending));
 
@@ -39,7 +39,7 @@ export default function PayoutSheet({
       email: getStoredEmail(),
     });
     setBusy(false);
-    toast(res.msg ?? (res.ok ? t('r.paid') : t('r.payFailed')), !res.ok);
+    toast(srv(res, res.ok ? 'r.paid' : 'r.payFailed'), !res.ok);
     if (res.ok) {
       onClose();
       onDone();

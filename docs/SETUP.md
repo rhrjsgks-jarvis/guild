@@ -30,7 +30,7 @@
 ## ② v10.0 설치 + 웹앱 배포
 
 1. 새 시트에서 **확장 프로그램 → Apps Script**
-2. 기본 코드를 지우고, [**GuildManager_v10_0.gs 전체**](https://raw.githubusercontent.com/rhrjsgks-jarvis/guild/main/apps-script/GuildManager_v10_0.gs) 를 복사해 붙여넣기 (Ctrl+A → Ctrl+C → Ctrl+V) → 💾 저장
+2. 기본 코드를 지우고, [**GuildManager_v10_1.gs 전체**](https://raw.githubusercontent.com/rhrjsgks-jarvis/guild/main/apps-script/GuildManager_v10_1.gs) 를 복사해 붙여넣기 (Ctrl+A → Ctrl+C → Ctrl+V) → 💾 저장
 3. 시트로 돌아와 새로고침 → 메뉴 **[🎮 길드정산] → [🚀 최초 설치]**
    - 빈 시트 구조가 만들어집니다 (데이터는 아직 없음)
 4. Apps Script 우측 상단 **[배포] → [새 배포]**

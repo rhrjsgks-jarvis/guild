@@ -1,8 +1,24 @@
 // ═══════════════════════════════════════════════════════════════
-//  길드 정산 시스템 v10.0  (분배비중 · 연합 · 게시판 · 마스터관리자)
+//  길드 정산 시스템 v10.1  (분배비중 · 연합 · 게시판 · 마스터관리자 · 3개국어)
 //  시트 구성: [사용안내] [멤버DB] [참여자현황] [분배대기중] [잔액현황]
 //            [지급기록] [연합] [게시판] [작업기록] + [시즌1] [시즌2] ...
 //            ← 이 순서로 항상 정렬됨
+// ═══════════════════════════════════════════════════════════════
+//  변경점 v10.0 → v10.1  (결과 메시지 3개국어)
+//
+//   - ★ 앱이 한국어·中文·English 세 언어를 지원한다. 시트가 돌려주는
+//       결과 메시지도 화면 언어로 나온다.
+//   - ★ 방식: 시트는 문장을 세 벌로 만들지 않는다. "무슨 일이 있었는지"를
+//       **코드 + 값**으로만 내려주고(`_rc`), 문장은 앱이 자기 사전으로 만든다.
+//         { ok:true, code:'dist.ok', vars:{ item:'…', amount:52000, … },
+//           msg:'✅ "…" 52,000다이아 분배 완료 …' }   ← msg 는 한국어 폴백
+//       어구를 치환하는 방식은 "아직 받지 않 待发放 잔액이" 처럼 반쪽만
+//       번역된 문장을 만들어서 폐기했다.
+//   - ★ 사람 이름·아이템명·계정명은 vars 로 그대로 흐르며 번역하지 않는다
+//       (엉뚱한 사람에게 다이아가 가는 사고를 막는 규칙 7과 같은 이유)
+//   - ★ danger:3 확인 문구는 어떤 언어에서도 그대로다 — 번역되면 서버 비교가
+//       영원히 실패한다. `npm run verify:gs` 가 이걸 검사한다.
+//   - 앱이 언어를 쿠키(gm_lang)로 남기고 Vercel 라우트가 시트 호출에 실어 보낸다
 // ═══════════════════════════════════════════════════════════════
 //  변경점 v9.2 → v10.0
 //
@@ -337,7 +353,7 @@
 //     '누적기록'을 그대로 찾음 (하위 호환, 리네이밍과 무관)
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION = '10.0';
+const VERSION = '10.1';
 const T2S_MAP = {'國':'国','學':'学','這':'这','個':'个','們':'们','說':'说','話':'话','對':'对','時':'时','間':'间','現':'现','場':'场','開':'开','關':'关','內':'内','東':'东','車':'车','馬':'马','龍':'龙','風':'风','陽':'阳','陰':'阴','電':'电','語':'语','讀':'读','寫':'写','書':'书','紙':'纸','筆':'笔','長':'长','門':'门','問':'问','聽':'听','見':'见','覺':'觉','讓':'让','誰':'谁','還':'还','進':'进','運':'运','動':'动','靜':'静','樂':'乐','藥':'药','華':'华','蘭':'兰','葉':'叶','黃':'黄','麗':'丽','寶':'宝','貴':'贵','財':'财','買':'买','賣':'卖','錢':'钱','銀':'银','鐵':'铁','鋼':'钢','陳':'陈','劉':'刘','張':'张','楊':'杨','蔣':'蒋','鄭':'郑','謝':'谢','呂':'吕','蘇':'苏','韓':'韩','馮':'冯','於':'于','鳳':'凤','雲':'云','劍':'剑','斷':'断','亂':'乱','愛':'爱','聲':'声','醫':'医','藝':'艺','頭':'头','臉':'脸','腳':'脚','氣':'气','樓':'楼','橋':'桥','飛':'飞','機':'机','網':'网','線':'线','條':'条','裡':'里','邊':'边','錯':'错','壞':'坏','舊':'旧','寬':'宽','淺':'浅','週':'周','節':'节','業':'业','後':'后','來':'来','終':'终','結':'结','敗':'败','勝':'胜','負':'负','輸':'输','贏':'赢','強':'强','難':'难','簡':'简','單':'单','複':'复','雜':'杂','純':'纯','淨':'净','髒':'脏','齊':'齐','穩':'稳','變':'变','轉':'转','換':'换','顯':'显','樣':'样','種':'种','類':'类','團':'团','體':'体','統':'统','織':'织','組':'组','構':'构','設':'设','計':'计','劃':'划','數':'数','課':'课','題':'题','試':'试','練':'练','習':'习','師':'师','員':'员','職':'职','務':'务','責':'责','權':'权','應':'应','該':'该','須':'须','願':'愿','夢':'梦','憶':'忆','識':'识','認':'认','歡':'欢','醜':'丑','帥':'帅','靈':'灵','獸':'兽','鷹':'鹰','鶴':'鹤','鴻':'鸿','鱷':'鳄','鯨':'鲸','鯊':'鲨','蝦':'虾','殼':'壳','冑':'胄','戰':'战','爭':'争','鬥':'斗','擊':'击','禦':'御','護':'护','衛':'卫','謀':'谋','陣':'阵','營':'营','軍':'军','隊':'队','將':'将','嬪':'嫔','宮':'宫','廟':'庙','觀':'观','閣':'阁','蓮':'莲','楓':'枫','樺':'桦','檜':'桧','樹':'树','實':'实','幹':'干','莖':'茎','穫':'获','採':'采','鮮':'鲜','籠':'笼','傷':'伤','殺':'杀','斬':'斩','豬':'猪','雞':'鸡','鴨':'鸭','鵝':'鹅','龜':'龟','蟬':'蝉','蟻':'蚁','螞':'蚂','鴉':'鸦','鵰':'雕','鴛':'鸳','鴦':'鸯','賽':'赛','廠':'厂','廣':'广','麼':'么','誒':'诶','歲':'岁','歷':'历','歸':'归','殘':'残','蟲':'虫','貓':'猫','氈':'毡','貫':'贯','質':'质','貨':'货','貼':'贴','費':'费','資':'资','賬':'账','賺':'赚','贈':'赠','賀':'贺','賢':'贤','賦':'赋','賤':'贱','賓':'宾','賴':'赖','齲':'龋','齒':'齿','龄':'齡','齡':'龄','齣':'出','岡':'冈','剛':'刚','剮':'剐','創':'创','劇':'剧','勵':'励','勸':'劝','勻':'匀','匯':'汇','醬':'酱','醞':'酝','釀':'酿','釋':'释','釘':'钉','針':'针','釣':'钓','鈍':'钝','鈴':'铃','鈔':'钞','鉛':'铅','鋸':'锯','鋒':'锋','鍵':'键','鎖':'锁','鑄':'铸','鑼':'锣','錶':'表','鐘':'钟','鏡':'镜','鑽':'钻','鑑':'鉴','閉':'闭','閃':'闪','閏':'闰','閱':'阅','闆':'板','闖':'闯','陸':'陆','隱':'隐','雖':'虽','雙':'双','雛':'雏','靂':'雳','韋':'韦','韌':'韧','頁':'页','頂':'顶','項':'项','順':'顺','頌':'颂','預':'预','頑':'顽','頒':'颁','頗':'颇','領':'领','頡':'颉','頜':'颌','頸':'颈','頻':'频','頹':'颓','顆':'颗','額':'额','顏':'颜','顛':'颠','顧':'顾','飄':'飘','饑':'饥','餃':'饺','餅':'饼','館':'馆','饒':'饶','饞':'馋','馳':'驰','駕':'驾','駛':'驶','駐':'驻','駱':'骆','駭':'骇','騎':'骑','騰':'腾','驅':'驱','驚':'惊','驕':'骄','驗':'验','骯':'肮','髮':'发','鬍':'胡','鬧':'闹','鮑':'鲍','鯉':'鲤','鰲':'鳌','鱉':'鳖','鳥':'鸟','鳴':'鸣','鹹':'咸','麥':'麦','麵':'面','黨':'党'};  // 번체→간체 상용한자 (서체 변환 전용, 다른 뜻 글자는 포함하지 않음)
 const UNIT = '다이아';                 // 재화 단위 표기
 const MAX_MEMBERS = 50;               // 최대 멤버 수
@@ -643,28 +659,33 @@ function _readLedgerRow(ledger, row) {
 function _correctCore(ss, row, newAmount, email) {
   const ledger = ss.getSheetByName(LEDGER_SHEET);
   const balance = ss.getSheetByName('잔액현황');
-  if (!ledger || !balance) return { ok: false, reason: 'nosheet', msg: LEDGER_SHEET + '/잔액현황 시트를 찾을 수 없습니다.' };
+  if (!ledger || !balance) {
+    return _rc({ ok: false, reason: 'nosheet', msg: LEDGER_SHEET + '/잔액현황 시트를 찾을 수 없습니다.' },
+      'e.noSheet', { sheet: LEDGER_SHEET + '/잔액현황' });
+  }
 
   const info = _readLedgerRow(ledger, Number(row));
-  if (!info) return { ok: false, reason: 'norow', msg: '아이템을 찾을 수 없습니다. 새로고침 후 다시 시도해주세요.' };
-  if (info.status !== ST_DONE) return { ok: false, reason: 'notdone', msg: '분배완료 상태인 아이템만 정정할 수 있습니다.' };
-  if (info.n === 0) return { ok: false, reason: 'nonames', msg: '참여자 명단을 읽을 수 없습니다.' };
+  if (!info) return _rc({ ok: false, reason: 'norow', msg: '아이템을 찾을 수 없습니다. 새로고침 후 다시 시도해주세요.' }, 'e.noItem');
+  if (info.status !== ST_DONE) {
+    return _rc({ ok: false, reason: 'notdone', msg: '분배완료 상태인 아이템만 정정할 수 있습니다.' }, 'e.notDone');
+  }
+  if (info.n === 0) return _rc({ ok: false, reason: 'nonames', msg: '참여자 명단을 읽을 수 없습니다.' }, 'e.noNames');
 
   const chk = _reverseCheck(ss, balance, _reversalPlan(ss, info).plan);
   if (chk.insufficient.length > 0) {
-    return {
+    return _rc({
       ok: false,
       reason: 'insufficient',
       insufficient: chk.insufficient,
       msg: '정정할 수 없습니다. 아래 대상이 이미 지급✓ 처리되어 분배전 잔액이 부족합니다:\n\n' +
            chk.insufficient.join('\n') + '\n\n지급 기록을 확인한 뒤 다시 시도해주세요.'
-    };
+    }, 'cor.insufficient', { list: chk.insufficient.join('\n') });
   }
 
   const rev = _reverseAmounts(balance, chk);
   if (rev.failed.length > 0) {
     // 하나라도 실패하면 상태를 바꾸지 않는다 — "상태와 실제 데이터가 다른" 상황을 만들지 않기 위해
-    return {
+    return _rc({
       ok: false,
       reason: 'partial',
       reversed: rev.reversed,
@@ -673,7 +694,10 @@ function _correctCore(ss, row, newAmount, email) {
            '반영됨(' + rev.reversed.length + '): ' + rev.reversed.join(', ') + '\n' +
            '실패(' + rev.failed.length + '): ' + rev.failed.join(', ') + '\n\n' +
            '상태는 "' + ST_DONE + '"로 유지했습니다. 실패한 항목만 수동 조정 후 다시 시도해주세요.'
-    };
+    }, 'cor.partial', {
+      okN: rev.reversed.length, okList: rev.reversed.join(', '),
+      failN: rev.failed.length, failList: rev.failed.join(', ')
+    });
   }
 
   const actor = _getActorEmail(email);
@@ -684,26 +708,26 @@ function _correctCore(ss, row, newAmount, email) {
   _logAction(ss, '정정-되돌리기', info.item, actor, info.amount.toLocaleString() + UNIT + ' 분배를 되돌림');
 
   if (newAmount === null || newAmount === undefined || newAmount === '') {
-    return {
+    return _rc({
       ok: true, redistributed: false, item: info.item,
       msg: '✅ "' + info.item + '" 되돌리기 완료 — ' + ST_WAIT + ' 상태로 돌아갔습니다.'
-    };
+    }, 'cor.revert', { item: info.item });
   }
 
   const amt = Number(newAmount);
   if (!Number.isInteger(amt) || amt <= 0) {
-    return {
+    return _rc({
       ok: true, redistributed: false, item: info.item,
       msg: '✅ 되돌리기는 완료했지만 새 금액이 올바르지 않아 재분배는 하지 않았습니다. [아이템] 탭에서 분배해주세요.'
-    };
+    }, 'cor.revertBadAmount', { item: info.item });
   }
 
   const r = _distributeCore(ss, ledger, row, amt, email);
   if (!r.ok) {
-    return {
+    return _rc({
       ok: true, redistributed: false, item: info.item,
       msg: '✅ 되돌리기는 완료했으나 재분배에 실패했습니다(' + r.reason + '). [아이템] 탭에서 다시 분배해주세요.'
-    };
+    }, 'cor.revertNoRedist', { item: info.item, reason: String(r.reason || '') });
   }
   ledger.getRange(row, LG.EDITBY).setValue(actor);
   _logAction(ss, '정정-재분배', info.item, actor, info.amount.toLocaleString() + ' → ' + amt.toLocaleString() + UNIT);
@@ -711,7 +735,10 @@ function _correctCore(ss, row, newAmount, email) {
   let msg = '✅ "' + info.item + '" 정정 완료 — ' + info.amount.toLocaleString() + ' → ' + amt.toLocaleString() + UNIT +
             '\n' + FUND_NAME + ' ' + r.fundTotal.toLocaleString() + ' / ' + r.n + '명 기본 ' + r.perPerson.toLocaleString();
   if (r.remainder > 0) msg += ' (잔여 ' + r.remainder.toLocaleString() + ' 운영비 귀속)';
-  return { ok: true, redistributed: true, item: info.item, msg: msg };
+  return _rc({ ok: true, redistributed: true, item: info.item, msg: msg }, 'cor.ok', {
+    item: info.item, from: info.amount, to: amt,
+    fundTotal: r.fundTotal, n: r.n, per: r.perPerson, remainder: r.remainder
+  });
 }
 
 // ─────────────────────────────────────────
@@ -720,31 +747,40 @@ function _correctCore(ss, row, newAmount, email) {
 function _deleteItemCore(ss, row, email) {
   const ledger = ss.getSheetByName(LEDGER_SHEET);
   const balance = ss.getSheetByName('잔액현황');
-  if (!ledger) return { ok: false, reason: 'nosheet', msg: LEDGER_SHEET + ' 시트를 찾을 수 없습니다.' };
+  if (!ledger) {
+    return _rc({ ok: false, reason: 'nosheet', msg: LEDGER_SHEET + ' 시트를 찾을 수 없습니다.' },
+      'e.noSheet', { sheet: LEDGER_SHEET });
+  }
 
   const info = _readLedgerRow(ledger, Number(row));
-  if (!info) return { ok: false, reason: 'norow', msg: '아이템을 찾을 수 없습니다. 새로고침 후 다시 시도해주세요.' };
+  if (!info) return _rc({ ok: false, reason: 'norow', msg: '아이템을 찾을 수 없습니다. 새로고침 후 다시 시도해주세요.' }, 'e.noItem');
 
   if (info.status === ST_DONE) {
-    if (!balance) return { ok: false, reason: 'nosheet', msg: '잔액현황 시트가 없어 안전하게 삭제할 수 없습니다.' };
+    if (!balance) {
+      return _rc({ ok: false, reason: 'nosheet', msg: '잔액현황 시트가 없어 안전하게 삭제할 수 없습니다.' },
+        'e.noSheet', { sheet: '잔액현황' });
+    }
 
     const chk = _reverseCheck(ss, balance, _reversalPlan(ss, info).plan);
     if (chk.insufficient.length > 0) {
-      return {
+      return _rc({
         ok: false, reason: 'insufficient', insufficient: chk.insufficient,
         msg: '삭제할 수 없습니다. 아래 대상이 이미 지급✓ 처리되어 분배전 잔액이 부족합니다:\n\n' +
              chk.insufficient.join('\n')
-      };
+      }, 'del.insufficient', { list: chk.insufficient.join('\n') });
     }
     const rev = _reverseAmounts(balance, chk);
     if (rev.failed.length > 0) {
-      return {
+      return _rc({
         ok: false, reason: 'partial', reversed: rev.reversed, failed: rev.failed,
         msg: '금액 되돌리기가 일부만 반영되어 삭제를 중단했습니다.\n\n' +
              '반영됨(' + rev.reversed.length + '): ' + rev.reversed.join(', ') + '\n' +
              '실패(' + rev.failed.length + '): ' + rev.failed.join(', ') + '\n\n' +
              '행은 삭제하지 않았습니다.'
-      };
+      }, 'del.partial', {
+        okN: rev.reversed.length, okList: rev.reversed.join(', '),
+        failN: rev.failed.length, failList: rev.failed.join(', ')
+      });
     }
   }
 
@@ -759,7 +795,8 @@ function _deleteItemCore(ss, row, email) {
   _recalcAllParticipationCounts(ss);
   _applyProtections(ss);
 
-  return { ok: true, item: info.item, msg: '✅ "' + info.item + '" 삭제 완료 — 참여횟수가 자동으로 재계산되었습니다.' };
+  return _rc({ ok: true, item: info.item, msg: '✅ "' + info.item + '" 삭제 완료 — 참여횟수가 자동으로 재계산되었습니다.' },
+    'del.ok', { item: info.item });
 }
 
 // ─────────────────────────────────────────
@@ -780,15 +817,18 @@ function _lastPayoutInfo(ss) {
 
 function _undoPayoutCore(ss, email) {
   const info = _lastPayoutInfo(ss);
-  if (!info) return { ok: false, reason: 'empty', msg: '취소할 지급 기록이 없습니다.' };
+  if (!info) return _rc({ ok: false, reason: 'empty', msg: '취소할 지급 기록이 없습니다.' }, 'e.noPayout');
 
   const bal = ss.getSheetByName('잔액현황');
-  if (!bal) return { ok: false, reason: 'nosheet', msg: '잔액현황 시트를 찾을 수 없습니다.' };
+  if (!bal) return _rc({ ok: false, reason: 'nosheet', msg: '잔액현황 시트를 찾을 수 없습니다.' }, 'e.noSheet', { sheet: '잔액현황' });
 
   const vals = bal.getRange(2, 1, Math.max(bal.getLastRow() - 1, 1), 1).getValues();
   let row = -1;
   vals.forEach(function (r, i) { if (_normName(r[0]) === _normName(info.name)) row = i + 2; });
-  if (row < 0) return { ok: false, reason: 'noname', msg: '잔액현황에서 "' + info.name + '"을 찾지 못했습니다.' };
+  if (row < 0) {
+    return _rc({ ok: false, reason: 'noname', msg: '잔액현황에서 "' + info.name + '"을 찾지 못했습니다.' },
+      'e.noMember', { name: info.name });
+  }
 
   const pending = Number(String(bal.getRange(row, BAL_COL.PENDING).getValue()).replace(/,/g, '')) || 0;
   const paid = Number(String(bal.getRange(row, BAL_COL.PAID).getValue()).replace(/,/g, '')) || 0;
@@ -801,10 +841,10 @@ function _undoPayoutCore(ss, email) {
     info.amount.toLocaleString() + UNIT + ' 지급 건을 취소·복구 (원 지급일 ' + info.date + ')');
   ss.getSheetByName(PAYOUT_SHEET).deleteRow(info.logRow);
 
-  return {
+  return _rc({
     ok: true, name: info.name, amount: info.amount,
     msg: '✅ "' + info.name + '" ' + info.amount.toLocaleString() + UNIT + '가 분배전으로 복구되었습니다.'
-  };
+  }, 'undo.ok', { name: info.name, amount: info.amount });
 }
 
 function onOpen() {
@@ -2248,6 +2288,15 @@ function _rebuildGuide(ss) {
     ['  공유할 수 있습니다 (매니저는 기존 링크를 계속 사용)', 'b'],
     [''  , 'sp'],
 
+    ['🌏 앱 언어 — 한국어 · 中文 · English (v10.1)', 'sec'],
+    ['앱 [⚙️ 관리] 탭 맨 위에서 화면 언어를 고를 수 있습니다.', 'b'],
+    ['· 탭·버튼·안내문뿐 아니라 이 시트가 돌려주는 결과 메시지도', 'b'],
+    ['  고른 언어로 나옵니다 (등록·분배·지급 완료 알림 등)', 'b'],
+    ['· 사람 이름·아이템명·게시글은 번역하지 않습니다 — 데이터이기 때문입니다', 'b'],
+    ['· 중국어권 혈맹원은 멤버DB G열 "한자표기"에 이름을 넣어주면', 'b'],
+    ['  앱에서 "한글 (漢字)" 형태로 함께 보입니다', 'b'],
+    ['', 'sp'],
+
     ['🗓️ 지난 시즌 보기 (v9.2)', 'sec'],
     ['앱 상단의 [시즌 N] 을 누르면 지난 시즌 기록을 볼 수 있습니다.', 'b'],
     ['최종 잔액·아이템 이력·요약 통계·지급 이력이 그대로 보관됩니다.', 'b'],
@@ -3340,20 +3389,24 @@ function api_renameMember(oldName, newName, email, confirmMerge) {
   oldName = String(oldName || '').trim();
   newName = String(newName || '').trim();
 
-  if (!oldName || !newName) return { ok: false, msg: '이름을 모두 입력해주세요.' };
-  if (newName.length > 30) return { ok: false, msg: '이름이 너무 깁니다 (30자 이내).' };
+  if (!oldName || !newName) return _rc({ ok: false, msg: '이름을 모두 입력해주세요.' }, 'e.nameEmpty');
+  if (newName.length > 30) return _rc({ ok: false, msg: '이름이 너무 깁니다 (30자 이내).' }, 'e.nameLong');
   if (_normName(oldName) === _normName(newName)) {
-    return { ok: false, msg: '기존 이름과 같습니다.' };
+    return _rc({ ok: false, msg: '기존 이름과 같습니다.' }, 'e.nameSame');
   }
   if (oldName === FUND_NAME || newName === FUND_NAME) {
-    return { ok: false, msg: '혈비 계정(' + FUND_NAME + ')은 앱에서 변경할 수 없습니다. PC 시트에서 처리해주세요.' };
+    return _rc({ ok: false, msg: '혈비 계정(' + FUND_NAME + ')은 앱에서 변경할 수 없습니다. PC 시트에서 처리해주세요.' },
+      'e.fundLocked', { fund: FUND_NAME });
   }
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const members = _getMembers(ss);
 
   const exists = members.some(function (m) { return _normName(m) === _normName(oldName); });
-  if (!exists) return { ok: false, msg: '"' + oldName + '" 을(를) 멤버DB에서 찾지 못했습니다. 새로고침 후 다시 시도해주세요.' };
+  if (!exists) {
+    return _rc({ ok: false, msg: '"' + oldName + '" 을(를) 멤버DB에서 찾지 못했습니다. 새로고침 후 다시 시도해주세요.' },
+      'e.noMember', { name: oldName });
+  }
 
   // 이미 있는 이름으로 바꾸려는 경우 → 병합. 한 번 더 확인받는다.
   const dup = members.filter(function (m) { return _normName(m) === _normName(newName); })[0];
@@ -3363,7 +3416,7 @@ function api_renameMember(oldName, newName, email, confirmMerge) {
       const hit = roster.filter(function (r) { return _normName(r.name) === _normName(nm); })[0];
       return hit ? hit.pending : 0;
     };
-    return {
+    return _rc({
       ok: false,
       needsConfirm: true,
       msg: '"' + newName + '" 은(는) 이미 명단에 있는 이름입니다.\n\n' +
@@ -3371,16 +3424,16 @@ function api_renameMember(oldName, newName, email, confirmMerge) {
            '· ' + oldName + ' 분배전 ' + pick(oldName).toLocaleString() + UNIT + '\n' +
            '· ' + newName + ' 분배전 ' + pick(newName).toLocaleString() + UNIT + '\n\n' +
            '동일 인물이 맞을 때만 진행하세요.'
-    };
+    }, 'ren.needMerge', { from: oldName, to: newName, fromPending: pick(oldName), toPending: pick(newName) });
   }
 
   try {
     const r = _renameCore(ss, oldName, newName, email);
-    return {
+    return _rc({
       ok: true,
       merged: r.merged === true,
       msg: '✅ "' + oldName + '" → "' + newName + '" 변경 완료' + (r.merged ? ' (중복 계정 병합됨)' : '')
-    };
+    }, 'ren.ok', { from: oldName, to: newName, merged: r.merged === true ? 1 : 0 });
   } catch (e) {
     return { ok: false, msg: '변경 중 오류가 발생했습니다: ' + e.message };
   }
@@ -3394,24 +3447,26 @@ function api_renameMember(oldName, newName, email, confirmMerge) {
 function api_addMember(name, email) {
   name = String(name || '').trim();
 
-  if (!name) return { ok: false, msg: '아이디를 입력해주세요.' };
-  if (name.length > 30) return { ok: false, msg: '아이디가 너무 깁니다 (30자 이내).' };
+  if (!name) return _rc({ ok: false, msg: '아이디를 입력해주세요.' }, 'e.nameEmpty');
+  if (name.length > 30) return _rc({ ok: false, msg: '아이디가 너무 깁니다 (30자 이내).' }, 'e.nameLong');
   if (name === FUND_NAME) {
-    return { ok: false, msg: '혈비 계정(' + FUND_NAME + ')은 앱에서 추가할 수 없습니다.' };
+    return _rc({ ok: false, msg: '혈비 계정(' + FUND_NAME + ')은 앱에서 추가할 수 없습니다.' },
+      'e.fundLocked', { fund: FUND_NAME });
   }
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const members = _getMembers(ss);
 
   if (members.some(function (m) { return _normName(m) === _normName(name); })) {
-    return { ok: false, msg: '"' + name + '" 은(는) 이미 명단에 있습니다.' };
+    return _rc({ ok: false, msg: '"' + name + '" 은(는) 이미 명단에 있습니다.' }, 'e.dupMember', { name: name });
   }
   if (members.length >= MAX_MEMBERS) {
-    return { ok: false, msg: '멤버가 최대 인원(' + MAX_MEMBERS + '명)에 도달했습니다. PC 시트에서 정리해주세요.' };
+    return _rc({ ok: false, msg: '멤버가 최대 인원(' + MAX_MEMBERS + '명)에 도달했습니다. PC 시트에서 정리해주세요.' },
+      'e.maxMembers', { max: MAX_MEMBERS });
   }
 
   const db = ss.getSheetByName('멤버DB');
-  if (!db) return { ok: false, msg: '멤버DB 시트를 찾을 수 없습니다.' };
+  if (!db) return _rc({ ok: false, msg: '멤버DB 시트를 찾을 수 없습니다.' }, 'e.noSheet', { sheet: '멤버DB' });
 
   try {
     // B2:B51 에서 첫 빈 칸을 찾아 넣는다 (중간에 빈 줄이 있어도 메꿔진다)
@@ -3427,7 +3482,7 @@ function api_addMember(name, email) {
     _applyMemberNameFormatting(ss);
     _logAction(ss, '멤버추가', name, _getActorEmail(email), '앱에서 추가');
 
-    return { ok: true, msg: '✅ "' + name + '" 을(를) 명단에 추가했습니다.' };
+    return _rc({ ok: true, msg: '✅ "' + name + '" 을(를) 명단에 추가했습니다.' }, 'add.ok', { name: name });
   } catch (e) {
     return { ok: false, msg: '추가 중 오류가 발생했습니다: ' + e.message };
   }
@@ -3441,15 +3496,17 @@ function api_addMember(name, email) {
 // ─────────────────────────────────────────
 function api_removeMember(name, email, confirmRemove) {
   name = String(name || '').trim();
-  if (!name) return { ok: false, msg: '아이디를 입력해주세요.' };
+  if (!name) return _rc({ ok: false, msg: '아이디를 입력해주세요.' }, 'e.nameEmpty');
   if (name === FUND_NAME) {
-    return { ok: false, msg: '혈비 계정(' + FUND_NAME + ')은 앱에서 뺄 수 없습니다.' };
+    return _rc({ ok: false, msg: '혈비 계정(' + FUND_NAME + ')은 앱에서 뺄 수 없습니다.' },
+      'e.fundLocked', { fund: FUND_NAME });
   }
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const members = _getMembers(ss);
   if (!members.some(function (m) { return _normName(m) === _normName(name); })) {
-    return { ok: false, msg: '"' + name + '" 을(를) 멤버DB에서 찾지 못했습니다. 새로고침 후 다시 시도해주세요.' };
+    return _rc({ ok: false, msg: '"' + name + '" 을(를) 멤버DB에서 찾지 못했습니다. 새로고침 후 다시 시도해주세요.' },
+      'e.noMember', { name: name });
   }
 
   // 현재 잔액·이력 확인
@@ -3477,7 +3534,7 @@ function api_removeMember(name, email, confirmRemove) {
             '지급하지 않고 빼면 이 금액은 "(미등록)" 상태로 남습니다.\n' +
             '먼저 [잔액] 탭에서 지급 처리하는 편이 깔끔합니다.\n\n';
     warn += '그래도 진행할까요?';
-    return { ok: false, needsConfirm: true, msg: warn };
+    return _rc({ ok: false, needsConfirm: true, msg: warn }, 'rm.needConfirm', { name: name, pending: pending });
   }
 
   try {
@@ -3509,12 +3566,12 @@ function api_removeMember(name, email, confirmRemove) {
       '앱에서 명단 제외 (분배전 ' + pending.toLocaleString() + ' / 분배완료 ' + paid.toLocaleString() +
       ' / 참여 ' + cnt + '회)' + (kept ? ' — 잔액현황에 (미등록)으로 보존' : ' — 이력 없어 행 삭제'));
 
-    return {
+    return _rc({
       ok: true,
       kept: kept,
       msg: '✅ "' + name + '" 탈퇴 처리 완료' +
         (kept ? ' — 기록은 "(미등록)" 으로 남겨두었습니다.' : ' — 이력이 없어 목록에서 지웠습니다.')
-    };
+    }, 'rm.ok', { name: name, kept: kept ? 1 : 0 });
   } catch (e) {
     return { ok: false, msg: '탈퇴 처리 중 오류가 발생했습니다: ' + e.message };
   }
@@ -4082,22 +4139,22 @@ function api_previewReverse(row) {
 }
 
 function api_correctItem(row, newAmount, email, confirm) {
-  if (confirm !== true) return { ok: false, needsConfirm: true, msg: '확인이 필요합니다.' };
+  if (confirm !== true) return _rc({ ok: false, needsConfirm: true, msg: '확인이 필요합니다.' }, 'e.needConfirm');
   return _correctCore(SpreadsheetApp.getActiveSpreadsheet(), Number(row), newAmount, email);
 }
 
 function api_deleteItem(row, email, confirm) {
-  if (confirm !== true) return { ok: false, needsConfirm: true, msg: '확인이 필요합니다.' };
+  if (confirm !== true) return _rc({ ok: false, needsConfirm: true, msg: '확인이 필요합니다.' }, 'e.needConfirm');
   return _deleteItemCore(SpreadsheetApp.getActiveSpreadsheet(), Number(row), email);
 }
 
 function api_getLastPayout() {
   const info = _lastPayoutInfo(SpreadsheetApp.getActiveSpreadsheet());
-  return info ? { ok: true, data: info } : { ok: false, msg: '취소할 지급 기록이 없습니다.' };
+  return info ? { ok: true, data: info } : _rc({ ok: false, msg: '취소할 지급 기록이 없습니다.' }, 'e.noPayout');
 }
 
 function api_undoPayout(email, confirm) {
-  if (confirm !== true) return { ok: false, needsConfirm: true, msg: '확인이 필요합니다.' };
+  if (confirm !== true) return _rc({ ok: false, needsConfirm: true, msg: '확인이 필요합니다.' }, 'e.needConfirm');
   return _undoPayoutCore(SpreadsheetApp.getActiveSpreadsheet(), email);
 }
 
@@ -4184,13 +4241,17 @@ function api_addPost(title, body, author, isNotice) {
   body = String(body || '').trim();
   author = String(author || '').trim() || '익명';
 
-  if (!title) return { ok: false, msg: '제목을 입력해주세요.' };
-  if (title.length > BOARD_MAX_TITLE) return { ok: false, msg: '제목이 너무 깁니다 (' + BOARD_MAX_TITLE + '자 이내).' };
-  if (body.length > BOARD_MAX_BODY) return { ok: false, msg: '내용이 너무 깁니다 (' + BOARD_MAX_BODY + '자 이내).' };
+  if (!title) return _rc({ ok: false, msg: '제목을 입력해주세요.' }, 'e.titleEmpty');
+  if (title.length > BOARD_MAX_TITLE) {
+    return _rc({ ok: false, msg: '제목이 너무 깁니다 (' + BOARD_MAX_TITLE + '자 이내).' }, 'e.titleLong', { max: BOARD_MAX_TITLE });
+  }
+  if (body.length > BOARD_MAX_BODY) {
+    return _rc({ ok: false, msg: '내용이 너무 깁니다 (' + BOARD_MAX_BODY + '자 이내).' }, 'e.bodyLong', { max: BOARD_MAX_BODY });
+  }
   if (author.length > 30) author = author.slice(0, 30);
 
   const lock = LockService.getScriptLock();
-  try { lock.waitLock(10000); } catch (e) { return { ok: false, msg: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.' }; }
+  try { lock.waitLock(10000); } catch (e) { return _rc({ ok: false, msg: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.' }, 'e.busy'); }
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = _getOrCreateBoard(ss);
@@ -4215,7 +4276,8 @@ function api_addPost(title, body, author, isNotice) {
       .setValues([[id, isNotice === true ? '공지' : '일반', title, body, author, new Date()]]);
     sheet.getRange(row, 6).setNumberFormat('yyyy-mm-dd hh:mm');
     sheet.getRange(row, 4).setWrap(true);
-    return { ok: true, id: id, msg: isNotice === true ? '✅ 공지를 등록했습니다.' : '✅ 글을 등록했습니다.' };
+    return _rc({ ok: true, id: id, msg: isNotice === true ? '✅ 공지를 등록했습니다.' : '✅ 글을 등록했습니다.' },
+      isNotice === true ? 'post.noticeOk' : 'post.ok');
   } catch (e) {
     return { ok: false, msg: '오류: ' + e.message };
   } finally {
@@ -4225,10 +4287,10 @@ function api_addPost(title, body, author, isNotice) {
 
 function api_deletePost(id, email) {
   id = Number(id);
-  if (!id) return { ok: false, msg: '삭제할 글을 찾을 수 없습니다.' };
+  if (!id) return _rc({ ok: false, msg: '삭제할 글을 찾을 수 없습니다.' }, 'e.noPost');
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(BOARD_SHEET);
-  if (!sheet || sheet.getLastRow() < 2) return { ok: false, msg: '게시판이 비어 있습니다.' };
+  if (!sheet || sheet.getLastRow() < 2) return _rc({ ok: false, msg: '게시판이 비어 있습니다.' }, 'e.boardEmpty');
 
   const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, 3).getValues();
   for (let i = 0; i < vals.length; i++) {
@@ -4236,10 +4298,10 @@ function api_deletePost(id, email) {
       const title = String(vals[i][2]).trim();
       sheet.deleteRow(i + 2);
       _logAction(ss, '게시글삭제', title, _getActorEmail(email), '#' + id + ' 삭제');
-      return { ok: true, msg: '✅ 삭제했습니다.' };
+      return _rc({ ok: true, msg: '✅ 삭제했습니다.' }, 'post.delOk');
     }
   }
-  return { ok: false, msg: '이미 삭제된 글입니다.' };
+  return _rc({ ok: false, msg: '이미 삭제된 글입니다.' }, 'e.postGone');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -4318,17 +4380,17 @@ function api_getAlliance() {
 function api_addAlliance(server, item, amount, pct, people, photoLink, email) {
   server = String(server || '').trim();
   item = String(item || '').trim();
-  if (SERVER_LIST.indexOf(server) < 0) return { ok: false, msg: '서버를 01~12 중에서 선택해주세요.' };
-  if (!item) return { ok: false, msg: '아이템명을 입력해주세요.' };
+  if (SERVER_LIST.indexOf(server) < 0) return _rc({ ok: false, msg: '서버를 01~12 중에서 선택해주세요.' }, 'e.badServer');
+  if (!item) return _rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
 
   const amt = Number(String(amount).replace(/,/g, ''));
-  if (!amt || amt <= 0 || amt !== Math.floor(amt)) return { ok: false, msg: '금액은 양의 정수여야 합니다.' };
+  if (!amt || amt <= 0 || amt !== Math.floor(amt)) return _rc({ ok: false, msg: '금액은 양의 정수여야 합니다.' }, 'e.badAmount');
 
   const s = _calcAlliance(amt, pct);
   const n = Math.max(Math.floor(Number(people) || 0), 0);
 
   const lock = LockService.getScriptLock();
-  try { lock.waitLock(15000); } catch (e) { return { ok: false, msg: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.' }; }
+  try { lock.waitLock(15000); } catch (e) { return _rc({ ok: false, msg: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.' }, 'e.busy'); }
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = _getOrCreateAlliance(ss);
@@ -4342,10 +4404,10 @@ function api_addAlliance(server, item, amount, pct, people, photoLink, email) {
     if (photoLink) sheet.getRange(row, 8).setFormula('=HYPERLINK("' + photoLink + '","📷")');
     _logAction(ss, '연합등록', item, actor,
       server + '서버 ' + s.amount.toLocaleString() + UNIT + ' × ' + s.pct + '% = ' + s.credited.toLocaleString() + ' (' + n + '명)');
-    return {
+    return _rc({
       ok: true, credited: s.credited, server: server,
       msg: '✅ ' + server + '서버에 ' + s.credited.toLocaleString() + UNIT + ' 누적했습니다 (' + n + '명 참여).'
-    };
+    }, 'ally.ok', { s: server, credited: s.credited, n: n });
   } catch (e) {
     return { ok: false, msg: '오류: ' + e.message };
   } finally {
@@ -4357,12 +4419,13 @@ function api_deleteAlliance(row, email) {
   row = Number(row);
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(ALLIANCE_SHEET);
-  if (!sheet || row < 2 || row > sheet.getLastRow()) return { ok: false, msg: '기록을 찾을 수 없습니다.' };
+  if (!sheet || row < 2 || row > sheet.getLastRow()) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
   const r = sheet.getRange(row, 1, 1, ALLIANCE_HEADERS.length).getValues()[0];
   const detail = String(r[1]) + '서버 ' + String(r[2]) + ' ' + Number(r[6]).toLocaleString() + UNIT;
   sheet.deleteRow(row);
   _logAction(ss, '연합삭제', String(r[2]), _getActorEmail(email), detail + ' 삭제');
-  return { ok: true, msg: '✅ 삭제했습니다 — ' + detail };
+  return _rc({ ok: true, msg: '✅ 삭제했습니다 — ' + detail },
+    'ally.delOk', { s: String(r[1]), item: String(r[2]), credited: Number(r[6]) || 0 });
 }
 
 // 연합 인증샷: 아이디는 전혀 판별하지 않고 인원수만 센다.
@@ -4383,6 +4446,8 @@ function api_countPhoto(base64) {
     ok: true,
     people: guess,
     photoUrl: r.photoUrl || '',
+    code: guess > 0 ? 'photo.count' : 'photo.noCount',
+    vars: { n: guess },
     msg: guess > 0
       ? '📷 사진에서 ' + guess + '명으로 읽었습니다. 실제 인원과 다르면 숫자를 직접 고쳐주세요.'
       : '📷 사진은 저장했지만 인원수를 읽지 못했습니다. 직접 입력해주세요.'
@@ -4402,13 +4467,13 @@ function api_updateMember(name, patch, email) {
   if (!db) return { ok: false, msg: '멤버DB 시트를 찾을 수 없습니다.' };
 
   const target = _getMemberRows(ss).filter(function (m) { return _normName(m.name) === _normName(name); })[0];
-  if (!target) return { ok: false, msg: '"' + name + '" 을(를) 명단에서 찾지 못했습니다.' };
+  if (!target) return _rc({ ok: false, msg: '"' + name + '" 을(를) 명단에서 찾지 못했습니다.' }, 'e.noMember', { name: name });
 
   const changes = [];
 
   if (patch.weight !== undefined && patch.weight !== null && patch.weight !== '') {
     const w = Math.round(Number(patch.weight));
-    if (!isFinite(w) || w < 1 || w > 100) return { ok: false, msg: '분배비중은 1~100 사이의 정수여야 합니다.' };
+    if (!isFinite(w) || w < 1 || w > 100) return _rc({ ok: false, msg: '분배비중은 1~100 사이의 정수여야 합니다.' }, 'e.badWeight');
     if (w !== target.weight) {
       db.getRange(target.row, MEM_COL.WEIGHT).setValue(w);
       changes.push('비중 ' + target.weight + '% → ' + w + '%');
@@ -4417,7 +4482,7 @@ function api_updateMember(name, patch, email) {
 
   if (patch.server !== undefined && patch.server !== null) {
     const sv = String(patch.server).trim();
-    if (sv && SERVER_LIST.indexOf(sv) < 0) return { ok: false, msg: '서버는 01~12 중에서 선택해주세요.' };
+    if (sv && SERVER_LIST.indexOf(sv) < 0) return _rc({ ok: false, msg: '서버는 01~12 중에서 선택해주세요.' }, 'e.badServer');
     if (sv !== target.server) {
       db.getRange(target.row, MEM_COL.SERVER).setValue(sv);
       changes.push('서버 ' + (target.server || '-') + ' → ' + (sv || '-'));
@@ -4428,17 +4493,17 @@ function api_updateMember(name, patch, email) {
   //   시스템이 추측해서 채우지 않는다 (엉뚱한 사람에게 다이아가 가는 사고를 막기 위한 규칙).
   if (patch.hanja !== undefined && patch.hanja !== null) {
     const hj = String(patch.hanja).trim();
-    if (hj.length > 30) return { ok: false, msg: '한자표기가 너무 깁니다 (30자 이내).' };
+    if (hj.length > 30) return _rc({ ok: false, msg: '한자표기가 너무 깁니다 (30자 이내).' }, 'e.hanjaLong');
     if (hj !== target.hanja) {
       db.getRange(target.row, MEM_COL.HANJA).setValue(hj);
       changes.push('한자 ' + (target.hanja || '-') + ' → ' + (hj || '-'));
     }
   }
 
-  if (changes.length === 0) return { ok: true, msg: '바뀐 내용이 없습니다.' };
+  if (changes.length === 0) return _rc({ ok: true, msg: '바뀐 내용이 없습니다.' }, 'mem.noChange');
 
   _logAction(ss, '멤버설정', name, _getActorEmail(email), changes.join(' · '));
-  return { ok: true, msg: '✅ ' + name + ' — ' + changes.join(' · ') };
+  return _rc({ ok: true, msg: '✅ ' + name + ' — ' + changes.join(' · ') }, 'mem.ok', { name: name, changes: changes.join(' · ') });
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -4480,12 +4545,12 @@ const ADMIN_PIN_PROP = 'ADMIN_PIN_OVERRIDE';
 
 function api_setAppName(name, email) {
   name = String(name || '').trim();
-  if (!name) return { ok: false, msg: '앱 이름을 입력해주세요.' };
-  if (name.length > 20) return { ok: false, msg: '앱 이름이 너무 깁니다 (20자 이내).' };
+  if (!name) return _rc({ ok: false, msg: '앱 이름을 입력해주세요.' }, 'e.appNameEmpty');
+  if (name.length > 20) return _rc({ ok: false, msg: '앱 이름이 너무 깁니다 (20자 이내).' }, 'e.appNameLong');
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   PropertiesService.getDocumentProperties().setProperty(APP_NAME_PROP, name);
   _logAction(ss, '앱이름변경', name, _getActorEmail(email), '앱 명칭을 "' + name + '" 으로 변경');
-  return { ok: true, msg: '✅ 앱 이름을 "' + name + '" 으로 바꿨습니다.' };
+  return _rc({ ok: true, msg: '✅ 앱 이름을 "' + name + '" 으로 바꿨습니다.' }, 'app.nameOk', { name: name });
 }
 
 // 관리자 PIN 원격 변경. 여기 저장된 값이 있으면 Vercel 의 ADMIN_PIN 환경변수보다 우선한다.
@@ -4493,7 +4558,7 @@ function api_setAppName(name, email) {
 function api_setAdminPin(pin, email) {
   pin = String(pin || '').trim();
   if (pin && !/^[0-9A-Za-z!@#$%^&*_-]{6,32}$/.test(pin)) {
-    return { ok: false, msg: 'PIN 은 6~32자여야 하며 공백은 쓸 수 없습니다.' };
+    return _rc({ ok: false, msg: 'PIN 은 6~32자여야 하며 공백은 쓸 수 없습니다.' }, 'e.badPin');
   }
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const props = PropertiesService.getDocumentProperties();
@@ -4501,7 +4566,8 @@ function api_setAdminPin(pin, email) {
   else props.deleteProperty(ADMIN_PIN_PROP);
   // ★ PIN 값 자체는 어떤 로그에도 남기지 않는다.
   _logAction(ss, '관리자PIN변경', '-', _getActorEmail(email), pin ? '새 PIN 으로 교체' : '환경변수 PIN 으로 복귀');
-  return { ok: true, msg: pin ? '✅ 관리자 PIN 을 바꿨습니다. 기존 관리자 기기는 다음 로그인부터 새 PIN 이 필요합니다.' : '✅ 시트에 저장된 PIN 을 지웠습니다 — Vercel 환경변수 PIN 으로 돌아갑니다.' };
+  return _rc({ ok: true, msg: pin ? '✅ 관리자 PIN 을 바꿨습니다. 기존 관리자 기기는 다음 로그인부터 새 PIN 이 필요합니다.' : '✅ 시트에 저장된 PIN 을 지웠습니다 — Vercel 환경변수 PIN 으로 돌아갑니다.' },
+    pin ? 'app.pinOk' : 'app.pinCleared');
 }
 
 // Vercel 로그인 라우트가 부른다. 시트에 저장된 PIN 이 없으면 hasOverride:false 를 돌려주고,
@@ -4515,11 +4581,36 @@ function api_checkPin(pin) {
 // 시즌 서버 이름 (시즌 시작 시 지정 — 표시 전용)
 function api_setSeasonServer(server, email) {
   const sv = String(server || '').trim();
-  if (sv.length > 20) return { ok: false, msg: '서버 이름이 너무 깁니다 (20자 이내).' };
+  if (sv.length > 20) return _rc({ ok: false, msg: '서버 이름이 너무 깁니다 (20자 이내).' }, 'e.serverNameLong');
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   PropertiesService.getDocumentProperties().setProperty('SEASON_SERVER', sv);
   _logAction(ss, '시즌서버설정', sv || '-', _getActorEmail(email), '시즌 ' + _currentSeason(ss) + ' 서버명: ' + (sv || '(없음)'));
-  return { ok: true, msg: sv ? '✅ 이번 시즌 서버를 "' + sv + '" 로 설정했습니다.' : '✅ 시즌 서버명을 비웠습니다.' };
+  return _rc({ ok: true, msg: sv ? '✅ 이번 시즌 서버를 "' + sv + '" 로 설정했습니다.' : '✅ 시즌 서버명을 비웠습니다.' },
+    sv ? 'app.seasonServerOk' : 'app.seasonServerCleared', { server: sv });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  🌏 결과 메시지 다국어 (v10.1) — 한국어 · 中文 · English
+//
+//  문장을 시트에서 세 벌로 만들지 않는다. 대신 **무슨 일이 있었는지를
+//  코드와 값으로** 보내고, 문장은 앱이 자기 사전으로 만든다.
+//
+//      { ok: true, code: 'dist.ok', vars: { item: '광폭성검', amount: 52000, ... },
+//        msg: '✅ "광폭성검" 52,000다이아 분배 완료 …' }
+//
+//  · code/vars 가 있으면 앱이 화면 언어로 문장을 만든다
+//  · 없으면 msg(한국어)를 그대로 보여준다 — 드문 오류까지 억지로 번역해
+//    반쪽짜리 문장을 만드는 것보다 낫다
+//  · 이름·아이템명은 vars 로 그대로 전달된다 (번역 대상이 아니다)
+// ═══════════════════════════════════════════════════════════════
+
+/** 결과에 코드와 값을 붙인다. msg 는 한국어 폴백으로 그대로 둔다. */
+function _rc(res, code, vars) {
+  if (res && typeof res === 'object') {
+    res.code = code;
+    res.vars = vars || {};
+  }
+  return res;
 }
 
 const API_TOKEN_PROP = 'API_TOKEN';
@@ -4591,15 +4682,15 @@ function doPost(e) {
   try {
     req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
   } catch (err) {
-    return _jsonOut({ ok: false, msg: '요청 형식이 올바르지 않습니다(JSON 아님).' });
+    return _jsonOut({ ok: false, code: 'e.badRequest', msg: '요청 형식이 올바르지 않습니다(JSON 아님).' });
   }
 
   const expected = PropertiesService.getScriptProperties().getProperty(API_TOKEN_PROP);
   if (!expected) {
-    return _jsonOut({ ok: false, msg: 'API 토큰이 아직 발급되지 않았습니다. 스프레드시트 메뉴 [🎮 길드정산] → [🔑 웹 API 토큰]을 한 번 실행해주세요.' });
+    return _jsonOut({ ok: false, code: 'e.noToken', msg: 'API 토큰이 아직 발급되지 않았습니다. 스프레드시트 메뉴 [🎮 길드정산] → [🔑 웹 API 토큰]을 한 번 실행해주세요.' });
   }
   if (!_tokenEq(String(req.token || ''), expected)) {
-    return _jsonOut({ ok: false, msg: '인증에 실패했습니다.' });
+    return _jsonOut({ ok: false, code: 'e.auth', msg: '인증에 실패했습니다.' });
   }
 
   const action = String(req.action || '');
@@ -4611,14 +4702,15 @@ function doPost(e) {
     try {
       lock.waitLock(25000);
     } catch (err) {
-      return _jsonOut({ ok: false, msg: '다른 작업이 처리 중입니다. 잠시 후 다시 시도해주세요.' });
+      return _jsonOut({ ok: false, code: 'e.busy', msg: '다른 작업이 처리 중입니다. 잠시 후 다시 시도해주세요.' });
     }
   }
 
   try {
     return _jsonOut(_apiRoute(action, req));
   } catch (err) {
-    return _jsonOut({ ok: false, msg: '서버 오류: ' + (err && err.message ? err.message : err) });
+    return _jsonOut({ ok: false, code: 'e.server', vars: { detail: String(err && err.message ? err.message : err) },
+                      msg: '서버 오류: ' + (err && err.message ? err.message : err) });
   } finally {
     if (lock) { try { lock.releaseLock(); } catch (err) {} }
   }
@@ -4886,11 +4978,12 @@ function api_getState() {
 function api_register(itemName, participants, photoLink, email) {
   itemName = String(itemName || '').trim();
   participants = (participants || []).map(p => String(p).trim()).filter(p => p && p !== FUND_NAME);
-  if (!itemName) return { ok: false, msg: '아이템명을 입력해주세요.' };
-  if (participants.length === 0) return { ok: false, msg: '참여 멤버를 선택해주세요.' };
+  if (!itemName) return _rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
+  if (participants.length === 0) return _rc({ ok: false, msg: '참여 멤버를 선택해주세요.' }, 'e.noParticipants');
   try {
     _registerCore(SpreadsheetApp.getActiveSpreadsheet(), itemName, participants, String(photoLink || '').trim(), email);
-    return { ok: true, msg: '✅ "' + itemName + '" 등록 완료 (' + participants.length + '명, ' + ST_WAIT + ')' };
+    return _rc({ ok: true, msg: '✅ "' + itemName + '" 등록 완료 (' + participants.length + '명, ' + ST_WAIT + ')' },
+               'reg.ok', { item: itemName, n: participants.length });
   } catch (e) {
     return { ok: false, msg: '오류: ' + e.message };
   }
@@ -5015,18 +5108,21 @@ function _getOrCreateProofFolder() {
 function api_distribute(row, amount, email) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const ledger = ss.getSheetByName(LEDGER_SHEET);
-  if (!ledger) return { ok: false, msg: LEDGER_SHEET + ' 시트를 찾을 수 없습니다.' };
+  if (!ledger) return _rc({ ok: false, msg: LEDGER_SHEET + ' 시트를 찾을 수 없습니다.' }, 'e.noSheet', { sheet: LEDGER_SHEET });
   const r = _distributeCore(ss, ledger, Number(row), amount, email);
   if (!r.ok) {
-    if (r.reason === 'done') return { ok: false, msg: '이미 분배된 아이템입니다. 새로고침해주세요.' };
-    if (r.reason === 'invalid') return { ok: false, msg: '⚠️ 판매금액은 양의 정수여야 합니다.' };
-    return { ok: false, msg: '분배할 수 없는 행입니다.' };
+    if (r.reason === 'done') return _rc({ ok: false, msg: '이미 분배된 아이템입니다. 새로고침해주세요.' }, 'e.alreadyDone');
+    if (r.reason === 'invalid') return _rc({ ok: false, msg: '⚠️ 판매금액은 양의 정수여야 합니다.' }, 'e.badAmount');
+    return _rc({ ok: false, msg: '분배할 수 없는 행입니다.' }, 'e.badRow');
   }
   let msg = '✅ "' + r.item + '" ' + r.amount.toLocaleString() + UNIT + ' 분배 완료 — ' + FUND_NAME + ' ' +
             r.fundTotal.toLocaleString() + ' / ' + r.n + '명 기본 ' + r.perPerson.toLocaleString();
   if (r.remainder > 0) msg += ' (잔여 ' + r.remainder.toLocaleString() + UNIT + ' 운영비 귀속)';
   if (r.missing.length > 0) msg += ' (⚠️ 미발견: ' + r.missing.join(', ') + ')';
-  return { ok: true, msg: msg };
+  return _rc({ ok: true, msg: msg }, 'dist.ok', {
+    item: r.item, amount: r.amount, fund: FUND_NAME, fundTotal: r.fundTotal,
+    n: r.n, per: r.perPerson, remainder: r.remainder, missing: r.missing.join(', '),
+  });
 }
 
 // 지급 처리 API (이름 + 지급액 — amount 미지정 시 전액)
@@ -5034,21 +5130,25 @@ function api_payout(name, amount, email) {
   name = String(name || '').trim();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const bal = ss.getSheetByName('잔액현황');
-  if (!bal) return { ok: false, msg: '잔액현황 시트를 찾을 수 없습니다.' };
+  if (!bal) return _rc({ ok: false, msg: '잔액현황 시트를 찾을 수 없습니다.' }, 'e.noSheet', { sheet: '잔액현황' });
   const vals = bal.getRange(2, 1, Math.max(bal.getLastRow() - 1, 1), 1).getValues();
   let row = -1;
   vals.forEach((r, i) => { if (_normName(r[0]) === _normName(name)) row = i + 2; });
-  if (row < 0) return { ok: false, msg: '"' + name + '"을 찾지 못했습니다.' };
+  if (row < 0) return _rc({ ok: false, msg: '"' + name + '"을 찾지 못했습니다.' }, 'e.noMember', { name: name });
   const r = _payoutCore(ss, bal, row, (amount === undefined || amount === null || amount === '') ? null : amount, email);
-  if (r.skip) return { ok: false, msg: '처리할 수 없는 행입니다.' };
+  if (r.skip) return _rc({ ok: false, msg: '처리할 수 없는 행입니다.' }, 'e.badRow');
   if (!r.ok) {
-    if (r.reason === 'over') return { ok: false, msg: '⚠️ 지급액이 분배전(' + r.pending.toLocaleString() + UNIT + ')보다 큽니다.' };
-    if (r.reason === 'invalid') return { ok: false, msg: '⚠️ 지급액은 양의 정수여야 합니다.' };
-    return { ok: false, msg: '"' + name + '" 분배전 금액이 0입니다.' };
+    if (r.reason === 'over') {
+      return _rc({ ok: false, msg: '⚠️ 지급액이 분배전(' + r.pending.toLocaleString() + UNIT + ')보다 큽니다.' },
+        'e.payOver', { pending: r.pending });
+    }
+    if (r.reason === 'invalid') return _rc({ ok: false, msg: '⚠️ 지급액은 양의 정수여야 합니다.' }, 'e.badAmount');
+    return _rc({ ok: false, msg: '"' + name + '" 분배전 금액이 0입니다.' }, 'e.payZero', { name: name });
   }
   let msg = '✅ "' + name + '" ' + r.moved.toLocaleString() + UNIT + ' 지급 완료';
   if (r.partial) msg += ' (잔여 분배전 ' + r.remain.toLocaleString() + UNIT + ')';
-  return { ok: true, msg: msg };
+  return _rc({ ok: true, msg: msg }, 'pay.ok',
+             { name: name, amount: r.moved, partial: r.partial ? 1 : 0, left: r.remain || 0 });
 }
 
 // 개인 잔액 조회 전용 경량 페이지 (읽기 전용 — 어떤 값도 바꾸지 않는다)

@@ -30,7 +30,7 @@ const TABS: { id: Tab; icon: string; key: string }[] = [
 ];
 
 export default function App() {
-  const { t } = useT();
+  const { t, srv } = useT();
   const [tab, setTab] = useState<Tab>('balance');
   const [state, setState] = useState<GuildState | null>(null);
   const [admin, setAdmin] = useState(false);
@@ -58,12 +58,12 @@ export default function App() {
     setAdmin(Boolean(res.admin));
     setMaster(Boolean(res.master));
     if (!res.ok) {
-      setLoadError(res.msg ?? '');
+      setLoadError(srv(res));
       return;
     }
     setLoadError('');
     setState(res.data as GuildState);
-  }, []);
+  }, [srv]);
 
   useEffect(() => {
     void refresh();

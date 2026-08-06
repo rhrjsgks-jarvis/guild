@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { api, getStoredEmail, setStoredEmail } from '@/lib/client';
-import { useT, type Lang } from '@/lib/i18n';
+import { LANGS, useT } from '@/lib/i18n';
 import ShareCard from './ShareCard';
 import RosterCard from './RosterCard';
 import ToolsCard from './ToolsCard';
@@ -25,7 +25,7 @@ export default function AdminTab({
   onAuthChange: () => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
-  const { t, lang, setLang, unit: unitLabel } = useT();
+  const { t, lang, setLang, unit: unitLabel, srv } = useT();
   const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState('');
@@ -42,7 +42,7 @@ export default function AdminTab({
     const res = await api('/api/admin/login', { pin });
     setBusy(false);
     setPin('');
-    toast(res.msg ?? (res.ok ? '' : t('r.loginFailed')), !res.ok);
+    toast(res.ok ? srv(res) : srv(res, 'r.loginFailed'), !res.ok);
     if (res.ok) onAuthChange();
   }
 
@@ -50,7 +50,7 @@ export default function AdminTab({
     setBusy(true);
     const res = await api('/api/admin/logout', {});
     setBusy(false);
-    toast(res.msg ?? t('r.loggedOut'));
+    toast(srv(res, 'r.loggedOut'));
     onAuthChange();
   }
 
@@ -59,13 +59,14 @@ export default function AdminTab({
       <div className="sect">{t('adm.langSect')}</div>
       <div className="card">
         <div className="field" style={{ display: 'flex', gap: 8 }}>
-          {(['ko', 'zh'] as Lang[]).map((l) => (
+          {LANGS.map((l) => (
             <button
-              key={l}
-              className={'btn block' + (lang === l ? '' : ' ghost')}
-              onClick={() => setLang(l)}
+              key={l.id}
+              className={'btn block' + (lang === l.id ? '' : ' ghost')}
+              style={{ padding: '11px 4px', fontSize: 13 }}
+              onClick={() => setLang(l.id)}
             >
-              {l === 'ko' ? '한국어' : '中文'}
+              {l.label}
             </button>
           ))}
         </div>

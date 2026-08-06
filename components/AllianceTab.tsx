@@ -23,7 +23,7 @@ export default function AllianceTab({
   toast: (msg: string, isError?: boolean) => void;
   setBusy: (on: boolean) => void;
 }) {
-  const { t, unit } = useT();
+  const { t, unit, srv } = useT();
   const [data, setData] = useState<AllianceState | null>(null);
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
@@ -36,8 +36,8 @@ export default function AllianceTab({
       return;
     }
     // 시트가 아직 v10 이 아니면 이 액션 자체가 없다 — 뼈대만 계속 돌리지 말고 이유를 말해준다
-    setError(res.msg || ' ');
-  }, []);
+    setError(srv(res) || ' ');
+  }, [srv]);
 
   useEffect(() => {
     void load();
@@ -47,7 +47,7 @@ export default function AllianceTab({
     setBusy(true);
     const res = await api('/api/admin/alliance', { row, email: getStoredEmail() }, 'DELETE');
     setBusy(false);
-    toast(res.msg ?? (res.ok ? t('r.deleted') : t('r.deleteFailed')), !res.ok);
+    toast(srv(res, res.ok ? 'r.deleted' : 'r.deleteFailed'), !res.ok);
     if (res.ok) void load();
   }
 
@@ -173,7 +173,7 @@ function AddSheet({
   toast: (msg: string, isError?: boolean) => void;
   setBusy: (on: boolean) => void;
 }) {
-  const { t } = useT();
+  const { t, srv } = useT();
   const [server, setServer] = useState(servers[0] ?? '01');
   const [item, setItem] = useState('');
   const [raw, setRaw] = useState('');
@@ -200,9 +200,9 @@ function AddSheet({
     if (res.ok) {
       setPeople(String(res.people ?? 0));
       setPhotoLink(String(res.photoUrl ?? ''));
-      setPhotoMsg(String(res.msg ?? ''));
+      setPhotoMsg(srv(res));
     } else {
-      toast(res.msg ?? t('ali.photoFailed'), true);
+      toast(srv(res, 'ali.photoFailed'), true);
     }
   }
 
@@ -219,7 +219,7 @@ function AddSheet({
       email: getStoredEmail(),
     });
     setBusy(false);
-    toast(res.msg ?? (res.ok ? t('r.registered') : t('r.registerFailed')), !res.ok);
+    toast(srv(res, res.ok ? 'r.registered' : 'r.registerFailed'), !res.ok);
     if (res.ok) onDone();
   }
 

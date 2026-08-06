@@ -786,20 +786,25 @@ await t('제목 옆에 버전이 보이고, 시트가 옛 버전이면 경고가
   await page.reload({ waitUntil: 'networkidle' });
   const h1 = page.locator('.header h1');
   const same = await h1.innerText();
-  if (!same.includes('v10.0')) throw new Error(`제목 옆 버전이 없습니다: ${same}`);
+  if (!same.includes('v10.1')) throw new Error(`제목 옆 버전이 없습니다: ${same}`);
   if (same.includes('⚠️')) throw new Error(`버전이 같은데 경고가 떴습니다: ${same}`);
   await shot('09-version');
 
-  // 시트만 옛 버전으로 바꾸면 경고가 떠야 한다 (캐시가 8초라 지나갈 때까지 기다린다)
+  // 시트만 옛 버전으로 바꾸면 경고가 떠야 한다.
+  // 상태 캐시가 8초라, 딱 8.5초만 기다리면 경계에서 간헐적으로 어긋난다 —
+  // 캐시가 확실히 만료될 때까지 몇 번 더 새로고침해 본다.
   await mock('__setVersion', { version: '9.1' });
-  await page.waitForTimeout(8500);
-  await page.reload({ waitUntil: 'networkidle' });
-  const warned = await h1.innerText();
+  let warned = '';
+  for (let i = 0; i < 6 && !warned.includes('9.1'); i++) {
+    await page.waitForTimeout(3000);
+    await page.reload({ waitUntil: 'networkidle' });
+    warned = await h1.innerText();
+  }
   if (!warned.includes('9.1')) throw new Error(`시트 버전 경고가 없습니다: ${warned}`);
   if (!warned.includes('⚠️')) throw new Error(`경고 표시가 없습니다: ${warned}`);
   await shot('10-version-mismatch');
 
-  await mock('__setVersion', { version: '10.0' });
+  await mock('__setVersion', { version: '10.1' });
 });
 
 await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', async () => {
@@ -847,6 +852,93 @@ await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', asyn
   await page.waitForTimeout(400);
   await page.getByRole('button', { name: '한국어' }).click();
   await page.waitForTimeout(400);
+});
+
+await t('English 로 바꾸면 화면 문구가 전부 영문이 된다', async () => {
+  await reset();
+  await page.goto(APP, { waitUntil: 'networkidle' });
+
+  await page.locator('.nav button').filter({ hasText: /관리/ }).click();
+  await page.waitForTimeout(400);
+  await page.getByRole('button', { name: 'English' }).click();
+  await page.waitForTimeout(400);
+
+  const head = await page.locator('.header h1').innerText();
+  if (/[가-힣]/.test(head)) throw new Error(`헤더에 한글이 남아 있습니다: ${head}`);
+
+  const nav = await page.locator('.nav').innerText();
+  for (const want of ['Balance', 'Items', 'Board', 'Alliance', 'Me', 'Admin']) {
+    if (!nav.includes(want)) throw new Error(`탭에 ${want} 이(가) 없습니다: ${nav}`);
+  }
+  if (/[가-힣]/.test(nav)) throw new Error(`탭에 한글이 남아 있습니다: ${nav}`);
+  await shot('13-en-nav');
+
+  const dataWords = ['가이', '잠단', '斬斷', 'TC무식', '향로셔틀', '대서과Z', '팩맨', '詹阿呆',
+                     '유일배분', '혈맹운영비', 'PlusS', '기란 세금', '용의 심장', '고대의 검',
+                     '지급된 아이템', '이번 주 공성 일정', '레이드 파티 구합니다', '군주', '연합 보스',
+                     '토요일', '오늘 밤', '미분배', '분배완료'];
+  for (const tab of ['Balance', 'Items', 'Board', 'Alliance', 'Me']) {
+    await page.locator('.nav button').filter({ hasText: tab }).click();
+    await page.waitForTimeout(600);
+    let body = await page.locator('main').innerText();
+    if (!body.trim()) throw new Error(`${tab} 탭이 비었습니다.`);
+    dataWords.forEach((w) => { body = body.split(w).join(''); });
+    const leftover = body.match(/[가-힣]+/g);
+    if (leftover && leftover.length) {
+      throw new Error(`${tab} 탭에 번역되지 않은 한글: ${[...new Set(leftover)].slice(0, 8).join(', ')}`);
+    }
+    // 영문 화면에는 중문도 남으면 안 된다 (사람 이름의 한자는 위에서 지웠다)
+    const cjk = body.match(/[\u4e00-\u9fff]+/g);
+    if (cjk && cjk.length) {
+      throw new Error(`${tab} 탭에 중문이 남아 있습니다: ${[...new Set(cjk)].slice(0, 8).join(', ')}`);
+    }
+  }
+  await shot('14-en-admin');
+
+  await page.locator('.nav button').filter({ hasText: 'Admin' }).click();
+  await page.waitForTimeout(400);
+  await page.getByRole('button', { name: '한국어' }).click();
+  await page.waitForTimeout(400);
+});
+
+await t('서버 결과 메시지가 화면 언어로 나온다 (code + vars)', async () => {
+  // 시트는 한국어 msg + code/vars 만 보낸다. 화면 언어 문장은 앱이 조립한다.
+  // 여기서 실패하면 사용자는 중문·영문 화면에서 한국어 토스트를 보게 된다.
+  const setLang = async (label) => {
+    await page.locator('.nav button').filter({ hasText: /관리|管理|Admin/ }).click();
+    await page.waitForTimeout(500);
+    await page.getByRole('button', { name: label, exact: true }).click();
+    await page.waitForTimeout(600);
+  };
+
+  for (const [label, itemsTab, openBtn, doBtn, want] of [
+    ['中文', '物品', '分配', '确认分配', /钻石/],
+    ['English', 'Items', 'Distribute', 'Distribute', /dia/],
+  ]) {
+    await reset();
+    await page.reload({ waitUntil: 'networkidle' });
+    await setLang(label);
+
+    await page.locator('.nav button').filter({ hasText: itemsTab }).click();
+    await page.waitForTimeout(600);
+    await page.getByRole('button', { name: openBtn, exact: true }).first().click();
+    await page.waitForTimeout(300);
+    await page.locator('#amt').fill('50000');
+    await page.waitForTimeout(300);
+    await page.getByRole('button', { name: doBtn, exact: true }).last().click();
+    await page.waitForTimeout(1500);
+
+    // 아이템명·계정명은 시트에 실제로 그렇게 적힌 데이터다 — 번역 대상이 아니다.
+    // 따옴표(「」/"") 안의 아이템명과 운영비 계정명을 지우고 남은 문장만 본다.
+    let toast = await page.locator('.toast').innerText();
+    toast = toast.replace(/「[^」]*」/g, '').replace(/"[^"]*"/g, '').split('혈맹운영비').join('');
+    if (/[가-힣]/.test(toast)) throw new Error(`${label} 토스트에 한글이 남아 있습니다: ${toast}`);
+    if (!want.test(toast)) throw new Error(`${label} 토스트가 번역되지 않았습니다: ${toast}`);
+  }
+
+  await setLang('한국어');
+  await reset();
+  await page.reload({ waitUntil: 'networkidle' });
 });
 
 await t('브라우저 콘솔에 오류가 없다', () => {

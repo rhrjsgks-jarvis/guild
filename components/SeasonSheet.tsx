@@ -36,7 +36,7 @@ function settlementsOf(detail: SeasonDetail): Settlement[] {
 }
 
 export default function SeasonSheet({ current, onClose }: { current: number; onClose: () => void }) {
-  const { t } = useT();
+  const { t, srv } = useT();
   const [list, setList] = useState<SeasonInfo[] | null>(null);
   const [error, setError] = useState('');
   const [open, setOpen] = useState<SeasonDetail | null>(null);
@@ -46,11 +46,11 @@ export default function SeasonSheet({ current, onClose }: { current: number; onC
   const load = useCallback(async () => {
     const res = await api('/api/seasons');
     if (!res.ok) {
-      setError(res.msg ?? t('season.loadFailed'));
+      setError(srv(res, 'season.loadFailed'));
       return;
     }
     setList(res.data as SeasonInfo[]);
-  }, []);
+  }, [srv]);
 
   useEffect(() => {
     void load();
@@ -64,7 +64,7 @@ export default function SeasonSheet({ current, onClose }: { current: number; onC
     const res = await api(`/api/seasons?num=${num}`);
     setLoading(false);
     if (!res.ok) {
-      setError(res.msg ?? t('season.loadFailed'));
+      setError(srv(res, 'season.loadFailed'));
       return;
     }
     setDetailed(false);

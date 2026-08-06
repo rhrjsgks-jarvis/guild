@@ -27,7 +27,7 @@ export default function ItemsTab({
   toast: (msg: string, isError?: boolean) => void;
   setBusy: (on: boolean) => void;
 }) {
-  const { t, unit } = useT();
+  const { t, unit, srv } = useT();
   const [itemName, setItemName] = useState('');
   const [photoLink, setPhotoLink] = useState('');
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -117,7 +117,7 @@ export default function ItemsTab({
     const res = await api('/api/admin/photo', { base64: jpeg.split(',')[1] });
 
     if (!res.ok) {
-      setPhoto({ preview: jpeg, status: t('items.analyzeFailed', { v: res.msg ?? '' }), ocr: '' });
+      setPhoto({ preview: jpeg, status: t('items.analyzeFailed', { v: srv(res) }), ocr: '' });
       return;
     }
 
@@ -130,7 +130,7 @@ export default function ItemsTab({
         return next;
       });
     }
-    setPhoto({ preview: jpeg, status: r.msg ?? t('items.analyzeDone'), ocr: r.ocrPreview ?? '' });
+    setPhoto({ preview: jpeg, status: srv(r, 'items.analyzeDone'), ocr: r.ocrPreview ?? '' });
   }
 
   async function submit() {
@@ -144,7 +144,7 @@ export default function ItemsTab({
     });
     setBusy(false);
 
-    toast(res.msg ?? (res.ok ? t('r.registered') : t('r.registerFailed')), !res.ok);
+    toast(srv(res, res.ok ? 'r.registered' : 'r.registerFailed'), !res.ok);
     if (res.ok) {
       resetForm();
       onDone();

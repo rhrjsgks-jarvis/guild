@@ -11,7 +11,7 @@ import { useT } from '@/lib/i18n';
  * (지급받은 직후 내 숫자가 맞는지 확인하는 용도라 신선도가 중요하다).
  */
 export default function MeTab({ state }: { state: GuildState }) {
-  const { t, unit } = useT();
+  const { t, unit, srv } = useT();
   const [name, setName] = useState('');
   const [result, setResult] = useState<LookupResult | null>(null);
   const [error, setError] = useState('');
@@ -42,7 +42,7 @@ export default function MeTab({ state }: { state: GuildState }) {
 
     if (!res.ok) {
       setResult(null);
-      setError(res.msg ?? t('me.failed'));
+      setError(srv(res, 'me.failed'));
       return;
     }
     setStoredName(target);

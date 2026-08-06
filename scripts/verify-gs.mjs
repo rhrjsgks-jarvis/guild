@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v10_0.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v10_1.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 const gs = readFileSync(GS_PATH, 'utf8');
@@ -677,26 +677,105 @@ check('서버 라우트는 확인값을 임의로 채우지 않는다', () => {
 
 /* ─────────── 화면 문구 (한국어 / 中文) ─────────── */
 
-check('사전에 두 언어가 모두 채워져 있다', () => {
-  const src = readFileSync(resolve(ROOT, 'lib/i18n.tsx'), 'utf8');
-  const dict = src.slice(src.indexOf('const DICT'), src.indexOf('const TOOL_ZH'));
+check('.gs 결과 코드가 앱 사전에 전부 있다', () => {
+  // v10.0 부터 시트는 문장을 세 벌로 만들지 않는다. "무슨 일이 있었는지"를
+  // code + vars 로만 내려주고(`_rc`), 문장은 앱이 lib/i18n 사전으로 조립한다.
+  // 그래서 시트가 쓰는 code 는 반드시 사전에 's.<code>' 로 있어야 한다 —
+  // 없으면 화면 언어와 상관없이 한국어 폴백만 나온다.
+  const codes = new Set();
+  const CODE = "'([a-z]+\\.[A-Za-z]+)'";  // 반드시 'group.name' 꼴 — 액션 이름과 섞이지 않게
+  for (const m of gs.matchAll(new RegExp("_rc\\(\\{[\\s\\S]*?\\},\\s*\\n?\\s*" + CODE, 'g'))) codes.add(m[1]);
+  for (const m of gs.matchAll(new RegExp("\\bcode:\\s*" + CODE, 'g'))) codes.add(m[1]);
+  for (const m of gs.matchAll(/\?\s*'([\w]+\.[\w]+)'\s*:\s*'([\w]+\.[\w]+)'/g)) { codes.add(m[1]); codes.add(m[2]); }
+  if (codes.size < 40) throw new Error(`시트에서 찾은 결과 코드가 너무 적습니다 (${codes.size}개).`);
 
-  // "'키': ['한국어', '중문']" 형태를 전부 뽑아 두 칸이 다 찼는지 본다
+  const dictSrc = readFileSync(resolve(ROOT, 'lib/i18n.tsx'), 'utf8');
+  const missing = [...codes].filter((c) => !dictSrc.includes(`'s.${c}':`));
+  if (missing.length) {
+    throw new Error(`사전에 없는 결과 코드 (${missing.length}개): ${missing.slice(0, 12).join(', ')}`);
+  }
+
+  // 반대 방향 — 아무도 안 쓰는 s.* 항목이 남아 있으면 시트와 앱이 어긋난 것이다
+  const declared = [...dictSrc.matchAll(/'s\.([\w.]+)':\s*\[/g)].map((m) => m[1]);
+  const orphan = declared.filter((c) => !codes.has(c));
+  if (orphan.length) throw new Error(`시트가 보내지 않는 사전 항목: ${orphan.slice(0, 12).join(', ')}`);
+
+  return `결과 코드 ${codes.size}개 · 사전 ${declared.length}개 일치`;
+});
+
+check('결과 문장의 자리표시자를 시트가 전부 채운다', () => {
+  // 's.dist.ok' 문장이 {fundTotal} 을 쓰는데 시트가 그 값을 안 보내면
+  // 화면에 "{fundTotal}" 이 그대로 찍힌다. 세 언어 모두 검사한다.
+  const dictSrc = readFileSync(resolve(ROOT, 'lib/i18n.tsx'), 'utf8');
+
+  // 시트의 code → vars 키 목록을 뽑는다
+  const supplied = new Map();
+  const addVars = (code, block) => {
+    const keys = new Set(supplied.get(code) ?? []);
+    for (const m of (block ?? '').matchAll(/(\w+):/g)) keys.add(m[1]);
+    supplied.set(code, keys);
+  };
+  for (const m of gs.matchAll(/_rc\(\{[\s\S]*?\},\s*\n?\s*'([a-z]+\.[A-Za-z]+)'\s*(?:,\s*(\{[\s\S]*?\}))?\s*\)/g)) {
+    addVars(m[1], m[2]);
+  }
+  for (const m of gs.matchAll(/code:\s*(?:[\s\S]{0,80}?)'([\w.]+)'[\s\S]{0,80}?vars:\s*(\{[^}]*\})/g)) {
+    addVars(m[1], m[2]);
+  }
+
+  const bad = [];
+  for (const m of dictSrc.matchAll(/'s\.([\w.]+)':\s*\[([\s\S]*?)\],\n/g)) {
+    const code = m[1];
+    const keys = supplied.get(code);
+    if (!keys) continue; // 코드 존재 여부는 위 검사가 본다
+    for (const ph of new Set([...m[2].matchAll(/\{(\w+)\}/g)].map((x) => x[1]))) {
+      if (!keys.has(ph)) bad.push(`s.${code} → {${ph}}`);
+    }
+  }
+  if (bad.length) {
+    throw new Error(`시트가 보내지 않는 값을 문장이 씁니다 (${bad.length}건): ${bad.slice(0, 10).join(', ')}`);
+  }
+  return `${supplied.size}개 코드의 자리표시자 대조 완료`;
+});
+
+check('확인 문구는 어느 언어에서도 번역되지 않는다', () => {
+  // danger:3 도구는 사용자가 정해진 문구를 **정확히** 입력해야 실행된다.
+  // 그 문구가 번역되면 서버 비교가 영원히 실패한다 (CLAUDE.md 규칙 5).
+  const phrases = [...gs.matchAll(/confirm:\s*'([^']+)'/g)].map((m) => m[1]);
+  if (phrases.length < 3) throw new Error(`danger:3 확인 문구를 찾지 못했습니다 (${phrases.length}개).`);
+
+  const dictSrc = readFileSync(resolve(ROOT, 'lib/i18n.tsx'), 'utf8');
+  const inDict = phrases.filter((p) => dictSrc.includes(`'${p}'`) || dictSrc.includes(`, '${p}',`));
+  if (inDict.length) throw new Error(`사전에 들어간 확인 문구: ${inDict.join(', ')}`);
+
+  // 앱은 서버가 준 confirm 문구를 그대로 보여주고 그대로 되돌려보내야 한다
+  const tools = readFileSync(resolve(ROOT, 'components/ToolsCard.tsx'), 'utf8');
+  if (!/confirmText:\s*confirmText(?:\.trim\(\))?,/.test(tools)) {
+    throw new Error('ToolsCard 가 사용자가 입력한 문구를 그대로 보내지 않습니다.');
+  }
+  return `확인 문구 ${phrases.length}개 · 번역 대상 아님`;
+});
+
+check('사전에 세 언어가 모두 채워져 있다', () => {
+  const src = readFileSync(resolve(ROOT, 'lib/i18n.tsx'), 'utf8');
+  const dict = src.slice(src.indexOf('const DICT'), src.indexOf('/* ────────────────────────── 컨텍스트'));
+
+  // "'키': ['한국어', '중문', '영문']" — 세 칸이 다 찼는지 본다
   const entries = [...dict.matchAll(/'([\w.]+)':\s*\[/g)].map((m) => m[1]);
   if (entries.length < 150) throw new Error(`사전 항목이 너무 적습니다 (${entries.length}개) — 누락 가능성`);
 
-  // 중문 칸이 비었거나 한국어와 같은 항목 찾기
   const bad = [];
   const re = /'([\w.]+)':\s*\[\s*([\s\S]*?)\s*\],?\n/g;
   let m;
   while ((m = re.exec(dict)) !== null) {
     const parts = m[2].split(/',\s*\n?\s*'/);
-    if (parts.length < 2) { bad.push(m[1] + ' (중문 없음)'); continue; }
-    const zh = parts[parts.length - 1].replace(/^'|'$/g, '').trim();
+    if (parts.length !== 3) { bad.push(`${m[1]} (${parts.length}개 언어)`); continue; }
+    const [, zh, en] = parts.map((x) => x.replace(/^'|'$/g, '').trim());
     if (!zh) bad.push(m[1] + ' (중문 비어있음)');
+    if (!en) bad.push(m[1] + ' (영문 비어있음)');
+    if (/[가-힣]/.test(en)) bad.push(m[1] + ' (영문에 한글)');
   }
-  if (bad.length) throw new Error(`중문이 빠진 항목: ${bad.slice(0, 10).join(', ')}`);
-  return `${entries.length}개 항목 × 2개 언어`;
+  if (bad.length) throw new Error(`언어가 빠진 항목: ${bad.slice(0, 10).join(', ')}`);
+  return `${entries.length}개 항목 × 3개 언어`;
 });
 
 check('화면에 한국어가 직접 박혀 있지 않다', () => {

@@ -22,7 +22,18 @@ const DEFAULT_WEIGHT = 100;
 const UNIT = '다이아';
 const SERVER_LIST = ['01','02','03','04','05','06','07','08','09','10','11','12'];
 // 앱이 기대하는 버전과 같은 값 — 화면에 "버전 불일치" 경고가 뜨지 않아야 정상이다
-let MOCK_GS_VERSION = '10.0';
+let MOCK_GS_VERSION = '10.1';
+
+/**
+ * .gs 의 `_rc` 와 같은 모양으로 결과에 코드·값을 붙인다.
+ * 시트는 문장을 한 벌(한국어)만 만들고, 화면 언어 문장은 앱이 lib/i18n 사전으로 조립한다.
+ * 모의 시트가 이걸 흉내내지 않으면 E2E 언어 검사가 진짜 동작을 확인하지 못한다.
+ */
+function rc(res, code, vars) {
+  res.code = code;
+  res.vars = vars || {};
+  return res;
+}
 
 /** 실제 로스터를 흉내 낸 표본 — 한글·한자·영문 혼합, 이름 길이도 다양하게 */
 function freshState() {
@@ -229,8 +240,8 @@ const handlers = {
 
   register: ({ itemName, participants }) => {
     const list = (participants || []).filter((p) => p && p !== FUND_NAME);
-    if (!itemName) return { ok: false, msg: '아이템명을 입력해주세요.' };
-    if (list.length === 0) return { ok: false, msg: '참여 멤버를 선택해주세요.' };
+    if (!itemName) return rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
+    if (list.length === 0) return rc({ ok: false, msg: '참여 멤버를 선택해주세요.' }, 'e.noParticipants');
 
     // 참여횟수는 등록 시점에 확정된다 (다이아와 무관한 출석 지표)
     list.forEach((p) => {
@@ -244,14 +255,15 @@ const handlers = {
       cnt: list.length,
       names: list,
     });
-    return { ok: true, msg: `✅ "${itemName}" 등록 완료 (${list.length}명, ⏳미분배)` };
+    return rc({ ok: true, msg: `✅ "${itemName}" 등록 완료 (${list.length}명, ⏳미분배)` },
+      'reg.ok', { item: itemName, n: list.length });
   },
 
   distribute: ({ row, amount }) => {
     const idx = S.items.findIndex((i) => i.row === Number(row));
-    if (idx < 0) return { ok: false, msg: '이미 분배된 아이템입니다. 새로고침해주세요.' };
+    if (idx < 0) return rc({ ok: false, msg: '이미 분배된 아이템입니다. 새로고침해주세요.' }, 'e.alreadyDone');
     const amt = Number(amount);
-    if (!Number.isInteger(amt) || amt <= 0) return { ok: false, msg: '⚠️ 판매금액은 양의 정수여야 합니다.' };
+    if (!Number.isInteger(amt) || amt <= 0) return rc({ ok: false, msg: '⚠️ 판매금액은 양의 정수여야 합니다.' }, 'e.badAmount');
 
     const item = S.items[idx];
     const names = participantsOf(item);
@@ -265,18 +277,22 @@ const handlers = {
     S.done.push({ ...item, amount: amt, names, splits: names.map((nm, i) => ({ name: nm, amount: sp.shares[i] })) });
     let msg = `✅ "${item.item}" ${amt.toLocaleString()}${UNIT} 분배 완료 — ${FUND_NAME} ${sp.fundTotal.toLocaleString()} / ${names.length}명 기본 ${sp.perPerson.toLocaleString()}`;
     if (sp.remainder > 0) msg += ` (잔여 ${sp.remainder.toLocaleString()}${UNIT} 운영비 귀속)`;
-    return { ok: true, msg };
+    return rc({ ok: true, msg }, 'dist.ok', {
+      item: item.item, amount: amt, fund: FUND_NAME, fundTotal: sp.fundTotal,
+      n: names.length, per: sp.perPerson, remainder: sp.remainder, missing: '',
+    });
   },
 
   payout: ({ name, amount }) => {
     const r = findRow(name);
-    if (!r) return { ok: false, msg: `"${name}"을 찾지 못했습니다.` };
-    if (r.pending <= 0) return { ok: false, msg: `"${name}" 분배전 금액이 0입니다.` };
+    if (!r) return rc({ ok: false, msg: `"${name}"을 찾지 못했습니다.` }, 'e.noMember', { name });
+    if (r.pending <= 0) return rc({ ok: false, msg: `"${name}" 분배전 금액이 0입니다.` }, 'e.payZero', { name });
 
     const amt = amount === null || amount === undefined || amount === '' ? r.pending : Number(amount);
-    if (!Number.isInteger(amt) || amt <= 0) return { ok: false, msg: '⚠️ 지급액은 양의 정수여야 합니다.' };
+    if (!Number.isInteger(amt) || amt <= 0) return rc({ ok: false, msg: '⚠️ 지급액은 양의 정수여야 합니다.' }, 'e.badAmount');
     if (amt > r.pending) {
-      return { ok: false, msg: `⚠️ 지급액이 분배전(${r.pending.toLocaleString()}${UNIT})보다 큽니다.` };
+      return rc({ ok: false, msg: `⚠️ 지급액이 분배전(${r.pending.toLocaleString()}${UNIT})보다 큽니다.` },
+        'e.payOver', { pending: r.pending });
     }
 
     r.pending -= amt;
@@ -284,7 +300,7 @@ const handlers = {
     S.payouts.push({ name: r.name, amount: amt, date: '08/04 12:00' });
     let msg = `✅ "${name}" ${amt.toLocaleString()}${UNIT} 지급 완료`;
     if (r.pending > 0) msg += ` (잔여 분배전 ${r.pending.toLocaleString()}${UNIT})`;
-    return { ok: true, msg };
+    return rc({ ok: true, msg }, 'pay.ok', { name, amount: amt, partial: r.pending > 0 ? 1 : 0, left: r.pending });
   },
 
   // 명단은 멤버DB 기준이라, 탈퇴 처리된 '(미등록)' 행은 빠진다
@@ -332,23 +348,25 @@ const handlers = {
       dup.cnt += from.cnt;
       S.rows.splice(S.rows.indexOf(from), 1);
       S.renames.push({ at: '08/04 12:00', before: oldName, after: newName, by: 'mock', merged: true, detail: `"${oldName}" → "${newName}" (중복 병합 발생)` });
-      return { ok: true, merged: true, msg: `✅ "${oldName}" → "${newName}" 변경 완료 (중복 계정 병합됨)` };
+      return rc({ ok: true, merged: true, msg: `✅ "${oldName}" → "${newName}" 변경 완료 (중복 계정 병합됨)` },
+        'ren.ok', { from: oldName, to: newName, merged: 1 });
     }
 
     from.name = newName;
     S.renames.push({ at: '08/04 12:00', before: oldName, after: newName, by: 'mock', merged: false, detail: `"${oldName}" → "${newName}"` });
-    return { ok: true, merged: false, msg: `✅ "${oldName}" → "${newName}" 변경 완료` };
+    return rc({ ok: true, merged: false, msg: `✅ "${oldName}" → "${newName}" 변경 완료` },
+      'ren.ok', { from: oldName, to: newName, merged: 0 });
   },
 
   addMember: ({ name }) => {
     const nm = String(name || '').trim();
-    if (!nm) return { ok: false, msg: '아이디를 입력해주세요.' };
+    if (!nm) return rc({ ok: false, msg: '아이디를 입력해주세요.' }, 'e.nameEmpty');
     if (nm === FUND_NAME) return { ok: false, msg: '운영비 계정은 앱에서 추가할 수 없습니다.' };
-    if (findRow(nm)) return { ok: false, msg: `"${nm}" 은(는) 이미 명단에 있습니다.` };
+    if (findRow(nm)) return rc({ ok: false, msg: `"${nm}" 은(는) 이미 명단에 있습니다.` }, 'e.dupMember', { name: nm });
     if (S.rows.length >= 50) return { ok: false, msg: '멤버가 최대 인원(50명)에 도달했습니다.' };
 
     S.rows.push({ name: nm, pending: 0, paid: 0, cnt: 0, weight: DEFAULT_WEIGHT, server: '', hanja: '' });
-    return { ok: true, msg: `✅ "${nm}" 을(를) 명단에 추가했습니다.` };
+    return rc({ ok: true, msg: `✅ "${nm}" 을(를) 명단에 추가했습니다.` }, 'add.ok', { name: nm });
   },
 
   removeMember: ({ name, confirmRemove }) => {
@@ -371,6 +389,8 @@ const handlers = {
     return {
       ok: true,
       kept,
+      code: 'rm.ok',
+      vars: { name, kept: kept ? 1 : 0 },
       msg: `✅ "${name}" 탈퇴 처리 완료` + (kept ? ' — 기록은 "(미등록)" 으로 남겨두었습니다.' : ' — 이력이 없어 목록에서 지웠습니다.'),
     };
   },
@@ -441,7 +461,8 @@ const handlers = {
     S.done.splice(idx, 1);
     if (newAmount === null || newAmount === undefined || newAmount === '') {
       S.items.push({ row: it.row, item: it.item, date: it.date, cnt: it.cnt, names: it.names });
-      return { ok: true, redistributed: false, msg: `✅ "${it.item}" 되돌리기 완료 — ⏳미분배 상태로 돌아갔습니다.` };
+      return rc({ ok: true, redistributed: false, msg: `✅ "${it.item}" 되돌리기 완료 — ⏳미분배 상태로 돌아갔습니다.` },
+        'cor.revert', { item: it.item });
     }
     const amt = Number(newAmount);
     const names = participantsOf(it);
@@ -485,7 +506,8 @@ const handlers = {
       r.pending += rec.amount;
       r.paid = Math.max(r.paid - rec.amount, 0);
     }
-    return { ok: true, msg: `✅ "${rec.name}" ${rec.amount.toLocaleString()}${UNIT}가 분배전으로 복구되었습니다.` };
+    return rc({ ok: true, msg: `✅ "${rec.name}" ${rec.amount.toLocaleString()}${UNIT}가 분배전으로 복구되었습니다.` },
+      'undo.ok', { name: rec.name, amount: rec.amount });
   },
 
   seasons: () => ({
@@ -565,14 +587,15 @@ const handlers = {
       author: String(author || '').trim() || '익명',
       at: '08/05 09:00',
     });
-    return { ok: true, id, msg: isNotice === true ? '✅ 공지를 등록했습니다.' : '✅ 글을 등록했습니다.' };
+    return rc({ ok: true, id, msg: isNotice === true ? '✅ 공지를 등록했습니다.' : '✅ 글을 등록했습니다.' },
+      isNotice === true ? 'post.noticeOk' : 'post.ok');
   },
 
   deletePost: ({ id }) => {
     const i = S.posts.findIndex((p) => p.id === Number(id));
     if (i < 0) return { ok: false, msg: '이미 삭제된 글입니다.' };
     S.posts.splice(i, 1);
-    return { ok: true, msg: '✅ 삭제했습니다.' };
+    return rc({ ok: true, msg: '✅ 삭제했습니다.' }, 'post.delOk');
   },
 
   alliance: () => {
@@ -609,14 +632,16 @@ const handlers = {
       credited,
       photo: '',
     });
-    return { ok: true, credited, server, msg: `✅ ${server}서버에 ${credited.toLocaleString()}${UNIT} 누적했습니다 (${n}명 참여).` };
+    return rc({ ok: true, credited, server, msg: `✅ ${server}서버에 ${credited.toLocaleString()}${UNIT} 누적했습니다 (${n}명 참여).` },
+      'ally.ok', { s: server, credited, n });
   },
 
   deleteAlliance: ({ row }) => {
     const i = S.alliance.findIndex((r) => r.row === Number(row));
     if (i < 0) return { ok: false, msg: '기록을 찾을 수 없습니다.' };
     const [rec] = S.alliance.splice(i, 1);
-    return { ok: true, msg: `✅ 삭제했습니다 — ${rec.server}서버 ${rec.item} ${rec.credited.toLocaleString()}${UNIT}` };
+    return rc({ ok: true, msg: `✅ 삭제했습니다 — ${rec.server}서버 ${rec.item} ${rec.credited.toLocaleString()}${UNIT}` },
+      'ally.delOk', { s: rec.server, item: rec.item, credited: rec.credited });
   },
 
   countPhoto: () => ({
@@ -679,13 +704,13 @@ const handlers = {
   // 테스트가 매번 같은 상태에서 시작할 수 있도록
   __reset: () => {
     S = freshState();
-    MOCK_GS_VERSION = '10.0';
+    MOCK_GS_VERSION = '10.1';
     return { ok: true, msg: '초기화됨' };
   },
 
   // "시트만 옛 버전인" 상황을 만들어 보기 위한 것 (테스트 전용)
   __setVersion: ({ version }) => {
-    MOCK_GS_VERSION = String(version || '10.0');
+    MOCK_GS_VERSION = String(version || '10.1');
     return { ok: true, msg: '버전 ' + MOCK_GS_VERSION };
   },
 };
