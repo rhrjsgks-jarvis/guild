@@ -478,7 +478,6 @@ const DICT: Record<string, Entry> = {
   'ros.carried': ['따라오는 분배전', '跟随转移的待发放', 'Unpaid carried over'],
   'ros.oldDisplay': ['기존 게임표시명', '原游戏显示名', 'Previous in-game name'],
   'ros.rename': ['변경하기', '确认修改', 'Rename'],
-  'ros.saveName': ['이름 저장', '保存名称', 'Save name'],
   'ros.weight': ['분배비중 (%)', '分配比例（%）', 'Share of the split (%)'],
   'ros.weightHint': [
     '기본 1인당 금액의 이 비율만 받습니다. 남는 금액은 전액 혈맹운영비로 귀속됩니다. 이미 분배된 아이템에는 영향이 없습니다 (그때 금액이 그대로 기록돼 있습니다).',
@@ -492,12 +491,11 @@ const DICT: Record<string, Entry> = {
     '会在[余额]·[物品]·[我的]中以「{v}」显示。系统不会猜测名称 — 请自行确认游戏中使用的写法后填入。如果 ID 里已用括号写了汉字，这里可以留空。',
     'Appears as “{v}” under [Balance], [Items] and [Me]. The system never guesses a name — check the in-game spelling yourself. Leave it blank if the ID already carries the hanja in brackets.',
   ],
-  'ros.nameOkHanjaFailed': [
-    '아이디는 바뀌었지만 한자표기는 저장되지 않았습니다. 다시 열어 한자표기만 저장해주세요.',
-    'ID 已修改，但汉字标注未保存。请重新打开后单独保存汉字标注。',
-    'The ID was changed but the hanja was not saved. Reopen and save the hanja alone.',
+  'ros.nameOkRestFailed': [
+    '아이디는 바뀌었지만 나머지 설정은 저장되지 않았습니다. 다시 열어 저장해주세요.',
+    'ID 已修改，但其余设置未保存。请重新打开后再保存一次。',
+    'The ID was changed but the other settings were not saved. Reopen and save again.',
   ],
-  'ros.saveSettings': ['설정 저장', '保存设置', 'Save settings'],
   'ros.remove': ['➖ 탈퇴 처리', '➖ 退盟处理', '➖ Remove from roster'],
   'ros.removeHint': [
     '명단에서만 빼고 기록은 남깁니다. 잔액이나 참여 이력이 있으면 잔액현황에 "(미등록)"으로 보존되고, 이력이 전혀 없을 때만 목록에서 사라집니다.',

@@ -1343,17 +1343,38 @@ await t('혈맹원 관리: 아이디 바로 아래에 한자표기 칸이 있다
   const preview = await page.locator('.sheet').innerText();
   if (!preview.includes('TC무식 (车武植)')) throw new Error('표시될 모양 미리보기가 없습니다.');
 
-  // 아이디와 한자표기를 한 번에 저장한다
-  await page.locator('.sheet input#mh').fill('車武植K');
-  await page.waitForTimeout(200);
-  await page.getByRole('button', { name: '이름 저장' }).click();
-  await page.waitForTimeout(1500);
+  // ★ 저장 버튼은 하나뿐이다 — 예전엔 [이름 저장]과 [설정 저장]이 따로 있어
+  //   한쪽만 누르고 창을 닫기 쉬웠다
+  const saveBtns = await page.locator('.sheet .sheet-actions .btn:not(.ghost)').count();
+  eq(saveBtns, 1, '시트의 저장 버튼 개수');
+  for (const gone of ['이름 저장', '설정 저장']) {
+    if ((await page.locator('.sheet').getByRole('button', { name: gone, exact: true }).count()) > 0) {
+      throw new Error(`"${gone}" 버튼이 남아 있습니다 — 저장은 하나여야 합니다.`);
+    }
+  }
 
+  // 아이디·한자표기·분배비중을 한 번에 바꿔서 **한 번** 누른다
+  await page.locator('.sheet input#newName').fill('TC무식2');
+  await page.locator('.sheet input#mh').fill('車武植K');
+  await page.locator('.sheet select#mw').selectOption('70');
+  await page.waitForTimeout(200);
+  await shot('22-member-one-save');
+  await page.locator('.sheet').getByRole('button', { name: '저장', exact: true }).click();
+  await page.waitForTimeout(2000);
+
+  // 셋 다 반영돼야 한다. 하나라도 빠지면 관리자는 무엇이 저장됐는지 알 수 없다.
   await page.locator('.nav button').filter({ hasText: /잔액/ }).click();
   await page.waitForTimeout(900);
-  const after = await page.locator('.row').filter({ hasText: 'TC무식' }).first().locator('.row-name').innerText();
+  const after = await page.locator('.row').filter({ hasText: 'TC무식2' }).first().locator('.row-name').innerText();
   if (!after.includes('車武植K')) throw new Error(`바꾼 한자표기가 잔액에 반영되지 않았습니다: "${after}"`);
-  await shot('22-hanja-save');
+
+  const roster = await (await fetch(`${APP}/api/admin/roster`, { headers: { Cookie: cookie } })).json();
+  const rec = roster.data.find((m) => m.name === 'TC무식2');
+  if (!rec) throw new Error('개명이 반영되지 않았습니다.');
+  eq(rec.hanja, '車武植K', '한자표기');
+  eq(rec.weight, 70, '분배비중');
+  // ★ 개명이 먼저 처리돼야 설정이 새 이름에 붙는다 — 옛 이름 행은 남으면 안 된다
+  if (roster.data.some((m) => m.name === 'TC무식')) throw new Error('옛 이름 행이 남아 있습니다.');
 });
 
 await t('잔액 목록에 서버 번호가 붙는다', async () => {

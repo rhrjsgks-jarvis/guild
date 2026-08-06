@@ -296,34 +296,21 @@ function MemberSheet({
   const hanjaChanged = hanja.trim() !== (member.hanja ?? '').trim();
   // 잔액·아이템에 실제로 나갈 모양을 그대로 보여준다 — 화면과 같은 함수를 쓴다
   const preview = fullName(trimmed || member.name, hanja);
-  const nameChanged = changed || hanjaChanged;
   const settingsChanged =
-    weight !== (member.weight ?? 100) || server !== (member.server ?? '') || hanjaChanged;
-
-  /** 비중·서버·한자표기를 한 번에 보낸다 — 어느 버튼으로 저장하든 값이 사라지지 않게 */
-  async function putSettings(name: string) {
-    return api('/api/admin/member-settings', { name, weight, server, hanja, email: getStoredEmail() });
-  }
-
-  async function saveSettings() {
-    setBusy(true);
-    const res = await putSettings(member.name);
-    setBusy(false);
-    toast(srv(res, res.ok ? 'r.saved' : 'r.failed'), !res.ok);
-    if (res.ok) onDone(res);
-  }
+    hanjaChanged || weight !== (member.weight ?? 100) || server !== (member.server ?? '');
+  const dirty = changed || settingsChanged;
 
   /**
-   * 아이디와 한자표기를 함께 저장한다 (v10.8).
+   * 이 사람에 대한 변경을 **한 번에** 저장한다 (v10.8.2).
    *
-   * 둘은 서로 다른 API 를 타지만(아이디는 잔액·참여횟수를 끌고 가는 개명,
-   * 한자표기는 단순 설정) 관리자에게는 "이 사람의 이름"이라는 하나의 일이다.
-   * 칸을 붙여 놓고 버튼만 둘로 두면 어느 쪽이 저장됐는지 알 수 없다.
+   * 아이디는 개명 API(잔액·참여횟수를 끌고 간다), 나머지는 설정 API 로 가지만
+   * 관리자에게는 "이 사람을 고친다"는 하나의 일이다. 버튼을 둘로 두면
+   * 어느 쪽이 저장됐는지 알 수 없고, 한쪽만 누르고 창을 닫기도 쉽다.
    *
-   * ★ 순서가 중요하다 — 개명을 먼저 하고, 한자표기는 **바뀐 이름**으로 저장한다.
-   *   반대로 하면 옛 이름에 저장한 뒤 그 행이 사라진다.
+   * ★ 순서가 중요하다 — 개명을 먼저 하고, 설정은 **바뀐 이름**으로 저장한다.
+   *   반대로 하면 옛 이름 행에 저장한 뒤 그 행이 사라진다.
    */
-  async function saveName(confirmMerge: boolean) {
+  async function save(confirmMerge: boolean) {
     setBusy(true);
     let current = member.name;
     let last: ApiResult | undefined;
@@ -351,12 +338,18 @@ function MemberSheet({
       last = res;
     }
 
-    if (hanjaChanged) {
-      const res = await putSettings(current);
+    if (settingsChanged) {
+      const res = await api('/api/admin/member-settings', {
+        name: current,
+        weight,
+        server,
+        hanja,
+        email: getStoredEmail(),
+      });
       if (!res.ok) {
         setBusy(false);
         // 개명은 이미 끝났다 — 실패로만 알리면 관리자가 개명을 다시 시도한다
-        toast(srv(res, changed ? 'ros.nameOkHanjaFailed' : 'r.failed'), true);
+        toast(srv(res, changed ? 'ros.nameOkRestFailed' : 'r.failed'), true);
         if (changed) onDone(last);
         return;
       }
@@ -410,7 +403,7 @@ function MemberSheet({
           >
             {t('c.back')}
           </button>
-          <button className="btn warn" disabled={busy} onClick={() => (merging ? saveName(true) : remove(true))}>
+          <button className="btn warn" disabled={busy} onClick={() => (merging ? save(true) : remove(true))}>
             {merging ? t('ros.merge') : t('ros.removeDo')}
           </button>
         </div>
@@ -461,47 +454,39 @@ function MemberSheet({
         ) : null}
       </div>
 
-      <div className="sheet-actions">
+      <label className="fl" htmlFor="mw" style={{ marginTop: 12 }}>
+        {t('ros.weight')}
+      </label>
+      <select id="mw" value={weight} onChange={(e) => setWeight(Number(e.target.value))}>
+        {Array.from({ length: 100 }, (_, i) => 100 - i).map((n) => (
+          <option key={n} value={n}>
+            {n}%
+          </option>
+        ))}
+      </select>
+      <p className="hint">{t('ros.weightHint')}</p>
+
+      <label className="fl" htmlFor="ms" style={{ marginTop: 10 }}>
+        {t('c.server')}
+      </label>
+      <select id="ms" value={server} onChange={(e) => setServer(e.target.value)}>
+        <option value="">{t('ali.none')}</option>
+        {servers.map((s) => (
+          <option key={s} value={s}>
+            {t('ali.serverN', { s })}
+          </option>
+        ))}
+      </select>
+
+      {/* 저장 버튼은 하나다 (v10.8.2).
+          아이디는 개명 API, 나머지는 설정 API 로 가지만 관리자에게는 한 가지 일이다.
+          버튼이 둘이면 어느 쪽이 저장됐는지 알 수 없고, 한쪽만 누르고 닫기도 쉽다. */}
+      <div className="sheet-actions" style={{ marginTop: 18 }}>
         <button className="btn ghost" onClick={onClose}>
           {t('c.cancel')}
         </button>
-        <button className="btn" disabled={!nameChanged || busy} onClick={() => saveName(false)}>
-          {busy ? t('c.processing') : t('ros.saveName')}
-        </button>
-      </div>
-
-      <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--line)' }}>
-        <label className="fl" htmlFor="mw">
-          {t('ros.weight')}
-        </label>
-        <select id="mw" value={weight} onChange={(e) => setWeight(Number(e.target.value))}>
-          {Array.from({ length: 100 }, (_, i) => 100 - i).map((n) => (
-            <option key={n} value={n}>
-              {n}%
-            </option>
-          ))}
-        </select>
-        <p className="hint">{t('ros.weightHint')}</p>
-
-        <label className="fl" htmlFor="ms" style={{ marginTop: 10 }}>
-          {t('c.server')}
-        </label>
-        <select id="ms" value={server} onChange={(e) => setServer(e.target.value)}>
-          <option value="">{t('ali.none')}</option>
-          {servers.map((s) => (
-            <option key={s} value={s}>
-              {t('ali.serverN', { s })}
-            </option>
-          ))}
-        </select>
-
-        <button
-          className="btn block"
-          style={{ marginTop: 12 }}
-          disabled={!settingsChanged || busy}
-          onClick={saveSettings}
-        >
-          {busy ? t('c.saving') : t('ros.saveSettings')}
+        <button className="btn" disabled={!dirty || busy} onClick={() => save(false)}>
+          {busy ? t('c.saving') : t('c.save')}
         </button>
       </div>
 

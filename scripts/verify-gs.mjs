@@ -1483,13 +1483,32 @@ check('멤버DB 한자표기가 잔액·아이템 화면까지 이어진다', ()
   if (!(idAt < hanjaAt && hanjaAt < weightAt)) {
     throw new Error('한자표기 칸이 아이디 바로 아래가 아닙니다 (분배비중·서버가 사이에 끼어 있습니다).');
   }
-  // 개명과 한자표기를 함께 저장할 때는 반드시 개명이 먼저다 (옛 이름에 저장하면 사라진다)
-  const save = (roster.match(/async function saveName[\s\S]*?\n  \}/) ?? [''])[0];
-  if (save.indexOf('/api/admin/rename') > save.indexOf('putSettings(current)')) {
-    throw new Error('한자표기를 개명보다 먼저 저장합니다 — 옛 이름에 저장돼 사라집니다.');
-  }
+  /*
+   * 저장 버튼은 **하나**다 (v10.8.2). 아이디는 개명 API, 나머지는 설정 API 로 가지만
+   * 관리자에게는 한 가지 일이다. 버튼이 둘이면 어느 쪽이 저장됐는지 알 수 없고,
+   * 한쪽만 누르고 창을 닫기도 쉽다.
+   */
+  const saveFn = (roster.match(/async function save\(confirmMerge[\s\S]*?\n  \}/) ?? [''])[0];
+  if (!saveFn) throw new Error('혈맹원 저장 함수(save)를 찾지 못했습니다.');
 
-  return `해석 ${cases.length}케이스 · 화면 5곳 연결 · splitName 직접사용 0곳 · 입력칸 인접 · 개명 우선`;
+  // ★ 개명이 먼저다. 설정을 먼저 저장하면 옛 이름 행에 쓴 뒤 그 행이 사라진다.
+  const at = (needle) => {
+    const i = saveFn.indexOf(needle);
+    if (i < 0) throw new Error(`저장 함수에서 "${needle}" 을(를) 찾지 못했습니다.`);
+    return i;
+  };
+  if (at('/api/admin/rename') > at('/api/admin/member-settings')) {
+    throw new Error('설정을 개명보다 먼저 저장합니다 — 옛 이름 행에 저장돼 사라집니다.');
+  }
+  // 개명 뒤의 설정 저장은 반드시 **바뀐 이름**으로 간다
+  if (!/name:\s*current/.test(saveFn)) {
+    throw new Error('개명 뒤 설정을 바뀐 이름(current)으로 저장하지 않습니다.');
+  }
+  // 저장 버튼이 하나뿐인지 — 예전엔 [이름 저장]과 [설정 저장]이 따로 있었다
+  const saveButtons = (roster.match(/onClick=\{(?:\(\) => )?save\w*\(/g) ?? []).length;
+  if (saveButtons !== 1) throw new Error(`저장 버튼이 ${saveButtons}개입니다 — 하나여야 합니다.`);
+
+  return `해석 ${cases.length}케이스 · 화면 5곳 연결 · splitName 직접사용 0곳 · 입력칸 인접 · 개명 우선 · 저장 버튼 1개`;
 });
 
 check('잔액 목록에 서버 번호가 보인다', () => {
