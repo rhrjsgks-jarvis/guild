@@ -94,7 +94,20 @@ function diagnose(body: string): string {
 export async function callGas(
   action: GasAction,
   payload: Record<string, unknown> = {},
-  opts: { timeoutMs?: number } = {},
+  opts: {
+    timeoutMs?: number;
+    /**
+     * 쓰기 응답에 최신 상태를 같이 받아온다 (v10.2 `_withState`).
+     *
+     * 쓰기 뒤에 앱이 화면 숫자를 맞추려면 상태를 다시 읽어야 하는데, 그걸
+     * 두 번째 요청으로 하면 폰↔서버 왕복과 Apps Script 실행 준비 비용이
+     * 한 번 더 든다. 시트가 같은 실행 안에서 읽어 보내주면 왕복이 사라진다.
+     *
+     * 상태를 실제로 화면에 반영하는 쓰기에만 켠다 — 켜면 시트가 매번
+     * 전체 상태를 읽으므로 공짜가 아니다.
+     */
+    withState?: boolean;
+  } = {},
 ): Promise<GasResponse> {
   const url = process.env.GAS_URL;
   const token = process.env.GAS_TOKEN;
@@ -114,7 +127,7 @@ export async function callGas(
       method: 'POST',
       // text/plain 이면 Apps Script가 postData.contents로 그대로 받아준다.
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ ...payload, action, token, lang }),
+      body: JSON.stringify({ ...payload, action, token, lang, ...(opts.withState ? { withState: true } : {}) }),
       redirect: 'follow', // Apps Script는 googleusercontent.com 으로 302를 보낸다
       cache: 'no-store',
       signal: AbortSignal.timeout(opts.timeoutMs ?? DEFAULT_TIMEOUT_MS),

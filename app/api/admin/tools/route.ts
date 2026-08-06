@@ -1,6 +1,6 @@
 import { callGas } from '@/lib/gas';
 import { requireAdmin } from '@/lib/auth';
-import { invalidate } from '@/lib/cache';
+import { syncStateCache } from '@/lib/fresh';
 
 export const dynamic = 'force-dynamic';
 // 시즌 종료·데이터 이관은 시트를 통째로 다시 쓰므로 오래 걸린다
@@ -47,9 +47,9 @@ export async function POST(req: Request) {
       // 사용자가 입력한 문구를 그대로 — 서버가 채워 넣으면 확인 절차가 무의미해진다
       confirmText: String(body.confirmText ?? ''),
     },
-    { timeoutMs: 55_000 },
+    { timeoutMs: 55_000, withState: true },
   );
 
-  if (res.ok) invalidate('state');
+  if (res.ok) syncStateCache(res);
   return Response.json(res, { status: res.ok || res.needsConfirm ? 200 : 400 });
 }

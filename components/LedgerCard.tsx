@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Sheet from './Sheet';
 import type { LedgerEntry, ReversePreview } from '@/lib/types';
 import { api, calcSplit, fmt, getStoredEmail } from '@/lib/client';
+import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
 /**
@@ -22,7 +23,7 @@ export default function LedgerCard({
   unit: string;
   fundRate: number;
   fundName: string;
-  onChanged: () => void;
+  onChanged: (res?: ApiResult) => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
   const { t } = useT();
@@ -75,10 +76,10 @@ export default function LedgerCard({
           fundRate={fundRate}
           fundName={fundName}
           onClose={() => setTarget(null)}
-          onDone={() => {
+          onDone={(res) => {
             setTarget(null);
             void load();
-            onChanged();
+            onChanged(res);
           }}
           toast={toast}
         />
@@ -103,7 +104,7 @@ function ItemSheet({
   fundRate: number;
   fundName: string;
   onClose: () => void;
-  onDone: () => void;
+  onDone: (res?: ApiResult) => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
   const { t, srv } = useT();
@@ -134,7 +135,7 @@ function ItemSheet({
     });
     setBusy(false);
     toast(srv(res, res.ok ? 'r.done' : 'r.failed'), !res.ok);
-    if (res.ok) onDone();
+    if (res.ok) onDone(res);
   }
 
   const blocked = preview?.blocked === true;

@@ -1,6 +1,6 @@
 import { callGas } from '@/lib/gas';
 import { requireAdmin } from '@/lib/auth';
-import { invalidate } from '@/lib/cache';
+import { syncStateCache } from '@/lib/fresh';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -30,9 +30,9 @@ export async function POST(req: Request) {
   const res = await callGas(
     'undoPayout',
     { email: String(body.email ?? '').trim(), confirm: body.confirm === true },
-    { timeoutMs: 45_000 },
+    { timeoutMs: 45_000, withState: true },
   );
-  if (res.ok) invalidate('state');
+  if (res.ok) syncStateCache(res);
 
   return Response.json(res, { status: res.ok || res.needsConfirm ? 200 : 400 });
 }

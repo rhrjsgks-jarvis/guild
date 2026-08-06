@@ -1,6 +1,6 @@
 import { callGas } from '@/lib/gas';
 import { requireAdmin } from '@/lib/auth';
-import { invalidate } from '@/lib/cache';
+import { syncStateCache } from '@/lib/fresh';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -60,14 +60,14 @@ export async function POST(req: Request) {
         return Response.json({ ok: false, msg: '새 판매금액은 양의 정수여야 합니다.' }, { status: 400 });
       }
     }
-    const res = await callGas('correctItem', { row, newAmount, email, confirm }, { timeoutMs: 55_000 });
-    if (res.ok) invalidate('state');
+    const res = await callGas('correctItem', { row, newAmount, email, confirm }, { timeoutMs: 55_000, withState: true });
+    if (res.ok) syncStateCache(res);
     return Response.json(res, { status: res.ok || res.needsConfirm ? 200 : 400 });
   }
 
   if (op === 'delete') {
-    const res = await callGas('deleteItem', { row, email, confirm }, { timeoutMs: 55_000 });
-    if (res.ok) invalidate('state');
+    const res = await callGas('deleteItem', { row, email, confirm }, { timeoutMs: 55_000, withState: true });
+    if (res.ok) syncStateCache(res);
     return Response.json(res, { status: res.ok || res.needsConfirm ? 200 : 400 });
   }
 

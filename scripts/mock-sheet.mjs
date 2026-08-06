@@ -22,7 +22,7 @@ const DEFAULT_WEIGHT = 100;
 const UNIT = '다이아';
 const SERVER_LIST = ['01','02','03','04','05','06','07','08','09','10','11','12'];
 // 앱이 기대하는 버전과 같은 값 — 화면에 "버전 불일치" 경고가 뜨지 않아야 정상이다
-let MOCK_GS_VERSION = '10.1';
+let MOCK_GS_VERSION = '10.2';
 
 /**
  * .gs 의 `_rc` 와 같은 모양으로 결과에 코드·값을 붙인다.
@@ -33,6 +33,25 @@ function rc(res, code, vars) {
   res.code = code;
   res.vars = vars || {};
   return res;
+}
+
+/** .gs 의 API_WRITE_ACTIONS 와 같은 목록 — 상태를 실어 보낼 대상 판정에 쓴다 */
+const WRITE_ACTIONS = ['register', 'distribute', 'payout', 'rename', 'addMember', 'removeMember',
+                       'correctItem', 'deleteItem', 'undoPayout', 'runTool',
+                       'deletePost', 'addAlliance', 'deleteAlliance', 'updateMember',
+                       'setAppName', 'setAdminPin', 'setSeasonServer'];
+
+/**
+ * .gs 의 `_withState` 와 같은 규약 (v10.2).
+ * 쓰기 응답에 최신 상태를 같이 실어 보내, 앱이 한 번 더 왕복하지 않게 한다.
+ * 모의 시트가 이걸 흉내내지 않으면 E2E 가 진짜 동작을 확인하지 못한다.
+ */
+function withState(result, payload) {
+  if (!result || result.ok !== true) return result;
+  if (payload.withState !== true) return result;
+  if (!WRITE_ACTIONS.includes(payload.action)) return result;
+  result.state = handlers.state().data;
+  return result;
 }
 
 /** 실제 로스터를 흉내 낸 표본 — 한글·한자·영문 혼합, 이름 길이도 다양하게 */
@@ -704,13 +723,13 @@ const handlers = {
   // 테스트가 매번 같은 상태에서 시작할 수 있도록
   __reset: () => {
     S = freshState();
-    MOCK_GS_VERSION = '10.1';
+    MOCK_GS_VERSION = '10.2';
     return { ok: true, msg: '초기화됨' };
   },
 
   // "시트만 옛 버전인" 상황을 만들어 보기 위한 것 (테스트 전용)
   __setVersion: ({ version }) => {
-    MOCK_GS_VERSION = String(version || '10.1');
+    MOCK_GS_VERSION = String(version || '10.2');
     return { ok: true, msg: '버전 ' + MOCK_GS_VERSION };
   },
 };
@@ -737,7 +756,7 @@ createServer((req, res) => {
     if (!handler) return send({ ok: false, msg: '알 수 없는 요청입니다: ' + payload.action });
 
     try {
-      send(handler(payload));
+      send(withState(handler(payload), payload));
     } catch (err) {
       send({ ok: false, msg: '서버 오류: ' + err.message });
     }

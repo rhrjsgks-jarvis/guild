@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Sheet from './Sheet';
 import type { BalanceRow, GuildState } from '@/lib/types';
 import { api, fmt, getStoredEmail } from '@/lib/client';
+import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
 export default function PayoutSheet({
@@ -17,7 +18,7 @@ export default function PayoutSheet({
   row: BalanceRow;
   state: GuildState;
   onClose: () => void;
-  onDone: () => void;
+  onDone: (res?: ApiResult) => void;
   toast: (msg: string, isError?: boolean) => void;
   setBusy: (on: boolean) => void;
 }) {
@@ -42,7 +43,7 @@ export default function PayoutSheet({
     toast(srv(res, res.ok ? 'r.paid' : 'r.payFailed'), !res.ok);
     if (res.ok) {
       onClose();
-      onDone();
+      onDone(res);
     }
   }
 

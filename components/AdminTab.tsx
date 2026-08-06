@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { api, getStoredEmail, setStoredEmail } from '@/lib/client';
+import type { ApiResult } from '@/lib/client';
 import { LANGS, useT } from '@/lib/i18n';
 import ShareCard from './ShareCard';
 import RosterCard from './RosterCard';
@@ -22,7 +23,7 @@ export default function AdminTab({
   unit: string;
   servers: string[];
   appName: string;
-  onAuthChange: () => void;
+  onAuthChange: (res?: ApiResult) => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
   const { t, lang, setLang, unit: unitLabel, srv } = useT();
@@ -43,7 +44,7 @@ export default function AdminTab({
     setBusy(false);
     setPin('');
     toast(res.ok ? srv(res) : srv(res, 'r.loginFailed'), !res.ok);
-    if (res.ok) onAuthChange();
+    if (res.ok) onAuthChange(res);
   }
 
   async function logout() {

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { api, getStoredEmail } from '@/lib/client';
+import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
 /**
@@ -20,7 +21,7 @@ export default function MasterCard({
   toast,
 }: {
   appName: string;
-  onChanged: () => void;
+  onChanged: (res?: ApiResult) => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
   const { t, srv } = useT();
@@ -34,7 +35,7 @@ export default function MasterCard({
     const res = await api('/api/master', { action: 'appName', value: name.trim(), email: getStoredEmail() });
     setBusy(false);
     toast(srv(res, res.ok ? 'r.changed' : 'r.changeFailed'), !res.ok);
-    if (res.ok) onChanged();
+    if (res.ok) onChanged(res);
   }
 
   async function savePin() {

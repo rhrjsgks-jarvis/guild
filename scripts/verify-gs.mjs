@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v10_1.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v10_2.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 const gs = readFileSync(GS_PATH, 'utf8');
@@ -763,7 +763,8 @@ check('쓰기 라우트는 쓴 뒤에 캐시를 버린다', () => {
     if (!writes) continue;
     // 로그인·로그아웃은 시트 데이터를 바꾸지 않는다
     if (/\/(login|logout)\/route\.ts$/.test(path)) continue;
-    if (/invalidate\(/.test(src)) continue;
+    // syncStateCache 는 실어 온 최신 상태를 넣거나, 없으면 버린다 — 둘 다 정리다
+    if (/invalidate\(|syncStateCache\(/.test(src)) continue;
 
     const actions = [...src.matchAll(/callGas\(\s*'(\w+)'/g)].map((m) => m[1]);
     if (actions.length && actions.every((a) => READ_ONLY.includes(a))) continue;
@@ -777,6 +778,7 @@ check('쓰기 직후 조회는 캐시를 건너뛴다', () => {
   // 캐시는 서버 인스턴스 메모리에 있다. 쓰기를 처리한 인스턴스에서 캐시를 버려도
   // 다음 조회가 낡은 값을 든 다른 인스턴스로 갈 수 있다. 그래서 쓰기 직후의
   // 조회만 ?fresh=1 로 부른다.
+  const freshSrc = readFileSync(resolve(ROOT, 'lib/fresh.ts'), 'utf8');
   const routes = {
     'app/api/state/route.ts': 'state',
     'app/api/board/route.ts': 'posts',
@@ -789,7 +791,10 @@ check('쓰기 직후 조회는 캐시를 건너뛴다', () => {
       throw new Error(`${path} 가 '${key}' 캐시를 버리지 않습니다.`);
     }
     // TTL 이 너무 길면 fresh 를 쓰지 않는 다른 사람 화면이 오래 낡은 채로 남는다
-    const ttl = Number((src.match(/cached\('[^']+',\s*([\d_]+)/) ?? [])[1]?.replace(/_/g, '') ?? 0);
+    const raw = (src.match(/cached\('[^']+',\s*([\w]+)/) ?? [])[1] ?? '';
+    const ttl = /^\d[\d_]*$/.test(raw)
+      ? Number(raw.replace(/_/g, ''))
+      : Number((freshSrc.match(new RegExp(`${raw}\\s*=\\s*([\\d_]+)`)) ?? [])[1]?.replace(/_/g, '') ?? 0);
     if (!ttl || ttl > 10_000) throw new Error(`${path} 의 캐시 TTL 이 ${ttl}ms 입니다 (10초 이하여야 합니다).`);
   }
 
@@ -806,6 +811,91 @@ check('쓰기 직후 조회는 캐시를 건너뛴다', () => {
     throw new Error('주기 갱신이 캐시를 건너뜁니다 — Apps Script 할당량을 그대로 태웁니다.');
   }
   return `조회 3종 + 앱 쓰기 콜백 ${['onDone', 'onChanged', 'onAuthChange'].length}종`;
+});
+
+check('쓰기 응답이 최신 상태를 같이 실어 보낸다 (왕복 1회 절약)', () => {
+  // 앱은 쓰기 뒤에 화면 숫자를 맞추려고 상태를 다시 읽어야 한다.
+  // 그걸 두 번째 요청으로 하면 폰↔서버 왕복과 Apps Script 실행 준비 비용이
+  // 한 번 더 든다. 시트가 같은 실행 안에서 읽어 보내면 그 왕복이 사라진다.
+  const ctx = vm.createContext({});
+  const writeList = (gs.match(/const API_WRITE_ACTIONS = \[[\s\S]*?\];/) ?? [])[0];
+  if (!writeList) throw new Error('API_WRITE_ACTIONS 를 찾지 못했습니다.');
+  const fn = (gs.match(/function _withState\(result, action, req\) \{[\s\S]*?\n\}/) ?? [])[0];
+  if (!fn) throw new Error('_withState 를 찾지 못했습니다.');
+
+  let stateCalls = 0;
+  vm.runInContext(
+    `${writeList}\n${fn}\nfunction api_getState() { __n++; return { marker: 1 }; }\nvar __n = 0;`,
+    ctx,
+  );
+  const run = (result, action, req) => {
+    ctx.__result = result; ctx.__action = action; ctx.__req = req;
+    return vm.runInContext('_withState(__result, __action, __req)', ctx);
+  };
+  const reads = () => vm.runInContext('__n', ctx);
+
+  // ① 쓰기 + withState → 상태가 붙는다
+  let r = run({ ok: true }, 'distribute', { withState: true });
+  if (!r.state) throw new Error('쓰기 응답에 상태가 붙지 않습니다.');
+
+  // ② withState 를 안 보내면 붙지 않는다 (필요 없는 호출까지 전체 시트를 읽지 않도록)
+  stateCalls = reads();
+  r = run({ ok: true }, 'distribute', {});
+  if (r.state) throw new Error('withState 없이도 상태를 붙입니다.');
+  if (reads() !== stateCalls) throw new Error('withState 없이 시트를 읽었습니다.');
+
+  // ③ 실패한 쓰기에는 붙지 않는다 — 바뀐 것이 없다
+  r = run({ ok: false, msg: '실패' }, 'distribute', { withState: true });
+  if (r.state) throw new Error('실패한 쓰기에 상태를 붙입니다.');
+
+  // ④ 조회 액션에는 붙지 않는다 (중복해서 두 번 읽게 된다)
+  r = run({ ok: true }, 'state', { withState: true });
+  if (r.state) throw new Error('조회 액션에까지 상태를 붙입니다.');
+
+  // ⑤ ★ 상태 읽기가 실패해도 쓰기 결과는 성공 그대로여야 한다.
+  //    여기서 실패로 뒤집으면 사용자가 같은 분배를 다시 실행한다.
+  vm.runInContext('api_getState = function () { throw new Error("boom"); };', ctx);
+  r = run({ ok: true, msg: '✅ 분배 완료' }, 'distribute', { withState: true });
+  if (r.ok !== true) throw new Error('상태 읽기 실패가 쓰기 결과를 실패로 만듭니다 — 이중 실행 위험.');
+  if (r.state) throw new Error('실패했는데 상태가 붙었습니다.');
+
+  return '붙임 · withState 없으면 안 붙임 · 실패/조회 제외 · 읽기 실패해도 성공 유지';
+});
+
+check('앱이 실어 온 상태를 실제로 쓴다', () => {
+  // 시트가 보내줘도 앱이 안 쓰면 왕복이 그대로 남는다. 양쪽을 다 확인한다.
+  const gasSrc = readFileSync(resolve(ROOT, 'lib/gas.ts'), 'utf8');
+  if (!/withState\?: boolean/.test(gasSrc)) throw new Error('callGas 에 withState 옵션이 없습니다.');
+  if (!/opts\.withState \? \{ withState: true \}/.test(gasSrc)) {
+    throw new Error('callGas 가 withState 를 시트로 보내지 않습니다.');
+  }
+
+  const freshSrc = readFileSync(resolve(ROOT, 'lib/fresh.ts'), 'utf8');
+  if (!/put\('state'/.test(freshSrc)) throw new Error('실어 온 상태를 캐시에 넣지 않습니다.');
+  if (!/else invalidate\('state'\)/.test(freshSrc)) {
+    throw new Error('상태가 안 온 경우 캐시를 버리지 않습니다 — 낡은 값이 남습니다.');
+  }
+
+  // 상태를 화면에 반영하는 쓰기 라우트는 전부 withState 로 불러야 한다
+  const bad = [];
+  const walk = (rel) => {
+    for (const e of readdirSync(resolve(ROOT, rel), { withFileTypes: true })) {
+      if (e.isDirectory()) { walk(`${rel}/${e.name}`); continue; }
+      if (e.name !== 'route.ts') continue;
+      const path = `${rel}/${e.name}`;
+      const src = readFileSync(resolve(ROOT, path), 'utf8');
+      if (!/syncStateCache\(/.test(src)) continue;
+      if (!/withState: true/.test(src)) bad.push(path);
+    }
+  };
+  ['app/api/admin', 'app/api/master'].forEach(walk);
+  if (bad.length) throw new Error(`상태를 반영하면서 withState 를 안 보내는 라우트: ${bad.join(', ')}`);
+
+  const app = readFileSync(resolve(ROOT, 'components/App.tsx'), 'utf8');
+  if (!/res\?\.state as GuildState/.test(app)) throw new Error('App.tsx 가 실어 온 상태를 쓰지 않습니다.');
+  // 상태가 안 왔을 때의 물러설 길이 반드시 있어야 한다 (옛 버전 시트 대응)
+  if (!/void refresh\(true\)/.test(app)) throw new Error('상태가 없을 때의 대비 경로가 없습니다.');
+  return '시트 → 라우트 → 캐시 → 화면 전 구간 연결';
 });
 
 check('새로고침 버튼이 화면에 있다', () => {

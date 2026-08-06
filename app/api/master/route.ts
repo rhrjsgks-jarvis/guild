@@ -1,6 +1,6 @@
 import { callGas } from '@/lib/gas';
 import { requireMaster } from '@/lib/auth';
-import { invalidate } from '@/lib/cache';
+import { syncStateCache } from '@/lib/fresh';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 45;
@@ -35,8 +35,8 @@ export async function POST(req: Request) {
     if (!name) return Response.json({ ok: false, msg: '앱 이름을 입력해주세요.' }, { status: 400 });
     if (name.length > 20) return Response.json({ ok: false, msg: '앱 이름은 20자 이내여야 합니다.' }, { status: 400 });
 
-    const res = await callGas('setAppName', { name, email });
-    if (res.ok) invalidate('state');
+    const res = await callGas('setAppName', { name, email }, { withState: true });
+    if (res.ok) syncStateCache(res);
     return Response.json(res, { status: res.ok ? 200 : 400 });
   }
 

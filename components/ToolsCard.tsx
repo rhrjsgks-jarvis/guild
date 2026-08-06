@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Sheet from './Sheet';
 import type { PayoutRecord, Tool } from '@/lib/types';
 import { api, fmt, getStoredEmail } from '@/lib/client';
+import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
 /**
@@ -19,7 +20,7 @@ export default function ToolsCard({
   toast,
 }: {
   unit: string;
-  onChanged: () => void;
+  onChanged: (res?: ApiResult) => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
   const { t, srv } = useT();
@@ -47,7 +48,7 @@ export default function ToolsCard({
     toast(srv(res, res.ok ? 'r.undone' : 'r.undoFailed'), !res.ok);
     if (res.ok) {
       void load();
-      onChanged();
+      onChanged(res);
     }
   }
 
@@ -141,10 +142,10 @@ export default function ToolsCard({
         <ToolSheet
           tool={active}
           onClose={() => setActive(null)}
-          onDone={() => {
+          onDone={(res) => {
             setActive(null);
             void load();
-            onChanged();
+            onChanged(res);
           }}
           toast={toast}
         />
@@ -161,7 +162,7 @@ function ToolSheet({
 }: {
   tool: Tool;
   onClose: () => void;
-  onDone: () => void;
+  onDone: (res?: ApiResult) => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
   const { t, srv } = useT();
@@ -182,7 +183,7 @@ function ToolSheet({
     });
     setBusy(false);
     toast(srv(res, res.ok ? 'r.completed' : 'r.runFailed'), !res.ok);
-    if (res.ok) onDone();
+    if (res.ok) onDone(res);
   }
 
   return (

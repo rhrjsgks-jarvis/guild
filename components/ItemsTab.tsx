@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { GuildState, LedgerItem, PhotoResult } from '@/lib/types';
 import { api, fmt, getStoredEmail } from '@/lib/client';
+import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 import LedgerCard from './LedgerCard';
 
@@ -23,7 +24,7 @@ export default function ItemsTab({
   state: GuildState;
   admin: boolean;
   onDistribute: (item: LedgerItem) => void;
-  onDone: () => void;
+  onDone: (res?: ApiResult) => void;
   toast: (msg: string, isError?: boolean) => void;
   setBusy: (on: boolean) => void;
 }) {
@@ -147,7 +148,7 @@ export default function ItemsTab({
     toast(srv(res, res.ok ? 'r.registered' : 'r.registerFailed'), !res.ok);
     if (res.ok) {
       resetForm();
-      onDone();
+      onDone(res);
     }
   }
 

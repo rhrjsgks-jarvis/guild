@@ -1,6 +1,6 @@
 import { callGas } from '@/lib/gas';
 import { requireAdmin } from '@/lib/auth';
-import { invalidate } from '@/lib/cache';
+import { syncStateCache } from '@/lib/fresh';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -23,8 +23,8 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, msg: '아이디는 30자 이내여야 합니다.' }, { status: 400 });
   }
 
-  const res = await callGas('addMember', { name, email: String(body.email ?? '').trim() }, { timeoutMs: 45_000 });
-  if (res.ok) invalidate('state');
+  const res = await callGas('addMember', { name, email: String(body.email ?? '').trim() }, { timeoutMs: 45_000, withState: true });
+  if (res.ok) syncStateCache(res);
 
   return Response.json(res, { status: res.ok ? 200 : 400 });
 }
@@ -53,9 +53,9 @@ export async function DELETE(req: Request) {
   const res = await callGas(
     'removeMember',
     { name, email: String(body.email ?? '').trim(), confirmRemove: body.confirmRemove === true },
-    { timeoutMs: 45_000 },
+    { timeoutMs: 45_000, withState: true },
   );
-  if (res.ok) invalidate('state');
+  if (res.ok) syncStateCache(res);
 
   // needsConfirm 은 오류가 아니라 "한 번 더 물어보라"는 신호다
   return Response.json(res, { status: res.ok || res.needsConfirm ? 200 : 400 });

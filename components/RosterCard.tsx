@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Sheet from './Sheet';
 import type { RenameRecord, RosterEntry } from '@/lib/types';
 import { api, fmt, getStoredEmail } from '@/lib/client';
+import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
 /**
@@ -21,7 +22,7 @@ export default function RosterCard({
 }: {
   unit: string;
   servers: string[];
-  onChanged: () => void;
+  onChanged: (res?: ApiResult) => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
   const { t, srv } = useT();
@@ -44,11 +45,11 @@ export default function RosterCard({
     void load();
   }, [load]);
 
-  const done = () => {
+  const done = (res?: ApiResult) => {
     setTarget(null);
     setAdding(false);
     void load();
-    onChanged();
+    onChanged(res);
   };
 
   return (
@@ -189,7 +190,7 @@ function AddSheet({
   toast,
 }: {
   onClose: () => void;
-  onDone: () => void;
+  onDone: (res?: ApiResult) => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
   const { t, srv } = useT();
@@ -201,7 +202,7 @@ function AddSheet({
     const res = await api('/api/admin/member', { name: name.trim(), email: getStoredEmail() });
     setBusy(false);
     toast(srv(res, res.ok ? 'r.added' : 'r.addFailed'), !res.ok);
-    if (res.ok) onDone();
+    if (res.ok) onDone(res);
   }
 
   return (
@@ -250,7 +251,7 @@ function MemberSheet({
   unit: string;
   servers: string[];
   onClose: () => void;
-  onDone: () => void;
+  onDone: (res?: ApiResult) => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
   const { t, srv } = useT();
@@ -279,7 +280,7 @@ function MemberSheet({
     });
     setBusy(false);
     toast(srv(res, res.ok ? 'r.saved' : 'r.failed'), !res.ok);
-    if (res.ok) onDone();
+    if (res.ok) onDone(res);
   }
 
   async function rename(confirmMerge: boolean) {
@@ -298,7 +299,7 @@ function MemberSheet({
       return;
     }
     toast(srv(res, res.ok ? 'r.changed' : 'r.changeFailed'), !res.ok);
-    if (res.ok) onDone();
+    if (res.ok) onDone(res);
   }
 
   async function remove(confirmRemove: boolean) {
@@ -316,7 +317,7 @@ function MemberSheet({
       return;
     }
     toast(srv(res, res.ok ? 'r.removed' : 'r.removeFailed'), !res.ok);
-    if (res.ok) onDone();
+    if (res.ok) onDone(res);
   }
 
   if (mode !== 'edit') {

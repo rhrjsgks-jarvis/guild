@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { BalanceRow, GuildState, LedgerItem } from '@/lib/types';
 import { api } from '@/lib/client';
+import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 import { APP_VERSION } from '@/lib/version';
 import BalanceTab from './BalanceTab';
@@ -91,8 +92,26 @@ export default function App() {
     [srv],
   );
 
-  /** 쓰기 직후 호출용 — 캐시를 건너뛰고 즉시 반영한다 */
-  const refreshNow = useCallback(() => void refresh(true), [refresh]);
+  /**
+   * 쓰기 직후 호출용.
+   *
+   * 시트가 쓰기 응답에 최신 상태를 같이 실어 보내므로(v10.2 `_withState`),
+   * 그게 있으면 **왕복 없이** 바로 화면에 반영한다. 없으면 (옛 버전 시트이거나
+   * 시트 쪽 상태 읽기가 실패한 경우) 캐시를 건너뛴 조회로 물러선다.
+   */
+  const refreshNow = useCallback(
+    (res?: ApiResult) => {
+      const fresh = res?.state as GuildState | undefined;
+      if (fresh) {
+        setState(fresh);
+        setSyncedAt(Date.now());
+        setLoadError('');
+        return;
+      }
+      void refresh(true);
+    },
+    [refresh],
+  );
 
   useEffect(() => {
     void refresh();

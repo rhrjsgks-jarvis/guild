@@ -1,6 +1,6 @@
 import { callGas } from '@/lib/gas';
 import { requireAdmin } from '@/lib/auth';
-import { invalidate } from '@/lib/cache';
+import { syncStateCache } from '@/lib/fresh';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -42,10 +42,10 @@ export async function POST(req: Request) {
       email: String(body.email ?? '').trim(),
       confirmMerge: body.confirmMerge === true,
     },
-    { timeoutMs: 45_000 },
+    { timeoutMs: 45_000, withState: true },
   );
 
-  if (res.ok) invalidate('state');
+  if (res.ok) syncStateCache(res);
 
   // needsConfirm 은 오류가 아니라 "한 번 더 물어보라"는 신호다 — 200 으로 내려보낸다
   return Response.json(res, { status: res.ok || res.needsConfirm ? 200 : 400 });

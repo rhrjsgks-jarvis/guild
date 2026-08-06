@@ -118,7 +118,7 @@ public/
                         ※ 직접 만든 이미지를 쓰려면 이 파일들과 app/icon.png,
                           app/apple-icon.png 를 같은 크기 PNG로 덮어쓰면 됩니다
 apps-script/
-  GuildManager_v10_1.gs  ★ 구글시트에 붙여넣는 코드 (정산 로직 전부)
+  GuildManager_v10_2.gs  ★ 구글시트에 붙여넣는 코드 (정산 로직 전부)
 ```
 
 **Claude에게 수정을 부탁할 때**는 그냥 하고 싶은 걸 말하면 됩니다.

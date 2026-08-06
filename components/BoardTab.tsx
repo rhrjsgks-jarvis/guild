@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Sheet from './Sheet';
 import type { BoardPost } from '@/lib/types';
 import { api, getStoredEmail, getStoredName } from '@/lib/client';
+import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
 /**
@@ -23,7 +24,7 @@ export default function BoardTab({
   focusPostId?: number | null;
   onFocusHandled?: () => void;
   toast: (msg: string, isError?: boolean) => void;
-  onChanged: () => void;
+  onChanged: (res?: ApiResult) => void;
 }) {
   const { t, srv } = useT();
   const [posts, setPosts] = useState<BoardPost[] | null>(null);
@@ -62,7 +63,7 @@ export default function BoardTab({
     if (res.ok) {
       setOpen(null);
       void load(true);
-      onChanged();
+      onChanged(res);
     }
   }
 
@@ -139,10 +140,10 @@ export default function BoardTab({
         <WriteSheet
           admin={admin}
           onClose={() => setWriting(false)}
-          onDone={() => {
+          onDone={(res) => {
             setWriting(false);
             void load(true);
-            onChanged();
+            onChanged(res);
           }}
           toast={toast}
         />
@@ -159,7 +160,7 @@ function WriteSheet({
 }: {
   admin: boolean;
   onClose: () => void;
-  onDone: () => void;
+  onDone: (res?: ApiResult) => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
   const { t, srv } = useT();
@@ -175,7 +176,7 @@ function WriteSheet({
     const res = await api('/api/board', { title, body, author, notice: admin && notice });
     setBusy(false);
     toast(srv(res, res.ok ? 'r.posted' : 'r.postFailed'), !res.ok);
-    if (res.ok) onDone();
+    if (res.ok) onDone(res);
   }
 
   return (

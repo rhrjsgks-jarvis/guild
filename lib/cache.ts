@@ -52,3 +52,14 @@ export async function cached<T>(
 export function invalidate(key: string): void {
   store.delete(key);
 }
+
+/**
+ * 이미 알고 있는 최신 값을 캐시에 직접 넣는다.
+ *
+ * 시트가 쓰기 응답에 최신 상태를 같이 실어 보내므로(`withState`), 그 값을
+ * 버리고 다음 사람이 다시 읽게 할 이유가 없다. 넣어두면 그 사람은
+ * 구글시트를 거치지 않고 바로 받는다.
+ */
+export function put<T>(key: string, value: T, ttlMs: number): void {
+  store.set(key, { value, expiresAt: Date.now() + ttlMs });
+}

@@ -1,6 +1,6 @@
 import { callGas } from '@/lib/gas';
 import { cached } from '@/lib/cache';
-import { dropIfFresh } from '@/lib/fresh';
+import { dropIfFresh, STATE_TTL_MS } from '@/lib/fresh';
 import { currentRole } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +15,7 @@ export const maxDuration = 30;
 export async function GET(req: Request) {
   dropIfFresh(req, 'state');
   // 성공만 캐시한다 — 실패까지 캐시하면 일시적인 오류가 TTL 동안 굳어버린다
-  const res = await cached('state', 4_000, () => callGas('state'), (r) => r.ok);
+  const res = await cached('state', STATE_TTL_MS, () => callGas('state'), (r) => r.ok);
   const role = await currentRole();
   const admin = role !== null;
   const master = role === 'master';

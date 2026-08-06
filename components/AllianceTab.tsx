@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Sheet from './Sheet';
 import type { AllianceState } from '@/lib/types';
 import { api, calcAlliance, fmt, getStoredEmail } from '@/lib/client';
+import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
 /**
@@ -170,7 +171,7 @@ function AddSheet({
   servers: string[];
   unit: string;
   onClose: () => void;
-  onDone: () => void;
+  onDone: (res?: ApiResult) => void;
   toast: (msg: string, isError?: boolean) => void;
   setBusy: (on: boolean) => void;
 }) {
@@ -221,7 +222,7 @@ function AddSheet({
     });
     setBusy(false);
     toast(srv(res, res.ok ? 'r.registered' : 'r.registerFailed'), !res.ok);
-    if (res.ok) onDone();
+    if (res.ok) onDone(res);
   }
 
   return (

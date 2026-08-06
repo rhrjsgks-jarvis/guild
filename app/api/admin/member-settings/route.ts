@@ -1,6 +1,6 @@
 import { callGas } from '@/lib/gas';
 import { requireAdmin } from '@/lib/auth';
-import { invalidate } from '@/lib/cache';
+import { syncStateCache } from '@/lib/fresh';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 45;
@@ -50,8 +50,8 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, msg: '바꿀 항목이 없습니다.' }, { status: 400 });
   }
 
-  const res = await callGas('updateMember', { name, patch, email: String(body.email ?? '').trim() });
-  if (res.ok) invalidate('state');
+  const res = await callGas('updateMember', { name, patch, email: String(body.email ?? '').trim() }, { withState: true });
+  if (res.ok) syncStateCache(res);
 
   return Response.json(res, { status: res.ok ? 200 : 400 });
 }

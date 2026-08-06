@@ -1,6 +1,6 @@
 import { callGas } from '@/lib/gas';
 import { requireAdmin } from '@/lib/auth';
-import { invalidate } from '@/lib/cache';
+import { syncStateCache } from '@/lib/fresh';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -27,8 +27,8 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, msg: '판매금액은 양의 정수여야 합니다.' }, { status: 400 });
   }
 
-  const res = await callGas('distribute', { row, amount, email: String(body.email ?? '').trim() }, { timeoutMs: 45_000 });
+  const res = await callGas('distribute', { row, amount, email: String(body.email ?? '').trim() }, { timeoutMs: 45_000, withState: true });
 
-  invalidate('state');
+  syncStateCache(res);
   return Response.json(res, { status: res.ok ? 200 : 400 });
 }

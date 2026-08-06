@@ -479,23 +479,55 @@ await t('쓰기 직후 조회(?fresh=1)는 캐시를 건너뛴다', async () => 
   const state = async (q = '') => (await (await fetch(`${APP}/api/state${q}`)).json()).data.version;
 
   await reset();
-  eq(await state(), '10.1', '첫 조회 버전');
+  eq(await state(), '10.2', '첫 조회 버전');
 
   await mock('__setVersion', { version: '9.9' });
-  eq(await state(), '10.1', '캐시된 조회 (시트가 바뀌어도 그대로여야 정상)');
+  eq(await state(), '10.2', '캐시된 조회 (시트가 바뀌어도 그대로여야 정상)');
   eq(await state('?fresh=1'), '9.9', 'fresh 조회 (캐시를 건너뛴 값)');
   // fresh 조회는 캐시도 새 값으로 갈아둔다 — 다음 사람이 낡은 값을 보지 않는다
   eq(await state(), '9.9', 'fresh 이후의 일반 조회');
 
-  await mock('__setVersion', { version: '10.1' });
+  await mock('__setVersion', { version: '10.2' });
+});
+
+await t('쓰기 응답이 최신 상태를 같이 실어 온다 (조회 왕복 없음)', async () => {
+  await reset();
+  const res = await post('/api/admin/register', { itemName: '왕복 테스트', participants: ['가이'] }, { Cookie: cookie });
+  const body = await res.json();
+  eq(body.ok, true, '등록 결과');
+
+  // 이 응답 하나로 화면을 다시 그릴 수 있어야 한다 — 두 번째 요청이 필요 없다
+  if (!body.state) throw new Error('쓰기 응답에 상태가 없습니다 — 앱이 한 번 더 왕복하게 됩니다.');
+  if (!body.state.items.some((i) => i.item === '왕복 테스트')) {
+    throw new Error('실어 온 상태에 방금 등록한 아이템이 없습니다.');
+  }
+  eq(typeof body.state.season, 'number', '실어 온 상태의 시즌');
+  eq(body.state.version, '10.2', '실어 온 상태의 버전');
+
+  // 그 값이 캐시에도 들어가 있어야 한다 — 다른 사람도 시트를 거치지 않고 받는다
+  const shared = (await (await fetch(`${APP}/api/state`)).json()).data;
+  if (!shared.items.some((i) => i.item === '왕복 테스트')) {
+    throw new Error('실어 온 상태가 캐시에 반영되지 않았습니다.');
+  }
+});
+
+await t('조회에는 상태를 중복해서 싣지 않는다', async () => {
+  // 조회 응답에까지 붙으면 시트를 두 번 읽는 셈이 된다
+  const body = await (await fetch(`${APP}/api/state`)).json();
+  if (body.state) throw new Error('조회 응답에 상태가 중복으로 붙어 있습니다.');
+
+  const preview = await (await post('/api/admin/items', { op: 'preview', row: 3 }, { Cookie: cookie })).json();
+  if (preview.state) throw new Error('미리보기 응답에 상태가 붙어 있습니다.');
 });
 
 await t('등록하면 캐시가 만료되기를 기다리지 않아도 보인다', async () => {
   await reset();
-  const items = async () => (await (await fetch(`${APP}/api/state`)).json()).data.items;
+  const items = async (q = '') => (await (await fetch(`${APP}/api/state${q}`)).json()).data.items;
 
+  // __reset 은 모의 시트만 되돌린다 — 서버 캐시에는 앞 검사의 값이 남아 있으므로
+  // 기준값은 반드시 캐시를 건너뛰고 읽는다
+  const before = (await items('?fresh=1')).length;
   await items();                       // 캐시를 채운다
-  const before = (await items()).length;
 
   const res = await post('/api/admin/register', { itemName: '캐시 테스트', participants: ['가이'] }, { Cookie: cookie });
   eq((await res.json()).ok, true, '등록 결과');
@@ -833,7 +865,7 @@ await t('헤더의 새로고침 버튼이 보이고, 눌러서 최신 값을 받
   if (!h1.includes('9.9')) throw new Error(`새로고침을 눌렀는데 최신 값이 아닙니다: ${h1}`);
   await shot('15-refresh');
 
-  await mock('__setVersion', { version: '10.1' });
+  await mock('__setVersion', { version: '10.2' });
   await btn.click();
   await page.waitForTimeout(1200);
 });
@@ -843,7 +875,7 @@ await t('제목 옆에 버전이 보이고, 시트가 옛 버전이면 경고가
   await page.reload({ waitUntil: 'networkidle' });
   const h1 = page.locator('.header h1');
   const same = await h1.innerText();
-  if (!same.includes('v10.1')) throw new Error(`제목 옆 버전이 없습니다: ${same}`);
+  if (!same.includes('v10.2')) throw new Error(`제목 옆 버전이 없습니다: ${same}`);
   if (same.includes('⚠️')) throw new Error(`버전이 같은데 경고가 떴습니다: ${same}`);
   await shot('09-version');
 
@@ -861,7 +893,7 @@ await t('제목 옆에 버전이 보이고, 시트가 옛 버전이면 경고가
   if (!warned.includes('⚠️')) throw new Error(`경고 표시가 없습니다: ${warned}`);
   await shot('10-version-mismatch');
 
-  await mock('__setVersion', { version: '10.1' });
+  await mock('__setVersion', { version: '10.2' });
 });
 
 await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', async () => {
