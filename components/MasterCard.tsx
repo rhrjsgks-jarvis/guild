@@ -15,6 +15,16 @@ import { useT } from '@/lib/i18n';
  * PIN 을 바꾸면 구글시트에 저장되고, 그때부터 Vercel 의 ADMIN_PIN 환경변수보다
  * 우선한다. 마스터 본인의 PIN(MASTER_PIN)은 여기서 바꿀 수 없다 — 환경변수에서만.
  */
+/** 앱 이름 길이 상한 — .gs 의 api_setAppName 과 같은 값이어야 한다 */
+const APP_NAME_MAX = 24;
+
+/** 줄바꿈은 최대 한 번(=두 줄)까지만. 그 이상은 공백으로 눕힌다. */
+function limitLines(v: string): string {
+  const lines = String(v ?? '').split(/\r?\n/);
+  if (lines.length <= 2) return lines.join('\n');
+  return [lines[0], lines.slice(1).join(' ')].join('\n');
+}
+
 export default function MasterCard({
   appName,
   onChanged,
@@ -32,7 +42,7 @@ export default function MasterCard({
 
   async function saveName() {
     setBusy(true);
-    const res = await api('/api/master', { action: 'appName', value: name.trim(), email: getStoredEmail() });
+    const res = await api('/api/master', { action: 'appName', value: limitLines(name).trim(), email: getStoredEmail() });
     setBusy(false);
     toast(srv(res, res.ok ? 'r.changed' : 'r.changeFailed'), !res.ok);
     if (res.ok) onChanged(res);
@@ -61,11 +71,22 @@ export default function MasterCard({
           <label className="fl" htmlFor="appName">
             {t('mst.appName')}
           </label>
-          <input id="appName" type="text" maxLength={20} value={name} onChange={(e) => setName(e.target.value)} />
+          {/*
+            긴 이름은 헤더에서 저절로 두 줄이 되는데, 어디서 끊길지는 화면 폭이 정한다.
+            그래서 **어디서 끊을지 직접 정할 수 있게** 줄바꿈을 받는다 (최대 2줄).
+          */}
+          <textarea
+            id="appName"
+            rows={2}
+            maxLength={APP_NAME_MAX}
+            value={name}
+            onChange={(e) => setName(limitLines(e.target.value))}
+            style={{ resize: 'none' }}
+          />
           <button
             className="btn block"
             style={{ marginTop: 10 }}
-            disabled={busy || !name.trim() || name.trim() === appName}
+            disabled={busy || !name.trim() || limitLines(name).trim() === appName}
             onClick={saveName}
           >
             {t('mst.appNameBtn')}

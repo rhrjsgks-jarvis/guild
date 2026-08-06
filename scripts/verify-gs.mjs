@@ -689,7 +689,50 @@ check('마스터 PIN: 공백이 붙어도 통하고, 관리자 PIN 과 같으면
   // 무엇을 입력했는지 볼 수 없으면 오타인지 PIN 이 틀린 건지 구분할 수 없다
   if (!/className="pin-eye"/.test(adm)) throw new Error('PIN 보기 전환 버튼이 없습니다.');
 
-  return '공백 제거(양쪽) · 동일값 거부 · 마스터 우선 · 값 없는 진단 · 폰에서 입력 가능';
+  // ★ 비밀번호 관리자가 저장된 관리자 PIN 을 덮어쓰면 마스터 PIN 이 영원히 통하지 않는다.
+  //   (눈 버튼으로 text 로 바꿨을 때만 되던 것이 정확히 이 증상이었다)
+  if (/autoComplete="current-password"/.test(pinInput)) {
+    throw new Error('PIN 칸이 저장된 비밀번호 자동채움을 허용합니다 — 마스터 PIN 이 덮어써집니다.');
+  }
+  if (!/autoComplete="new-password"/.test(pinInput)) {
+    throw new Error('PIN 칸이 자동채움을 막지 않습니다.');
+  }
+  // 눈에 보이는 값이 곧 보내는 값이어야 한다
+  if (!/pinRef\.current\?\.value \?\? pin/.test(adm)) {
+    throw new Error('로그인이 화면에 실제로 들어 있는 값을 보내지 않습니다.');
+  }
+
+  return '공백 제거(양쪽) · 동일값 거부 · 마스터 우선 · 값 없는 진단 · 폰 입력 · 자동채움 차단';
+});
+
+check('앱 이름은 두 줄까지 되고, 헤더가 밀리지 않는다', () => {
+  // 이름이 길면 헤더에서 저절로 줄이 바뀌는데 어디서 끊길지는 화면 폭이 정한다.
+  // 마스터가 직접 끊을 자리를 정할 수 있어야 한다.
+  const gsFn = (gs.match(/function api_setAppName[\s\S]*?\n\}/) ?? [''])[0];
+  if (!/split\('\\n'\)/.test(gsFn)) throw new Error('시트가 줄바꿈을 처리하지 않습니다.');
+  if (!/APP_NAME_MAX/.test(gsFn)) throw new Error('길이 상한이 상수로 잡혀 있지 않습니다.');
+  // 세 줄 이상은 헤더를 밀어내므로 눕혀야 한다
+  if (!/lines\.slice\(1\)\.join\(' '\)/.test(gsFn)) {
+    throw new Error('세 줄 이상 입력을 두 줄로 눕히지 않습니다.');
+  }
+
+  const route = readFileSync(resolve(ROOT, 'app/api/master/route.ts'), 'utf8');
+  if (!/split\('\\n'\)\.length > 2/.test(route)) throw new Error('라우트가 줄 수를 제한하지 않습니다.');
+
+  const card = readFileSync(resolve(ROOT, 'components/MasterCard.tsx'), 'utf8');
+  if (!/<textarea/.test(card)) throw new Error('앱 이름 칸이 줄바꿈을 받지 못합니다.');
+  if (!/function limitLines/.test(card)) throw new Error('앱에서 줄 수를 제한하지 않습니다.');
+
+  // 헤더: 높이를 고정하면 둘째 줄이 아래 내용을 덮는다
+  const css = readFileSync(resolve(ROOT, 'app/globals.css'), 'utf8');
+  const header = (css.match(/\.header \{[\s\S]*?\}/) ?? [''])[0];
+  if (/\n\s{2}height:/.test(header)) throw new Error('헤더 높이가 고정돼 있습니다 — 두 번째 줄이 가려집니다.');
+  if (!/min-height:/.test(header)) throw new Error('헤더에 최소 높이가 없습니다.');
+  if (!/white-space: pre-line/.test(css)) throw new Error('줄바꿈이 화면에 반영되지 않습니다.');
+  // 제목이 길어도 오른쪽 칩(새로고침·시즌)은 눌러야 하므로 줄어들면 안 된다
+  const meta = (css.match(/\.header \.meta \{[\s\S]*?\}/) ?? [''])[0];
+  if (!/flex: none/.test(meta)) throw new Error('제목이 길면 헤더 칩이 찌그러집니다.');
+  return '시트·라우트·앱 3중 제한 · 헤더 가변 높이 · 칩 보호';
 });
 
 check('마스터 전용 라우트는 requireMaster 로 막힌다', () => {

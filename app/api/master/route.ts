@@ -33,7 +33,14 @@ export async function POST(req: Request) {
   if (action === 'appName') {
     const name = value.trim();
     if (!name) return Response.json({ ok: false, msg: '앱 이름을 입력해주세요.' }, { status: 400 });
-    if (name.length > 20) return Response.json({ ok: false, msg: '앱 이름은 20자 이내여야 합니다.' }, { status: 400 });
+    // 줄바꿈은 두 줄까지 허용한다 (긴 이름을 마스터가 직접 끊을 수 있게).
+    // 글자 수는 줄바꿈을 빼고 센다.
+    if (name.replace(/\n/g, '').length > 24) {
+      return Response.json({ ok: false, msg: '앱 이름은 24자 이내여야 합니다.' }, { status: 400 });
+    }
+    if (name.split('\n').length > 2) {
+      return Response.json({ ok: false, msg: '앱 이름은 두 줄까지만 됩니다.' }, { status: 400 });
+    }
 
     const res = await callGas('setAppName', { name, email }, { withState: true });
     if (res.ok) syncStateCache(res);

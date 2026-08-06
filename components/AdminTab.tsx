@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, getStoredEmail, setStoredEmail } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { LANGS, useT } from '@/lib/i18n';
@@ -32,6 +32,7 @@ export default function AdminTab({
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState('');
   const [standalone, setStandalone] = useState(false);
+  const pinRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setEmail(getStoredEmail());
@@ -39,11 +40,23 @@ export default function AdminTab({
   }, []);
 
   async function login() {
-    if (!pin) return;
+    /*
+     * 화면에 실제로 들어 있는 값을 보낸다.
+     *
+     * 비밀번호 관리자가 저장된 관리자 PIN 을 자동으로 채워 넣으면, 그 변경이
+     * React 상태에 반영되지 않거나(onChange 미발생) 반대로 사용자가 친 값을
+     * 덮어써서, "분명히 마스터 PIN 을 넣었는데 관리자로 로그인되는" 일이 생긴다.
+     * 눈 버튼을 눌러 text 로 바꿨을 때만 되던 것도 같은 이유다 —
+     * 그 순간 비밀번호 칸이 아니게 되어 자동 채움이 손을 떼기 때문.
+     * 눈에 보이는 것이 곧 보내는 값이어야 한다.
+     */
+    const typed = (pinRef.current?.value ?? pin).trim();
+    if (!typed) return;
     setBusy(true);
-    const res = await api('/api/admin/login', { pin });
+    const res = await api('/api/admin/login', { pin: typed });
     setBusy(false);
     setPin('');
+    if (pinRef.current) pinRef.current.value = '';
     toast(res.ok ? srv(res) : srv(res, 'r.loginFailed'), !res.ok);
     if (res.ok) onAuthChange(res);
   }
@@ -106,8 +119,15 @@ export default function AdminTab({
             <div className="pin-wrap">
               <input
                 id="pin"
+                ref={pinRef}
                 type={showPin ? 'text' : 'password'}
-                autoComplete="current-password"
+                name="gm-pin"
+                /* ★ current-password 로 두면 비밀번호 관리자가 저장된 관리자 PIN 을
+                   덮어써서 마스터 PIN 이 통하지 않는다. 저장·자동채움을 막는다. */
+                autoComplete="new-password"
+                data-lpignore="true"
+                data-1p-ignore=""
+                data-form-type="other"
                 autoCapitalize="off"
                 autoCorrect="off"
                 spellCheck={false}

@@ -528,9 +528,9 @@ const DICT: Record<string, Entry> = {
   'mst.appName': ['앱 이름', '应用名称', 'App name'],
   'mst.appNameBtn': ['앱 이름 바꾸기', '修改应用名称', 'Change app name'],
   'mst.appNameHint': [
-    '앱 상단에 표시되는 이름입니다. 모든 사람에게 바로 반영됩니다.',
-    '显示在应用顶部的名称，会立即对所有人生效。',
-    'The name shown at the top of the app. Everyone sees it immediately.',
+    '앱 상단에 표시되는 이름입니다. 모든 사람에게 바로 반영됩니다. 이름이 길면 엔터로 줄을 바꿔 두 줄로 만들 수 있습니다 (24자, 2줄까지).',
+    '显示在应用顶部的名称，会立即对所有人生效。名称较长时可以按回车换行，最多两行（24 字以内）。',
+    'The name shown at the top of the app. Everyone sees it immediately. For long names press Enter to split it into two lines (24 chars, 2 lines max).',
   ],
   'mst.newPin': ['새 관리자 PIN', '新的管理员 PIN', 'New admin PIN'],
   'mst.newPinPh': [

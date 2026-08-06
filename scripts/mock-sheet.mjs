@@ -849,9 +849,13 @@ const handlers = {
   },
 
   setAppName: ({ name }) => {
-    const nm = String(name || '').trim();
-    if (!nm) return { ok: false, msg: '앱 이름을 입력해주세요.' };
-    if (nm.length > 20) return { ok: false, msg: '앱 이름이 너무 깁니다 (20자 이내).' };
+    // 줄바꿈은 두 줄까지 (긴 이름을 마스터가 직접 끊을 수 있게)
+    const lines = String(name || '').replace(/\r/g, '').split('\n').map((v) => v.trim());
+    const nm = (lines.length <= 2 ? lines : [lines[0], lines.slice(1).join(' ')]).join('\n').trim();
+    if (!nm) return rc({ ok: false, msg: '앱 이름을 입력해주세요.' }, 'e.appNameEmpty');
+    if (nm.replace(/\n/g, '').length > 24) {
+      return rc({ ok: false, msg: '앱 이름이 너무 깁니다 (24자 이내).' }, 'e.appNameLong', { max: 24 });
+    }
     S.appName = nm;
     return { ok: true, msg: `✅ 앱 이름을 "${nm}" 으로 바꿨습니다.` };
   },

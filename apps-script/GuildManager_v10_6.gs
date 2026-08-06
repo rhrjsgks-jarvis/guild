@@ -4,7 +4,7 @@
 //            [지급기록] [연합] [게시판] [작업기록] + [시즌1] [시즌2] ...
 //            ← 이 순서로 항상 정렬됨
 // ═══════════════════════════════════════════════════════════════
-//  변경점 v10.5 → v10.6  (개명 대상 자유 선택 + 사진 인식 개선)
+//  변경점 v10.5 → v10.6  (개명 대상 자유 선택 + 사진 인식 개선 + 앱 이름 두 줄)
 //
 //  [개명]
 //   - ★ 개명 대상을 "비슷해 보이는 사람"으로 제한하던 것을 없앴다.
@@ -21,6 +21,9 @@
 //       결과를 쓴다. 우리 명단은 한글·한자·영문이 한 화면에 섞여 있어서
 //       언어 힌트를 하나만 주면 다른 문자를 통째로 놓친다.
 //       충분히 읽혔으면 나머지는 시도하지 않는다 (Drive 호출 절약).
+//   - ★ 앱 이름을 **두 줄까지** 받는다 (24자). 이름이 길면 헤더에서 저절로
+//       줄이 바뀌는데 어디서 끊길지는 화면 폭이 정한다 — 마스터가 직접
+//       끊을 자리를 정할 수 있게 줄바꿈을 보존한다. 세 줄 이상은 눕힌다.
 //   - ★ 실패 사유를 그대로 올린다. 예전엔 "글자를 읽지 못했습니다"만 나와서
 //       관리자가 사진 탓인 줄 알고 계속 다시 찍었다. 대부분의 원인은
 //       Apps Script 에 **Drive API 서비스가 없는 것**이고, 그건
@@ -5101,10 +5104,19 @@ function api_getRenameHistory() {
 const APP_NAME_PROP = 'APP_NAME';
 const ADMIN_PIN_PROP = 'ADMIN_PIN_OVERRIDE';
 
+const APP_NAME_MAX = 24;   // 앱의 MasterCard 와 같은 값이어야 한다
+
 function api_setAppName(name, email) {
-  name = String(name || '').trim();
+  // 줄바꿈은 최대 한 번(=두 줄)까지 허용한다. 이름이 길면 헤더에서 저절로
+  // 줄이 바뀌는데 어디서 끊길지는 화면 폭이 정하므로, 마스터가 직접
+  // 끊을 자리를 정할 수 있게 한다. 세 줄 이상은 헤더를 밀어내므로 눕힌다.
+  const lines = String(name || '').replace(/\r/g, '').split('\n').map(function (v) { return v.trim(); });
+  name = (lines.length <= 2 ? lines : [lines[0], lines.slice(1).join(' ')]).join('\n').trim();
   if (!name) return _rc({ ok: false, msg: '앱 이름을 입력해주세요.' }, 'e.appNameEmpty');
-  if (name.length > 20) return _rc({ ok: false, msg: '앱 이름이 너무 깁니다 (20자 이내).' }, 'e.appNameLong');
+  if (name.replace(/\n/g, '').length > APP_NAME_MAX) {
+    return _rc({ ok: false, msg: '앱 이름이 너무 깁니다 (' + APP_NAME_MAX + '자 이내).' },
+      'e.appNameLong', { max: APP_NAME_MAX });
+  }
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   PropertiesService.getDocumentProperties().setProperty(APP_NAME_PROP, name);
   _logAction(ss, '앱이름변경', name, _getActorEmail(email), '앱 명칭을 "' + name + '" 으로 변경');

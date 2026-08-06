@@ -902,6 +902,31 @@ await t('앱 이름·관리자 PIN 변경은 마스터만 할 수 있다', async
   eq((await post('/api/master', { action: 'adminPin', value: '123' }, { Cookie: masterCookie })).status, 400, '짧은 PIN');
 });
 
+await t('앱 이름을 두 줄로 넣을 수 있고, 헤더가 아래를 덮지 않는다', async () => {
+  const two = '리니지W\n길드매니저';
+  const res = await (
+    await post('/api/master', { action: 'appName', value: two }, { Cookie: masterCookie })
+  ).json();
+  eq(res.ok, true, '두 줄 이름 저장');
+
+  const st = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
+  eq(st.appName, two, '줄바꿈이 그대로 보존됨');
+
+  // 세 줄 이상은 헤더를 밀어내므로 라우트에서 바로 거부한다.
+  // (앱은 애초에 두 줄로 제한하므로, 여기까지 오는 건 손으로 만든 요청뿐이다.
+  //  시트도 눕히는 방어를 한 겹 더 갖고 있다 — verify:gs 가 그쪽을 본다.)
+  const three = await post('/api/master', { action: 'appName', value: 'A\nB\nC' }, { Cookie: masterCookie });
+  eq(three.status, 400, '세 줄은 거부');
+  const st3 = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
+  eq(st3.appName, two, '거부됐으니 앞서 저장한 값 그대로');
+
+  // 줄바꿈을 뺀 글자 수가 상한을 넘으면 거부
+  const long = await post('/api/master', { action: 'appName', value: '가'.repeat(25) }, { Cookie: masterCookie });
+  eq(long.status, 400, '25자는 거부');
+
+  await post('/api/master', { action: 'appName', value: '길드정산' }, { Cookie: masterCookie });
+});
+
 await t('마스터가 바꾼 PIN 이 환경변수 PIN 보다 우선한다', async () => {
   const set = await (await post('/api/master', { action: 'adminPin', value: 'newpin123' }, { Cookie: masterCookie })).json();
   eq(set.ok, true, 'PIN 교체');

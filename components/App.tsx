@@ -176,7 +176,8 @@ export default function App() {
     <>
       <header className="header">
         <h1>
-          🛡️ {title}
+          {/* 마스터가 넣은 줄바꿈이 그대로 살아야 한다 — 어디서 끊을지는 사람이 정한다 */}
+          <span className="nm">🛡️ {title}</span>
           <span
             className={'ver' + (versionMismatch ? ' warn' : '')}
             title={`v${APP_VERSION}${versionMismatch ? ` / sheet v${sheetVersion}` : ''}`}
