@@ -351,11 +351,14 @@ button {
   vertical-align: 1px;
 }
 
-/* 한자 병기는 본체보다 한 단계 조용하게 — 이름을 밀어내지 않도록 */
+/* 한자 병기.
+   v10.8 에서 키웠다 — 글로벌 길드라 중국 길드원에게는 이쪽이 본명인데,
+   12px 는 본체(15px)에 비해 너무 작아 읽히지 않았다. 다만 한 줄 안에서
+   이름을 밀어내면 안 되므로 본체보다는 한 단계 작게 둔다. */
 .row-name .hanja {
-  margin-left: 4px;
-  color: var(--text-faint);
-  font-size: 12px;
+  margin-left: 5px;
+  color: var(--text-dim);
+  font-size: 14px;
   font-weight: 500;
 }
 

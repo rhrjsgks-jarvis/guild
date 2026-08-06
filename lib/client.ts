@@ -114,17 +114,6 @@ export function weightsOf(
   return names.map((n) => map.get(normName(n)) ?? fallback);
 }
 
-/** 이름 옆에 한자를 병기한다 — 한자가 비어 있으면 이름만 */
-export function withHanja(
-  state: { memberInfo?: { name: string; hanja: string }[] },
-  name: string,
-  on: boolean,
-): string {
-  if (!on) return name;
-  const hit = (state.memberInfo ?? []).find((m) => normName(m.name) === normName(name));
-  return hit?.hanja ? `${name} (${hit.hanja})` : name;
-}
-
 /**
  * 표시용 이름을 국문·한문 두 줄로 쪼갠다.
  *
@@ -181,6 +170,35 @@ export function fitFont(text: string, base: number, min: number, fits = 4.6): nu
   }, 0);
   if (width <= fits) return base;
   return Math.round(Math.max((base * fits) / width, min) * 10) / 10;
+}
+
+/** `nameParts` 가 필요로 하는 최소한의 상태 — 화면마다 통째로 넘기지 않아도 되게 */
+export type HanjaSource = { memberInfo?: { name: string; hanja?: string }[] };
+
+/**
+ * 화면에 쓸 이름 두 줄 — **모든 화면이 이 함수 하나만 쓴다** (v10.8).
+ *
+ * 한자 표기가 들어올 수 있는 자리는 두 곳이다.
+ *
+ *   ① 멤버DB **G열 "한자표기"** — 관리자가 [혈맹원 관리]에서 따로 넣는 값
+ *   ② **아이디 자체의 괄호** — `SogeKing (狙击王)` 처럼 게임 이름에 이미 붙어 있는 경우
+ *
+ * 예전에는 화면이 ②만 봤다. 그래서 관리자가 ①에 정성껏 넣어도 잔액·아이템에는
+ * 아무것도 안 나왔고, "한자표기 칸이 고장났다"로 보였다. 실제로 그랬다.
+ *
+ * ①을 먼저 본다 — 관리자가 **명시적으로 지정한 값**이므로 이름에서 유추한 것보다
+ * 확실하다. ①이 비어 있을 때만 ②로 물러선다 (이름에 괄호를 붙여 쓰던 기존 방식 호환).
+ *
+ * ★ 없으면 빈 문자열이다. 절대 지어내지 않는다 (CLAUDE.md 규칙 7) —
+ *   기계가 만든 한자는 다른 사람으로 읽혀 다이아가 엉뚱한 곳으로 간다.
+ */
+export function nameParts(state: HanjaSource | null | undefined, name: string): { main: string; sub: string } {
+  const parts = splitName(name);
+  const hit = (state?.memberInfo ?? []).find((m) => normName(m.name) === normName(name));
+  const listed = String(hit?.hanja ?? '').trim();
+  // G열이 이름 괄호와 같은 값이면 두 번 쓰지 않는다 (`잠단(斬斷)` + hanja `斬斷`)
+  if (listed && listed !== parts.sub) return { main: parts.main, sub: listed };
+  return parts;
 }
 
 /**

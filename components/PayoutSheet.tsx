@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Sheet from './Sheet';
 import type { BalanceRow, GuildState } from '@/lib/types';
-import { api, fmt, getStoredEmail } from '@/lib/client';
+import { api, fmt, getStoredEmail, nameParts } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
@@ -27,6 +27,11 @@ export default function PayoutSheet({
   const [raw, setRaw] = useState(String(row.pending));
 
   const u = unit(state.unit);
+  // 누구에게 주는지가 이 창의 전부다 — 한자만 아는 사람도 확인할 수 있게 병기한다
+  const who = (() => {
+    const { main, sub } = nameParts(state, row.name);
+    return sub ? `${main} (${sub})` : main;
+  })();
   const amount = Number(raw.replace(/[,\s]/g, ''));
   const valid = Number.isInteger(amount) && amount > 0 && amount <= row.pending;
   const partial = valid && amount < row.pending;
@@ -49,7 +54,7 @@ export default function PayoutSheet({
 
   return (
     <Sheet
-      title={t('pay.title', { name: row.name })}
+      title={t('pay.title', { name: who })}
       subtitle={t('pay.sub', { v: `${fmt(row.pending)} ${u}` })}
       onClose={onClose}
     >

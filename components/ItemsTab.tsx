@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import type { GuildState, LedgerItem, PhotoResult } from '@/lib/types';
-import { CHIP_NAME_PX, api, fitIn, fmt, getStoredEmail, prepPhoto, splitName } from '@/lib/client';
+import { CHIP_NAME_PX, api, fitIn, fmt, getStoredEmail, nameParts, prepPhoto } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 import LedgerCard from './LedgerCard';
@@ -251,7 +251,7 @@ export default function ItemsTab({
                   //   이쪽이 본명이라 여기가 안 읽히면 자기 칸을 못 찾는다.
                   //   괄호는 붙이지 않는다 — 폭을 20% 넘게 먹는데, 두 줄로 나뉜
                   //   자리와 색만으로도 한자 표기인 것은 이미 드러난다.
-                  const { main, sub } = splitName(m);
+                  const { main, sub } = nameParts(state, m);
                   return (
                     <label key={m} className={'mchip' + (picked.has(m) ? ' sel' : '')}>
                       <input type="checkbox" checked={picked.has(m)} onChange={() => toggle(m)} />
@@ -293,6 +293,7 @@ export default function ItemsTab({
 
       {confirming ? (
         <ConfirmRegister
+          state={state}
           itemName={itemName.trim()}
           participants={pickedList}
           onCancel={() => setConfirming(false)}
@@ -304,18 +305,26 @@ export default function ItemsTab({
 }
 
 function ConfirmRegister({
+  state,
   itemName,
   participants,
   onCancel,
   onConfirm,
 }: {
+  state: GuildState;
   itemName: string;
   participants: string[];
   onCancel: () => void;
   onConfirm: () => void;
 }) {
   const { t } = useT();
-  const shown = participants.slice(0, 12);
+  // 여기서 잘못 체크된 사람을 잡아내는 것이 이 창의 목적이다.
+  // 한자만 아는 길드원도 자기 이름을 확인할 수 있어야 하므로 병기해서 보여준다.
+  const label = (n: string) => {
+    const { main, sub } = nameParts(state, n);
+    return sub ? `${main} (${sub})` : main;
+  };
+  const shown = participants.slice(0, 12).map(label);
   const rest = participants.length - shown.length;
 
   return (

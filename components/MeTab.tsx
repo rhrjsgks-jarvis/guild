@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { GuildState, LookupResult } from '@/lib/types';
-import { api, fmt, getStoredName, setStoredName } from '@/lib/client';
+import { api, fmt, getStoredName, nameParts, setStoredName } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 import ShareBtn from './ShareBtn';
 
@@ -25,6 +25,12 @@ export default function MeTab({
   const [loading, setLoading] = useState(false);
 
   const options = state.members.filter((m) => m !== state.fundName);
+
+  // 한자만 아는 길드원도 목록에서 자기 이름을 찾을 수 있어야 한다
+  const label = (n: string) => {
+    const { main, sub } = nameParts(state, n);
+    return sub ? `${main} (${sub})` : main;
+  };
   const u = unit(state.unit);
 
   useEffect(() => {
@@ -77,7 +83,7 @@ export default function MeTab({
             <option value="">{t('me.pickPh')}</option>
             {options.map((m) => (
               <option key={m} value={m}>
-                {m}
+                {label(m)}
               </option>
             ))}
           </select>
@@ -100,7 +106,7 @@ export default function MeTab({
       {result ? (
         <div className="card" style={{ marginTop: 12 }}>
           <div className="field" style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 14 }}>{result.name}</div>
+            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 14 }}>{label(result.name)}</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div style={{ background: 'var(--pending-soft)', borderRadius: 12, padding: '16px 8px' }}>
                 <div style={{ fontSize: 21, fontWeight: 800, color: 'var(--pending)' }}>{fmt(result.pending)}</div>
@@ -119,7 +125,7 @@ export default function MeTab({
               className="btn ghost block share-mine"
               build={() =>
                 [
-                  `🙋 ${result.name} — ${t('c.season')} ${state.season}`,
+                  `🙋 ${label(result.name)} — ${t('c.season')} ${state.season}`,
                   `${t('c.pending')} ${fmt(result.pending)} ${u}`,
                   `${t('c.paid')} ${fmt(result.paid)} ${u}`,
                   `${t('c.joined')} ${t('c.times', { n: result.cnt })}`,

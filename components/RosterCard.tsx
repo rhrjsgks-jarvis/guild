@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import BulkMemberSheet from './BulkMemberSheet';
 import Sheet from './Sheet';
 import type { RenameRecord, RosterEntry } from '@/lib/types';
-import { api, fmt, getStoredEmail } from '@/lib/client';
+import { api, fmt, getStoredEmail, splitName } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
@@ -288,40 +288,85 @@ function MemberSheet({
 
   const trimmed = newName.trim();
   const changed = trimmed.length > 0 && trimmed !== member.name;
+  const hanjaChanged = hanja.trim() !== (member.hanja ?? '').trim();
+  // 잔액·아이템에 실제로 나갈 모양을 그대로 보여준다 — nameParts 와 같은 규칙
+  const preview = (() => {
+    const base = splitName(trimmed || member.name);
+    const h = hanja.trim();
+    const sub = h && h !== base.sub ? h : base.sub;
+    return sub ? `${base.main} (${sub})` : base.main;
+  })();
+  const nameChanged = changed || hanjaChanged;
   const settingsChanged =
-    weight !== (member.weight ?? 100) || server !== (member.server ?? '') || hanja !== (member.hanja ?? '');
+    weight !== (member.weight ?? 100) || server !== (member.server ?? '') || hanjaChanged;
+
+  /** 비중·서버·한자표기를 한 번에 보낸다 — 어느 버튼으로 저장하든 값이 사라지지 않게 */
+  async function putSettings(name: string) {
+    return api('/api/admin/member-settings', { name, weight, server, hanja, email: getStoredEmail() });
+  }
 
   async function saveSettings() {
     setBusy(true);
-    const res = await api('/api/admin/member-settings', {
-      name: member.name,
-      weight,
-      server,
-      hanja,
-      email: getStoredEmail(),
-    });
+    const res = await putSettings(member.name);
     setBusy(false);
     toast(srv(res, res.ok ? 'r.saved' : 'r.failed'), !res.ok);
     if (res.ok) onDone(res);
   }
 
-  async function rename(confirmMerge: boolean) {
+  /**
+   * 아이디와 한자표기를 함께 저장한다 (v10.8).
+   *
+   * 둘은 서로 다른 API 를 타지만(아이디는 잔액·참여횟수를 끌고 가는 개명,
+   * 한자표기는 단순 설정) 관리자에게는 "이 사람의 이름"이라는 하나의 일이다.
+   * 칸을 붙여 놓고 버튼만 둘로 두면 어느 쪽이 저장됐는지 알 수 없다.
+   *
+   * ★ 순서가 중요하다 — 개명을 먼저 하고, 한자표기는 **바뀐 이름**으로 저장한다.
+   *   반대로 하면 옛 이름에 저장한 뒤 그 행이 사라진다.
+   */
+  async function saveName(confirmMerge: boolean) {
     setBusy(true);
-    const res = await api('/api/admin/rename', {
-      oldName: member.name,
-      newName: trimmed,
-      email: getStoredEmail(),
-      confirmMerge,
-    });
-    setBusy(false);
+    let current = member.name;
+    let last: ApiResult | undefined;
 
-    if (res.needsConfirm) {
-      setWarning(srv(res));
-      setMode('confirmMerge');
-      return;
+    if (changed) {
+      const res = await api('/api/admin/rename', {
+        oldName: member.name,
+        newName: trimmed,
+        email: getStoredEmail(),
+        confirmMerge,
+      });
+      // 이미 있는 이름이면 서버가 되묻는다 — 합치면 두 사람 잔액이 하나가 된다
+      if (res.needsConfirm) {
+        setBusy(false);
+        setWarning(srv(res));
+        setMode('confirmMerge');
+        return;
+      }
+      if (!res.ok) {
+        setBusy(false);
+        toast(srv(res, 'r.changeFailed'), true);
+        return;
+      }
+      current = trimmed;
+      last = res;
     }
-    toast(srv(res, res.ok ? 'r.changed' : 'r.changeFailed'), !res.ok);
-    if (res.ok) onDone(res);
+
+    if (hanjaChanged) {
+      const res = await putSettings(current);
+      if (!res.ok) {
+        setBusy(false);
+        // 개명은 이미 끝났다 — 실패로만 알리면 관리자가 개명을 다시 시도한다
+        toast(srv(res, changed ? 'ros.nameOkHanjaFailed' : 'r.failed'), true);
+        if (changed) onDone(last);
+        return;
+      }
+      last = res;
+    }
+
+    setBusy(false);
+    if (!last) return;
+    toast(srv(last, 'r.saved'));
+    onDone(last);
   }
 
   async function remove(confirmRemove: boolean) {
@@ -365,7 +410,7 @@ function MemberSheet({
           >
             {t('c.back')}
           </button>
-          <button className="btn warn" disabled={busy} onClick={() => (merging ? rename(true) : remove(true))}>
+          <button className="btn warn" disabled={busy} onClick={() => (merging ? saveName(true) : remove(true))}>
             {merging ? t('ros.merge') : t('ros.removeDo')}
           </button>
         </div>
@@ -375,11 +420,27 @@ function MemberSheet({
 
   return (
     <Sheet title={t('ros.memberTitle')} subtitle={t('ros.current', { v: member.name })} onClose={onClose}>
+      {/* 아이디와 한자표기는 붙어 있어야 한다 (v10.8).
+          같은 사람의 두 표기인데 예전에는 분배비중·서버를 사이에 두고 떨어져 있어서,
+          한자를 넣어야 한다는 것 자체를 모르고 지나가기 쉬웠다. */}
       <label className="fl" htmlFor="newName">
         {t('ros.id')}
       </label>
       <input id="newName" type="text" value={newName} autoFocus onChange={(e) => setNewName(e.target.value)} />
       <p className="hint">{t('ros.idHint')}</p>
+
+      <label className="fl" htmlFor="mh" style={{ marginTop: 12 }}>
+        {t('ros.hanja')}
+      </label>
+      <input
+        id="mh"
+        type="text"
+        maxLength={30}
+        placeholder={t('ros.hanjaPh')}
+        value={hanja}
+        onChange={(e) => setHanja(e.target.value)}
+      />
+      <p className="hint">{t('ros.hanjaHint', { v: preview })}</p>
 
       <div className="calc">
         <div className="calc-line">
@@ -400,8 +461,8 @@ function MemberSheet({
         <button className="btn ghost" onClick={onClose}>
           {t('c.cancel')}
         </button>
-        <button className="btn" disabled={!changed || busy} onClick={() => rename(false)}>
-          {busy ? t('c.processing') : t('ros.rename')}
+        <button className="btn" disabled={!nameChanged || busy} onClick={() => saveName(false)}>
+          {busy ? t('c.processing') : t('ros.saveName')}
         </button>
       </div>
 
@@ -429,19 +490,6 @@ function MemberSheet({
             </option>
           ))}
         </select>
-
-        <label className="fl" htmlFor="mh" style={{ marginTop: 10 }}>
-          {t('ros.hanja')}
-        </label>
-        <input
-          id="mh"
-          type="text"
-          maxLength={30}
-          placeholder={t('ros.hanjaPh')}
-          value={hanja}
-          onChange={(e) => setHanja(e.target.value)}
-        />
-        <p className="hint">{t('ros.hanjaHint', { name: member.name, h: hanja || '漢字' })}</p>
 
         <button
           className="btn block"

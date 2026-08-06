@@ -1381,7 +1381,7 @@ check('이름은 두 줄로 나뉘고 글자 수에 맞춰 줄어든다', () => 
   }
 
   const items = readFileSync(resolve(ROOT, 'components/ItemsTab.tsx'), 'utf8');
-  if (!/splitName\(m\)/.test(items) || !/fitIn\(/.test(items)) {
+  if (!/nameParts\(state, m\)/.test(items) || !/fitIn\(/.test(items)) {
     throw new Error('참여자 선택 칩이 두 줄 표기를 쓰지 않습니다.');
   }
   // 잘리느니 줄바꿈이 낫다 — ellipsis 로 뭉개면 다른 사람으로 오인된다
@@ -1391,6 +1391,89 @@ check('이름은 두 줄로 나뉘고 글자 수에 맞춰 줄어든다', () => 
   if (/text-overflow/.test(chipCss)) throw new Error('한자 줄을 ellipsis 로 잘라냅니다.');
 
   return '괄호 분리 · (미등록) 예외 · 크기 축소 하한 · 한자 > 국문 · 폭 예산 4케이스';
+});
+
+check('멤버DB 한자표기가 잔액·아이템 화면까지 이어진다', () => {
+  /*
+   * 한자가 들어올 수 있는 자리가 둘이라 실제로 사고가 났다.
+   *   ① 멤버DB G열 "한자표기" — 관리자가 [혈맹원 관리]에서 넣는 값
+   *   ② 아이디 자체의 괄호 — `SogeKing (狙击王)`
+   * 화면이 ②만 보고 있어서, ①에 넣은 값이 잔액·아이템에 전혀 나오지 않았다.
+   * 그래서 nameParts 한 곳에서만 정하고, 모든 화면이 그걸 쓰는지 확인한다.
+   */
+  const src = readFileSync(CLIENT_PATH, 'utf8');
+  const ctx = vm.createContext({});
+  const strip = (name) => {
+    const block = src.match(new RegExp(`export function ${name}[\\s\\S]*?\\n\\}`));
+    if (!block) throw new Error(`${name} 이(가) 없습니다.`);
+    const nl = block[0].indexOf('\n');
+    const sig = block[0].slice(0, nl);
+    const open = sig.indexOf('(');
+    let depth = 0;
+    let close = -1;
+    for (let i = open; i < sig.length; i++) {
+      if (sig[i] === '(') depth += 1;
+      else if (sig[i] === ')') { depth -= 1; if (depth === 0) { close = i; break; } }
+    }
+    const params = sig.slice(open + 1, close).split(',').map((x) => x.trim()).filter(Boolean)
+      .map((x) => (x.includes('=') ? x.replace(/:\s*[^=]+(?==)/, '') : x.replace(/:.*$/, '')).trim());
+    return `function ${name}(${params.join(', ')}) {` + block[0].slice(nl) + '\n';
+  };
+  vm.runInContext(strip('normName') + strip('splitName') + strip('nameParts'), ctx);
+  const parts = (state, name) => { ctx.__s = state; ctx.__n = name; return vm.runInContext('nameParts(__s, __n)', ctx); };
+
+  const st = {
+    memberInfo: [
+      { name: '잡이K', hanja: '卡尔K' },          // ① G열만
+      { name: 'SogeKing (狙击王)', hanja: '' },   // ② 아이디 괄호만
+      { name: '잠단(斬斷)', hanja: '斬斷' },       // 둘 다 (같은 값)
+      { name: 'ChecK', hanja: '' },               // 둘 다 없음
+    ],
+  };
+  const cases = [
+    ['잡이K', '잡이K', '卡尔K'],
+    ['SogeKing (狙击王)', 'SogeKing', '狙击王'],
+    ['잠단(斬斷)', '잠단', '斬斷'],
+    ['ChecK', 'ChecK', ''],
+    // 명단에 없는 사람도 터지지 않아야 한다 (탈퇴자·(미등록) 행)
+    ['가이 (미등록)', '가이 (미등록)', ''],
+  ];
+  for (const [input, main, sub] of cases) {
+    const r = parts(st, input);
+    if (r.main !== main || r.sub !== sub) {
+      throw new Error(`nameParts("${input}") = ${JSON.stringify(r)}, 기대 {main:"${main}", sub:"${sub}"}`);
+    }
+  }
+  // ★ 없는 한자를 지어내지 않는다 (규칙 7)
+  if (parts({ memberInfo: [] }, '잡이K').sub !== '') throw new Error('명단에 없는데 한자를 만들어냅니다.');
+
+  // 화면들이 실제로 이 함수를 쓰는지 — 하나라도 빠지면 그 화면만 한자가 사라진다
+  for (const file of ['BalanceTab', 'ItemsTab', 'MeTab', 'PayoutSheet']) {
+    const body = readFileSync(resolve(ROOT, `components/${file}.tsx`), 'utf8');
+    if (!/nameParts\(/.test(body)) throw new Error(`${file} 이(가) 한자표기를 반영하지 않습니다.`);
+  }
+  // 이름을 화면에 그리면서 splitName 을 직접 쓰면 G열을 놓치게 된다
+  for (const file of ['BalanceTab', 'ItemsTab', 'MeTab']) {
+    const body = readFileSync(resolve(ROOT, `components/${file}.tsx`), 'utf8');
+    if (/splitName\(/.test(body)) throw new Error(`${file} 이(가) splitName 을 직접 씁니다 — nameParts 를 쓰세요.`);
+  }
+
+  // 입력칸 두 개가 붙어 있어야 한다 — 사이에 다른 칸이 끼면 한자 칸을 못 보고 지나간다
+  const roster = readFileSync(resolve(ROOT, 'components/RosterCard.tsx'), 'utf8');
+  const idAt = roster.indexOf("htmlFor=\"newName\"");
+  const hanjaAt = roster.indexOf("htmlFor=\"mh\"");
+  const weightAt = roster.indexOf("htmlFor=\"mw\"");
+  if (idAt < 0 || hanjaAt < 0 || weightAt < 0) throw new Error('혈맹원 관리 입력칸을 찾지 못했습니다.');
+  if (!(idAt < hanjaAt && hanjaAt < weightAt)) {
+    throw new Error('한자표기 칸이 아이디 바로 아래가 아닙니다 (분배비중·서버가 사이에 끼어 있습니다).');
+  }
+  // 개명과 한자표기를 함께 저장할 때는 반드시 개명이 먼저다 (옛 이름에 저장하면 사라진다)
+  const save = (roster.match(/async function saveName[\s\S]*?\n  \}/) ?? [''])[0];
+  if (save.indexOf('/api/admin/rename') > save.indexOf('putSettings(current)')) {
+    throw new Error('한자표기를 개명보다 먼저 저장합니다 — 옛 이름에 저장돼 사라집니다.');
+  }
+
+  return `해석 ${cases.length}케이스 · 화면 4곳 연결 · splitName 직접사용 0곳 · 입력칸 인접 · 개명 우선`;
 });
 
 check('잔액 목록에 서버 번호가 보인다', () => {

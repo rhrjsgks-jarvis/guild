@@ -1276,6 +1276,78 @@ await t('참여자 칩이 국문·한문 두 줄로 나오고 이름이 잘리�
   await shot('16-two-line-names');
 });
 
+await t('멤버DB 한자표기가 잔액·아이템·내정보에 함께 나온다 (화면)', async () => {
+  /*
+   * 실제로 있었던 문제: 관리자가 [혈맹원 관리]의 "한자표기" 칸에 넣은 값이
+   * 어느 화면에도 나오지 않았다. 화면이 이름 속 괄호만 봤기 때문이다.
+   * 모의 명단의 'TC무식' 은 이름에 괄호가 없고 G열에만 车武植 이 있다 —
+   * 사용자가 겪은 상황과 같은 표본이다.
+   */
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.locator('.nav button').filter({ hasText: /잔액/ }).click();
+  await page.waitForTimeout(700);
+
+  const row = page.locator('.row').filter({ hasText: 'TC무식' }).first();
+  const shown = await row.locator('.row-name').innerText();
+  if (!shown.includes('车武植')) throw new Error(`잔액에 G열 한자가 없습니다: "${shown}"`);
+
+  // 이름 괄호로 들어온 쪽도 그대로 나와야 한다 (기존 방식 호환)
+  const legacy = await page.locator('.row').filter({ hasText: '잠단' }).first().locator('.row-name').innerText();
+  if (!legacy.includes('斬斷')) throw new Error(`이름 괄호 한자가 사라졌습니다: "${legacy}"`);
+  // ★ 한자가 두 번 붙으면 안 된다 (G열과 이름 괄호가 같은 값일 때)
+  if ((legacy.match(/斬斷/g) ?? []).length > 1) throw new Error(`한자가 중복 표기됩니다: "${legacy}"`);
+
+  // ★ 한자가 없는 사람에게 만들어 붙이지 않는다 (규칙 7)
+  const plain = await page.locator('.row').filter({ hasText: 'PlusS' }).first().locator('.row-name').innerText();
+  if (/[\u2e80-\u9fff]/.test(plain)) throw new Error(`한자가 없는데 만들어 붙였습니다: "${plain}"`);
+
+  // 아이템 탭의 참여자 칩
+  await page.locator('.nav button').filter({ hasText: /아이템/ }).click();
+  await page.waitForTimeout(700);
+  const chip = page.locator('.mchip').filter({ hasText: 'TC무식' }).first();
+  eq(await chip.locator('.nm i').innerText(), '车武植', '칩 둘째 줄 (G열 한자)');
+
+  // 내 정보 드롭다운
+  await page.locator('.nav button').filter({ hasText: /내 정보/ }).click();
+  await page.waitForTimeout(700);
+  const opts = await page.locator('#meName option').allInnerTexts();
+  if (!opts.some((o) => o.includes('TC무식') && o.includes('车武植'))) {
+    throw new Error(`내 정보 목록에 한자가 없습니다: ${opts.slice(0, 5).join(' / ')}`);
+  }
+  await shot('21-hanja-everywhere');
+});
+
+await t('혈맹원 관리: 아이디 바로 아래에 한자표기 칸이 있다 (화면)', async () => {
+  await reset();
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.locator('.nav button').last().click();
+  await page.waitForTimeout(900);
+
+  await page.locator('.row').filter({ hasText: 'TC무식' }).first().getByRole('button', { name: '관리' }).click();
+  await page.waitForTimeout(600);
+
+  // 두 칸이 붙어 있어야 한다 — 사이에 분배비중·서버가 끼면 한자 칸을 못 보고 지나간다
+  const order = await page.locator('.sheet input#newName, .sheet input#mh, .sheet select#mw').evaluateAll((els) =>
+    els.map((el) => el.id),
+  );
+  if (order.join(',') !== 'newName,mh,mw') {
+    throw new Error(`입력칸 순서가 다릅니다: ${order.join(' → ')} (기대 newName → mh → mw)`);
+  }
+  eq(await page.locator('.sheet input#mh').inputValue(), '车武植', '한자표기 칸의 현재 값');
+
+  // 아이디와 한자표기를 한 번에 저장한다
+  await page.locator('.sheet input#mh').fill('車武植K');
+  await page.waitForTimeout(200);
+  await page.getByRole('button', { name: '이름 저장' }).click();
+  await page.waitForTimeout(1500);
+
+  await page.locator('.nav button').filter({ hasText: /잔액/ }).click();
+  await page.waitForTimeout(900);
+  const after = await page.locator('.row').filter({ hasText: 'TC무식' }).first().locator('.row-name').innerText();
+  if (!after.includes('車武植K')) throw new Error(`바꾼 한자표기가 잔액에 반영되지 않았습니다: "${after}"`);
+  await shot('22-hanja-save');
+});
+
 await t('잔액 목록에 서버 번호가 붙는다', async () => {
   await page.locator('.nav button').filter({ hasText: /잔액/ }).click();
   await page.waitForTimeout(600);
@@ -1522,6 +1594,9 @@ await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', asyn
                      '유일배분', '혈맹운영비', 'PlusS', '기란 세금', '용의 심장', '고대의 검',
                      '지급된 아이템', '이번 주 공성 일정', '레이드 파티 구합니다', '군주', '연합 보스',
                      '연합 레이드', '선륙소농포', '鮮肉小籠包',
+                     // 멤버DB G열 한자표기 — v10.8 부터 잔액·아이템에도 나온다.
+                     // 사람 이름이므로 어느 언어에서도 번역되지 않는 것이 정상이다 (규칙 7)
+                     '车武植', '大西瓜Z',
                      '토요일', '오늘 밤', '미분배', '분배완료'];
   for (const [tab, zh] of [['余额', '余额'], ['物品', '物品'], ['公告板', '公告板'], ['联盟', '联盟'], ['我的', '我的']]) {
     await page.locator('.nav button').filter({ hasText: tab }).click();
@@ -1566,6 +1641,9 @@ await t('English 로 바꾸면 화면 문구가 전부 영문이 된다', async 
                      '유일배분', '혈맹운영비', 'PlusS', '기란 세금', '용의 심장', '고대의 검',
                      '지급된 아이템', '이번 주 공성 일정', '레이드 파티 구합니다', '군주', '연합 보스',
                      '연합 레이드', '선륙소농포', '鮮肉小籠包',
+                     // 멤버DB G열 한자표기 — v10.8 부터 잔액·아이템에도 나온다.
+                     // 사람 이름이므로 어느 언어에서도 번역되지 않는 것이 정상이다 (규칙 7)
+                     '车武植', '大西瓜Z',
                      '토요일', '오늘 밤', '미분배', '분배완료'];
   for (const tab of ['Balance', 'Items', 'Board', 'Alliance', 'Me']) {
     await page.locator('.nav button').filter({ hasText: tab }).click();

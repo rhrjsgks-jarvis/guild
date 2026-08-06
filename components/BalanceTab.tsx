@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { BalanceRow, GuildState } from '@/lib/types';
-import { fmt, normName, splitName } from '@/lib/client';
+import { fmt, nameParts, normName } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 import ShareBtn from './ShareBtn';
 
@@ -61,9 +61,11 @@ export default function BalanceTab({
    */
   function buildShare(): string {
     const head = `💰 ${t('tab.balance')} (${t('c.season')} ${state.season})`;
-    const lines = list.map(
-      (r) => `${splitName(r.name).main}  ${t('c.pending')} ${fmt(r.pending)} / ${t('c.paid')} ${fmt(r.paid)}`,
-    );
+    const lines = list.map((r) => {
+      const { main, sub } = nameParts(state, r.name);
+      const who = sub ? `${main} (${sub})` : main;
+      return `${who}  ${t('c.pending')} ${fmt(r.pending)} / ${t('c.paid')} ${fmt(r.paid)}`;
+    });
     const foot = `${t('bal.pendingTotal')} ${fmt(totalPending)} ${u}`;
     return [head, ...lines, '', foot].join('\n');
   }
@@ -125,35 +127,39 @@ export default function BalanceTab({
         {list.length === 0 ? (
           <div className="empty">{q || onlyOwed ? t('bal.noMatch') : t('bal.noMember')}</div>
         ) : (
-          list.map((r) => (
-            <div className="row" key={r.name}>
-              <div className="row-main">
-                <div className="row-name">
-                  {serverOf.get(normName(r.name)) ? (
-                    <span className="svr">{serverOf.get(normName(r.name))}</span>
-                  ) : null}
-                  {splitName(r.name).main}
-                  {splitName(r.name).sub ? <span className="hanja">({splitName(r.name).sub})</span> : null}
+          list.map((r) => {
+            // 한자는 멤버DB G열이 먼저, 없으면 이름 괄호 (lib/client 의 nameParts 한 곳에서만 정한다)
+            const { main, sub } = nameParts(state, r.name);
+            return (
+              <div className="row" key={r.name}>
+                <div className="row-main">
+                  <div className="row-name">
+                    {serverOf.get(normName(r.name)) ? (
+                      <span className="svr">{serverOf.get(normName(r.name))}</span>
+                    ) : null}
+                    {main}
+                    {sub ? <span className="hanja">({sub})</span> : null}
+                  </div>
+                  <div className="row-sub">
+                    {t('c.joined')} {t('c.times', { n: r.cnt })}
+                  </div>
                 </div>
-                <div className="row-sub">
-                  {t('c.joined')} {t('c.times', { n: r.cnt })}
+                <div className="row-amt">
+                  <div className={'amt-pending' + (r.pending > 0 ? '' : ' zero')}>
+                    {fmt(r.pending)} {u}
+                  </div>
+                  <div className="amt-paid">
+                    {t('c.done')} {fmt(r.paid)}
+                  </div>
                 </div>
+                {admin ? (
+                  <button className="btn" disabled={r.pending <= 0} onClick={() => onPayout(r)}>
+                    {t('bal.payout')}
+                  </button>
+                ) : null}
               </div>
-              <div className="row-amt">
-                <div className={'amt-pending' + (r.pending > 0 ? '' : ' zero')}>
-                  {fmt(r.pending)} {u}
-                </div>
-                <div className="amt-paid">
-                  {t('c.done')} {fmt(r.paid)}
-                </div>
-              </div>
-              {admin ? (
-                <button className="btn" disabled={r.pending <= 0} onClick={() => onPayout(r)}>
-                  {t('bal.payout')}
-                </button>
-              ) : null}
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
