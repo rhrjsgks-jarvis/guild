@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Sheet from './Sheet';
 import type { LedgerEntry, ReversePreview } from '@/lib/types';
 import { api, calcSplit, fmt, getStoredEmail } from '@/lib/client';
+import { useT } from '@/lib/i18n';
 
 /**
  * 등록된 모든 아이템 (관리자 전용) — 판매금액 정정과 완전 삭제.
@@ -24,6 +25,7 @@ export default function LedgerCard({
   onChanged: () => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
+  const { t } = useT();
   const [items, setItems] = useState<LedgerEntry[] | null>(null);
   const [target, setTarget] = useState<LedgerEntry | null>(null);
 
@@ -38,7 +40,7 @@ export default function LedgerCard({
 
   return (
     <>
-      <div className="sect">🗂️ 등록된 모든 아이템 — 정정 · 삭제</div>
+      <div className="sect">{t('led.sect')}</div>
       <div className="card">
         {!items ? (
           <div className="field">
@@ -47,19 +49,19 @@ export default function LedgerCard({
             ))}
           </div>
         ) : items.length === 0 ? (
-          <div className="empty">등록된 아이템이 없습니다.</div>
+          <div className="empty">{t('led.empty')}</div>
         ) : (
           items.map((it) => (
             <div className="row" key={it.row}>
               <div className="row-main">
                 <div className="row-name">{it.item}</div>
                 <div className="row-sub">
-                  {it.date} · {it.cnt}명 · {it.status}
+                  {it.date} · {t('c.persons', { n: it.cnt })} · {it.status}
                   {it.amount > 0 ? ` · ${fmt(it.amount)} ${unit}` : ''}
                 </div>
               </div>
               <button className="btn ghost" onClick={() => setTarget(it)}>
-                관리
+                {t('c.manage')}
               </button>
             </div>
           ))
@@ -104,6 +106,7 @@ function ItemSheet({
   onDone: () => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
+  const { t } = useT();
   const [preview, setPreview] = useState<ReversePreview | null>(null);
   const [mode, setMode] = useState<Mode>('menu');
   const [raw, setRaw] = useState('');
@@ -130,7 +133,7 @@ function ItemSheet({
       confirm: true,
     });
     setBusy(false);
-    toast(res.msg ?? (res.ok ? '처리했습니다.' : '처리하지 못했습니다.'), !res.ok);
+    toast(res.msg ?? (res.ok ? t('r.done') : t('r.failed')), !res.ok);
     if (res.ok) onDone();
   }
 
@@ -139,7 +142,7 @@ function ItemSheet({
   return (
     <Sheet
       title={`📦 ${entry.item}`}
-      subtitle={`${entry.date} · 참여 ${entry.cnt}명 · ${entry.status}`}
+      subtitle={`${entry.date} · ${t('c.persons', { n: entry.cnt })} · ${entry.status}`}
       onClose={onClose}
     >
       {!preview ? (
@@ -149,7 +152,7 @@ function ItemSheet({
           {preview.needsReverse ? (
             <div className="calc">
               <div className="calc-line">
-                <span>지금 분배된 금액</span>
+                <span>{t('led.currentAmount')}</span>
                 <strong>
                   {fmt(preview.amount)} {unit}
                 </strong>
@@ -162,16 +165,12 @@ function ItemSheet({
               ))}
             </div>
           ) : (
-            <p className="hint">아직 분배되지 않은 아이템입니다. 되돌릴 금액이 없습니다.</p>
+            <p className="hint">{t('led.notDistributed')}</p>
           )}
 
           {blocked ? (
             <div className="note" style={{ whiteSpace: 'pre-wrap' }}>
-              ⚠️ 되돌릴 수 없습니다. 아래 대상이 이미 지급✓ 처리되어 분배전 잔액이 부족합니다.
-              {'\n\n'}
-              {(preview.insufficient ?? []).join('\n')}
-              {'\n\n'}
-              먼저 [최근 지급 취소]로 지급을 되돌린 뒤 다시 시도하세요.
+              {t('led.blocked', { v: (preview.insufficient ?? []).join('\n') })}
             </div>
           ) : null}
         </>
@@ -181,7 +180,7 @@ function ItemSheet({
         <div style={{ marginTop: 16 }}>
           {preview?.needsReverse ? (
             <button className="btn block" disabled={blocked} onClick={() => setMode('correct')}>
-              🔄 판매금액 정정
+              {t('led.correct')}
             </button>
           ) : null}
           <button
@@ -190,22 +189,22 @@ function ItemSheet({
             disabled={blocked}
             onClick={() => setMode('delete')}
           >
-            🗑️ 아이템 완전 삭제
+            {t('led.delete')}
           </button>
           <button className="btn ghost block" style={{ marginTop: 8 }} onClick={onClose}>
-            닫기
+            {t('c.close')}
           </button>
         </div>
       ) : mode === 'correct' ? (
         <div style={{ marginTop: 16 }}>
           <label className="fl" htmlFor="newAmt">
-            새 판매금액 ({unit}) — 비우면 되돌리기만 합니다
+            {t('led.newAmount', { unit })}
           </label>
           <input
             id="newAmt"
             type="text"
             inputMode="numeric"
-            placeholder={`현재 ${fmt(entry.amount)}`}
+            placeholder={t('led.currentPh', { v: fmt(entry.amount) })}
             value={raw}
             autoFocus
             onChange={(e) => setRaw(e.target.value)}
@@ -213,57 +212,47 @@ function ItemSheet({
           {newSplit ? (
             <div className="calc">
               <div className="calc-line">
-                <span>새 {fundName}</span>
+                <span>{t('led.newFund', { fund: fundName })}</span>
                 <strong>{fmt(newSplit.fund)}</strong>
               </div>
               <div className="calc-line">
-                <span>새 기본 1인당 × {entry.cnt}명</span>
+                <span>{t('led.newBase', { n: entry.cnt })}</span>
                 <strong>{fmt(newSplit.perPerson)}</strong>
               </div>
               {newSplit.remainder > 0 ? (
                 <div className="calc-line">
-                  <span>잔여분 → {fundName}</span>
+                  <span>{t('led.newRemainder', { fund: fundName })}</span>
                   <strong>{fmt(newSplit.remainder)}</strong>
                 </div>
               ) : null}
               <p className="hint" style={{ marginTop: 6 }}>
-                비중이 100% 미만인 참여자가 있으면 그만큼 덜 받고, 남는 금액은 {fundName}로 갑니다.
-                정확한 금액은 재분배 직후 결과 메시지에 나옵니다.
+                {t('led.weightNote', { fund: fundName })}
               </p>
             </div>
           ) : (
-            <p className="hint">
-              {raw.trim() === ''
-                ? `되돌리기만 하고 ⏳미분배 상태로 돌아갑니다.`
-                : '판매금액은 양의 정수여야 합니다.'}
-            </p>
+            <p className="hint">{raw.trim() === '' ? t('led.revertOnly') : t('dist.needInt')}</p>
           )}
           <div className="sheet-actions">
             <button className="btn ghost" onClick={() => setMode('menu')}>
-              뒤로
+              {t('c.back')}
             </button>
             <button className="btn warn" disabled={!newValid || busy} onClick={() => run('correct')}>
-              {busy ? '처리 중…' : raw.trim() === '' ? '되돌리기' : '정정하기'}
+              {busy ? t('c.processing') : raw.trim() === '' ? t('led.revert') : t('led.correctDo')}
             </button>
           </div>
         </div>
       ) : (
         <div style={{ marginTop: 16 }}>
-          <div className="note">
-            <strong>&ldquo;{entry.item}&rdquo;</strong> 기록을 완전히 삭제합니다.
-            <br />
-            되돌릴 수 없고, 참여자의 참여횟수도 이 항목만큼 줄어듭니다.
-            {preview?.needsReverse ? <><br />분배된 금액은 먼저 자동으로 되돌립니다.</> : null}
-            <br />
-            <br />
-            삭제 이력 자체는 [작업기록]에 영구히 남습니다.
+          <div className="note" style={{ whiteSpace: 'pre-wrap' }}>
+            {t('led.deleteNote', { item: entry.item })}
+            {preview?.needsReverse ? `\n${t('led.deleteAlsoRevert')}` : ''}
           </div>
           <div className="sheet-actions">
             <button className="btn ghost" onClick={() => setMode('menu')}>
-              뒤로
+              {t('c.back')}
             </button>
             <button className="btn danger" disabled={busy} onClick={() => run('delete')}>
-              {busy ? '삭제 중…' : '삭제합니다'}
+              {busy ? t('c.deleting') : t('led.deleteDo')}
             </button>
           </div>
         </div>

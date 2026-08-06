@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Sheet from './Sheet';
 import type { GuildState, LedgerItem } from '@/lib/types';
 import { api, calcSplit, fmt, getStoredEmail, weightsOf } from '@/lib/client';
+import { useT } from '@/lib/i18n';
 
 export default function DistributeSheet({
   item,
@@ -20,12 +21,16 @@ export default function DistributeSheet({
   toast: (msg: string, isError?: boolean) => void;
   setBusy: (on: boolean) => void;
 }) {
+  const { t, unit } = useT();
   const [raw, setRaw] = useState('');
 
+  const u = unit(state.unit);
+  const pct = Math.round(state.fundRate * 100);
   const names = item.names?.length ? item.names : [];
   // 명단을 받지 못한 옛 데이터는 전원 100%로 본다 (시트 쪽 계산과 같은 결과)
-  const weights = names.length ? weightsOf(state, names) : item.cnt;
-  const reduced = names.filter((_, i) => (weights as number[])[i] !== undefined && (weights as number[])[i] < 100);
+  const weightList = names.length ? weightsOf(state, names) : [];
+  const weights: number | number[] = names.length ? weightList : item.cnt;
+  const reduced = names.filter((_, i) => weightList[i] !== undefined && weightList[i] < 100);
 
   const amount = Number(raw.replace(/[,\s]/g, ''));
   const valid = Number.isInteger(amount) && amount > 0;
@@ -40,7 +45,7 @@ export default function DistributeSheet({
       email: getStoredEmail(),
     });
     setBusy(false);
-    toast(res.msg ?? (res.ok ? '분배했습니다.' : '분배에 실패했습니다.'), !res.ok);
+    toast(res.msg ?? (res.ok ? t('r.distributed') : t('r.distributeFailed')), !res.ok);
     if (res.ok) {
       onClose();
       onDone();
@@ -50,17 +55,17 @@ export default function DistributeSheet({
   return (
     <Sheet
       title={`📦 ${item.item}`}
-      subtitle={`참여 ${item.cnt}명 · ${state.fundName} ${Math.round(state.fundRate * 100)}% 공제 후 1/N 분배`}
+      subtitle={t('dist.sub', { n: item.cnt, fund: state.fundName, pct })}
       onClose={onClose}
     >
       <label className="fl" htmlFor="amt">
-        판매금액 ({state.unit})
+        {t('dist.amount', { unit: u })}
       </label>
       <input
         id="amt"
         type="text"
         inputMode="numeric"
-        placeholder="예: 50000"
+        placeholder={t('dist.amountPh')}
         value={raw}
         autoFocus
         onChange={(e) => setRaw(e.target.value)}
@@ -69,17 +74,17 @@ export default function DistributeSheet({
       {split ? (
         <div className="calc">
           <div className="calc-line">
-            <span>💎 판매금액</span>
+            <span>{t('dist.sale')}</span>
             <strong>
-              {fmt(amount)} {state.unit}
+              {fmt(amount)} {u}
             </strong>
           </div>
           <div className="calc-line">
-            <span>🏦 {state.fundName} ({Math.round(state.fundRate * 100)}%)</span>
+            <span>{t('dist.fund', { fund: state.fundName, pct })}</span>
             <strong>{fmt(split.fund)}</strong>
           </div>
           <div className="calc-line">
-            <span>👥 기본 1인당 × {item.cnt}명</span>
+            <span>{t('dist.base', { n: item.cnt })}</span>
             <strong>{fmt(split.perPerson)}</strong>
           </div>
           {reduced.map((nm, i) => {
@@ -87,7 +92,7 @@ export default function DistributeSheet({
             return (
               <div className="calc-line" key={nm + i}>
                 <span>
-                  ⚖️ {nm} ({(weights as number[])[idx]}%)
+                  ⚖️ {nm} ({weightList[idx]}%)
                 </span>
                 <strong>{fmt(split.shares[idx])}</strong>
               </div>
@@ -95,27 +100,27 @@ export default function DistributeSheet({
           })}
           {split.remainder > 0 ? (
             <div className="calc-line">
-              <span>➕ 잔여분 → {state.fundName}</span>
+              <span>{t('dist.remainder', { fund: state.fundName })}</span>
               <strong>{fmt(split.remainder)}</strong>
             </div>
           ) : null}
           <div className="calc-line" style={{ borderTop: '1px solid rgba(0,0,0,.12)', paddingTop: 6, marginTop: 2 }}>
-            <span>🏦 {state.fundName} 최종 적립</span>
+            <span>{t('dist.fundTotal', { fund: state.fundName })}</span>
             <strong>{fmt(split.fundTotal)}</strong>
           </div>
         </div>
       ) : (
         <p className="hint" style={{ marginTop: 10 }}>
-          {raw ? '판매금액은 양의 정수여야 합니다.' : '금액을 입력하면 분배 결과를 미리 보여드립니다.'}
+          {raw ? t('dist.needInt') : t('dist.enterAmount')}
         </p>
       )}
 
       <div className="sheet-actions">
         <button className="btn ghost" onClick={onClose}>
-          취소
+          {t('c.cancel')}
         </button>
         <button className="btn warn" disabled={!valid} onClick={run}>
-          분배하기
+          {t('dist.do')}
         </button>
       </div>
     </Sheet>

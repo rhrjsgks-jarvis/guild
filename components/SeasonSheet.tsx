@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Sheet from './Sheet';
 import type { SeasonDetail, SeasonInfo } from '@/lib/types';
 import { api, fmt } from '@/lib/client';
+import { useT } from '@/lib/i18n';
 
 /**
  * 지난 시즌 기록 보기.
@@ -35,6 +36,7 @@ function settlementsOf(detail: SeasonDetail): Settlement[] {
 }
 
 export default function SeasonSheet({ current, onClose }: { current: number; onClose: () => void }) {
+  const { t } = useT();
   const [list, setList] = useState<SeasonInfo[] | null>(null);
   const [error, setError] = useState('');
   const [open, setOpen] = useState<SeasonDetail | null>(null);
@@ -44,7 +46,7 @@ export default function SeasonSheet({ current, onClose }: { current: number; onC
   const load = useCallback(async () => {
     const res = await api('/api/seasons');
     if (!res.ok) {
-      setError(res.msg ?? '시즌 기록을 불러오지 못했습니다.');
+      setError(res.msg ?? t('season.loadFailed'));
       return;
     }
     setList(res.data as SeasonInfo[]);
@@ -62,7 +64,7 @@ export default function SeasonSheet({ current, onClose }: { current: number; onC
     const res = await api(`/api/seasons?num=${num}`);
     setLoading(false);
     if (!res.ok) {
-      setError(res.msg ?? '불러오지 못했습니다.');
+      setError(res.msg ?? t('season.loadFailed'));
       return;
     }
     setDetailed(false);
@@ -72,12 +74,12 @@ export default function SeasonSheet({ current, onClose }: { current: number; onC
   if (open) {
     return (
       <Sheet
-        title={`🗓️ 시즌 ${open.num}`}
-        subtitle={`${settlements.length}명 · 총 ${fmt(total)} 다이아`}
+        title={`🗓️ ${t('c.season')} ${open.num}`}
+        subtitle={t('season.detailSub', { n: settlements.length, v: `${fmt(total)} ${t('c.unit.diamond')}` })}
         onClose={() => setOpen(null)}
       >
         {settlements.length === 0 ? (
-          <p className="hint">이 시즌에는 정산 기록이 없습니다.</p>
+          <p className="hint">{t('season.noRecord')}</p>
         ) : (
           <div className="card" style={{ margin: 0 }}>
             {settlements.map((s, i) => (
@@ -92,7 +94,7 @@ export default function SeasonSheet({ current, onClose }: { current: number; onC
         )}
 
         <button className="btn ghost block" style={{ marginTop: 12 }} onClick={() => setDetailed((v) => !v)}>
-          {detailed ? '간단히 보기' : '자세히 보기 (아이템·지급 이력)'}
+          {detailed ? t('season.less') : t('season.more')}
         </button>
 
         {detailed
@@ -102,7 +104,7 @@ export default function SeasonSheet({ current, onClose }: { current: number; onC
                   {sec.title}
                 </div>
                 {sec.rows.length === 0 ? (
-                  <p className="hint">기록 없음</p>
+                  <p className="hint">{t('season.noRows')}</p>
                 ) : (
                   <div style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid var(--line)' }}>
                     <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12.5 }}>
@@ -154,7 +156,7 @@ export default function SeasonSheet({ current, onClose }: { current: number; onC
 
         <div className="sheet-actions">
           <button className="btn ghost" onClick={() => setOpen(null)}>
-            시즌 목록으로
+            {t('season.backToList')}
           </button>
         </div>
       </Sheet>
@@ -162,7 +164,7 @@ export default function SeasonSheet({ current, onClose }: { current: number; onC
   }
 
   return (
-    <Sheet title="🗓️ 지난 시즌" subtitle={`지금은 시즌 ${current} 진행 중입니다`} onClose={onClose}>
+    <Sheet title={t('season.title')} subtitle={t('season.sub', { n: current })} onClose={onClose}>
       {error ? (
         <p className="hint" style={{ color: 'var(--danger)' }}>
           {error}
@@ -171,10 +173,7 @@ export default function SeasonSheet({ current, onClose }: { current: number; onC
         [70, 70].map((w, i) => <div key={i} className="skeleton" style={{ width: `${w}%`, marginBottom: 10 }} />)
       ) : list.length === 0 ? (
         <div className="note" style={{ whiteSpace: 'pre-wrap' }}>
-          보관된 시즌 기록이 없습니다.
-          {'\n\n'}
-          예전 파일에서 쓰던 시즌 기록이 있다면 [⚙️ 관리] → 관리 도구 →
-          [📚 지난 시즌 기록만 가져오기] 로 옮겨오세요. 멤버·잔액은 건드리지 않습니다.
+          {t('season.emptyGuide')}
         </div>
       ) : (
         list.map((s) => (
@@ -193,13 +192,15 @@ export default function SeasonSheet({ current, onClose }: { current: number; onC
               marginBottom: 10,
             }}
           >
-            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>시즌 {s.num}</div>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>
+              {t('c.season')} {s.num}
+            </div>
             {s.summary.length > 0 ? (
               <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.6 }}>
                 {s.summary.slice(0, 3).map((x) => `${x.label} ${x.value}`).join(' · ')}
               </div>
             ) : (
-              <div style={{ fontSize: 12, color: 'var(--text-faint)' }}>{s.title || '기록 보기'}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-faint)' }}>{s.title || t('c.view')}</div>
             )}
           </button>
         ))

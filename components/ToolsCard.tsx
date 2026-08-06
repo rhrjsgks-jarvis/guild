@@ -4,13 +4,14 @@ import { useCallback, useEffect, useState } from 'react';
 import Sheet from './Sheet';
 import type { PayoutRecord, Tool } from '@/lib/types';
 import { api, fmt, getStoredEmail } from '@/lib/client';
+import { useT } from '@/lib/i18n';
 
 /**
  * 관리 도구 (관리자 전용) — 시즌 종료, 데이터 이관, 초기화 등.
  *
  * 목록은 서버(Apps Script)가 내려준다. 도구가 늘어도 이 화면은 고치지 않아도 된다.
- * 되돌릴 수 없는 도구(danger 3)는 정해진 문구를 정확히 입력해야만 실행된다 —
- * 폰에서 잘못 눌러 시즌이 종료되는 일을 막기 위한 장치다.
+ * 이름·설명은 시트가 한국어로 보내주므로, 중문 화면에서는 도구 id 로 갈아끼운다.
+ * 되돌릴 수 없는 도구(danger 3)는 정해진 문구를 정확히 입력해야만 실행된다.
  */
 export default function ToolsCard({
   unit,
@@ -21,6 +22,7 @@ export default function ToolsCard({
   onChanged: () => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
+  const { t, tool: toolText } = useT();
   const [tools, setTools] = useState<Tool[] | null>(null);
   const [lastPayout, setLastPayout] = useState<PayoutRecord | null>(null);
   const [active, setActive] = useState<Tool | null>(null);
@@ -28,8 +30,8 @@ export default function ToolsCard({
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const [t, p] = await Promise.all([api('/api/admin/tools'), api('/api/admin/payout-undo')]);
-    if (t.ok) setTools(t.data as Tool[]);
+    const [tl, p] = await Promise.all([api('/api/admin/tools'), api('/api/admin/payout-undo')]);
+    if (tl.ok) setTools(tl.data as Tool[]);
     setLastPayout(p.ok ? (p.data as PayoutRecord) : null);
   }, []);
 
@@ -42,7 +44,7 @@ export default function ToolsCard({
     const res = await api('/api/admin/payout-undo', { email: getStoredEmail(), confirm: true });
     setBusy(false);
     setUndoing(false);
-    toast(res.msg ?? (res.ok ? '취소했습니다.' : '취소하지 못했습니다.'), !res.ok);
+    toast(res.msg ?? (res.ok ? t('r.undone') : t('r.undoFailed')), !res.ok);
     if (res.ok) {
       void load();
       onChanged();
@@ -52,7 +54,7 @@ export default function ToolsCard({
   return (
     <>
       {/* 지급 취소는 자주 쓰는 기능이라 도구 목록보다 위에 둔다 */}
-      <div className="sect">↩️ 최근 지급 취소</div>
+      <div className="sect">{t('tool.undoSect')}</div>
       <div className="card">
         <div className="field">
           {lastPayout ? (
@@ -63,24 +65,24 @@ export default function ToolsCard({
                   <strong>{lastPayout.name}</strong>
                 </div>
                 <div className="calc-line">
-                  <span>지급액</span>
+                  <span>{t('tool.payAmount')}</span>
                   <strong>
                     {fmt(lastPayout.amount)} {unit}
                   </strong>
                 </div>
               </div>
               <button className="btn ghost block" disabled={busy} onClick={() => setUndoing(true)}>
-                이 지급 되돌리기
+                {t('tool.undoBtn')}
               </button>
-              <p className="hint">분배완료 → 분배전으로 되돌립니다. 취소 이력은 [작업기록]에 남습니다.</p>
+              <p className="hint">{t('tool.undoHint')}</p>
             </>
           ) : (
-            <p className="hint">되돌릴 지급 기록이 없습니다.</p>
+            <p className="hint">{t('tool.undoNone')}</p>
           )}
         </div>
       </div>
 
-      <div className="sect">🧰 관리 도구</div>
+      <div className="sect">{t('tool.sect')}</div>
       <div className="card">
         {!tools ? (
           <div className="field">
@@ -89,23 +91,26 @@ export default function ToolsCard({
             ))}
           </div>
         ) : (
-          tools.map((t) => (
-            <div className="row" key={t.id}>
+          tools.map((tl) => (
+            <div className="row" key={tl.id}>
               <div className="row-main">
                 <div className="row-name">
-                  {t.name}
-                  {t.danger >= 3 ? (
-                    <span className="badge" style={{ marginLeft: 6, background: 'var(--pending-soft)', color: 'var(--pending)' }}>
-                      되돌릴 수 없음
+                  {toolText(tl.id, 'name', tl.name)}
+                  {tl.danger >= 3 ? (
+                    <span
+                      className="badge"
+                      style={{ marginLeft: 6, background: 'var(--pending-soft)', color: 'var(--pending)' }}
+                    >
+                      {t('tool.irreversible')}
                     </span>
                   ) : null}
                 </div>
                 <div className="row-sub" style={{ whiteSpace: 'normal', lineHeight: 1.45 }}>
-                  {t.desc}
+                  {toolText(tl.id, 'desc', tl.desc)}
                 </div>
               </div>
-              <button className={t.danger >= 3 ? 'btn danger' : 'btn ghost'} onClick={() => setActive(t)}>
-                실행
+              <button className={tl.danger >= 3 ? 'btn danger' : 'btn ghost'} onClick={() => setActive(tl)}>
+                {t('c.run')}
               </button>
             </div>
           ))
@@ -113,18 +118,20 @@ export default function ToolsCard({
       </div>
 
       {undoing && lastPayout ? (
-        <Sheet title="↩️ 지급 취소" subtitle={`${lastPayout.date} · ${lastPayout.name}`} onClose={() => setUndoing(false)}>
-          <div className="note">
-            {fmt(lastPayout.amount)} {unit} 를 분배완료에서 분배전으로 되돌립니다.
-            <br />
-            실제로 다이아를 이미 건네주셨다면 되돌리지 마세요.
+        <Sheet
+          title={t('tool.undoTitle')}
+          subtitle={`${lastPayout.date} · ${lastPayout.name}`}
+          onClose={() => setUndoing(false)}
+        >
+          <div className="note" style={{ whiteSpace: 'pre-wrap' }}>
+            {t('tool.undoNote', { v: `${fmt(lastPayout.amount)} ${unit}` })}
           </div>
           <div className="sheet-actions">
             <button className="btn ghost" onClick={() => setUndoing(false)}>
-              취소
+              {t('c.cancel')}
             </button>
             <button className="btn warn" disabled={busy} onClick={undoPayout}>
-              되돌리기
+              {t('led.revert')}
             </button>
           </div>
         </Sheet>
@@ -157,6 +164,7 @@ function ToolSheet({
   onDone: () => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
+  const { t, tool: toolText, toolInput } = useT();
   const [values, setValues] = useState<Record<string, string>>({});
   const [confirmText, setConfirmText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -173,16 +181,20 @@ function ToolSheet({
       confirmText: confirmText.trim(),
     });
     setBusy(false);
-    toast(res.msg ?? (res.ok ? '완료했습니다.' : '실행하지 못했습니다.'), !res.ok);
+    toast(res.msg ?? (res.ok ? t('r.completed') : t('r.runFailed')), !res.ok);
     if (res.ok) onDone();
   }
 
   return (
-    <Sheet title={tool.name} subtitle={tool.desc} onClose={onClose}>
+    <Sheet
+      title={toolText(tool.id, 'name', tool.name)}
+      subtitle={toolText(tool.id, 'desc', tool.desc)}
+      onClose={onClose}
+    >
       {tool.inputs.map((f) => (
         <div key={f.key} style={{ marginBottom: 12 }}>
           <label className="fl" htmlFor={`tool-${f.key}`}>
-            {f.label}
+            {toolInput(f.key, f.label)}
           </label>
           <input
             id={`tool-${f.key}`}
@@ -196,10 +208,8 @@ function ToolSheet({
 
       {needsPhrase ? (
         <>
-          <div className="note">
-            이 작업은 <strong>되돌릴 수 없습니다.</strong>
-            <br />
-            정말 실행하려면 아래에 <strong>{tool.confirm}</strong> 을(를) 정확히 입력하세요.
+          <div className="note" style={{ whiteSpace: 'pre-wrap' }}>
+            {t('tool.phraseNote', { v: tool.confirm })}
           </div>
           <input
             type="text"
@@ -208,21 +218,17 @@ function ToolSheet({
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
             style={{ marginTop: 10 }}
-            aria-label="확인 문구"
+            aria-label={t('tool.phraseAria')}
           />
         </>
       ) : null}
 
       <div className="sheet-actions">
         <button className="btn ghost" onClick={onClose}>
-          취소
+          {t('c.cancel')}
         </button>
-        <button
-          className={needsPhrase ? 'btn warn' : 'btn'}
-          disabled={!phraseOk || busy}
-          onClick={run}
-        >
-          {busy ? '실행 중…' : '실행'}
+        <button className={needsPhrase ? 'btn warn' : 'btn'} disabled={!phraseOk || busy} onClick={run}>
+          {busy ? t('c.running') : t('c.run')}
         </button>
       </div>
     </Sheet>

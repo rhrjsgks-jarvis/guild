@@ -675,9 +675,62 @@ check('서버 라우트는 확인값을 임의로 채우지 않는다', () => {
   return '전부 사용자 입력 그대로 전달';
 });
 
+/* ─────────── 화면 문구 (한국어 / 中文) ─────────── */
+
+check('사전에 두 언어가 모두 채워져 있다', () => {
+  const src = readFileSync(resolve(ROOT, 'lib/i18n.tsx'), 'utf8');
+  const dict = src.slice(src.indexOf('const DICT'), src.indexOf('const TOOL_ZH'));
+
+  // "'키': ['한국어', '중문']" 형태를 전부 뽑아 두 칸이 다 찼는지 본다
+  const entries = [...dict.matchAll(/'([\w.]+)':\s*\[/g)].map((m) => m[1]);
+  if (entries.length < 150) throw new Error(`사전 항목이 너무 적습니다 (${entries.length}개) — 누락 가능성`);
+
+  // 중문 칸이 비었거나 한국어와 같은 항목 찾기
+  const bad = [];
+  const re = /'([\w.]+)':\s*\[\s*([\s\S]*?)\s*\],?\n/g;
+  let m;
+  while ((m = re.exec(dict)) !== null) {
+    const parts = m[2].split(/',\s*\n?\s*'/);
+    if (parts.length < 2) { bad.push(m[1] + ' (중문 없음)'); continue; }
+    const zh = parts[parts.length - 1].replace(/^'|'$/g, '').trim();
+    if (!zh) bad.push(m[1] + ' (중문 비어있음)');
+  }
+  if (bad.length) throw new Error(`중문이 빠진 항목: ${bad.slice(0, 10).join(', ')}`);
+  return `${entries.length}개 항목 × 2개 언어`;
+});
+
+check('화면에 한국어가 직접 박혀 있지 않다', () => {
+  // 언어를 바꿔도 안 바뀌는 문구가 생기지 않도록, JSX 텍스트/라벨에 한글이
+  // 그대로 들어간 곳을 잡는다. 주석과 CSS 클래스는 대상이 아니다.
+  const files = readdirSync(resolve(ROOT, 'components'))
+    .filter((f) => f.endsWith('.tsx'))
+    .map((f) => ['components/' + f, readFileSync(resolve(ROOT, 'components', f), 'utf8')]);
+
+  const stripComments = (src) =>
+    src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
+
+  const bad = [];
+  for (const [path, raw] of files) {
+    const src = stripComments(raw);
+    src.split('\n').forEach((line, i) => {
+      // 한글이 없으면 통과
+      if (!/[가-힣]/.test(line)) return;
+      // 사전 키로 감싼 호출·데이터 비교용 상수는 허용한다
+      const allowed =
+        /_normName|'다이아'|'합계'|'분배완료'|startsWith\('💰'\)|'한국어'|DEFAULT_APP_NAME/.test(line);
+      if (allowed) return;
+      bad.push(`${path}:${i + 1}  ${line.trim().slice(0, 60)}`);
+    });
+  }
+  if (bad.length) {
+    throw new Error(`화면에 직접 쓰인 한국어 ${bad.length}곳 →\n     ` + bad.slice(0, 12).join('\n     '));
+  }
+  return `${files.length}개 컴포넌트 · 하드코딩 0`;
+});
+
 /* ────────────────────────────────────────────── */
 
-console.log(`\n🔍 ${GS_PATH.replace(ROOT + '/', '')} + app/api 검사\n`);
+console.log(`\n🔍 ${GS_PATH.replace(ROOT + '/', '')} + app/api + 화면 문구 검사\n`);
 notes.forEach((n) => console.log(n));
 
 if (failures.length) {

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Sheet from './Sheet';
 import type { AllianceState } from '@/lib/types';
 import { api, calcAlliance, fmt, getStoredEmail } from '@/lib/client';
-import { makeT, type Lang } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 
 /**
  * 연합 정산 — 혈맹 내부 분배와 완전히 분리된 장부다.
@@ -16,16 +16,14 @@ import { makeT, type Lang } from '@/lib/i18n';
  */
 export default function AllianceTab({
   admin,
-  lang,
   toast,
   setBusy,
 }: {
   admin: boolean;
-  lang: Lang;
   toast: (msg: string, isError?: boolean) => void;
   setBusy: (on: boolean) => void;
 }) {
-  const t = makeT(lang);
+  const { t, unit } = useT();
   const [data, setData] = useState<AllianceState | null>(null);
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
@@ -38,7 +36,7 @@ export default function AllianceTab({
       return;
     }
     // 시트가 아직 v10 이 아니면 이 액션 자체가 없다 — 뼈대만 계속 돌리지 말고 이유를 말해준다
-    setError(res.msg ?? '연합 기록을 불러오지 못했습니다.');
+    setError(res.msg || ' ');
   }, []);
 
   useEffect(() => {
@@ -49,27 +47,26 @@ export default function AllianceTab({
     setBusy(true);
     const res = await api('/api/admin/alliance', { row, email: getStoredEmail() }, 'DELETE');
     setBusy(false);
-    toast(res.msg ?? (res.ok ? '삭제했습니다.' : '삭제하지 못했습니다.'), !res.ok);
+    toast(res.msg ?? (res.ok ? t('r.deleted') : t('r.deleteFailed')), !res.ok);
     if (res.ok) void load();
   }
 
-  const unit = data?.unit ?? '다이아';
+  const u = unit(data?.unit ?? '다이아');
   const grand = (data?.totals ?? []).reduce((a, b) => a + b.credited, 0);
 
   if (error) {
     return (
       <div className="page">
-        <div className="sect">🤝 {t('alliance.title')}</div>
+        <div className="sect">🤝 {t('ali.title')}</div>
         <div className="card">
           <div className="field">
             <div className="note" style={{ whiteSpace: 'pre-wrap' }}>
-              ⚠️ {error}
+              ⚠️ {error.trim()}
               {'\n\n'}
-              구글시트 쪽 코드가 아직 v10.0 이 아니면 [연합] 기능이 없습니다. Apps Script 에 새
-              코드를 붙여넣고 [배포 관리] → 새 버전으로 배포한 뒤 다시 열어주세요.
+              {t('ali.needSheet')}
             </div>
             <button className="btn block" style={{ marginTop: 12 }} onClick={() => void load()}>
-              {t('common.retry')}
+              {t('c.retry')}
             </button>
           </div>
         </div>
@@ -79,16 +76,16 @@ export default function AllianceTab({
 
   return (
     <div className="page">
-      <div className="sect">🤝 {t('alliance.title')}</div>
+      <div className="sect">🤝 {t('ali.title')}</div>
 
       {admin ? (
         <button className="btn block" onClick={() => setAdding(true)}>
-          ➕ {t('alliance.add')}
+          ➕ {t('ali.add')}
         </button>
       ) : null}
 
       <div className="sect" style={{ marginTop: 14 }}>
-        📊 {t('alliance.byServer')} — {t('common.total')} {fmt(grand)} {unit}
+        📊 {t('ali.byServer')} — {t('c.total')} {fmt(grand)} {u}
       </div>
       <div className="card">
         {!data ? (
@@ -99,13 +96,13 @@ export default function AllianceTab({
           data.totals.map((s) => (
             <div className="row" key={s.server}>
               <div className="row-main">
-                <div className="row-name">{s.server} 서버</div>
+                <div className="row-name">{t('ali.serverN', { s: s.server })}</div>
                 <div className="row-sub">
-                  {s.count}건 · {t('common.people')} {s.people}
+                  {t('c.cases', { n: s.count })} · {t('c.people')} {s.people}
                 </div>
               </div>
               <div className="row-amt">
-                {fmt(s.credited)} {unit}
+                {fmt(s.credited)} {u}
               </div>
             </div>
           ))
@@ -113,7 +110,7 @@ export default function AllianceTab({
       </div>
 
       <div className="sect" style={{ marginTop: 14 }}>
-        🧾 등록 내역
+        {t('ali.records')}
       </div>
       <div className="card">
         {!data ? (
@@ -121,7 +118,7 @@ export default function AllianceTab({
             <div className="skeleton" style={{ width: '60%' }} />
           </div>
         ) : data.rows.length === 0 ? (
-          <div className="empty">{t('alliance.empty')}</div>
+          <div className="empty">{t('ali.empty')}</div>
         ) : (
           data.rows.map((r) => (
             <div className="row" key={r.row}>
@@ -130,13 +127,13 @@ export default function AllianceTab({
                   [{r.server}] {r.item}
                 </div>
                 <div className="row-sub">
-                  {r.date} · {fmt(r.amount)} × {r.pct}% · {t('common.people')} {r.people}
+                  {r.date} · {fmt(r.amount)} × {r.pct}% · {t('c.people')} {r.people}
                 </div>
               </div>
               <div className="row-amt">{fmt(r.credited)}</div>
               {admin ? (
                 <button className="btn ghost" onClick={() => void remove(r.row)}>
-                  {t('common.delete')}
+                  {t('c.delete')}
                 </button>
               ) : null}
             </div>
@@ -147,8 +144,7 @@ export default function AllianceTab({
       {adding && data ? (
         <AddSheet
           servers={data.serverList}
-          unit={unit}
-          lang={lang}
+          unit={u}
           onClose={() => setAdding(false)}
           onDone={() => {
             setAdding(false);
@@ -165,7 +161,6 @@ export default function AllianceTab({
 function AddSheet({
   servers,
   unit,
-  lang,
   onClose,
   onDone,
   toast,
@@ -173,13 +168,12 @@ function AddSheet({
 }: {
   servers: string[];
   unit: string;
-  lang: Lang;
   onClose: () => void;
   onDone: () => void;
   toast: (msg: string, isError?: boolean) => void;
   setBusy: (on: boolean) => void;
 }) {
-  const t = makeT(lang);
+  const { t } = useT();
   const [server, setServer] = useState(servers[0] ?? '01');
   const [item, setItem] = useState('');
   const [raw, setRaw] = useState('');
@@ -208,7 +202,7 @@ function AddSheet({
       setPhotoLink(String(res.photoUrl ?? ''));
       setPhotoMsg(String(res.msg ?? ''));
     } else {
-      toast(res.msg ?? '사진을 분석하지 못했습니다.', true);
+      toast(res.msg ?? t('ali.photoFailed'), true);
     }
   }
 
@@ -225,42 +219,42 @@ function AddSheet({
       email: getStoredEmail(),
     });
     setBusy(false);
-    toast(res.msg ?? (res.ok ? '등록했습니다.' : '등록하지 못했습니다.'), !res.ok);
+    toast(res.msg ?? (res.ok ? t('r.registered') : t('r.registerFailed')), !res.ok);
     if (res.ok) onDone();
   }
 
   return (
-    <Sheet title={`🤝 ${t('alliance.add')}`} subtitle="인증샷은 인원수만 셉니다 (아이디 판별 없음)" onClose={onClose}>
+    <Sheet title={`🤝 ${t('ali.add')}`} subtitle={t('ali.addSub')} onClose={onClose}>
       <label className="fl" htmlFor="asv">
-        {t('common.server')}
+        {t('c.server')}
       </label>
       <select id="asv" value={server} onChange={(e) => setServer(e.target.value)}>
         {servers.map((s) => (
           <option key={s} value={s}>
-            {s} 서버
+            {t('ali.serverN', { s })}
           </option>
         ))}
       </select>
 
       <label className="fl" htmlFor="ait" style={{ marginTop: 10 }}>
-        {t('common.item')}
+        {t('c.itemName')}
       </label>
       <input id="ait" type="text" maxLength={40} value={item} onChange={(e) => setItem(e.target.value)} />
 
       <label className="fl" htmlFor="aam" style={{ marginTop: 10 }}>
-        {t('common.amount')} ({unit})
+        {t('c.amount')} ({unit})
       </label>
       <input
         id="aam"
         type="text"
         inputMode="numeric"
-        placeholder="예: 50000"
+        placeholder={t('dist.amountPh')}
         value={raw}
         onChange={(e) => setRaw(e.target.value)}
       />
 
       <label className="fl" htmlFor="apc" style={{ marginTop: 10 }}>
-        {t('common.ratio')} (%)
+        {t('c.ratio')} (%)
       </label>
       <select id="apc" value={pct} onChange={(e) => setPct(Number(e.target.value))}>
         {Array.from({ length: 100 }, (_, i) => 100 - i).map((n) => (
@@ -271,7 +265,7 @@ function AddSheet({
       </select>
 
       <label className="fl" htmlFor="apl" style={{ marginTop: 10 }}>
-        {t('common.people')}
+        {t('c.people')}
       </label>
       <input
         id="apl"
@@ -282,7 +276,7 @@ function AddSheet({
       />
 
       <button className="btn ghost block" style={{ marginTop: 8 }} onClick={() => fileRef.current?.click()}>
-        📷 {t('alliance.photoCount')}
+        📷 {t('ali.photoCount')}
       </button>
       <input
         ref={fileRef}
@@ -300,15 +294,13 @@ function AddSheet({
       {calc ? (
         <div className="calc">
           <div className="calc-line">
-            <span>💎 {t('common.amount')}</span>
+            <span>💎 {t('c.amount')}</span>
             <strong>
               {fmt(calc.amount)} {unit}
             </strong>
           </div>
           <div className="calc-line">
-            <span>
-              🎯 {server} 서버 × {calc.pct}%
-            </span>
+            <span>{t('ali.credited', { s: server, pct: calc.pct })}</span>
             <strong>{fmt(calc.credited)}</strong>
           </div>
         </div>
@@ -316,10 +308,10 @@ function AddSheet({
 
       <div className="sheet-actions">
         <button className="btn ghost" onClick={onClose}>
-          {t('common.cancel')}
+          {t('c.cancel')}
         </button>
         <button className="btn" disabled={!valid} onClick={() => void submit()}>
-          {t('alliance.add')}
+          {t('ali.add')}
         </button>
       </div>
     </Sheet>

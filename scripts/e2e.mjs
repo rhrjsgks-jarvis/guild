@@ -752,7 +752,7 @@ await t('아이템을 등록하면 목록에 나타난다', async () => {
 await t('상단 시즌 칩으로 지난 시즌을 연다', async () => {
   await page.locator('.nav button', { hasText: /잔액/ }).click();
   await page.waitForTimeout(400);
-  await page.getByRole('button', { name: /지난 시즌 기록 보기/ }).click();
+  await page.getByRole('button', { name: /지난 시즌/ }).first().click();
   await page.waitForTimeout(900);
   if (!(await page.getByText('지난 시즌').first().isVisible())) throw new Error('시즌 목록이 열리지 않았습니다.');
 
@@ -800,6 +800,53 @@ await t('제목 옆에 버전이 보이고, 시트가 옛 버전이면 경고가
   await shot('10-version-mismatch');
 
   await mock('__setVersion', { version: '10.0' });
+});
+
+await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', async () => {
+  await reset();
+  await page.goto(APP, { waitUntil: 'networkidle' });
+
+  // [관리] 탭 → 언어 → 中文
+  await page.locator('.nav button').filter({ hasText: /관리/ }).click();
+  await page.waitForTimeout(400);
+  await page.getByRole('button', { name: '中文' }).click();
+  await page.waitForTimeout(400);
+
+  // 헤더 제목도 중문이어야 한다 (시트가 기본 이름을 내려준 경우)
+  const head = await page.locator('.header h1').innerText();
+  if (/[가-힣]/.test(head)) throw new Error(`헤더에 한글이 남아 있습니다: ${head}`);
+
+  // 하단 탭 이름이 전부 중문이어야 한다
+  const nav = await page.locator('.nav').innerText();
+  for (const want of ['余额', '物品', '公告板', '联盟', '我的', '管理']) {
+    if (!nav.includes(want)) throw new Error(`탭에 ${want} 이(가) 없습니다: ${nav}`);
+  }
+  if (/[가-힣]/.test(nav)) throw new Error(`탭에 한글이 남아 있습니다: ${nav}`);
+  await shot('11-zh-nav');
+
+  // 각 탭을 돌며 한글이 남아 있는지 본다 (사람 이름·아이템명은 데이터라 제외)
+  const dataWords = ['가이', '잠단', '斬斷', 'TC무식', '향로셔틀', '대서과Z', '팩맨', '詹阿呆',
+                     '유일배분', '혈맹운영비', 'PlusS', '기란 세금', '용의 심장', '고대의 검',
+                     '지급된 아이템', '이번 주 공성 일정', '레이드 파티 구합니다', '군주', '연합 보스',
+                     '토요일', '오늘 밤', '미분배', '분배완료'];
+  for (const [tab, zh] of [['余额', '余额'], ['物品', '物品'], ['公告板', '公告板'], ['联盟', '联盟'], ['我的', '我的']]) {
+    await page.locator('.nav button').filter({ hasText: tab }).click();
+    await page.waitForTimeout(600);
+    let body = await page.locator('main').innerText();
+    if (!body.includes(zh) && !body.trim()) throw new Error(`${tab} 탭이 비었습니다.`);
+    dataWords.forEach((w) => { body = body.split(w).join(''); });
+    const leftover = body.match(/[가-힣]+/g);
+    if (leftover && leftover.length) {
+      throw new Error(`${tab} 탭에 번역되지 않은 한글: ${[...new Set(leftover)].slice(0, 8).join(', ')}`);
+    }
+  }
+  await shot('12-zh-admin');
+
+  // 한국어로 되돌린다 (뒤에 오는 검사가 한글 화면을 기대한다)
+  await page.locator('.nav button').filter({ hasText: '管理' }).click();
+  await page.waitForTimeout(400);
+  await page.getByRole('button', { name: '한국어' }).click();
+  await page.waitForTimeout(400);
 });
 
 await t('브라우저 콘솔에 오류가 없다', () => {

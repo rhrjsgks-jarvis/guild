@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import type { BalanceRow, GuildState } from '@/lib/types';
 import { fmt } from '@/lib/client';
+import { useT } from '@/lib/i18n';
 
 export default function BalanceTab({
   state,
@@ -13,8 +14,11 @@ export default function BalanceTab({
   admin: boolean;
   onPayout: (row: BalanceRow) => void;
 }) {
+  const { t, unit } = useT();
   const [q, setQ] = useState('');
   const [onlyOwed, setOnlyOwed] = useState(false);
+
+  const u = unit(state.unit);
 
   const { list, totalPending, totalPaid, owedCount } = useMemo(() => {
     let tp = 0;
@@ -41,31 +45,29 @@ export default function BalanceTab({
       <div className="dash">
         <div className="dash-item">
           <div className="dash-num warn">{state.items.length}</div>
-          <div className="dash-label">⏳ 미분배 아이템</div>
+          <div className="dash-label">{t('bal.waitingItems')}</div>
         </div>
         <div className="dash-item">
           <div className="dash-num warn">{owedCount}</div>
-          <div className="dash-label">💰 잔액 남은 인원</div>
+          <div className="dash-label">{t('bal.owedPeople')}</div>
         </div>
         <div className="dash-item">
           <div className="dash-num">{fmt(totalPending)}</div>
-          <div className="dash-label">분배전 합계</div>
+          <div className="dash-label">{t('bal.pendingTotal')}</div>
         </div>
       </div>
 
-      <div className="sect">
-        💰 멤버별 잔액 · 분배완료 누적 {fmt(totalPaid)} {state.unit}
-      </div>
+      <div className="sect">{t('bal.sect', { v: `${fmt(totalPaid)} ${u}` })}</div>
 
       <div className="card">
         <div className="field">
           <input
             type="text"
             inputMode="search"
-            placeholder="이름 검색"
+            placeholder={t('bal.search')}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            aria-label="멤버 이름 검색"
+            aria-label={t('bal.search')}
           />
           <label
             style={{
@@ -83,30 +85,34 @@ export default function BalanceTab({
               onChange={(e) => setOnlyOwed(e.target.checked)}
               style={{ width: 18, height: 18, accentColor: 'var(--brand)' }}
             />
-            받을 잔액이 남은 사람만 보기
+            {t('bal.onlyOwed')}
           </label>
         </div>
       </div>
 
       <div className="card" style={{ marginTop: 12 }}>
         {list.length === 0 ? (
-          <div className="empty">{q || onlyOwed ? '조건에 맞는 멤버가 없습니다.' : '멤버가 없습니다.'}</div>
+          <div className="empty">{q || onlyOwed ? t('bal.noMatch') : t('bal.noMember')}</div>
         ) : (
           list.map((r) => (
             <div className="row" key={r.name}>
               <div className="row-main">
                 <div className="row-name">{r.name}</div>
-                <div className="row-sub">참여 {r.cnt}회</div>
+                <div className="row-sub">
+                  {t('c.joined')} {t('c.times', { n: r.cnt })}
+                </div>
               </div>
               <div className="row-amt">
                 <div className={'amt-pending' + (r.pending > 0 ? '' : ' zero')}>
-                  {fmt(r.pending)} {state.unit}
+                  {fmt(r.pending)} {u}
                 </div>
-                <div className="amt-paid">완료 {fmt(r.paid)}</div>
+                <div className="amt-paid">
+                  {t('c.done')} {fmt(r.paid)}
+                </div>
               </div>
               {admin ? (
                 <button className="btn" disabled={r.pending <= 0} onClick={() => onPayout(r)}>
-                  지급
+                  {t('bal.payout')}
                 </button>
               ) : null}
             </div>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Sheet from './Sheet';
 import type { BalanceRow, GuildState } from '@/lib/types';
 import { api, fmt, getStoredEmail } from '@/lib/client';
+import { useT } from '@/lib/i18n';
 
 export default function PayoutSheet({
   row,
@@ -20,9 +21,11 @@ export default function PayoutSheet({
   toast: (msg: string, isError?: boolean) => void;
   setBusy: (on: boolean) => void;
 }) {
+  const { t, unit } = useT();
   // 기본값은 전액 — 대부분은 그대로 확인만 누르면 된다
   const [raw, setRaw] = useState(String(row.pending));
 
+  const u = unit(state.unit);
   const amount = Number(raw.replace(/[,\s]/g, ''));
   const valid = Number.isInteger(amount) && amount > 0 && amount <= row.pending;
   const partial = valid && amount < row.pending;
@@ -36,7 +39,7 @@ export default function PayoutSheet({
       email: getStoredEmail(),
     });
     setBusy(false);
-    toast(res.msg ?? (res.ok ? '지급했습니다.' : '지급에 실패했습니다.'), !res.ok);
+    toast(res.msg ?? (res.ok ? t('r.paid') : t('r.payFailed')), !res.ok);
     if (res.ok) {
       onClose();
       onDone();
@@ -45,12 +48,12 @@ export default function PayoutSheet({
 
   return (
     <Sheet
-      title={`💰 ${row.name} 지급`}
-      subtitle={`분배전 잔액 ${fmt(row.pending)} ${state.unit}`}
+      title={t('pay.title', { name: row.name })}
+      subtitle={t('pay.sub', { v: `${fmt(row.pending)} ${u}` })}
       onClose={onClose}
     >
       <label className="fl" htmlFor="payamt">
-        지급할 금액 ({state.unit})
+        {t('pay.label', { unit: u })}
       </label>
       <input
         id="payamt"
@@ -63,14 +66,14 @@ export default function PayoutSheet({
 
       <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
         <button className="btn ghost" style={{ flex: 1 }} onClick={() => setRaw(String(row.pending))}>
-          전액 {fmt(row.pending)}
+          {t('pay.full', { v: fmt(row.pending) })}
         </button>
         <button
           className="btn ghost"
           style={{ flex: 1 }}
           onClick={() => setRaw(String(Math.floor(row.pending / 2)))}
         >
-          절반 {fmt(Math.floor(row.pending / 2))}
+          {t('pay.half', { v: fmt(Math.floor(row.pending / 2)) })}
         </button>
       </div>
 
@@ -78,34 +81,32 @@ export default function PayoutSheet({
         {valid ? (
           <>
             <div className="calc-line">
-              <span>지급</span>
+              <span>{t('pay.give')}</span>
               <strong>
-                {fmt(amount)} {state.unit}
+                {fmt(amount)} {u}
               </strong>
             </div>
             <div className="calc-line">
-              <span>지급 후 남는 분배전</span>
+              <span>{t('pay.left')}</span>
               <strong>{fmt(row.pending - amount)}</strong>
             </div>
             <div className="calc-line" style={{ color: 'var(--text-dim)', fontSize: 12 }}>
-              <span>{partial ? '부분 지급입니다' : '전액 지급입니다'}</span>
+              <span>{partial ? t('pay.partial') : t('pay.whole')}</span>
             </div>
           </>
         ) : (
           <div style={{ fontSize: 13, color: 'var(--danger)' }}>
-            {amount > row.pending
-              ? `분배전 잔액(${fmt(row.pending)} ${state.unit})보다 클 수 없습니다.`
-              : '지급액은 양의 정수여야 합니다.'}
+            {amount > row.pending ? t('pay.tooMuch', { v: `${fmt(row.pending)} ${u}` }) : t('pay.needInt')}
           </div>
         )}
       </div>
 
       <div className="sheet-actions">
         <button className="btn ghost" onClick={onClose}>
-          취소
+          {t('c.cancel')}
         </button>
         <button className="btn" disabled={!valid} onClick={run}>
-          지급 처리
+          {t('pay.do')}
         </button>
       </div>
     </Sheet>

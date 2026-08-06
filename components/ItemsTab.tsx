@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { GuildState, LedgerItem, PhotoResult } from '@/lib/types';
 import { api, fmt, getStoredEmail } from '@/lib/client';
+import { useT } from '@/lib/i18n';
 import LedgerCard from './LedgerCard';
 
 type PhotoState = {
@@ -26,6 +27,7 @@ export default function ItemsTab({
   toast: (msg: string, isError?: boolean) => void;
   setBusy: (on: boolean) => void;
 }) {
+  const { t, unit } = useT();
   const [itemName, setItemName] = useState('');
   const [photoLink, setPhotoLink] = useState('');
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -34,7 +36,7 @@ export default function ItemsTab({
   const [confirming, setConfirming] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // 혈비 계정은 참여자가 될 수 없다
+  // 혈맹운영비 계정은 참여자가 될 수 없다
   const selectable = useMemo(
     () => state.members.filter((m) => m !== state.fundName),
     [state.members, state.fundName],
@@ -67,7 +69,7 @@ export default function ItemsTab({
     const dataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(new Error('사진을 읽지 못했습니다.'));
+      reader.onerror = () => reject(new Error(t('items.readFailed')));
       reader.readAsDataURL(file);
     }).catch((e: Error) => {
       toast(e.message, true);
@@ -80,7 +82,7 @@ export default function ItemsTab({
     try {
       await img.decode();
     } catch {
-      toast('사진 형식을 인식하지 못했습니다.', true);
+      toast(t('items.formatFailed'), true);
       return;
     }
 
@@ -97,7 +99,7 @@ export default function ItemsTab({
     canvas.height = h;
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      toast('이 브라우저에서는 사진 분석을 지원하지 않습니다.', true);
+      toast(t('items.noCanvas'), true);
       return;
     }
     // 게임 스크린샷은 명암비가 낮아 이 보정 없이는 OCR이 줄을 통째로 놓친다
@@ -109,13 +111,13 @@ export default function ItemsTab({
     ctx.drawImage(img, 0, 0, w, h);
     const jpeg = canvas.toDataURL('image/jpeg', 0.82);
 
-    setPhoto({ preview: jpeg, status: '분석 중… (드라이브 저장 + 글자 인식)', ocr: '' });
+    setPhoto({ preview: jpeg, status: t('items.analyzing'), ocr: '' });
     setShowOcr(false);
 
     const res = await api('/api/admin/photo', { base64: jpeg.split(',')[1] });
 
     if (!res.ok) {
-      setPhoto({ preview: jpeg, status: '분석 실패: ' + (res.msg ?? '알 수 없는 오류'), ocr: '' });
+      setPhoto({ preview: jpeg, status: t('items.analyzeFailed', { v: res.msg ?? '' }), ocr: '' });
       return;
     }
 
@@ -128,7 +130,7 @@ export default function ItemsTab({
         return next;
       });
     }
-    setPhoto({ preview: jpeg, status: r.msg ?? '분석 완료', ocr: r.ocrPreview ?? '' });
+    setPhoto({ preview: jpeg, status: r.msg ?? t('items.analyzeDone'), ocr: r.ocrPreview ?? '' });
   }
 
   async function submit() {
@@ -142,7 +144,7 @@ export default function ItemsTab({
     });
     setBusy(false);
 
-    toast(res.msg ?? (res.ok ? '등록되었습니다.' : '등록에 실패했습니다.'), !res.ok);
+    toast(res.msg ?? (res.ok ? t('r.registered') : t('r.registerFailed')), !res.ok);
     if (res.ok) {
       resetForm();
       onDone();
@@ -154,25 +156,25 @@ export default function ItemsTab({
 
   return (
     <div className="page">
-      <div className="sect">⏳ 미분배 아이템 {admin ? '— [분배]를 눌러 판매금액을 입력하세요' : ''}</div>
+      <div className="sect">{admin ? t('items.sectAdmin') : t('items.sect')}</div>
       <div className="card">
         {state.items.length === 0 ? (
-          <div className="empty">미분배 아이템이 없습니다.</div>
+          <div className="empty">{t('items.empty')}</div>
         ) : (
           state.items.map((it) => (
             <div className="row" key={it.row}>
               <div className="row-main">
                 <div className="row-name">{it.item}</div>
                 <div className="row-sub">
-                  {it.date} · 참여 {it.cnt}명
+                  {it.date} · {t('c.joined')} {t('c.persons', { n: it.cnt })}
                 </div>
               </div>
               {admin ? (
                 <button className="btn warn" onClick={() => onDistribute(it)}>
-                  분배
+                  {t('items.distribute')}
                 </button>
               ) : (
-                <span className="badge">대기중</span>
+                <span className="badge">{t('items.waiting')}</span>
               )}
             </div>
           ))
@@ -181,29 +183,29 @@ export default function ItemsTab({
 
       {!admin ? (
         <p className="hint" style={{ margin: '14px 4px' }}>
-          아이템 등록·분배는 관리자만 할 수 있습니다. 하단 [관리] 탭에서 PIN을 입력하면 여기에 버튼이 나타납니다.
+          {t('items.viewerHint')}
         </p>
       ) : (
         <>
-          <div className="sect">📝 새 아이템 등록 (레이드 직후)</div>
+          <div className="sect">{t('items.newSect')}</div>
           <div className="card">
             <div className="field">
               <label className="fl" htmlFor="fItem">
-                📦 아이템명
+                {t('items.name')}
               </label>
               <input
                 id="fItem"
                 type="text"
-                placeholder="예: 기란 세금"
+                placeholder={t('items.namePh')}
                 value={itemName}
                 onChange={(e) => setItemName(e.target.value)}
               />
             </div>
 
             <div className="field">
-              <label className="fl">📷 인증샷 (사진에서 참여자를 자동으로 찾아 체크합니다)</label>
+              <label className="fl">{t('items.photoLabel')}</label>
               <label className="filebtn" htmlFor="fPhoto">
-                📎 사진 선택 / 촬영
+                {t('items.photoPick')}
               </label>
               <input
                 id="fPhoto"
@@ -221,7 +223,7 @@ export default function ItemsTab({
                 <div className="photo-prev">
                   {/* 로컬 canvas 결과라 next/image 최적화 대상이 아니다 */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={photo.preview} alt="인증샷 미리보기" />
+                  <img src={photo.preview} alt={t('items.photoAlt')} />
                   <div className="hint">{photo.status}</div>
                   {photo.ocr ? (
                     <>
@@ -230,7 +232,7 @@ export default function ItemsTab({
                         style={{ marginTop: 8, fontSize: 12, padding: '7px 11px' }}
                         onClick={() => setShowOcr((v) => !v)}
                       >
-                        🔍 인식된 텍스트 {showOcr ? '숨기기' : '보기'}
+                        {showOcr ? t('items.ocrHide') : t('items.ocrShow')}
                       </button>
                       {showOcr ? <div className="ocr-raw">{photo.ocr}</div> : null}
                     </>
@@ -241,7 +243,7 @@ export default function ItemsTab({
 
             <div className="field">
               <label className="fl" htmlFor="fLink">
-                🔗 인증샷 링크 (사진을 넣으면 자동으로 채워집니다)
+                {t('items.linkLabel')}
               </label>
               <input
                 id="fLink"
@@ -254,15 +256,13 @@ export default function ItemsTab({
             </div>
 
             <div className="field">
-              <label className="fl">
-                👥 참여 멤버 — {pickedList.length}명 선택됨
-              </label>
+              <label className="fl">{t('items.membersLabel', { n: pickedList.length })}</label>
               <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                 <button className="btn ghost" style={{ flex: 1 }} onClick={() => selectAll(true)}>
-                  전체 선택
+                  {t('items.selectAll')}
                 </button>
                 <button className="btn ghost" style={{ flex: 1 }} onClick={() => selectAll(false)}>
-                  전체 해제
+                  {t('items.clearAll')}
                 </button>
               </div>
               <div className="mgrid">
@@ -276,20 +276,20 @@ export default function ItemsTab({
             </div>
 
             <div className="field">
-              <div className="note">⚠️ 등록 전에 체크된 참여자가 맞는지 꼭 확인해주세요. 자동 감지는 참고용입니다.</div>
+              <div className="note">{t('items.checkNote')}</div>
               <button
                 className="btn block"
                 style={{ marginTop: 12 }}
                 disabled={!canSubmit}
                 onClick={() => setConfirming(true)}
               >
-                📝 아이템 등록
+                {t('items.submit')}
               </button>
             </div>
           </div>
 
           <LedgerCard
-            unit={state.unit}
+            unit={unit(state.unit)}
             fundRate={state.fundRate}
             fundName={state.fundName}
             onChanged={onDone}
@@ -321,6 +321,7 @@ function ConfirmRegister({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const { t } = useT();
   const shown = participants.slice(0, 12);
   const rest = participants.length - shown.length;
 
@@ -328,28 +329,28 @@ function ConfirmRegister({
     <div className="backdrop" onClick={(e) => e.target === e.currentTarget && onCancel()} role="presentation">
       <div className="sheet" role="dialog" aria-modal="true">
         <div className="sheet-grip" />
-        <h2>⚠️ 참여자를 다시 확인해주세요</h2>
-        <div className="sheet-sub">등록하면 {fmt(participants.length)}명의 참여횟수가 즉시 올라갑니다.</div>
+        <h2>{t('items.confirmTitle')}</h2>
+        <div className="sheet-sub">{t('items.confirmSub', { n: fmt(participants.length) })}</div>
         <div className="calc">
           <div className="calc-line">
-            <span>📦 아이템</span>
+            <span>{t('items.confirmItem')}</span>
             <strong>{itemName}</strong>
           </div>
           <div className="calc-line">
-            <span>👥 참여</span>
-            <strong>{participants.length}명</strong>
+            <span>{t('items.confirmJoin')}</span>
+            <strong>{t('c.persons', { n: participants.length })}</strong>
           </div>
         </div>
         <div className="hint" style={{ lineHeight: 1.6 }}>
           {shown.join(', ')}
-          {rest > 0 ? ` 외 ${rest}명` : ''}
+          {rest > 0 ? t('items.andMore', { n: rest }) : ''}
         </div>
         <div className="sheet-actions">
           <button className="btn ghost" onClick={onCancel}>
-            취소
+            {t('c.cancel')}
           </button>
           <button className="btn" onClick={onConfirm}>
-            등록하기
+            {t('items.confirmDo')}
           </button>
         </div>
       </div>

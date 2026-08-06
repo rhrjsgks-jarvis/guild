@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { BalanceRow, GuildState, LedgerItem } from '@/lib/types';
 import { api } from '@/lib/client';
-import { getLang, makeT, type Lang } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 import { APP_VERSION } from '@/lib/version';
 import BalanceTab from './BalanceTab';
 import ItemsTab from './ItemsTab';
@@ -14,6 +14,9 @@ import AdminTab from './AdminTab';
 import DistributeSheet from './DistributeSheet';
 import PayoutSheet from './PayoutSheet';
 import SeasonSheet from './SeasonSheet';
+
+/** Apps Script 가 앱 이름을 정하지 않았을 때 내려주는 기본값 */
+const DEFAULT_APP_NAME = '길드정산';
 
 type Tab = 'balance' | 'items' | 'board' | 'alliance' | 'me' | 'admin';
 
@@ -27,11 +30,11 @@ const TABS: { id: Tab; icon: string; key: string }[] = [
 ];
 
 export default function App() {
+  const { t } = useT();
   const [tab, setTab] = useState<Tab>('balance');
   const [state, setState] = useState<GuildState | null>(null);
   const [admin, setAdmin] = useState(false);
   const [master, setMaster] = useState(false);
-  const [lang, setLangState] = useState<Lang>('ko');
   const [loadError, setLoadError] = useState('');
   const [busy, setBusy] = useState(false);
   const [toastMsg, setToastMsg] = useState<{ text: string; err: boolean } | null>(null);
@@ -43,7 +46,6 @@ export default function App() {
   const [distTarget, setDistTarget] = useState<LedgerItem | null>(null);
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const t = makeT(lang);
 
   const toast = useCallback((text: string, err = false) => {
     setToastMsg({ text, err });
@@ -56,7 +58,7 @@ export default function App() {
     setAdmin(Boolean(res.admin));
     setMaster(Boolean(res.master));
     if (!res.ok) {
-      setLoadError(res.msg ?? '불러오지 못했습니다.');
+      setLoadError(res.msg ?? '');
       return;
     }
     setLoadError('');
@@ -64,7 +66,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    setLangState(getLang());
     void refresh();
   }, [refresh]);
 
@@ -85,7 +86,10 @@ export default function App() {
     });
   }, []);
 
-  const title = state?.appName?.trim() || '길드정산';
+  // 앱 이름: 마스터가 직접 지은 이름이면 데이터로 보고 그대로 두고,
+  // 시트 기본값('길드정산')이면 화면 문구로 보고 언어에 맞춰 바꾼다.
+  const rawName = state?.appName?.trim() ?? '';
+  const title = !rawName || rawName === DEFAULT_APP_NAME ? t('app.title') : rawName;
 
   // 시트(.gs)는 사용자가 직접 붙여넣고 재배포해야 해서, 앱만 새 버전인 상태가 되기 쉽다.
   // 그 어긋남을 제목 옆에서 바로 보이게 한다.
@@ -99,32 +103,32 @@ export default function App() {
           🛡️ {title}
           <span
             className={'ver' + (versionMismatch ? ' warn' : '')}
-            title={
-              versionMismatch
-                ? `앱 v${APP_VERSION} · 구글시트 v${sheetVersion} — 시트에 새 코드를 붙여넣고 [배포 관리] → 새 버전으로 배포해주세요.`
-                : `앱 · 구글시트 모두 v${APP_VERSION}`
-            }
+            title={`v${APP_VERSION}${versionMismatch ? ` / sheet v${sheetVersion}` : ''}`}
           >
             v{APP_VERSION}
-            {versionMismatch ? ` ⚠️ 시트 v${sheetVersion}` : ''}
+            {versionMismatch ? ` ⚠️ ${sheetVersion}` : ''}
           </span>
         </h1>
         <div className="meta">
-          {master ? <span className="chip">👑 {t('common.master')}</span> : admin ? <span className="chip">🔓 {t('common.admin')}</span> : null}
+          {master ? (
+            <span className="chip">👑 {t('c.master')}</span>
+          ) : admin ? (
+            <span className="chip">🔓 {t('c.admin')}</span>
+          ) : null}
           {state ? (
             <button
               className="chip"
               onClick={() => setSeasonOpen(true)}
-              aria-label="지난 시즌 기록 보기"
+              aria-label={t('season.title')}
               style={{ color: '#fff' }}
             >
-              {t('common.season')} {state.season}
+              {t('c.season')} {state.season}
               {state.seasonServer ? ` · ${state.seasonServer}` : ''} ▾
             </button>
           ) : null}
           <button
             onClick={() => void refresh()}
-            aria-label={t('common.refresh')}
+            aria-label={t('c.refresh')}
             style={{ color: '#fff', fontSize: 17, padding: '2px 4px' }}
           >
             ↻
@@ -150,16 +154,16 @@ export default function App() {
           <div className="card">
             <div className="field">
               <div className="note" style={{ background: 'transparent', padding: 0 }}>
-                ⚠️ {t('common.loadFailed')}
+                ⚠️ {t('c.loadFailed')}
               </div>
               <p className="hint" style={{ marginTop: 8, fontSize: 13 }}>
                 {loadError}
               </p>
               <button className="btn block" style={{ marginTop: 14 }} onClick={() => void refresh()}>
-                {t('common.retry')}
+                {t('c.retry')}
               </button>
               <a className="btn ghost block" style={{ marginTop: 8 }} href="/api/health" target="_blank" rel="noreferrer">
-                설정 점검하기
+                {t('c.checkSetup')}
               </a>
             </div>
           </div>
@@ -190,16 +194,13 @@ export default function App() {
           {tab === 'board' ? (
             <BoardTab
               admin={admin}
-              lang={lang}
               focusPostId={focusPostId}
               onFocusHandled={() => setFocusPostId(null)}
               toast={toast}
               onChanged={() => void refresh()}
             />
           ) : null}
-          {tab === 'alliance' ? (
-            <AllianceTab admin={admin} lang={lang} toast={toast} setBusy={setBusy} />
-          ) : null}
+          {tab === 'alliance' ? <AllianceTab admin={admin} toast={toast} setBusy={setBusy} /> : null}
           {tab === 'me' ? <MeTab state={state} /> : null}
           {tab === 'admin' ? (
             <AdminTab
@@ -208,8 +209,6 @@ export default function App() {
               unit={state.unit}
               servers={state.serverList ?? []}
               appName={title}
-              lang={lang}
-              onLangChange={setLangState}
               onAuthChange={() => void refresh()}
               toast={toast}
             />
@@ -231,9 +230,7 @@ export default function App() {
         ))}
       </nav>
 
-      {seasonOpen && state ? (
-        <SeasonSheet current={state.season} onClose={() => setSeasonOpen(false)} />
-      ) : null}
+      {seasonOpen && state ? <SeasonSheet current={state.season} onClose={() => setSeasonOpen(false)} /> : null}
 
       {payTarget && state ? (
         <PayoutSheet

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Sheet from './Sheet';
 import type { BoardPost } from '@/lib/types';
 import { api, getStoredEmail, getStoredName } from '@/lib/client';
-import { makeT, type Lang } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 
 /**
  * 게시판 — 혈맹원 누구나 글을 쓸 수 있다 (PIN 불필요).
@@ -13,21 +13,19 @@ import { makeT, type Lang } from '@/lib/i18n';
  */
 export default function BoardTab({
   admin,
-  lang,
   focusPostId,
   onFocusHandled,
   toast,
   onChanged,
 }: {
   admin: boolean;
-  lang: Lang;
   /** 상단 공지 띠를 눌러 들어왔을 때 바로 펼칠 글 */
   focusPostId?: number | null;
   onFocusHandled?: () => void;
   toast: (msg: string, isError?: boolean) => void;
   onChanged: () => void;
 }) {
-  const t = makeT(lang);
+  const { t } = useT();
   const [posts, setPosts] = useState<BoardPost[] | null>(null);
   const [error, setError] = useState('');
   const [open, setOpen] = useState<BoardPost | null>(null);
@@ -41,7 +39,7 @@ export default function BoardTab({
       return;
     }
     // 글이 없는 것과 불러오지 못한 것은 다르다 — 빈 목록으로 얼버무리지 않는다
-    setError(res.msg ?? '게시판을 불러오지 못했습니다.');
+    setError(res.msg || ' ');
     setPosts([]);
   }, []);
 
@@ -59,7 +57,7 @@ export default function BoardTab({
 
   async function remove(post: BoardPost) {
     const res = await api('/api/admin/board', { id: post.id, email: getStoredEmail() }, 'DELETE');
-    toast(res.msg ?? (res.ok ? '삭제했습니다.' : '삭제하지 못했습니다.'), !res.ok);
+    toast(res.msg ?? (res.ok ? t('r.deleted') : t('r.deleteFailed')), !res.ok);
     if (res.ok) {
       setOpen(null);
       void load();
@@ -72,7 +70,7 @@ export default function BoardTab({
       <div className="sect">📋 {t('board.title')}</div>
 
       <button className="btn block" onClick={() => setWriting(true)}>
-        ✏️ {t('common.write')}
+        ✏️ {t('c.write')}
       </button>
 
       <div className="card" style={{ marginTop: 12 }}>
@@ -85,13 +83,12 @@ export default function BoardTab({
         ) : error ? (
           <div className="field">
             <div className="note" style={{ whiteSpace: 'pre-wrap' }}>
-              ⚠️ {error}
+              ⚠️ {error.trim()}
               {'\n\n'}
-              구글시트 쪽 코드가 아직 v10.0 이 아니면 [게시판] 기능이 없습니다. Apps Script 에 새
-              코드를 붙여넣고 [배포 관리] → 새 버전으로 배포한 뒤 다시 열어주세요.
+              {t('board.needSheet')}
             </div>
             <button className="btn block" style={{ marginTop: 12 }} onClick={() => void load()}>
-              {t('common.retry')}
+              {t('c.retry')}
             </button>
           </div>
         ) : posts.length === 0 ? (
@@ -101,15 +98,14 @@ export default function BoardTab({
             <div className="row" key={p.id}>
               <div className="row-main">
                 <div className="row-name">
-                  {p.kind === 'notice' ? <span className="chip">📌 {t('board.notice')}</span> : null}{' '}
-                  {p.title}
+                  {p.kind === 'notice' ? <span className="chip">📌 {t('board.notice')}</span> : null} {p.title}
                 </div>
                 <div className="row-sub">
                   {p.author} · {p.at}
                 </div>
               </div>
               <button className="btn ghost" onClick={() => setOpen(p)}>
-                보기
+                {t('c.view')}
               </button>
             </div>
           ))
@@ -123,16 +119,16 @@ export default function BoardTab({
           onClose={() => setOpen(null)}
         >
           <div className="note" style={{ whiteSpace: 'pre-wrap' }}>
-            {open.body || '(내용 없음)'}
+            {open.body || t('board.noBody')}
           </div>
           <div className="sheet-actions">
             {admin ? (
               <button className="btn danger" onClick={() => void remove(open)}>
-                {t('common.delete')}
+                {t('c.delete')}
               </button>
             ) : null}
             <button className="btn ghost" onClick={() => setOpen(null)}>
-              {t('common.close')}
+              {t('c.close')}
             </button>
           </div>
         </Sheet>
@@ -141,7 +137,6 @@ export default function BoardTab({
       {writing ? (
         <WriteSheet
           admin={admin}
-          lang={lang}
           onClose={() => setWriting(false)}
           onDone={() => {
             setWriting(false);
@@ -157,18 +152,16 @@ export default function BoardTab({
 
 function WriteSheet({
   admin,
-  lang,
   onClose,
   onDone,
   toast,
 }: {
   admin: boolean;
-  lang: Lang;
   onClose: () => void;
   onDone: () => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
-  const t = makeT(lang);
+  const { t } = useT();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [author, setAuthor] = useState(getStoredName());
@@ -180,12 +173,12 @@ function WriteSheet({
     setBusy(true);
     const res = await api('/api/board', { title, body, author, notice: admin && notice });
     setBusy(false);
-    toast(res.msg ?? (res.ok ? '등록했습니다.' : '등록하지 못했습니다.'), !res.ok);
+    toast(res.msg ?? (res.ok ? t('r.posted') : t('r.postFailed')), !res.ok);
     if (res.ok) onDone();
   }
 
   return (
-    <Sheet title={`✏️ ${t('common.write')}`} onClose={onClose}>
+    <Sheet title={`✏️ ${t('c.write')}`} onClose={onClose}>
       <label className="fl" htmlFor="pt">
         {t('board.newTitle')}
       </label>
@@ -217,10 +210,10 @@ function WriteSheet({
 
       <div className="sheet-actions">
         <button className="btn ghost" onClick={onClose}>
-          {t('common.cancel')}
+          {t('c.cancel')}
         </button>
         <button className="btn" disabled={!title.trim() || busy} onClick={() => void submit()}>
-          {busy ? '등록 중…' : t('common.write')}
+          {busy ? t('board.posting') : t('c.write')}
         </button>
       </div>
     </Sheet>
