@@ -21,8 +21,10 @@ const FUND_RATE = 0.1;
 const DEFAULT_WEIGHT = 100;
 const UNIT = '다이아';
 const SERVER_LIST = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+const ST_WAIT = '⏳미분배';
+const ST_DONE = '✅분배완료';
 // 앱이 기대하는 버전과 같은 값 — 화면에 "버전 불일치" 경고가 뜨지 않아야 정상이다
-let MOCK_GS_VERSION = '10.2';
+let MOCK_GS_VERSION = '10.3';
 
 /**
  * .gs 의 `_rc` 와 같은 모양으로 결과에 코드·값을 붙인다.
@@ -38,7 +40,7 @@ function rc(res, code, vars) {
 /** .gs 의 API_WRITE_ACTIONS 와 같은 목록 — 상태를 실어 보낼 대상 판정에 쓴다 */
 const WRITE_ACTIONS = ['register', 'distribute', 'payout', 'rename', 'addMember', 'removeMember',
                        'correctItem', 'deleteItem', 'undoPayout', 'runTool',
-                       'deletePost', 'addAlliance', 'deleteAlliance', 'updateMember',
+                       'deletePost', 'addAlliance', 'creditAlliance', 'deleteAlliance', 'updateMember',
                        'setAppName', 'setAdminPin', 'setSeasonServer'];
 
 /**
@@ -69,6 +71,8 @@ function freshState() {
       { name: '대서과Z', pending: 4500, paid: 0, cnt: 3, weight: 50, server: '04', hanja: '大西瓜Z' },
       { name: '팩맨', pending: 0, paid: 0, cnt: 0, weight: 100, server: '', hanja: '' },
       { name: '詹阿呆', pending: 2100, paid: 3300, cnt: 6, weight: 100, server: '02', hanja: '詹阿呆' },
+      // 긴 이름 — 좁은 칩에서 글자 크기가 실제로 줄어드는지 확인하기 위한 표본
+      { name: '선륙소농포 (鮮肉小籠包)', pending: 0, paid: 0, cnt: 0, weight: 100, server: '06', hanja: '鮮肉小籠包' },
     ],
     items: [
       { row: 2, item: '기란 세금', date: '08/01', cnt: 3, names: ['가이', 'TC무식', '대서과Z'] },
@@ -92,9 +96,11 @@ function freshState() {
       { id: 2, kind: 'post', title: '레이드 파티 구합니다', body: '오늘 밤 9시요', author: 'PlusS', at: '08/03 19:20' },
     ],
     alliance: [
-      { row: 2, date: '08/02 14:00', server: '03', item: '연합 보스', amount: 40000, pct: 50, people: 12, credited: 20000, photo: '' },
+      { row: 2, date: '08/02 14:00', server: '03', item: '연합 보스', amount: 40000, pct: 50, people: 12, credited: 20000, photo: '', done: true },
+      // 금액을 기다리는 등록 건 — v10.3 의 2단계 흐름을 화면에서 볼 수 있게
+      { row: 3, date: '08/05 21:00', server: '05', item: '연합 레이드', amount: 0, pct: 0, people: 18, credited: 0, photo: '', done: false },
     ],
-    nextAllianceRow: 3,
+    nextAllianceRow: 4,
     adminPinOverride: '',
     renames: [
       { at: '07/12 09:30', before: '옛닉네임', after: '가이', by: 'admin@example.com', merged: false, detail: '"옛닉네임" → "가이"' },
@@ -618,8 +624,10 @@ const handlers = {
   },
 
   alliance: () => {
+    const shape = (r) => ({ ...r, status: r.done ? ST_DONE : ST_WAIT });
     const totals = SERVER_LIST.map((sv) => {
-      const rows = S.alliance.filter((r) => r.server === sv);
+      // ★ 아직 금액이 안 정해진 건은 누적에 넣지 않는다 (0원이 건수만 부풀린다)
+      const rows = S.alliance.filter((r) => r.server === sv && r.done);
       return {
         server: sv,
         credited: rows.reduce((a, b) => a + b.credited, 0),
@@ -628,31 +636,52 @@ const handlers = {
         count: rows.length,
       };
     });
-    return { ok: true, data: { rows: [...S.alliance].reverse(), totals, serverList: SERVER_LIST, unit: UNIT } };
+    return {
+      ok: true,
+      data: {
+        rows: [...S.alliance].reverse().map(shape),
+        waiting: [...S.alliance].filter((r) => !r.done).reverse().map(shape),
+        totals,
+        serverList: SERVER_LIST,
+        unit: UNIT,
+      },
+    };
   },
 
-  addAlliance: ({ server, item, amount, pct, people }) => {
-    if (!SERVER_LIST.includes(String(server))) return { ok: false, msg: '서버를 01~12 중에서 선택해주세요.' };
+  // ① 등록 — 금액은 받지 않는다 (v10.3)
+  addAlliance: ({ server, item, people }) => {
+    if (!SERVER_LIST.includes(String(server))) return rc({ ok: false, msg: '서버를 01~12 중에서 선택해주세요.' }, 'e.badServer');
+    const nm = String(item || '').trim();
+    if (!nm) return rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
+    const n = Math.max(Math.floor(Number(people) || 0), 0);
+    const row = S.nextAllianceRow++;
+    S.alliance.push({
+      row, date: '08/05 09:00', server: String(server), item: nm,
+      amount: 0, pct: 0, people: n, credited: 0, photo: '', done: false,
+    });
+    return rc({ ok: true, server, row, people: n, msg: `✅ ${server}서버 "${nm}" 등록 완료 (${n}명, ${ST_WAIT})` },
+      'ally.regOk', { s: server, item: nm, n });
+  },
+
+  // ② 정산 — 등록해둔 건에 금액·비중을 넣는다 (v10.3)
+  creditAlliance: ({ row, amount, pct }) => {
+    const rec = S.alliance.find((r) => r.row === Number(row));
+    if (!rec) return rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
     const amt = Number(amount);
-    if (!Number.isInteger(amt) || amt <= 0) return { ok: false, msg: '금액은 양의 정수여야 합니다.' };
+    if (!Number.isInteger(amt) || amt <= 0) return rc({ ok: false, msg: '금액은 양의 정수여야 합니다.' }, 'e.badAmount');
+    // 두 번 누적되면 서버 총액이 틀어진다
+    if (rec.done) return rc({ ok: false, msg: '이미 정산된 건입니다. 새로고침해주세요.' }, 'e.allyDone', { item: rec.item });
+
     let p = Math.round(Number(pct));
     if (!Number.isFinite(p) || p < 1) p = 1;
     if (p > 100) p = 100;
-    const credited = Math.floor((amt * p) / 100);
-    const n = Math.max(Math.floor(Number(people) || 0), 0);
-    S.alliance.push({
-      row: S.nextAllianceRow++,
-      date: '08/05 09:00',
-      server: String(server),
-      item: String(item || '').trim(),
-      amount: amt,
-      pct: p,
-      people: n,
-      credited,
-      photo: '',
-    });
-    return rc({ ok: true, credited, server, msg: `✅ ${server}서버에 ${credited.toLocaleString()}${UNIT} 누적했습니다 (${n}명 참여).` },
-      'ally.ok', { s: server, credited, n });
+    rec.amount = amt;
+    rec.pct = p;
+    rec.credited = Math.floor((amt * p) / 100);
+    rec.done = true;
+    return rc({ ok: true, credited: rec.credited, server: rec.server,
+                msg: `✅ ${rec.server}서버에 ${rec.credited.toLocaleString()}${UNIT} 누적했습니다 (${rec.people}명 참여).` },
+      'ally.ok', { s: rec.server, credited: rec.credited, n: rec.people });
   },
 
   deleteAlliance: ({ row }) => {
@@ -723,13 +752,13 @@ const handlers = {
   // 테스트가 매번 같은 상태에서 시작할 수 있도록
   __reset: () => {
     S = freshState();
-    MOCK_GS_VERSION = '10.2';
+    MOCK_GS_VERSION = '10.3';
     return { ok: true, msg: '초기화됨' };
   },
 
   // "시트만 옛 버전인" 상황을 만들어 보기 위한 것 (테스트 전용)
   __setVersion: ({ version }) => {
-    MOCK_GS_VERSION = String(version || '10.2');
+    MOCK_GS_VERSION = String(version || '10.3');
     return { ok: true, msg: '버전 ' + MOCK_GS_VERSION };
   },
 };

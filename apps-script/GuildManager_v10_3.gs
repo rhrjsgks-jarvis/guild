@@ -1,8 +1,25 @@
 // ═══════════════════════════════════════════════════════════════
-//  길드 정산 시스템 v10.2  (분배비중 · 연합 · 게시판 · 마스터관리자 · 3개국어)
+//  길드 정산 시스템 v10.3  (분배비중 · 연합 · 게시판 · 마스터관리자 · 3개국어)
 //  시트 구성: [사용안내] [멤버DB] [참여자현황] [분배대기중] [잔액현황]
 //            [지급기록] [연합] [게시판] [작업기록] + [시즌1] [시즌2] ...
 //            ← 이 순서로 항상 정렬됨
+// ═══════════════════════════════════════════════════════════════
+//  변경점 v10.2 → v10.3  (연합 정산을 2단계로 분리)
+//
+//   - ★ 연합도 혈맹 아이템과 **같은 순서**로 처리한다.
+//       ① 등록 — 서버·아이템명·인증샷(인원수)  → 상태 ⏳미분배
+//       ② 정산 — 금액·비중(%)                 → 상태 ✅분배완료, 서버별 누적
+//       레이드 직후엔 아직 안 팔려서 금액을 모르는 것이 정상인데, 예전처럼
+//       한 번에 다 받으면 금액이 정해질 때까지 등록을 미루게 되고
+//       그 사이에 인증샷을 잃어버린다.
+//   - ★ [연합] 시트에 '상태' 열(J) 추가. v10.2 이하 시트는 앱이 처음 열 때
+//       헤더만 자동으로 채운다 (`_ensureAllianceHeaders`).
+//       기존 행은 그대로 쓰인다 — 금액이 있으면 ✅분배완료로 읽는다.
+//   - ★ 아직 금액이 안 정해진 건은 서버별 누적에 넣지 않는다.
+//       넣으면 0원짜리가 건수만 부풀린다.
+//   - ★ 이미 정산된 건에 금액을 또 넣는 것은 거부한다 (두 번 누적되면
+//       서버 총액이 틀어진다).
+//   - api_addAlliance 인자가 바뀌었다 (금액·비중 제거) + api_creditAlliance 신설
 // ═══════════════════════════════════════════════════════════════
 //  변경점 v10.1 → v10.2  (반영 속도 — 왕복 한 번 제거)
 //
@@ -369,7 +386,7 @@
 //     '누적기록'을 그대로 찾음 (하위 호환, 리네이밍과 무관)
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION = '10.2';
+const VERSION = '10.3';
 const T2S_MAP = {'國':'国','學':'学','這':'这','個':'个','們':'们','說':'说','話':'话','對':'对','時':'时','間':'间','現':'现','場':'场','開':'开','關':'关','內':'内','東':'东','車':'车','馬':'马','龍':'龙','風':'风','陽':'阳','陰':'阴','電':'电','語':'语','讀':'读','寫':'写','書':'书','紙':'纸','筆':'笔','長':'长','門':'门','問':'问','聽':'听','見':'见','覺':'觉','讓':'让','誰':'谁','還':'还','進':'进','運':'运','動':'动','靜':'静','樂':'乐','藥':'药','華':'华','蘭':'兰','葉':'叶','黃':'黄','麗':'丽','寶':'宝','貴':'贵','財':'财','買':'买','賣':'卖','錢':'钱','銀':'银','鐵':'铁','鋼':'钢','陳':'陈','劉':'刘','張':'张','楊':'杨','蔣':'蒋','鄭':'郑','謝':'谢','呂':'吕','蘇':'苏','韓':'韩','馮':'冯','於':'于','鳳':'凤','雲':'云','劍':'剑','斷':'断','亂':'乱','愛':'爱','聲':'声','醫':'医','藝':'艺','頭':'头','臉':'脸','腳':'脚','氣':'气','樓':'楼','橋':'桥','飛':'飞','機':'机','網':'网','線':'线','條':'条','裡':'里','邊':'边','錯':'错','壞':'坏','舊':'旧','寬':'宽','淺':'浅','週':'周','節':'节','業':'业','後':'后','來':'来','終':'终','結':'结','敗':'败','勝':'胜','負':'负','輸':'输','贏':'赢','強':'强','難':'难','簡':'简','單':'单','複':'复','雜':'杂','純':'纯','淨':'净','髒':'脏','齊':'齐','穩':'稳','變':'变','轉':'转','換':'换','顯':'显','樣':'样','種':'种','類':'类','團':'团','體':'体','統':'统','織':'织','組':'组','構':'构','設':'设','計':'计','劃':'划','數':'数','課':'课','題':'题','試':'试','練':'练','習':'习','師':'师','員':'员','職':'职','務':'务','責':'责','權':'权','應':'应','該':'该','須':'须','願':'愿','夢':'梦','憶':'忆','識':'识','認':'认','歡':'欢','醜':'丑','帥':'帅','靈':'灵','獸':'兽','鷹':'鹰','鶴':'鹤','鴻':'鸿','鱷':'鳄','鯨':'鲸','鯊':'鲨','蝦':'虾','殼':'壳','冑':'胄','戰':'战','爭':'争','鬥':'斗','擊':'击','禦':'御','護':'护','衛':'卫','謀':'谋','陣':'阵','營':'营','軍':'军','隊':'队','將':'将','嬪':'嫔','宮':'宫','廟':'庙','觀':'观','閣':'阁','蓮':'莲','楓':'枫','樺':'桦','檜':'桧','樹':'树','實':'实','幹':'干','莖':'茎','穫':'获','採':'采','鮮':'鲜','籠':'笼','傷':'伤','殺':'杀','斬':'斩','豬':'猪','雞':'鸡','鴨':'鸭','鵝':'鹅','龜':'龟','蟬':'蝉','蟻':'蚁','螞':'蚂','鴉':'鸦','鵰':'雕','鴛':'鸳','鴦':'鸯','賽':'赛','廠':'厂','廣':'广','麼':'么','誒':'诶','歲':'岁','歷':'历','歸':'归','殘':'残','蟲':'虫','貓':'猫','氈':'毡','貫':'贯','質':'质','貨':'货','貼':'贴','費':'费','資':'资','賬':'账','賺':'赚','贈':'赠','賀':'贺','賢':'贤','賦':'赋','賤':'贱','賓':'宾','賴':'赖','齲':'龋','齒':'齿','龄':'齡','齡':'龄','齣':'出','岡':'冈','剛':'刚','剮':'剐','創':'创','劇':'剧','勵':'励','勸':'劝','勻':'匀','匯':'汇','醬':'酱','醞':'酝','釀':'酿','釋':'释','釘':'钉','針':'针','釣':'钓','鈍':'钝','鈴':'铃','鈔':'钞','鉛':'铅','鋸':'锯','鋒':'锋','鍵':'键','鎖':'锁','鑄':'铸','鑼':'锣','錶':'表','鐘':'钟','鏡':'镜','鑽':'钻','鑑':'鉴','閉':'闭','閃':'闪','閏':'闰','閱':'阅','闆':'板','闖':'闯','陸':'陆','隱':'隐','雖':'虽','雙':'双','雛':'雏','靂':'雳','韋':'韦','韌':'韧','頁':'页','頂':'顶','項':'项','順':'顺','頌':'颂','預':'预','頑':'顽','頒':'颁','頗':'颇','領':'领','頡':'颉','頜':'颌','頸':'颈','頻':'频','頹':'颓','顆':'颗','額':'额','顏':'颜','顛':'颠','顧':'顾','飄':'飘','饑':'饥','餃':'饺','餅':'饼','館':'馆','饒':'饶','饞':'馋','馳':'驰','駕':'驾','駛':'驶','駐':'驻','駱':'骆','駭':'骇','騎':'骑','騰':'腾','驅':'驱','驚':'惊','驕':'骄','驗':'验','骯':'肮','髮':'发','鬍':'胡','鬧':'闹','鮑':'鲍','鯉':'鲤','鰲':'鳌','鱉':'鳖','鳥':'鸟','鳴':'鸣','鹹':'咸','麥':'麦','麵':'面','黨':'党'};  // 번체→간체 상용한자 (서체 변환 전용, 다른 뜻 글자는 포함하지 않음)
 const UNIT = '다이아';                 // 재화 단위 표기
 const MAX_MEMBERS = 50;               // 최대 멤버 수
@@ -4321,27 +4338,51 @@ function api_deletePost(id, email) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  🤝 연합 정산 (v10.0)
+//  🤝 연합 정산 (v10.0 · v10.3 에서 2단계로 분리)
 //    혈맹 내부 분배와 완전히 분리된 장부다.
 //    아이디 판별을 하지 않고 인증샷에서 "인원수"만 센다.
-//    서버·금액·아이템명·비중(%)을 받아 서버별로 누적한다.
+//
+//    v10.3 부터 혈맹 아이템과 **같은 순서**로 처리한다:
+//      ① 등록 — 서버·아이템명·인증샷(인원수)  → 상태 ⏳미분배
+//      ② 정산 — 금액·비중(%)                 → 상태 ✅분배완료, 서버별 누적
+//    레이드 직후엔 금액을 모르는 것이 정상이라, 예전처럼 한 번에 다 받으면
+//    금액이 정해질 때까지 등록 자체를 미루게 된다 (그러다 인증샷을 잃어버린다).
 // ═══════════════════════════════════════════════════════════════
-const ALLIANCE_HEADERS = ['등록일', '서버', '아이템명', '금액', '비중(%)', '인원수', '적립액', '인증샷', '입력자'];
+const ALLIANCE_HEADERS = ['등록일', '서버', '아이템명', '금액', '비중(%)', '인원수', '적립액', '인증샷', '입력자', '상태'];
+const ALLY_COL = { DATE: 1, SERVER: 2, ITEM: 3, AMOUNT: 4, PCT: 5, PEOPLE: 6, CREDITED: 7, PHOTO: 8, BY: 9, STATUS: 10 };
 
 function _buildAlliance(ss) {
   const sheet = ss.insertSheet(ALLIANCE_SHEET);
-  [110, 70, 180, 110, 80, 80, 110, 80, 160].forEach(function (w, i) { sheet.setColumnWidth(i + 1, w); });
-  sheet.getRange(1, 1, 1, ALLIANCE_HEADERS.length).setValues([ALLIANCE_HEADERS])
-    .setBackground('#4E342E').setFontColor('#FFF').setFontWeight('bold').setHorizontalAlignment('center');
-  sheet.getRange(1, 5).setNote('그 서버에 귀속시킬 비율입니다. 적립액 = floor(금액 × 비중 ÷ 100).');
-  sheet.getRange(1, 6).setNote('인증샷에서 자동으로 센 인원수입니다. 누구인지는 판별하지 않습니다.');
+  _styleAllianceHeader(sheet);
   sheet.setFrozenRows(1);
   sheet.setTabColor('#795548');
   return sheet;
 }
 
+function _styleAllianceHeader(sheet) {
+  [110, 70, 180, 110, 80, 80, 110, 80, 160, 100].forEach(function (w, i) { sheet.setColumnWidth(i + 1, w); });
+  sheet.getRange(1, 1, 1, ALLIANCE_HEADERS.length).setValues([ALLIANCE_HEADERS])
+    .setBackground('#4E342E').setFontColor('#FFF').setFontWeight('bold').setHorizontalAlignment('center');
+  sheet.getRange(1, ALLY_COL.PCT).setNote('그 서버에 귀속시킬 비율입니다. 적립액 = floor(금액 × 비중 ÷ 100).');
+  sheet.getRange(1, ALLY_COL.PEOPLE).setNote('인증샷에서 자동으로 센 인원수입니다. 누구인지는 판별하지 않습니다.');
+  sheet.getRange(1, ALLY_COL.STATUS).setNote('⏳미분배 = 금액이 아직 안 정해진 등록 건. ✅분배완료 = 금액까지 넣어 서버에 누적된 건.');
+}
+
+/**
+ * v10.2 이하에서 만들어진 연합 시트에는 '상태' 열이 없다.
+ * 헤더만 채워 넣으면 기존 행은 그대로 쓸 수 있다 (금액이 있으면 분배완료로 읽는다).
+ */
+function _ensureAllianceHeaders(sheet) {
+  const cur = sheet.getRange(1, 1, 1, ALLIANCE_HEADERS.length).getValues()[0];
+  const same = ALLIANCE_HEADERS.every(function (h, i) { return String(cur[i]).trim() === h; });
+  if (!same) _styleAllianceHeader(sheet);
+}
+
 function _getOrCreateAlliance(ss) {
-  return ss.getSheetByName(ALLIANCE_SHEET) || _buildAlliance(ss);
+  const sheet = ss.getSheetByName(ALLIANCE_SHEET);
+  if (!sheet) return _buildAlliance(ss);
+  _ensureAllianceHeaders(sheet);
+  return sheet;
 }
 
 // 연합 적립액 산식 (단일 소스 — lib/client.ts 의 calcAlliance 와 반드시 일치)
@@ -4365,19 +4406,26 @@ function api_getAlliance() {
     vals.forEach(function (r, i) {
       const server = String(r[1]).trim();
       if (!server) return;
+      const amount = Number(String(r[3]).replace(/,/g, '')) || 0;
+      // v10.2 이하 행에는 상태 칸이 없다 — 금액이 있으면 정산이 끝난 건으로 읽는다
+      const status = String(r[9]).trim() || (amount > 0 ? ST_DONE : ST_WAIT);
       const rec = {
         row: i + 2,
         date: _cellText(r[0]),
         server: server,
         item: String(r[2]).trim(),
-        amount: Number(String(r[3]).replace(/,/g, '')) || 0,
+        amount: amount,
         pct: Number(r[4]) || 0,
         people: Number(r[5]) || 0,
         credited: Number(String(r[6]).replace(/,/g, '')) || 0,
-        photo: String(r[7]).trim()
+        photo: String(r[7]).trim(),
+        status: status,
+        done: status === ST_DONE
       };
       rows.push(rec);
       if (!totals[server]) totals[server] = { server: server, credited: 0, amount: 0, count: 0, people: 0 };
+      // ★ 아직 금액이 안 정해진 건은 누적에 넣지 않는다 — 넣으면 0원짜리가 건수만 부풀린다
+      if (!rec.done) return;
       totals[server].credited += rec.credited;
       totals[server].amount += rec.amount;
       totals[server].people += rec.people;
@@ -4385,24 +4433,29 @@ function api_getAlliance() {
     });
   }
 
+  const waiting = rows.filter(function (r) { return !r.done; });
   return {
     rows: rows.reverse(),
+    waiting: waiting.reverse(),
     totals: SERVER_LIST.map(function (s) { return totals[s]; }),
     serverList: SERVER_LIST,
     unit: UNIT
   };
 }
 
-function api_addAlliance(server, item, amount, pct, people, photoLink, email) {
+/**
+ * ① 연합 등록 (v10.3) — 서버·아이템명·인증샷(인원수)까지만.
+ *
+ * 금액은 받지 않는다. 레이드 직후엔 아직 안 팔렸으므로 모르는 것이 정상이고,
+ * 그때 금액을 요구하면 등록 자체가 미뤄져 인증샷을 잃어버린다.
+ * 혈맹 아이템 등록(_registerCore)과 같은 순서다.
+ */
+function api_addAlliance(server, item, people, photoLink, email) {
   server = String(server || '').trim();
   item = String(item || '').trim();
   if (SERVER_LIST.indexOf(server) < 0) return _rc({ ok: false, msg: '서버를 01~12 중에서 선택해주세요.' }, 'e.badServer');
   if (!item) return _rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
 
-  const amt = Number(String(amount).replace(/,/g, ''));
-  if (!amt || amt <= 0 || amt !== Math.floor(amt)) return _rc({ ok: false, msg: '금액은 양의 정수여야 합니다.' }, 'e.badAmount');
-
-  const s = _calcAlliance(amt, pct);
   const n = Math.max(Math.floor(Number(people) || 0), 0);
 
   const lock = LockService.getScriptLock();
@@ -4413,12 +4466,60 @@ function api_addAlliance(server, item, amount, pct, people, photoLink, email) {
     const row = sheet.getLastRow() + 1;
     const actor = _getActorEmail(email);
     sheet.getRange(row, 1, 1, ALLIANCE_HEADERS.length)
-      .setValues([[new Date(), server, item, s.amount, s.pct, n, s.credited, '', actor]]);
-    sheet.getRange(row, 1).setNumberFormat('yyyy-mm-dd hh:mm');
-    sheet.getRange(row, 4, 1, 1).setNumberFormat('#,##0');
-    sheet.getRange(row, 7, 1, 1).setNumberFormat('#,##0');
-    if (photoLink) sheet.getRange(row, 8).setFormula('=HYPERLINK("' + photoLink + '","📷")');
-    _logAction(ss, '연합등록', item, actor,
+      .setValues([[new Date(), server, item, '', '', n, '', '', actor, ST_WAIT]]);
+    sheet.getRange(row, ALLY_COL.DATE).setNumberFormat('yyyy-mm-dd hh:mm');
+    sheet.getRange(row, ALLY_COL.AMOUNT).setNumberFormat('#,##0');
+    sheet.getRange(row, ALLY_COL.CREDITED).setNumberFormat('#,##0');
+    if (photoLink) sheet.getRange(row, ALLY_COL.PHOTO).setFormula('=HYPERLINK("' + photoLink + '","📷")');
+    _logAction(ss, '연합등록', item, actor, server + '서버 ' + n + '명 (' + ST_WAIT + ')');
+    return _rc({
+      ok: true, server: server, row: row, people: n,
+      msg: '✅ ' + server + '서버 "' + item + '" 등록 완료 (' + n + '명, ' + ST_WAIT + ')'
+    }, 'ally.regOk', { s: server, item: item, n: n });
+  } catch (e) {
+    return { ok: false, msg: '오류: ' + e.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * ② 연합 정산 (v10.3) — 등록해둔 건에 금액·비중을 넣어 서버에 누적한다.
+ * 이미 정산된 건은 거부한다 (두 번 누적되면 서버 총액이 틀어진다).
+ */
+function api_creditAlliance(row, amount, pct, email) {
+  row = Number(row);
+  const amt = Number(String(amount).replace(/,/g, ''));
+  if (!amt || amt <= 0 || amt !== Math.floor(amt)) return _rc({ ok: false, msg: '금액은 양의 정수여야 합니다.' }, 'e.badAmount');
+
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(15000); } catch (e) { return _rc({ ok: false, msg: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.' }, 'e.busy'); }
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(ALLIANCE_SHEET);
+    if (!sheet || row < 2 || row > sheet.getLastRow()) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+    _ensureAllianceHeaders(sheet);
+
+    const cur = sheet.getRange(row, 1, 1, ALLIANCE_HEADERS.length).getValues()[0];
+    const server = String(cur[ALLY_COL.SERVER - 1]).trim();
+    const item = String(cur[ALLY_COL.ITEM - 1]).trim();
+    if (!server) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+
+    const had = Number(String(cur[ALLY_COL.AMOUNT - 1]).replace(/,/g, '')) || 0;
+    const status = String(cur[ALLY_COL.STATUS - 1]).trim() || (had > 0 ? ST_DONE : ST_WAIT);
+    if (status === ST_DONE) {
+      return _rc({ ok: false, msg: '이미 정산된 건입니다. 새로고침해주세요.' }, 'e.allyDone', { item: item });
+    }
+
+    const s = _calcAlliance(amt, pct);
+    const n = Number(cur[ALLY_COL.PEOPLE - 1]) || 0;
+    const actor = _getActorEmail(email);
+    sheet.getRange(row, ALLY_COL.AMOUNT).setValue(s.amount);
+    sheet.getRange(row, ALLY_COL.PCT).setValue(s.pct);
+    sheet.getRange(row, ALLY_COL.CREDITED).setValue(s.credited);
+    sheet.getRange(row, ALLY_COL.STATUS).setValue(ST_DONE);
+    sheet.getRange(row, ALLY_COL.BY).setValue(actor);
+    _logAction(ss, '연합정산', item, actor,
       server + '서버 ' + s.amount.toLocaleString() + UNIT + ' × ' + s.pct + '% = ' + s.credited.toLocaleString() + ' (' + n + '명)');
     return _rc({
       ok: true, credited: s.credited, server: server,
@@ -4636,7 +4737,7 @@ const API_TOKEN_PROP = 'API_TOKEN';
 //     공지 여부(isNotice)만 관리자 라우트에서 넘어온다.
 const API_WRITE_ACTIONS = ['register', 'distribute', 'payout', 'rename', 'addMember', 'removeMember',
                            'correctItem', 'deleteItem', 'undoPayout', 'runTool',
-                           'deletePost', 'addAlliance', 'deleteAlliance', 'updateMember',
+                           'deletePost', 'addAlliance', 'creditAlliance', 'deleteAlliance', 'updateMember',
                            'setAppName', 'setAdminPin', 'setSeasonServer'];
 
 // 마스터관리자(개발자)만 부를 수 있는 작업 — Vercel 의 requireMaster 가 지킨다.
@@ -4857,7 +4958,10 @@ function _apiRoute(action, req) {
       return { ok: true, data: api_getAlliance() };
 
     case 'addAlliance':
-      return api_addAlliance(req.server, req.item, req.amount, req.pct, req.people, req.photoLink, req.email);
+      return api_addAlliance(req.server, req.item, req.people, req.photoLink, req.email);
+
+    case 'creditAlliance':
+      return api_creditAlliance(req.row, req.amount, req.pct, req.email);
 
     case 'deleteAlliance':
       return api_deleteAlliance(req.row, req.email);

@@ -111,6 +111,9 @@ export type AllianceRow = {
   people: number;
   credited: number;
   photo: string;
+  /** '⏳미분배' | '✅분배완료' — v10.2 이하 행은 금액 유무로 판정된다 */
+  status: string;
+  done: boolean;
 };
 
 export type AllianceTotal = {
@@ -123,6 +126,8 @@ export type AllianceTotal = {
 
 export type AllianceState = {
   rows: AllianceRow[];
+  /** 아직 금액이 안 정해진 등록 건 (서버별 누적에는 들어가지 않는다) */
+  waiting: AllianceRow[];
   totals: AllianceTotal[];
   serverList: string[];
   unit: string;

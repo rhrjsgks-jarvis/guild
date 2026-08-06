@@ -40,6 +40,7 @@ export type GasAction =
   | 'deletePost'
   | 'alliance'
   | 'addAlliance'
+  | 'creditAlliance'
   | 'deleteAlliance'
   | 'countPhoto'
   | 'updateMember'

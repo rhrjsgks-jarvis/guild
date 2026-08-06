@@ -244,7 +244,30 @@ const DICT: Record<string, Entry> = {
   /* ── 연합 ── */
   'ali.title': ['연합 정산', '联盟结算', 'Alliance ledger'],
   'ali.byServer': ['서버별 누적', '各服务器累计', 'Totals by server'],
-  'ali.records': ['🧾 등록 내역', '🧾 登记记录', '🧾 Entries'],
+  'ali.records': ['🧾 정산 완료', '🧾 已结算', '🧾 Settled'],
+  'ali.register': ['연합 등록 (사진)', '登记联盟（照片）', 'Register (photo)'],
+  'ali.registerSub': [
+    '서버·아이템명과 인증샷만 먼저 넣습니다. 금액은 팔린 뒤에 넣습니다.',
+    '先填服务器、物品名和截图。金额等卖出后再填。',
+    'Server, item name and the screenshot first. The amount comes after it sells.',
+  ],
+  'ali.registerHint': [
+    '혈맹 아이템과 같은 순서입니다 — 먼저 등록해두고, 팔린 뒤에 [금액 넣기]로 서버에 누적하세요.',
+    '与血盟物品流程相同 — 先登记，卖出后用[填入金额]累计到服务器。',
+    'Same flow as guild items — register now, then use [Enter amount] once it sells.',
+  ],
+  'ali.waitingSect': ['금액 대기 중', '待填金额', 'Awaiting amount'],
+  'ali.waitingEmpty': [
+    '금액을 기다리는 연합 건이 없습니다.',
+    '没有待填金额的联盟记录。',
+    'Nothing is waiting for an amount.',
+  ],
+  'ali.credit': ['금액 넣기', '填入金额', 'Enter amount'],
+  'ali.creditSub': [
+    '{s} 서버 · {n}명 — 금액을 넣으면 이 서버에 누적됩니다.',
+    '{s} 服 · {n}人 — 填入金额后累计到该服务器。',
+    'Server {s} · {n} people — the amount is credited to this server.',
+  ],
   'ali.add': ['연합 정산 등록', '登记联盟结算', 'Add alliance entry'],
   'ali.photoCount': ['인증샷으로 인원 세기', '用截图统计人数', 'Count people from a screenshot'],
   'ali.empty': ['등록된 연합 정산이 없습니다.', '暂无联盟结算记录。', 'No alliance entries yet.'],
@@ -650,6 +673,16 @@ const DICT: Record<string, Entry> = {
   's.post.ok': ['✅ 글을 등록했습니다.', '✅ 已发布。', '✅ Posted.'],
   's.post.noticeOk': ['✅ 공지를 등록했습니다.', '✅ 已发布公告。', '✅ Notice posted.'],
   's.post.delOk': ['✅ 삭제했습니다.', '✅ 已删除。', '✅ Deleted.'],
+  's.ally.regOk': [
+    '✅ {s}서버 "{item}" 등록 완료 ({n}명) — 팔린 뒤 금액을 넣어주세요.',
+    '✅ 已登记 {s} 服「{item}」（{n}人）— 卖出后请填入金额。',
+    '✅ Registered "{item}" on server {s} ({n} people) — add the amount once it sells.',
+  ],
+  's.e.allyDone': [
+    '"{item}" 은(는) 이미 정산된 건입니다. 새로고침해주세요.',
+    '「{item}」已结算，请刷新。',
+    '"{item}" is already settled. Refresh.',
+  ],
   's.ally.ok': [
     '✅ {s}서버에 {credited}다이아 누적했습니다 ({n}명 참여).',
     '✅ 已在 {s} 服累计 {credited}钻石（{n}人参与）。',

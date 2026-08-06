@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { BalanceRow, GuildState } from '@/lib/types';
-import { fmt } from '@/lib/client';
+import { fmt, normName, splitName } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
 export default function BalanceTab({
@@ -19,6 +19,16 @@ export default function BalanceTab({
   const [onlyOwed, setOnlyOwed] = useState(false);
 
   const u = unit(state.unit);
+
+  // 멤버DB F열의 서버 번호 — 이름만으로는 누가 어느 서버인지 알 수 없다
+  const serverOf = useMemo(() => {
+    const map = new Map<string, string>();
+    (state.memberInfo ?? []).forEach((m) => {
+      const sv = String(m.server ?? '').trim();
+      if (sv) map.set(normName(m.name), sv.padStart(2, '0'));
+    });
+    return map;
+  }, [state.memberInfo]);
 
   const { list, totalPending, totalPaid, owedCount } = useMemo(() => {
     let tp = 0;
@@ -97,7 +107,13 @@ export default function BalanceTab({
           list.map((r) => (
             <div className="row" key={r.name}>
               <div className="row-main">
-                <div className="row-name">{r.name}</div>
+                <div className="row-name">
+                  {serverOf.get(normName(r.name)) ? (
+                    <span className="svr">{serverOf.get(normName(r.name))}</span>
+                  ) : null}
+                  {splitName(r.name).main}
+                  {splitName(r.name).sub ? <span className="hanja">({splitName(r.name).sub})</span> : null}
+                </div>
                 <div className="row-sub">
                   {t('c.joined')} {t('c.times', { n: r.cnt })}
                 </div>

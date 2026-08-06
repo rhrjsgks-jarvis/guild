@@ -296,6 +296,29 @@ button {
   margin-top: 1px;
 }
 
+/* 잔액 목록의 서버 번호 (멤버DB F열).
+   같은 이름이 서버별로 여럿일 수 있어, 지급 전에 눈으로 가려낼 근거가 된다. */
+.row-name .svr {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 10.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  vertical-align: 1px;
+}
+
+/* 한자 병기는 본체보다 한 단계 조용하게 — 이름을 밀어내지 않도록 */
+.row-name .hanja {
+  margin-left: 4px;
+  color: var(--text-faint);
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .row-amt {
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -440,18 +463,43 @@ select:focus {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 11px 10px;
+  padding: 9px 10px;
   border: 1.5px solid var(--line);
   border-radius: 11px;
   background: var(--surface-2);
   font-size: 14px;
   min-width: 0;
+  /* 두 줄(국문 / 한문)이 들어가도 칩 높이가 들쭉날쭉하지 않게 */
+  min-height: 52px;
 }
 
-.mchip span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* 이름은 국문 위 · 한문 아래 두 줄.
+   글자 수에 따라 크기가 줄어들도록 font-size 는 인라인으로 계산해 넣는다
+   (lib/client.ts 의 fitFont). 잘린 이름은 다른 사람으로 오인되므로
+   ellipsis 로 뭉개지 않고 크기를 줄여서 끝까지 보여준다. */
+.mchip .nm {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+  line-height: 1.25;
+}
+
+.mchip .nm b {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.mchip .nm i {
+  font-style: normal;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+
+.mchip.sel .nm i {
+  color: var(--paid);
 }
 
 .mchip.sel {

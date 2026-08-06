@@ -121,6 +121,46 @@ export function withHanja(
   return hit?.hanja ? `${name} (${hit.hanja})` : name;
 }
 
+/**
+ * 표시용 이름을 국문·한문 두 줄로 쪼갠다.
+ *
+ * 멤버DB의 이름은 `잡이K (卡尔K)` 처럼 괄호 안에 한자 표기가 붙어 있다.
+ * 한 줄로 두면 좁은 화면에서 잘려서 정작 누구인지 알아볼 수 없다.
+ * 괄호가 없으면 두 번째 줄은 빈 문자열이다 — 절대 지어내지 않는다 (규칙 7).
+ */
+export function splitName(name: string): { main: string; sub: string } {
+  const m = String(name ?? '').match(/^\s*(.+?)\s*[（(]\s*([^）)]+?)\s*[）)]\s*$/);
+  if (!m) return { main: String(name ?? '').trim(), sub: '' };
+  // '(미등록)' 은 한자 표기가 아니라 상태 표시다 — 본체에 붙여둔다
+  if (m[2] === '미등록') return { main: String(name ?? '').trim(), sub: '' };
+  return { main: m[1], sub: m[2] };
+}
+
+/**
+ * 글자가 차지하는 **폭**을 재서 정한 글씨 크기(px).
+ *
+ * 칩 너비는 거의 고정인데 이름은 2자에서 12자까지 제각각이라, 한 크기로 두면
+ * 긴 이름이 잘린다. 잘린 이름은 다른 사람으로 오인돼 엉뚱한 사람이 참여자로
+ * 체크되므로 잘리게 두면 안 된다.
+ *
+ * 글자 **수**가 아니라 폭으로 재는 이유: 한글·한자는 라틴 문자보다 두 배 가까이
+ * 넓다. 개수로만 세면 `PlusS`(5자)와 `선륙소농포`(5자)를 같게 보는데, 실제로
+ * 뒤쪽이 1.8배 넓어서 그쪽만 잘린다.
+ *
+ * @param text 표시할 문자열
+ * @param base 짧은 이름에 쓸 크기
+ * @param min  이 아래로는 줄이지 않는다 (읽을 수 없어지므로)
+ * @param fits 이 폭(전각 글자 기준 개수)까지는 base 를 그대로 쓴다
+ */
+export function fitFont(text: string, base: number, min: number, fits = 4.6): number {
+  const width = [...String(text ?? '')].reduce((sum, ch) => {
+    // 한글·한자·가나·전각기호는 전각(1), 나머지는 대략 0.55
+    return sum + (/[\u1100-\u11ff\u2e80-\u9fff\uac00-\ud7af\uf900-\ufaff\uff00-\uff60]/.test(ch) ? 1 : 0.55);
+  }, 0);
+  if (width <= fits) return base;
+  return Math.round(Math.max((base * fits) / width, min) * 10) / 10;
+}
+
 /** 연합 적립액 — Apps Script 의 `_calcAlliance` 와 같은 산식 */
 export function calcAlliance(amount: number, pct: number) {
   const a = Math.floor(Number(amount) || 0);

@@ -11,7 +11,7 @@
 | 요청 예시 | 고칠 곳 | 배포 |
 |---|---|---|
 | "잔액 탭 정렬 바꿔줘", "버튼 색", "탭 추가" | `components/`, `app/globals.css` | push → Vercel 자동 (1~2분) |
-| "혈비 비율 바꿔줘", "분배 규칙", "새 시트 추가" | `apps-script/GuildManager_v10_2.gs` | **사용자가 직접** 붙여넣고 재배포 |
+| "혈비 비율 바꿔줘", "분배 규칙", "새 시트 추가" | `apps-script/GuildManager_v10_3.gs` | **사용자가 직접** 붙여넣고 재배포 |
 | "API에 기능 추가" | `.gs` 의 `_apiRoute` + `app/api/` | 양쪽 다 |
 
 > ⚠️ `.gs` 의 `_lookupHtml`(읽기 전용 비상 조회)은 사용자가 실제로 보는 앱이 **아닙니다.**

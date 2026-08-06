@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v10_2.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v10_3.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 const gs = readFileSync(GS_PATH, 'utf8');
@@ -896,6 +896,116 @@ check('앱이 실어 온 상태를 실제로 쓴다', () => {
   // 상태가 안 왔을 때의 물러설 길이 반드시 있어야 한다 (옛 버전 시트 대응)
   if (!/void refresh\(true\)/.test(app)) throw new Error('상태가 없을 때의 대비 경로가 없습니다.');
   return '시트 → 라우트 → 캐시 → 화면 전 구간 연결';
+});
+
+check('연합은 등록과 정산이 분리되어 있다', () => {
+  // 레이드 직후엔 아직 안 팔려서 금액을 모르는 것이 정상이다.
+  // 등록 단계에서 금액을 요구하면 등록 자체가 미뤄져 인증샷을 잃어버린다.
+  if (!/function api_addAlliance\(server, item, people, photoLink, email\)/.test(gs)) {
+    throw new Error('api_addAlliance 가 아직 금액을 받습니다 — 등록/정산이 분리되지 않았습니다.');
+  }
+  if (!/function api_creditAlliance\(row, amount, pct, email\)/.test(gs)) {
+    throw new Error('api_creditAlliance 가 없습니다.');
+  }
+
+  const add = (gs.match(/function api_addAlliance[\s\S]*?\n\}/) ?? [''])[0];
+  if (/_calcAlliance/.test(add)) throw new Error('등록 단계에서 적립액을 계산합니다 — 금액은 정산 단계의 몫입니다.');
+  if (!new RegExp("ST_WAIT").test(add)) throw new Error('등록 건이 ' + '대기 상태로 저장되지 않습니다.');
+
+  const credit = (gs.match(/function api_creditAlliance[\s\S]*?\n\}\n/) ?? [''])[0];
+  // 두 번 누적되면 서버 총액이 틀어진다
+  if (!/e\.allyDone/.test(credit)) throw new Error('이미 정산된 건을 다시 정산하는 것을 막지 않습니다.');
+  if (!/lock\.waitLock/.test(credit)) throw new Error('정산이 락 없이 실행됩니다.');
+
+  // 미정산 건이 서버별 누적에 섞이면 0원짜리가 건수만 부풀린다
+  const get = (gs.match(/function api_getAlliance[\s\S]*?\n\}\n/) ?? [''])[0];
+  if (!/if \(!rec\.done\) return;/.test(get)) {
+    throw new Error('미정산 건이 서버별 누적에서 제외되지 않습니다.');
+  }
+
+  // 라우터·쓰기목록에 새 액션이 등록됐는지
+  if (!/case 'creditAlliance':/.test(gs)) throw new Error('라우터에 creditAlliance 가 없습니다.');
+  if (!/'addAlliance', 'creditAlliance'/.test(gs)) throw new Error('creditAlliance 가 쓰기 액션 목록에 없습니다.');
+
+  // v10.2 이하 시트에는 '상태' 열이 없다 — 자동 보정 경로가 있어야 한다
+  if (!/function _ensureAllianceHeaders/.test(gs)) throw new Error('옛 연합 시트의 헤더 보정이 없습니다.');
+  return '등록(금액 없음) · 정산(락·중복거부) · 미정산 제외 · 옛 시트 보정';
+});
+
+check('이름은 두 줄로 나뉘고 글자 수에 맞춰 줄어든다', () => {
+  // 좁은 칩에서 이름이 잘리면 다른 사람으로 오인돼 엉뚱한 사람이 참여자로 체크된다.
+  const src = readFileSync(resolve(ROOT, 'lib/client.ts'), 'utf8');
+  const ctx = vm.createContext({});
+
+  /**
+   * 실제 소스를 그대로 실행하기 위해 시그니처의 타입만 벗긴다.
+   * 본문은 손대지 않는다 — 손대는 순간 "검사한 코드"가 진짜 코드가 아니게 된다.
+   */
+  const pick = (name) => {
+    const m = src.match(new RegExp(`export function ${name}[\\s\\S]*?\\n\\}`));
+    if (!m) throw new Error(`${name} 이(가) 없습니다.`);
+    const block = m[0];
+    const nl = block.indexOf('\n');
+    const sig = block.slice(0, nl);
+    const open = sig.indexOf('(');
+    let depth = 0;
+    let close = -1;
+    for (let i = open; i < sig.length; i++) {
+      if (sig[i] === '(') depth += 1;
+      else if (sig[i] === ')') { depth -= 1; if (depth === 0) { close = i; break; } }
+    }
+    const params = sig
+      .slice(open + 1, close)
+      .split(',')
+      .map((x) => x.trim())
+      .filter(Boolean)
+      // `len: number` → `len`,  `fitLen = 5` → `fitLen = 5` (기본값은 살린다)
+      .map((x) => (x.includes('=') ? x.replace(/:\s*[^=]+(?==)/, '') : x.replace(/:.*$/, '')).trim());
+    return `function ${name}(${params.join(', ')}) {` + block.slice(nl);
+  };
+  vm.runInContext(pick('splitName') + '\n' + pick('fitFont'), ctx);
+  const split = (n) => { ctx.__n = n; return vm.runInContext('splitName(__n)', ctx); };
+  const fit = (text, base, min) => {
+    ctx.__a = text; ctx.__b = base; ctx.__c = min;
+    return vm.runInContext('fitFont(__a, __b, __c)', ctx);
+  };
+
+  let r = split('잡이K (卡尔K)');
+  if (r.main !== '잡이K' || r.sub !== '卡尔K') throw new Error(`괄호 분리 실패: ${JSON.stringify(r)}`);
+  r = split('ChecK');
+  if (r.main !== 'ChecK' || r.sub !== '') throw new Error('괄호가 없으면 두 번째 줄은 비어야 합니다.');
+  // ★ '(미등록)' 은 한자 표기가 아니라 상태다 — 한자 줄로 올리면 안 된다
+  r = split('가이 (미등록)');
+  if (r.sub !== '') throw new Error("'(미등록)' 을 한자 표기로 오인합니다.");
+  // 없는 한자를 지어내면 엉뚱한 사람에게 다이아가 간다 (규칙 7)
+  r = split('선륙소농포 (鮮肉小籠包)');
+  if (r.sub !== '鮮肉小籠包') throw new Error('긴 한자 표기 분리 실패');
+
+  if (fit('가이', 14, 10) !== 14) throw new Error('짧은 이름인데 크기를 줄입니다.');
+  if (!(fit('선륙소농포', 14, 10) < 14)) throw new Error('긴 한글 이름의 크기가 그대로입니다.');
+  // ★ 글자 수가 아니라 폭으로 재야 한다 — 같은 5자라도 한글이 라틴보다 훨씬 넓다
+  if (fit('PlusS', 14, 10) !== 14) throw new Error('라틴 5자를 한글 5자와 같게 봅니다 (폭이 아니라 개수로 셈).');
+  if (!(fit('선륙소농포', 14, 10) < fit('PlusS', 14, 10))) throw new Error('한글이 라틴보다 넓게 계산되지 않습니다.');
+  if (fit('가'.repeat(40), 14, 10) < 10) throw new Error('최소 크기 아래로 줄어듭니다 — 읽을 수 없어집니다.');
+
+  const items = readFileSync(resolve(ROOT, 'components/ItemsTab.tsx'), 'utf8');
+  if (!/splitName\(m\)/.test(items) || !/fitFont\(/.test(items)) {
+    throw new Error('참여자 선택 칩이 두 줄 표기를 쓰지 않습니다.');
+  }
+  const css = readFileSync(resolve(ROOT, 'app/globals.css'), 'utf8');
+  if (!/\.mchip \.nm/.test(css)) throw new Error('두 줄 이름 스타일이 없습니다.');
+  return '괄호 분리 · (미등록) 예외 · 크기 축소 하한 · 칩 적용';
+});
+
+check('잔액 목록에 서버 번호가 보인다', () => {
+  const bal = readFileSync(resolve(ROOT, 'components/BalanceTab.tsx'), 'utf8');
+  if (!/memberInfo/.test(bal)) throw new Error('멤버DB의 서버 정보를 읽지 않습니다.');
+  if (!/className="svr"/.test(bal)) throw new Error('서버 배지를 그리지 않습니다.');
+  // 이름 비교는 반드시 정규화를 거쳐야 한다 (규칙 4)
+  if (!/normName\(/.test(bal)) throw new Error('이름을 _normName 없이 비교합니다.');
+  const css = readFileSync(resolve(ROOT, 'app/globals.css'), 'utf8');
+  if (!/\.row-name \.svr/.test(css)) throw new Error('서버 배지 스타일이 없습니다.');
+  return '멤버DB 서버 · 정규화 비교 · 배지 스타일';
 });
 
 check('새로고침 버튼이 화면에 있다', () => {

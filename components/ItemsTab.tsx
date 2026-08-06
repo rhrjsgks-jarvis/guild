@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import type { GuildState, LedgerItem, PhotoResult } from '@/lib/types';
-import { api, fmt, getStoredEmail } from '@/lib/client';
+import { api, fitFont, fmt, getStoredEmail, splitName } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 import LedgerCard from './LedgerCard';
@@ -267,12 +267,20 @@ export default function ItemsTab({
                 </button>
               </div>
               <div className="mgrid">
-                {selectable.map((m) => (
-                  <label key={m} className={'mchip' + (picked.has(m) ? ' sel' : '')}>
-                    <input type="checkbox" checked={picked.has(m)} onChange={() => toggle(m)} />
-                    <span>{m}</span>
-                  </label>
-                ))}
+                {selectable.map((m) => {
+                  // 국문 위 · 한문 아래. 잘린 이름은 다른 사람으로 오인돼
+                  // 엉뚱한 사람이 참여자로 체크되므로, 줄이더라도 끝까지 보여준다.
+                  const { main, sub } = splitName(m);
+                  return (
+                    <label key={m} className={'mchip' + (picked.has(m) ? ' sel' : '')}>
+                      <input type="checkbox" checked={picked.has(m)} onChange={() => toggle(m)} />
+                      <span className="nm">
+                        <b style={{ fontSize: fitFont(main, 14, 10) }}>{main}</b>
+                        {sub ? <i style={{ fontSize: fitFont(`(${sub})`, 12, 9) }}>({sub})</i> : null}
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
 

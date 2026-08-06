@@ -479,15 +479,15 @@ await t('쓰기 직후 조회(?fresh=1)는 캐시를 건너뛴다', async () => 
   const state = async (q = '') => (await (await fetch(`${APP}/api/state${q}`)).json()).data.version;
 
   await reset();
-  eq(await state(), '10.2', '첫 조회 버전');
+  eq(await state(), '10.3', '첫 조회 버전');
 
   await mock('__setVersion', { version: '9.9' });
-  eq(await state(), '10.2', '캐시된 조회 (시트가 바뀌어도 그대로여야 정상)');
+  eq(await state(), '10.3', '캐시된 조회 (시트가 바뀌어도 그대로여야 정상)');
   eq(await state('?fresh=1'), '9.9', 'fresh 조회 (캐시를 건너뛴 값)');
   // fresh 조회는 캐시도 새 값으로 갈아둔다 — 다음 사람이 낡은 값을 보지 않는다
   eq(await state(), '9.9', 'fresh 이후의 일반 조회');
 
-  await mock('__setVersion', { version: '10.2' });
+  await mock('__setVersion', { version: '10.3' });
 });
 
 await t('쓰기 응답이 최신 상태를 같이 실어 온다 (조회 왕복 없음)', async () => {
@@ -502,7 +502,7 @@ await t('쓰기 응답이 최신 상태를 같이 실어 온다 (조회 왕복 �
     throw new Error('실어 온 상태에 방금 등록한 아이템이 없습니다.');
   }
   eq(typeof body.state.season, 'number', '실어 온 상태의 시즌');
-  eq(body.state.version, '10.2', '실어 온 상태의 버전');
+  eq(body.state.version, '10.3', '실어 온 상태의 버전');
 
   // 그 값이 캐시에도 들어가 있어야 한다 — 다른 사람도 시트를 거치지 않고 받는다
   const shared = (await (await fetch(`${APP}/api/state`)).json()).data;
@@ -635,28 +635,70 @@ await t('연합: 조회는 누구나, 등록은 관리자만', async () => {
   eq((await post('/api/alliance', {})).status, 405, '연합 공개 라우트에는 쓰기가 없다');
 
   const add = await (
-    await post('/api/admin/alliance', { server: '05', item: '연합 보스', amount: 30000, pct: 40, people: 15 }, { Cookie: cookie })
+    await post('/api/admin/alliance', { op: 'register', server: '05', item: '연합 보스', people: 15 }, { Cookie: cookie })
   ).json();
   eq(add.ok, true, '등록 ok');
-  eq(add.credited, 12000, '적립액 = 30000 × 40%');
-
-  const after = (await (await fetch(`${APP}/api/alliance`)).json()).data;
-  const s05 = after.totals.find((x) => x.server === '05');
-  eq(s05.credited, 12000, '05서버 누적');
-  eq(s05.people, 15, '05서버 인원 합계');
 });
 
-await t('연합: 잘못된 서버·비중·금액은 거부된다', async () => {
-  const bad = [
-    { server: '13', item: 'x', amount: 100, pct: 50 },
-    { server: '05', item: '', amount: 100, pct: 50 },
-    { server: '05', item: 'x', amount: 0, pct: 50 },
-    { server: '05', item: 'x', amount: 100, pct: 0 },
-    { server: '05', item: 'x', amount: 100, pct: 101 },
+await t('연합: 등록은 금액 없이 되고, 누적에는 들어가지 않는다', async () => {
+  await reset();
+  const before = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
+  const s05before = before.totals.find((x) => x.server === '05');
+
+  // ① 등록 — 금액을 몰라도 인증샷과 함께 먼저 남길 수 있어야 한다
+  const reg = await (
+    await post('/api/admin/alliance', { op: 'register', server: '05', item: '연합 보스', people: 15 }, { Cookie: cookie })
+  ).json();
+  eq(reg.ok, true, '금액 없이 등록');
+
+  const mid = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
+  const waiting = mid.waiting.find((r) => r.item === '연합 보스');
+  if (!waiting) throw new Error('등록한 건이 대기 목록에 없습니다.');
+  eq(waiting.done, false, '대기 상태');
+
+  // ★ 금액이 없는 건은 서버별 누적에 섞이면 안 된다 (0원이 건수만 부풀린다)
+  const s05mid = mid.totals.find((x) => x.server === '05');
+  eq(s05mid.credited, s05before.credited, '미정산 건은 누적 금액에 없다');
+  eq(s05mid.count, s05before.count, '미정산 건은 건수에도 없다');
+
+  // ② 정산 — 이제 금액을 넣으면 누적된다
+  const cr = await (
+    await post('/api/admin/alliance', { op: 'credit', row: waiting.row, amount: 30000, pct: 40 }, { Cookie: cookie })
+  ).json();
+  eq(cr.ok, true, '정산 ok');
+  eq(cr.credited, 12000, '적립액 = 30000 × 40%');
+
+  const after = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
+  const s05 = after.totals.find((x) => x.server === '05');
+  eq(s05.credited, s05before.credited + 12000, '05서버 누적');
+  eq(s05.people, s05before.people + 15, '05서버 인원 합계');
+  if (after.waiting.some((r) => r.row === waiting.row)) throw new Error('정산 뒤에도 대기 목록에 남아 있습니다.');
+
+  // ★ 같은 건을 두 번 정산하면 서버 총액이 틀어진다 — 반드시 막혀야 한다
+  const twice = await post('/api/admin/alliance', { op: 'credit', row: waiting.row, amount: 30000, pct: 40 }, { Cookie: cookie });
+  eq(twice.status, 400, '이미 정산된 건 재정산');
+  const final = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
+  eq(final.totals.find((x) => x.server === '05').credited, s05.credited, '거부 후 누적이 그대로');
+});
+
+await t('연합: 잘못된 서버·아이템명·금액·비중은 거부된다', async () => {
+  const badReg = [
+    { op: 'register', server: '13', item: 'x' },
+    { op: 'register', server: '05', item: '' },
   ];
-  for (const b of bad) {
+  for (const b of badReg) {
     eq((await post('/api/admin/alliance', b, { Cookie: cookie })).status, 400, JSON.stringify(b));
   }
+  const badCredit = [
+    { op: 'credit', row: 2, amount: 0, pct: 50 },
+    { op: 'credit', row: 2, amount: 100, pct: 0 },
+    { op: 'credit', row: 2, amount: 100, pct: 101 },
+    { op: 'credit', row: 0, amount: 100, pct: 50 },
+  ];
+  for (const b of badCredit) {
+    eq((await post('/api/admin/alliance', b, { Cookie: cookie })).status, 400, JSON.stringify(b));
+  }
+  eq((await post('/api/admin/alliance', { op: '이상한거' }, { Cookie: cookie })).status, 400, '알 수 없는 op');
 });
 
 await t('아이디 변경 이력이 변경 전/후로 남는다', async () => {
@@ -847,6 +889,88 @@ await t('상단 시즌 칩으로 지난 시즌을 연다', async () => {
   await page.waitForTimeout(300);
 });
 
+await t('참여자 칩이 국문·한문 두 줄로 나오고 이름이 잘리지 않는다', async () => {
+  await reset();
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.locator('.nav button').filter({ hasText: /아이템/ }).click();
+  await page.waitForTimeout(600);
+
+  const chip = page.locator('.mchip').filter({ hasText: '잠단' }).first();
+  if (!(await chip.isVisible())) throw new Error('참여자 칩을 찾지 못했습니다.');
+  eq(await chip.locator('.nm b').innerText(), '잠단', '첫 줄 (국문)');
+  eq(await chip.locator('.nm i').innerText(), '(斬斷)', '둘째 줄 (한문)');
+
+  // ★ 잘린 이름은 다른 사람으로 오인돼 엉뚱한 사람이 참여자로 체크된다.
+  //   실제로 그려진 폭이 칩 안에 들어가는지 본다.
+  const fits = await page.evaluate(() => {
+    const bad = [];
+    document.querySelectorAll('.mchip .nm').forEach((nm) => {
+      nm.querySelectorAll('b, i').forEach((el) => {
+        if (el.scrollWidth > el.clientWidth + 1) bad.push(el.textContent);
+      });
+    });
+    return bad;
+  });
+  if (fits.length) throw new Error(`칩 안에서 잘린 이름: ${fits.slice(0, 5).join(', ')}`);
+
+  // 긴 이름은 짧은 이름보다 작은 글씨여야 한다 (자동 축소)
+  const sizes = await page.evaluate(() => {
+    const out = {};
+    document.querySelectorAll('.mchip .nm b').forEach((el) => {
+      out[el.textContent] = parseFloat(getComputedStyle(el).fontSize);
+    });
+    return out;
+  });
+  if (!(sizes['선륙소농포'] < sizes['가이'])) {
+    throw new Error(`긴 이름이 줄지 않았습니다: ${JSON.stringify(sizes)}`);
+  }
+  await shot('16-two-line-names');
+});
+
+await t('잔액 목록에 서버 번호가 붙는다', async () => {
+  await page.locator('.nav button').filter({ hasText: /잔액/ }).click();
+  await page.waitForTimeout(600);
+
+  // 모의 데이터에서 '가이' 는 01 서버, '대서과Z' 는 04 서버
+  const row = page.locator('.row').filter({ hasText: '가이' }).first();
+  eq(await row.locator('.row-name .svr').innerText(), '01', '가이의 서버');
+  const row2 = page.locator('.row').filter({ hasText: '대서과Z' }).first();
+  eq(await row2.locator('.row-name .svr').innerText(), '04', '대서과Z의 서버');
+
+  // 서버가 지정되지 않은 멤버에는 배지가 붙지 않아야 한다 (빈 배지는 오해를 만든다)
+  const noSvr = page.locator('.row').filter({ hasText: '향로셔틀' }).first();
+  eq(await noSvr.locator('.row-name .svr').count(), 0, '서버 미지정 멤버');
+  await shot('17-balance-server');
+});
+
+await t('연합: 사진 등록 → 나중에 금액 넣기 (화면 흐름)', async () => {
+  await reset();
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.locator('.nav button').filter({ hasText: /연합/ }).click();
+  await page.waitForTimeout(800);
+
+  // 모의 데이터에 금액 대기 건이 하나 있다
+  const waiting = page.locator('.card').filter({ hasText: '연합 레이드' }).first();
+  if (!(await waiting.isVisible())) throw new Error('금액 대기 목록이 보이지 않습니다.');
+
+  await page.getByRole('button', { name: '금액 넣기' }).first().click();
+  await page.waitForTimeout(400);
+  await page.locator('#cam').fill('50000');
+  await page.waitForTimeout(300);
+
+  // 미리보기 계산이 맞아야 한다 — 50,000 × 100% = 50,000
+  const calc = await page.locator('.sheet .calc').innerText();
+  if (!calc.includes('50,000')) throw new Error(`적립액 미리보기가 틀립니다:\n${calc}`);
+  await shot('18-alliance-credit');
+
+  await page.locator('.sheet-actions .btn.warn').click();
+  await page.waitForTimeout(1500);
+
+  // 정산이 끝나면 대기 목록에서 빠지고 서버 누적에 잡힌다
+  const body = await page.locator('main').innerText();
+  if (!body.includes('50,000')) throw new Error('정산 결과가 화면에 반영되지 않았습니다.');
+});
+
 await t('헤더의 새로고침 버튼이 보이고, 눌러서 최신 값을 받아온다', async () => {
   await reset();
   await page.reload({ waitUntil: 'networkidle' });
@@ -865,7 +989,7 @@ await t('헤더의 새로고침 버튼이 보이고, 눌러서 최신 값을 받
   if (!h1.includes('9.9')) throw new Error(`새로고침을 눌렀는데 최신 값이 아닙니다: ${h1}`);
   await shot('15-refresh');
 
-  await mock('__setVersion', { version: '10.2' });
+  await mock('__setVersion', { version: '10.3' });
   await btn.click();
   await page.waitForTimeout(1200);
 });
@@ -875,7 +999,7 @@ await t('제목 옆에 버전이 보이고, 시트가 옛 버전이면 경고가
   await page.reload({ waitUntil: 'networkidle' });
   const h1 = page.locator('.header h1');
   const same = await h1.innerText();
-  if (!same.includes('v10.2')) throw new Error(`제목 옆 버전이 없습니다: ${same}`);
+  if (!same.includes('v10.3')) throw new Error(`제목 옆 버전이 없습니다: ${same}`);
   if (same.includes('⚠️')) throw new Error(`버전이 같은데 경고가 떴습니다: ${same}`);
   await shot('09-version');
 
@@ -893,7 +1017,7 @@ await t('제목 옆에 버전이 보이고, 시트가 옛 버전이면 경고가
   if (!warned.includes('⚠️')) throw new Error(`경고 표시가 없습니다: ${warned}`);
   await shot('10-version-mismatch');
 
-  await mock('__setVersion', { version: '10.2' });
+  await mock('__setVersion', { version: '10.3' });
 });
 
 await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', async () => {
@@ -901,7 +1025,7 @@ await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', asyn
   await page.goto(APP, { waitUntil: 'networkidle' });
 
   // [관리] 탭 → 언어 → 中文
-  await page.locator('.nav button').filter({ hasText: /관리/ }).click();
+  await page.locator('.nav button').last().click();     // 관리 탭 (언어 무관)
   await page.waitForTimeout(400);
   await page.getByRole('button', { name: '中文' }).click();
   await page.waitForTimeout(400);
@@ -922,6 +1046,7 @@ await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', asyn
   const dataWords = ['가이', '잠단', '斬斷', 'TC무식', '향로셔틀', '대서과Z', '팩맨', '詹阿呆',
                      '유일배분', '혈맹운영비', 'PlusS', '기란 세금', '용의 심장', '고대의 검',
                      '지급된 아이템', '이번 주 공성 일정', '레이드 파티 구합니다', '군주', '연합 보스',
+                     '연합 레이드', '선륙소농포', '鮮肉小籠包',
                      '토요일', '오늘 밤', '미분배', '분배완료'];
   for (const [tab, zh] of [['余额', '余额'], ['物品', '物品'], ['公告板', '公告板'], ['联盟', '联盟'], ['我的', '我的']]) {
     await page.locator('.nav button').filter({ hasText: tab }).click();
@@ -937,7 +1062,7 @@ await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', asyn
   await shot('12-zh-admin');
 
   // 한국어로 되돌린다 (뒤에 오는 검사가 한글 화면을 기대한다)
-  await page.locator('.nav button').filter({ hasText: '管理' }).click();
+  await page.locator('.nav button').last().click();
   await page.waitForTimeout(400);
   await page.getByRole('button', { name: '한국어' }).click();
   await page.waitForTimeout(400);
@@ -947,7 +1072,7 @@ await t('English 로 바꾸면 화면 문구가 전부 영문이 된다', async 
   await reset();
   await page.goto(APP, { waitUntil: 'networkidle' });
 
-  await page.locator('.nav button').filter({ hasText: /관리/ }).click();
+  await page.locator('.nav button').last().click();     // 관리 탭 (언어 무관)
   await page.waitForTimeout(400);
   await page.getByRole('button', { name: 'English' }).click();
   await page.waitForTimeout(400);
@@ -965,6 +1090,7 @@ await t('English 로 바꾸면 화면 문구가 전부 영문이 된다', async 
   const dataWords = ['가이', '잠단', '斬斷', 'TC무식', '향로셔틀', '대서과Z', '팩맨', '詹阿呆',
                      '유일배분', '혈맹운영비', 'PlusS', '기란 세금', '용의 심장', '고대의 검',
                      '지급된 아이템', '이번 주 공성 일정', '레이드 파티 구합니다', '군주', '연합 보스',
+                     '연합 레이드', '선륙소농포', '鮮肉小籠包',
                      '토요일', '오늘 밤', '미분배', '분배완료'];
   for (const tab of ['Balance', 'Items', 'Board', 'Alliance', 'Me']) {
     await page.locator('.nav button').filter({ hasText: tab }).click();
@@ -984,7 +1110,7 @@ await t('English 로 바꾸면 화면 문구가 전부 영문이 된다', async 
   }
   await shot('14-en-admin');
 
-  await page.locator('.nav button').filter({ hasText: 'Admin' }).click();
+  await page.locator('.nav button').last().click();
   await page.waitForTimeout(400);
   await page.getByRole('button', { name: '한국어' }).click();
   await page.waitForTimeout(400);
@@ -994,7 +1120,7 @@ await t('서버 결과 메시지가 화면 언어로 나온다 (code + vars)', a
   // 시트는 한국어 msg + code/vars 만 보낸다. 화면 언어 문장은 앱이 조립한다.
   // 여기서 실패하면 사용자는 중문·영문 화면에서 한국어 토스트를 보게 된다.
   const setLang = async (label) => {
-    await page.locator('.nav button').filter({ hasText: /관리|管理|Admin/ }).click();
+    await page.locator('.nav button').last().click();   // 관리 탭 (언어 무관)
     await page.waitForTimeout(500);
     await page.getByRole('button', { name: label, exact: true }).click();
     await page.waitForTimeout(600);
