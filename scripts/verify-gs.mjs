@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v10_4.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v10_5.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 const gs = readFileSync(GS_PATH, 'utf8');
@@ -110,7 +110,7 @@ check('doGet 이 내주는 화면은 아무것도 바꿀 수 없다', () => {
     FUND_NAME: '유일배분(혈비)',
     FUND_RATE: 0.1,
     FUND_RATE_STR: '0.1',
-    MAX_MEMBERS: 50,
+    MAX_MEMBERS: 100,
     MEMBER_START_ROW: 5,
     PROTECT_MODE: 'warn',
   };
@@ -896,6 +896,51 @@ check('앱이 실어 온 상태를 실제로 쓴다', () => {
   // 상태가 안 왔을 때의 물러설 길이 반드시 있어야 한다 (옛 버전 시트 대응)
   if (!/void refresh\(true\)/.test(app)) throw new Error('상태가 없을 때의 대비 경로가 없습니다.');
   return '시트 → 라우트 → 캐시 → 화면 전 구간 연결';
+});
+
+check('정원을 올려도 옛 시트에서 터지지 않는다', () => {
+  // 상수만 올리면 50명 기준으로 만들어진 시트에 100행을 읽다가
+  // "범위가 시트를 벗어난다"며 터진다. 실제 시트를 쓰는 사용자가
+  // 붙여넣는 순간 조회조차 안 되므로 반드시 함께 처리해야 한다.
+  const cap = Number((gs.match(/const MAX_MEMBERS = (\d+)/) ?? [])[1] ?? 0);
+  if (cap < 1) throw new Error('MAX_MEMBERS 를 찾지 못했습니다.');
+
+  // ① 멤버 블록을 고정 크기로 읽는 곳이 남아 있으면 안 된다
+  const raw = [...gs.matchAll(/getRange\([^)]*MAX_MEMBERS[^)]*\)\.getValues\(\)/g)].map((m) => m[0]);
+  if (raw.length) {
+    throw new Error(`시트 크기를 확인하지 않고 읽는 곳이 ${raw.length}곳 있습니다: ${raw[0]}`);
+  }
+
+  // ② 행을 늘리는 경로가 있고, 진입점에서 불려야 한다
+  if (!/function _ensureRows/.test(gs)) throw new Error('_ensureRows 가 없습니다.');
+  if (!/function _ensureCapacity/.test(gs)) throw new Error('_ensureCapacity 가 없습니다.');
+  const doPost = (gs.match(/function doPost[\s\S]*?\n\}\n/) ?? [''])[0];
+  if (!/_ensureCapacity\(\)/.test(doPost)) throw new Error('doPost 가 행을 확보하지 않습니다.');
+  const onOpen = (gs.match(/function onOpen[\s\S]*?\n\}\n/) ?? [''])[0];
+  if (!/_ensureCapacity\(\)/.test(onOpen)) throw new Error('onOpen 이 행을 확보하지 않습니다.');
+
+  // ③ 클램프 읽기가 실제로 시트 크기를 넘지 않는지 — 함수를 직접 돌려본다
+  const ctx = vm.createContext({ MAX_MEMBERS: cap });
+  vm.runInContext((gs.match(/function _memberBlock[\s\S]*?\n\}/) ?? [''])[0], ctx);
+  const fake = (maxRows) => ({
+    getMaxRows: () => maxRows,
+    getRange: (start, col, n) => {
+      if (start + n - 1 > maxRows) throw new Error(`범위 초과: ${start}+${n} > ${maxRows}`);
+      return { getValues: () => Array.from({ length: n }, () => ['']) };
+    },
+  });
+  for (const rows of [1, 2, 51, 101, 1000]) {
+    ctx.__s = fake(rows);
+    const got = vm.runInContext('_memberBlock(__s, 2, 2, 1).length', ctx);
+    const want = Math.min(cap, Math.max(rows - 1, 0));
+    if (got !== want) throw new Error(`행 ${rows}개 시트에서 ${got}줄을 읽었습니다 (기대 ${want}).`);
+  }
+
+  // ④ 모의 시트도 같은 정원을 써야 E2E 가 의미가 있다
+  const mock = readFileSync(resolve(ROOT, 'scripts/mock-sheet.mjs'), 'utf8');
+  const mockCap = Number((mock.match(/const MAX_MEMBERS = (\d+)/) ?? [])[1] ?? 0);
+  if (mockCap !== cap) throw new Error(`모의 시트 정원이 다릅니다 (.gs ${cap} / mock ${mockCap}).`);
+  return `정원 ${cap}명 · 고정크기 읽기 0곳 · 진입점 2곳 · 클램프 5케이스`;
 });
 
 check('명단 일괄 추가: 판정은 쓰지 않고, 실행은 재확인을 거친다', () => {

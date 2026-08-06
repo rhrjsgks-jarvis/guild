@@ -21,10 +21,11 @@ const FUND_RATE = 0.1;
 const DEFAULT_WEIGHT = 100;
 const UNIT = '다이아';
 const SERVER_LIST = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+const MAX_MEMBERS = 100;   // .gs 의 MAX_MEMBERS 와 반드시 같아야 한다
 const ST_WAIT = '⏳미분배';
 const ST_DONE = '✅분배완료';
 // 앱이 기대하는 버전과 같은 값 — 화면에 "버전 불일치" 경고가 뜨지 않아야 정상이다
-let MOCK_GS_VERSION = '10.4';
+let MOCK_GS_VERSION = '10.5';
 
 /**
  * .gs 의 `_rc` 와 같은 모양으로 결과에 코드·값을 붙인다.
@@ -389,7 +390,7 @@ const handlers = {
     if (!nm) return rc({ ok: false, msg: '아이디를 입력해주세요.' }, 'e.nameEmpty');
     if (nm === FUND_NAME) return { ok: false, msg: '운영비 계정은 앱에서 추가할 수 없습니다.' };
     if (findRow(nm)) return rc({ ok: false, msg: `"${nm}" 은(는) 이미 명단에 있습니다.` }, 'e.dupMember', { name: nm });
-    if (S.rows.length >= 50) return { ok: false, msg: '멤버가 최대 인원(50명)에 도달했습니다.' };
+    if (S.rows.length >= MAX_MEMBERS) return rc({ ok: false, msg: `멤버가 최대 인원(${MAX_MEMBERS}명)에 도달했습니다.` }, 'e.maxMembers', { max: MAX_MEMBERS });
 
     S.rows.push({ name: nm, pending: 0, paid: 0, cnt: 0, weight: DEFAULT_WEIGHT, server: '', hanja: '' });
     return rc({ ok: true, msg: `✅ "${nm}" 을(를) 명단에 추가했습니다.` }, 'add.ok', { name: nm });
@@ -769,7 +770,7 @@ const handlers = {
     const c = (st) => rows.filter((r) => r.status === st).length;
     const summary = { total: rows.length, add: c('new'), rename: c('rename'), exists: c('exists'), dup: c('dup'), invalid: c('invalid') };
     return rc(
-      { ok: true, rows, summary, room: 50 - members.length, serverList: SERVER_LIST,
+      { ok: true, rows, summary, room: MAX_MEMBERS - members.length, serverList: SERVER_LIST,
         msg: `읽은 줄 ${summary.total} · 신규 ${summary.add} · 개명후보 ${summary.rename}` },
       'bulk.analyzed', summary,
     );
@@ -784,8 +785,8 @@ const handlers = {
     const adds = list.filter((e) => e.op === 'add');
     const renames = list.filter((e) => e.op === 'rename');
     const cur = S.rows.filter((r) => r.name !== FUND_NAME).length;
-    if (cur + adds.length > 50) {
-      return rc({ ok: false, msg: '정원을 넘습니다.' }, 'bulk.overCap', { cur, add: adds.length, max: 50 });
+    if (cur + adds.length > MAX_MEMBERS) {
+      return rc({ ok: false, msg: '정원을 넘습니다.' }, 'bulk.overCap', { cur, add: adds.length, max: MAX_MEMBERS });
     }
     // 되돌리기가 번거로운 작업이라 반드시 한 번 더 확인받는다
     if (confirm !== true) {
@@ -850,13 +851,13 @@ const handlers = {
   // 테스트가 매번 같은 상태에서 시작할 수 있도록
   __reset: () => {
     S = freshState();
-    MOCK_GS_VERSION = '10.4';
+    MOCK_GS_VERSION = '10.5';
     return { ok: true, msg: '초기화됨' };
   },
 
   // "시트만 옛 버전인" 상황을 만들어 보기 위한 것 (테스트 전용)
   __setVersion: ({ version }) => {
-    MOCK_GS_VERSION = String(version || '10.4');
+    MOCK_GS_VERSION = String(version || '10.5');
     return { ok: true, msg: '버전 ' + MOCK_GS_VERSION };
   },
 };

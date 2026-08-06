@@ -1,8 +1,20 @@
 // ═══════════════════════════════════════════════════════════════
-//  길드 정산 시스템 v10.4  (분배비중 · 연합 · 게시판 · 마스터관리자 · 3개국어)
+//  길드 정산 시스템 v10.5  (분배비중 · 연합 · 게시판 · 마스터관리자 · 3개국어)
 //  시트 구성: [사용안내] [멤버DB] [참여자현황] [분배대기중] [잔액현황]
 //            [지급기록] [연합] [게시판] [작업기록] + [시즌1] [시즌2] ...
 //            ← 이 순서로 항상 정렬됨
+// ═══════════════════════════════════════════════════════════════
+//  변경점 v10.4 → v10.5  (정원 50명 → 100명)
+//
+//   - ★ MAX_MEMBERS 50 → 100.
+//   - ★ 상수만 올리면 안 된다. 50명 기준으로 만들어진 시트에 100행을 읽으면
+//       "범위가 시트를 벗어난다"며 터져서 조회조차 안 된다. 그래서 함께 넣었다:
+//         · `_ensureCapacity()` — 멤버DB · 참여자현황 · 잔액현황의 행을 자동으로 늘린다.
+//           doPost 와 onOpen 양쪽에서 부른다 (앱으로 들어오든 PC 로 열든 지나가는 길목).
+//           이미 충분하면 아무 일도 하지 않는다.
+//         · `_memberBlock()` — 멤버 블록은 **시트에 실제로 있는 만큼만** 읽는다.
+//           행 늘리기가 실패해도(시트 보호 등) 읽기가 통째로 터지지 않는다.
+//   - 붙여넣고 저장하면 다음 요청 때 시트가 알아서 늘어난다. 따로 할 일은 없다.
 // ═══════════════════════════════════════════════════════════════
 //  변경점 v10.3 → v10.4  (명단 일괄 추가 + 오류 검증)
 //
@@ -406,13 +418,60 @@
 //     '누적기록'을 그대로 찾음 (하위 호환, 리네이밍과 무관)
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION = '10.4';
+const VERSION = '10.5';
 const T2S_MAP = {'國':'国','學':'学','這':'这','個':'个','們':'们','說':'说','話':'话','對':'对','時':'时','間':'间','現':'现','場':'场','開':'开','關':'关','內':'内','東':'东','車':'车','馬':'马','龍':'龙','風':'风','陽':'阳','陰':'阴','電':'电','語':'语','讀':'读','寫':'写','書':'书','紙':'纸','筆':'笔','長':'长','門':'门','問':'问','聽':'听','見':'见','覺':'觉','讓':'让','誰':'谁','還':'还','進':'进','運':'运','動':'动','靜':'静','樂':'乐','藥':'药','華':'华','蘭':'兰','葉':'叶','黃':'黄','麗':'丽','寶':'宝','貴':'贵','財':'财','買':'买','賣':'卖','錢':'钱','銀':'银','鐵':'铁','鋼':'钢','陳':'陈','劉':'刘','張':'张','楊':'杨','蔣':'蒋','鄭':'郑','謝':'谢','呂':'吕','蘇':'苏','韓':'韩','馮':'冯','於':'于','鳳':'凤','雲':'云','劍':'剑','斷':'断','亂':'乱','愛':'爱','聲':'声','醫':'医','藝':'艺','頭':'头','臉':'脸','腳':'脚','氣':'气','樓':'楼','橋':'桥','飛':'飞','機':'机','網':'网','線':'线','條':'条','裡':'里','邊':'边','錯':'错','壞':'坏','舊':'旧','寬':'宽','淺':'浅','週':'周','節':'节','業':'业','後':'后','來':'来','終':'终','結':'结','敗':'败','勝':'胜','負':'负','輸':'输','贏':'赢','強':'强','難':'难','簡':'简','單':'单','複':'复','雜':'杂','純':'纯','淨':'净','髒':'脏','齊':'齐','穩':'稳','變':'变','轉':'转','換':'换','顯':'显','樣':'样','種':'种','類':'类','團':'团','體':'体','統':'统','織':'织','組':'组','構':'构','設':'设','計':'计','劃':'划','數':'数','課':'课','題':'题','試':'试','練':'练','習':'习','師':'师','員':'员','職':'职','務':'务','責':'责','權':'权','應':'应','該':'该','須':'须','願':'愿','夢':'梦','憶':'忆','識':'识','認':'认','歡':'欢','醜':'丑','帥':'帅','靈':'灵','獸':'兽','鷹':'鹰','鶴':'鹤','鴻':'鸿','鱷':'鳄','鯨':'鲸','鯊':'鲨','蝦':'虾','殼':'壳','冑':'胄','戰':'战','爭':'争','鬥':'斗','擊':'击','禦':'御','護':'护','衛':'卫','謀':'谋','陣':'阵','營':'营','軍':'军','隊':'队','將':'将','嬪':'嫔','宮':'宫','廟':'庙','觀':'观','閣':'阁','蓮':'莲','楓':'枫','樺':'桦','檜':'桧','樹':'树','實':'实','幹':'干','莖':'茎','穫':'获','採':'采','鮮':'鲜','籠':'笼','傷':'伤','殺':'杀','斬':'斩','豬':'猪','雞':'鸡','鴨':'鸭','鵝':'鹅','龜':'龟','蟬':'蝉','蟻':'蚁','螞':'蚂','鴉':'鸦','鵰':'雕','鴛':'鸳','鴦':'鸯','賽':'赛','廠':'厂','廣':'广','麼':'么','誒':'诶','歲':'岁','歷':'历','歸':'归','殘':'残','蟲':'虫','貓':'猫','氈':'毡','貫':'贯','質':'质','貨':'货','貼':'贴','費':'费','資':'资','賬':'账','賺':'赚','贈':'赠','賀':'贺','賢':'贤','賦':'赋','賤':'贱','賓':'宾','賴':'赖','齲':'龋','齒':'齿','龄':'齡','齡':'龄','齣':'出','岡':'冈','剛':'刚','剮':'剐','創':'创','劇':'剧','勵':'励','勸':'劝','勻':'匀','匯':'汇','醬':'酱','醞':'酝','釀':'酿','釋':'释','釘':'钉','針':'针','釣':'钓','鈍':'钝','鈴':'铃','鈔':'钞','鉛':'铅','鋸':'锯','鋒':'锋','鍵':'键','鎖':'锁','鑄':'铸','鑼':'锣','錶':'表','鐘':'钟','鏡':'镜','鑽':'钻','鑑':'鉴','閉':'闭','閃':'闪','閏':'闰','閱':'阅','闆':'板','闖':'闯','陸':'陆','隱':'隐','雖':'虽','雙':'双','雛':'雏','靂':'雳','韋':'韦','韌':'韧','頁':'页','頂':'顶','項':'项','順':'顺','頌':'颂','預':'预','頑':'顽','頒':'颁','頗':'颇','領':'领','頡':'颉','頜':'颌','頸':'颈','頻':'频','頹':'颓','顆':'颗','額':'额','顏':'颜','顛':'颠','顧':'顾','飄':'飘','饑':'饥','餃':'饺','餅':'饼','館':'馆','饒':'饶','饞':'馋','馳':'驰','駕':'驾','駛':'驶','駐':'驻','駱':'骆','駭':'骇','騎':'骑','騰':'腾','驅':'驱','驚':'惊','驕':'骄','驗':'验','骯':'肮','髮':'发','鬍':'胡','鬧':'闹','鮑':'鲍','鯉':'鲤','鰲':'鳌','鱉':'鳖','鳥':'鸟','鳴':'鸣','鹹':'咸','麥':'麦','麵':'面','黨':'党'};  // 번체→간체 상용한자 (서체 변환 전용, 다른 뜻 글자는 포함하지 않음)
 const UNIT = '다이아';                 // 재화 단위 표기
-const MAX_MEMBERS = 50;               // 최대 멤버 수
+const MAX_MEMBERS = 100;              // 최대 멤버 수 (v10.5: 50 → 100)
 const INPUT_SHEET = '참여자현황';       // 아이템 등록 시트 (구 입금입력)
 const LEDGER_SHEET = '분배대기중';      // 아이템 파이프라인 시트 (구 누적기록)
 const MEMBER_START_ROW = 5;           // 참여자현황: 멤버 목록 시작 행
+
+/**
+ * 시트에 필요한 만큼 행을 확보한다 (v10.5).
+ *
+ * MAX_MEMBERS 를 올리는 것만으로는 부족하다. 50명 기준으로 만들어진 시트에
+ * `getRange(2, 2, 100, 1)` 을 걸면 "범위가 시트를 벗어난다"며 터진다.
+ * 이미 충분하면 아무것도 하지 않는다 (읽기 한 번뿐이라 비용이 없다).
+ */
+function _ensureRows(sheet, needed) {
+  if (!sheet) return;
+  const have = sheet.getMaxRows();
+  if (have >= needed) return;
+  sheet.insertRowsAfter(have, needed - have);
+}
+
+/**
+ * 멤버 수에 관련된 시트들의 행을 한 번에 맞춘다.
+ *
+ * 정원을 올린 뒤 **아무 작업이나 하기 전에** 불려야 한다. 그래서 doPost 와
+ * onOpen 양쪽에서 부른다 — 앱으로 들어오든 PC 로 열든 지나가는 길목이다.
+ * 여기서 실패해도 정산 자체를 막지는 않는다 (아직 50명이면 옛 크기로도 돈다).
+ */
+/**
+ * 멤버 블록을 **시트에 실제로 있는 만큼만** 읽는다.
+ *
+ * _ensureCapacity 가 행을 늘려주지만, 시트가 보호돼 있거나 권한 문제로
+ * 실패할 수 있다. 그때 읽기가 통째로 터지면 조회조차 안 된다 —
+ * 있는 만큼 읽고 넘어가는 편이 항상 낫다.
+ */
+function _memberBlock(sheet, startRow, col, numCols) {
+  if (!sheet) return [];
+  const n = Math.min(MAX_MEMBERS, Math.max(sheet.getMaxRows() - startRow + 1, 0));
+  if (n <= 0) return [];
+  return sheet.getRange(startRow, col, n, numCols).getValues();
+}
+
+function _ensureCapacity(ss) {
+  try {
+    ss = ss || SpreadsheetApp.getActiveSpreadsheet();
+    _ensureRows(ss.getSheetByName('멤버DB'), MAX_MEMBERS + 1);
+    _ensureRows(ss.getSheetByName(INPUT_SHEET), MEMBER_START_ROW + MAX_MEMBERS + 1);
+    // 잔액현황은 '(미등록)' 보존 행과 합계 행이 더 붙는다
+    _ensureRows(ss.getSheetByName('잔액현황'), MAX_MEMBERS + 30);
+  } catch (err) {
+    // 무시한다 — 행이 모자라면 아래 읽기가 알아서 있는 만큼만 읽는다
+  }
+}
 const FUND_NAME = '혈맹운영비';         // 운영비 적립 계정명 (멤버DB 표기와 정확히 일치해야 함)
 const FUND_NAME_LEGACY = ['유일배분(혈비)', '유일배분'];  // v9 이하 계정명 — 자동 개칭 대상
 // v10.0: REMAINDER_NAME 폐지. 1/N 나머지와 비중 미달분은 전액 FUND_NAME 으로 귀속된다.
@@ -902,6 +961,7 @@ function _undoPayoutCore(ss, email) {
 
 function onOpen() {
   _ensureAuditLogExists();   // ★ 매번 파일을 열 때마다 영구 로그 시트 존재를 확인·자동 복구
+  _ensureCapacity();         // 정원(MAX_MEMBERS)에 맞춰 시트 행을 확보
   SpreadsheetApp.getUi()
     .createMenu('🎮 길드정산')
     // ── 일상 사용 ──
@@ -1066,7 +1126,7 @@ function seasonEnd(opts) {
       input.getRange('B1').clearContent();
       input.getRange('B2').clearContent();
       input.getRange('B6').clearContent();
-      const names = input.getRange(MEMBER_START_ROW, 1, MAX_MEMBERS, 1).getValues();
+      const names = _memberBlock(input, MEMBER_START_ROW, 1, 1);
       let last = -1;
       names.forEach((r, i) => { if (String(r[0]).trim()) last = i; });
       if (last >= 0) input.getRange(MEMBER_START_ROW, 2, last + 1, 1).setValue(false);
@@ -1549,7 +1609,7 @@ function _renameCore(ss, oldName, newName, email) {
   const db = ss.getSheetByName('멤버DB');
   let found = false;
   if (db) {
-    const vals = db.getRange(2, 2, MAX_MEMBERS, 1).getValues();
+    const vals = _memberBlock(db, 2, 2, 1);
     vals.forEach((r, i) => {
       if (_normName(r[0]) === _normName(oldName)) {
         db.getRange(i + 2, 2).setValue(newName);
@@ -1822,7 +1882,7 @@ function _syncMembers(ss) {
   // ── 참여자현황 동기화 ──
   const input = ss.getSheetByName(INPUT_SHEET);
   if (input) {
-    const existVals = input.getRange(MEMBER_START_ROW, 1, MAX_MEMBERS, 1).getValues();
+    const existVals = _memberBlock(input, MEMBER_START_ROW, 1, 1);
     const existing = [];
     existVals.forEach(r => { const nm = String(r[0]).trim(); if (nm) existing.push(nm); });
 
@@ -1893,7 +1953,10 @@ function _coreName(s) {
 function _getMembers(ss) {
   const db = ss.getSheetByName('멤버DB');
   if (!db) return [];
-  const vals = db.getRange(2, 2, MAX_MEMBERS, 1).getValues(); // B2:B51
+  // 시트에 있는 만큼만 읽는다 — 행 확보가 늦어도 여기서 터지지 않도록
+  const rows = Math.min(MAX_MEMBERS, Math.max(db.getMaxRows() - 1, 0));
+  if (rows <= 0) return [];
+  const vals = db.getRange(2, 2, rows, 1).getValues();
   const members = [];
   vals.forEach(r => {
     const name = String(r[0]).trim();
@@ -1909,7 +1972,9 @@ function _getMembers(ss) {
 function _getMemberRows(ss) {
   const db = ss.getSheetByName('멤버DB');
   if (!db) return [];
-  const vals = db.getRange(2, MEM_COL.NAME, MAX_MEMBERS, MEM_COL.HANJA - MEM_COL.NAME + 1).getValues();
+  const rows = Math.min(MAX_MEMBERS, Math.max(db.getMaxRows() - 1, 0));
+  if (rows <= 0) return [];
+  const vals = db.getRange(2, MEM_COL.NAME, rows, MEM_COL.HANJA - MEM_COL.NAME + 1).getValues();
   const out = [];
   vals.forEach(function (r, i) {
     const name = String(r[0]).trim();
@@ -2553,7 +2618,7 @@ function _getDisplayNameMap(ss) {
   const db = ss.getSheetByName('멤버DB');
   const map = {};
   if (!db) return map;
-  const vals = db.getRange(2, 2, MAX_MEMBERS, 3).getValues(); // B,C,D
+  const vals = _memberBlock(db, 2, 2, 3); // B,C,D
   vals.forEach(r => {
     const name = String(r[0]).trim();
     const disp = String(r[2]).trim();
@@ -2745,7 +2810,7 @@ function registerItem() {
   const photoLink = inputSheet.getRange('B2').getDisplayValue().trim();
   if (!itemName) { ui.alert('⚠️ 아이템명을 입력해주세요.'); return; }
 
-  const checkData = inputSheet.getRange(MEMBER_START_ROW, 1, MAX_MEMBERS, 2).getValues();
+  const checkData = _memberBlock(inputSheet, MEMBER_START_ROW, 1, 2);
   const participants = [];
   checkData.forEach(row => {
     const nm = String(row[0]).trim();
@@ -3523,7 +3588,7 @@ function api_addMember(name, email) {
 
   try {
     // B2:B51 에서 첫 빈 칸을 찾아 넣는다 (중간에 빈 줄이 있어도 메꿔진다)
-    const vals = db.getRange(2, 2, MAX_MEMBERS, 1).getValues();
+    const vals = _memberBlock(db, 2, 2, 1);
     let slot = -1;
     for (let i = 0; i < vals.length; i++) {
       if (!String(vals[i][0]).trim()) { slot = i + 2; break; }
@@ -3594,7 +3659,7 @@ function api_removeMember(name, email, confirmRemove) {
     // ① 멤버DB 에서 제거
     const db = ss.getSheetByName('멤버DB');
     if (db) {
-      const vals = db.getRange(2, 2, MAX_MEMBERS, 1).getValues();
+      const vals = _memberBlock(db, 2, 2, 1);
       vals.forEach(function (r, i) {
         if (_normName(r[0]) === _normName(name)) db.getRange(i + 2, 2).clearContent();
       });
@@ -4880,7 +4945,7 @@ function api_bulkAddMembers(entries, server, email, confirm) {
       if (cur.some(function (m) { return _normName(m) === _normName(name); })) {
         throw new Error('이미 명단에 있습니다');
       }
-      const vals = db.getRange(2, MEM_COL.NAME, MAX_MEMBERS, 1).getValues();
+      const vals = _memberBlock(db, 2, MEM_COL.NAME, 1);
       let slot = -1;
       for (let i = 0; i < vals.length; i++) {
         if (!String(vals[i][0]).trim()) { slot = i + 2; break; }
@@ -5120,6 +5185,9 @@ function doPost(e) {
   if (!_tokenEq(String(req.token || ''), expected)) {
     return _jsonOut({ ok: false, code: 'e.auth', msg: '인증에 실패했습니다.' });
   }
+
+  // 정원을 올린 뒤 첫 요청에서 시트 행을 맞춘다 (이미 충분하면 아무 일도 안 한다)
+  _ensureCapacity();
 
   const action = String(req.action || '');
   const needsLock = API_WRITE_ACTIONS.indexOf(action) >= 0;
