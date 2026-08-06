@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Sheet from './Sheet';
 import type { AllianceRow, AllianceState } from '@/lib/types';
-import { api, calcAlliance, fmt, getStoredEmail } from '@/lib/client';
+import { api, calcAlliance, fmt, getStoredEmail, prepPhoto } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
@@ -251,12 +251,14 @@ function RegisterSheet({
   async function pickPhoto(file: File) {
     setBusy(true);
     setPhotoMsg('');
-    const base64 = await new Promise<string>((resolve) => {
-      const fr = new FileReader();
-      fr.onload = () => resolve(String(fr.result).split(',')[1] ?? '');
-      fr.readAsDataURL(file);
-    });
-    const res = await api('/api/admin/alliance-photo', { base64 });
+    // 원본을 그대로 보내면 요청이 비대해지고 OCR 도 더 못 읽는다
+    const jpeg = await prepPhoto(file);
+    if (!jpeg) {
+      setBusy(false);
+      toast(t('items.formatFailed'), true);
+      return;
+    }
+    const res = await api('/api/admin/alliance-photo', { base64: jpeg.split(',')[1] ?? '' });
     setBusy(false);
     if (res.ok) {
       setPeople(String(res.people ?? 0));

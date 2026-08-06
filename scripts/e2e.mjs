@@ -479,15 +479,15 @@ await t('쓰기 직후 조회(?fresh=1)는 캐시를 건너뛴다', async () => 
   const state = async (q = '') => (await (await fetch(`${APP}/api/state${q}`)).json()).data.version;
 
   await reset();
-  eq(await state(), '10.5', '첫 조회 버전');
+  eq(await state(), '10.6', '첫 조회 버전');
 
   await mock('__setVersion', { version: '9.9' });
-  eq(await state(), '10.5', '캐시된 조회 (시트가 바뀌어도 그대로여야 정상)');
+  eq(await state(), '10.6', '캐시된 조회 (시트가 바뀌어도 그대로여야 정상)');
   eq(await state('?fresh=1'), '9.9', 'fresh 조회 (캐시를 건너뛴 값)');
   // fresh 조회는 캐시도 새 값으로 갈아둔다 — 다음 사람이 낡은 값을 보지 않는다
   eq(await state(), '9.9', 'fresh 이후의 일반 조회');
 
-  await mock('__setVersion', { version: '10.5' });
+  await mock('__setVersion', { version: '10.6' });
 });
 
 await t('쓰기 응답이 최신 상태를 같이 실어 온다 (조회 왕복 없음)', async () => {
@@ -502,7 +502,7 @@ await t('쓰기 응답이 최신 상태를 같이 실어 온다 (조회 왕복 �
     throw new Error('실어 온 상태에 방금 등록한 아이템이 없습니다.');
   }
   eq(typeof body.state.season, 'number', '실어 온 상태의 시즌');
-  eq(body.state.version, '10.5', '실어 온 상태의 버전');
+  eq(body.state.version, '10.6', '실어 온 상태의 버전');
 
   // 그 값이 캐시에도 들어가 있어야 한다 — 다른 사람도 시트를 거치지 않고 받는다
   const shared = (await (await fetch(`${APP}/api/state`)).json()).data;
@@ -778,6 +778,52 @@ await t('명단 일괄 추가: 추가는 새로, 개명은 잔액을 승계한�
   eq(roster.find((m) => m.name === '새사람A').server, '07', '신규의 서버');
   eq(roster.find((m) => m.name === '대서과ZZ').server, '07', '개명자의 서버');
   eq(roster.find((m) => m.name === '가이').server, '01', '건드리지 않은 멤버의 서버');
+});
+
+await t('명단 일괄 추가: 전혀 다른 이름도 개명으로 이어붙일 수 있다', async () => {
+  await reset();
+  // '테리' 는 기존 누구와도 안 닮았다 — 그래도 개명 대상은 고를 수 있어야 한다
+  const res = await (
+    await post('/api/admin/members-bulk', { op: 'analyze', text: '테리' }, { Cookie: cookie })
+  ).json();
+  eq(res.rows[0].status, 'new', '닮은 사람이 없으니 신규');
+  eq(res.rows[0].suggest.length, 0, '제안 없음');
+  // ★ 판정 결과에 전체 명단이 실려야 앱이 드롭다운을 만들 수 있다
+  if (!Array.isArray(res.roster) || res.roster.length < 5) {
+    throw new Error('전체 명단이 오지 않았습니다 — 개명 대상을 고를 수 없습니다.');
+  }
+  if (!res.roster.includes('향로셔틀')) throw new Error('명단에 기존 멤버가 빠져 있습니다.');
+
+  // 닮지 않은 사람으로 개명해도 잔액이 승계되어야 한다
+  const before = (await (await post('/api/lookup', { name: '가이' })).json()).data;
+  const apply = await (
+    await post('/api/admin/members-bulk',
+      { op: 'apply', entries: [{ name: '테리', op: 'rename', from: '가이' }], confirm: true },
+      { Cookie: cookie })
+  ).json();
+  eq(apply.ok, true, '개명 반영');
+  const after = (await (await post('/api/lookup', { name: '테리' })).json()).data;
+  eq(after.pending, before.pending, '분배전 승계');
+  eq(after.cnt, before.cnt, '참여횟수 승계');
+});
+
+await t('명단 일괄 추가: 한 아이디를 두 사람이 물려받을 수 없다', async () => {
+  await reset();
+  const entries = [
+    { name: '새이름A', op: 'rename', from: '가이' },
+    { name: '새이름B', op: 'rename', from: '가이' },   // 같은 사람을 또 지정
+  ];
+  const res = await post('/api/admin/members-bulk', { op: 'apply', entries, confirm: true }, { Cookie: cookie });
+  eq(res.status, 400, '중복 지정은 거부');
+
+  // ★ 거부됐으면 아무것도 바뀌지 않아야 한다 (앞쪽만 처리되면 안 된다)
+  eq((await (await post('/api/lookup', { name: '가이' })).json()).ok, true, '원래 이름 그대로');
+  eq((await (await post('/api/lookup', { name: '새이름A' })).json()).ok, false, '앞쪽도 반영 안 됨');
+
+  // 명단에 없는 아이디도 거부
+  const ghost = await post('/api/admin/members-bulk',
+    { op: 'apply', entries: [{ name: 'X', op: 'rename', from: '없는사람' }], confirm: true }, { Cookie: cookie });
+  eq(ghost.status, 400, '없는 아이디 지정');
 });
 
 await t('명단 일괄 추가: 잘못된 요청은 시트까지 가지 않는다', async () => {
@@ -1082,7 +1128,7 @@ await t('헤더의 새로고침 버튼이 보이고, 눌러서 최신 값을 받
   if (!h1.includes('9.9')) throw new Error(`새로고침을 눌렀는데 최신 값이 아닙니다: ${h1}`);
   await shot('15-refresh');
 
-  await mock('__setVersion', { version: '10.5' });
+  await mock('__setVersion', { version: '10.6' });
   await btn.click();
   await page.waitForTimeout(1200);
 });
@@ -1092,7 +1138,7 @@ await t('제목 옆에 버전이 보이고, 시트가 옛 버전이면 경고가
   await page.reload({ waitUntil: 'networkidle' });
   const h1 = page.locator('.header h1');
   const same = await h1.innerText();
-  if (!same.includes('v10.5')) throw new Error(`제목 옆 버전이 없습니다: ${same}`);
+  if (!same.includes('v10.6')) throw new Error(`제목 옆 버전이 없습니다: ${same}`);
   if (same.includes('⚠️')) throw new Error(`버전이 같은데 경고가 떴습니다: ${same}`);
   await shot('09-version');
 
@@ -1110,7 +1156,7 @@ await t('제목 옆에 버전이 보이고, 시트가 옛 버전이면 경고가
   if (!warned.includes('⚠️')) throw new Error(`경고 표시가 없습니다: ${warned}`);
   await shot('10-version-mismatch');
 
-  await mock('__setVersion', { version: '10.5' });
+  await mock('__setVersion', { version: '10.6' });
 });
 
 await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', async () => {

@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import Sheet from './Sheet';
-import { api, getStoredEmail, splitName } from '@/lib/client';
+import { api, getStoredEmail, prepPhoto, splitName } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
@@ -70,6 +70,10 @@ export default function BulkMemberSheet({
   const [text, setText] = useState('');
   const [rows, setRows] = useState<AnalyzedRow[] | null>(null);
   const [decisions, setDecisions] = useState<Decision[]>([]);
+  /** 시트에 현재 있는 전체 명단 — 개명 대상 드롭다운의 원본 */
+  const [roster, setRoster] = useState<string[]>([]);
+  const [ocrText, setOcrText] = useState('');
+  const [showOcr, setShowOcr] = useState(false);
   const [server, setServer] = useState('');
   const [room, setRoom] = useState<number | null>(null);
   const [note, setNote] = useState('');
@@ -87,6 +91,21 @@ export default function BulkMemberSheet({
 
   const overCapacity = room !== null && counts.add > room;
 
+  /**
+   * 이미 다른 줄이 물려받기로 한 아이디.
+   *
+   * 한 아이디를 두 사람이 물려받을 수는 없다 — 먼저 처리된 쪽만 잔액을
+   * 가져가고 뒤쪽은 조용히 실패한다. 그래서 아예 고를 수 없게 한다.
+   * (서버도 같은 검사를 한다. 앱은 고칠 수 있으므로 최종 판정은 서버가 한다.)
+   */
+  const takenBy = useMemo(() => {
+    const map = new Map<string, number>();
+    decisions.forEach((d, i) => {
+      if (d.op === 'rename' && d.from) map.set(d.from, i);
+    });
+    return map;
+  }, [decisions]);
+
   async function analyze(payload: { text?: string; base64?: string }) {
     setBusy(true);
     const res = await api('/api/admin/members-bulk', { op: 'analyze', ...payload });
@@ -96,20 +115,30 @@ export default function BulkMemberSheet({
       return;
     }
     const list = (res.rows ?? []) as AnalyzedRow[];
+    setOcrText(String(res.ocrPreview ?? ''));
+    if (list.length === 0) {
+      // 빈 표로 넘어가면 왜 안 됐는지 알 수 없다 — 입력 화면에 남아 이유를 보여준다
+      setNote(srv(res));
+      toast(srv(res), true);
+      return;
+    }
     setRows(list);
     setDecisions(list.map(defaultDecision));
+    setRoster((res.roster ?? []) as string[]);
     setRoom(typeof res.room === 'number' ? res.room : null);
     setNote(srv(res));
-    if (list.length === 0) toast(srv(res), true);
   }
 
   async function pickPhoto(file: File) {
-    const base64 = await new Promise<string>((resolve) => {
-      const fr = new FileReader();
-      fr.onload = () => resolve(String(fr.result).split(',')[1] ?? '');
-      fr.readAsDataURL(file);
-    });
-    await analyze({ base64 });
+    // 원본을 그대로 보내면 요청이 비대해지고 OCR 도 오히려 더 못 읽는다
+    setBusy(true);
+    const jpeg = await prepPhoto(file);
+    setBusy(false);
+    if (!jpeg) {
+      toast(t('items.formatFailed'), true);
+      return;
+    }
+    await analyze({ base64: jpeg.split(',')[1] ?? '' });
   }
 
   function setOp(i: number, op: Decision['op']) {
@@ -185,6 +214,37 @@ export default function BulkMemberSheet({
           />
           <p className="hint">{t('bulk.photoHint')}</p>
 
+          {/* 왜 안 읽혔는지를 그대로 보여준다. "글자를 못 읽었다"만으로는
+              관리자가 사진 탓인 줄 알고 계속 다시 찍게 된다. */}
+          {note ? (
+            <div className="note" style={{ marginTop: 10, whiteSpace: 'pre-wrap' }}>
+              {note}
+            </div>
+          ) : null}
+          {ocrText ? (
+            <>
+              <button
+                className="btn ghost block"
+                style={{ marginTop: 8, fontSize: 12, padding: '8px 11px' }}
+                onClick={() => setShowOcr((v) => !v)}
+              >
+                {showOcr ? t('items.ocrHide') : t('items.ocrShow')}
+              </button>
+              {showOcr ? (
+                <>
+                  <div className="ocr-raw">{ocrText}</div>
+                  <button
+                    className="btn ghost block"
+                    style={{ marginTop: 8, fontSize: 12, padding: '8px 11px' }}
+                    onClick={() => setText(ocrText)}
+                  >
+                    {t('bulk.useOcr')}
+                  </button>
+                </>
+              ) : null}
+            </>
+          ) : null}
+
           <div className="sheet-actions">
             <button className="btn ghost" onClick={onClose}>
               {t('c.cancel')}
@@ -227,10 +287,13 @@ export default function BulkMemberSheet({
 
                   <div className="bulk-ops">
                     {(['add', 'rename', 'skip'] as const).map((op) => {
-                      // 이미 있는 이름을 또 추가하면 중복 행이 생긴다
+                      // 이미 있는 이름을 또 추가하면 중복 행이 생긴다.
+                      // 개명은 상태와 무관하게 고를 수 있어야 한다 — 실제로는
+                      // 전혀 다른 이름으로 갈아타는 경우가 대부분이라, 후보가
+                      // 0명이라고 막아버리면 잔액이 승계되지 않는다.
                       const blocked =
                         (op === 'add' && (r.status === 'exists' || r.status === 'dup' || r.status === 'invalid')) ||
-                        (op === 'rename' && r.suggest.length === 0);
+                        (op === 'rename' && (r.status === 'exists' || r.status === 'dup' || roster.length === 0));
                       return (
                         <button
                           key={op}
@@ -245,19 +308,29 @@ export default function BulkMemberSheet({
                   </div>
 
                   {d.op === 'rename' ? (
-                    <select
-                      className="bulk-from"
-                      value={d.from}
-                      onChange={(e) => setFrom(i, e.target.value)}
-                      aria-label={t('bulk.fromLabel')}
-                    >
-                      <option value="">{t('bulk.fromPick')}</option>
-                      {r.suggest.map((sName) => (
-                        <option key={sName} value={sName}>
-                          {sName}
-                        </option>
-                      ))}
-                    </select>
+                    <>
+                      <select
+                        className={'bulk-from' + (d.from ? '' : ' need')}
+                        value={d.from}
+                        onChange={(e) => setFrom(i, e.target.value)}
+                        aria-label={t('bulk.fromLabel')}
+                      >
+                        <option value="">{t('bulk.fromPick')}</option>
+                        {/* 비슷해 보이는 사람을 위로 올려주되, 고를 수 있는 범위는 전체 명단이다 */}
+                        {[...r.suggest, ...roster.filter((n) => !r.suggest.includes(n))].map((sName) => {
+                          const owner = takenBy.get(sName);
+                          const taken = owner !== undefined && owner !== i;
+                          return (
+                            <option key={sName} value={sName} disabled={taken}>
+                              {sName}
+                              {r.suggest.includes(sName) ? ` ${t('bulk.suggestMark')}` : ''}
+                              {taken ? ` ${t('bulk.takenMark', { by: rows[owner]?.name ?? '' })}` : ''}
+                            </option>
+                          );
+                        })}
+                      </select>
+                      {!d.from ? <p className="bulk-warn">{t('bulk.pickRequired')}</p> : null}
+                    </>
                   ) : null}
                 </div>
               );

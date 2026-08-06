@@ -161,6 +161,56 @@ export function fitFont(text: string, base: number, min: number, fits = 4.6): nu
   return Math.round(Math.max((base * fits) / width, min) * 10) / 10;
 }
 
+/**
+ * 사진을 OCR 이 읽기 좋게 손본다 (v10.6).
+ *
+ * 폰 사진은 4,000px · 수 MB 라, 그대로 base64 로 보내면 요청이 비대해지고
+ * 구글 OCR 도 오히려 더 못 읽는다. 게임 스크린샷은 명암비가 낮아서
+ * 이 보정 없이는 줄을 통째로 놓친다 (v6.6 에서 실측으로 정한 값).
+ *
+ * 원래 아이템 탭에만 있던 처리인데, 명단 일괄 추가에서는 원본을 그대로
+ * 보내고 있어서 "글자를 못 읽는" 주된 원인이었다. 한 곳으로 모은다.
+ *
+ * @returns data URL (실패하면 빈 문자열)
+ */
+export async function prepPhoto(file: File, maxDim = 1600): Promise<string> {
+  const dataUrl = await new Promise<string>((resolve) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(String(fr.result));
+    fr.onerror = () => resolve('');
+    fr.readAsDataURL(file);
+  });
+  if (!dataUrl) return '';
+
+  const img = new Image();
+  img.src = dataUrl;
+  try {
+    await img.decode();
+  } catch {
+    return '';
+  }
+
+  let { width: w, height: h } = img;
+  if (w > maxDim || h > maxDim) {
+    const scale = maxDim / Math.max(w, h);
+    w = Math.round(w * scale);
+    h = Math.round(h * scale);
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return dataUrl; // 보정만 못 할 뿐, 원본이라도 보내는 편이 낫다
+  try {
+    ctx.filter = 'contrast(160%) brightness(112%) saturate(105%)';
+  } catch {
+    /* 미지원 브라우저는 원본 그대로 */
+  }
+  ctx.drawImage(img, 0, 0, w, h);
+  return canvas.toDataURL('image/jpeg', 0.82);
+}
+
 /** 연합 적립액 — Apps Script 의 `_calcAlliance` 와 같은 산식 */
 export function calcAlliance(amount: number, pct: number) {
   const a = Math.floor(Number(amount) || 0);

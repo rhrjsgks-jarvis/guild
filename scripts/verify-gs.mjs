@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v10_5.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v10_6.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 const gs = readFileSync(GS_PATH, 'utf8');
@@ -896,6 +896,69 @@ check('앱이 실어 온 상태를 실제로 쓴다', () => {
   // 상태가 안 왔을 때의 물러설 길이 반드시 있어야 한다 (옛 버전 시트 대응)
   if (!/void refresh\(true\)/.test(app)) throw new Error('상태가 없을 때의 대비 경로가 없습니다.');
   return '시트 → 라우트 → 캐시 → 화면 전 구간 연결';
+});
+
+check('개명 대상은 전체 명단에서 고르고, 한 명을 두 번 물려받을 수 없다', () => {
+  // 실제로는 전혀 다른 이름으로 갈아타는 경우가 대부분이다. 후보가 0명이라고
+  // 개명을 막으면 잔액·참여횟수·시즌기록이 승계되지 않고 0부터 다시 시작한다.
+  const analyze = (gs.match(/function api_analyzeMembers[\s\S]*?\n\}\n/) ?? [''])[0];
+  if (!/roster: roster/.test(analyze)) throw new Error('판정 결과에 전체 명단을 싣지 않습니다.');
+
+  const bulk = (gs.match(/function api_bulkAddMembers[\s\S]*?\n\}\n/) ?? [''])[0];
+  // ★ 한 아이디를 두 사람이 물려받으면 먼저 처리된 쪽만 잔액을 가져가고
+  //   뒤쪽은 조용히 실패한다 — 반드시 서버가 막아야 한다
+  if (!/bulk\.dupFrom/.test(bulk)) throw new Error('같은 아이디 중복 지정을 막지 않습니다.');
+  if (!/bulk\.noFrom/.test(bulk)) throw new Error('명단에 없는 아이디 지정을 막지 않습니다.');
+  // 두 검사 모두 실제 개명이 일어나기 전에 끝나야 한다
+  if (bulk.indexOf('bulk.dupFrom') > bulk.indexOf('_renameCore')) {
+    throw new Error('중복 검사가 개명 실행보다 뒤에 있습니다.');
+  }
+
+  const ui = readFileSync(resolve(ROOT, 'components/BulkMemberSheet.tsx'), 'utf8');
+  if (/op === 'rename' && r\.suggest\.length === 0/.test(ui)) {
+    throw new Error('후보가 없다고 개명 버튼을 막습니다.');
+  }
+  if (!/roster\.filter/.test(ui)) throw new Error('드롭다운이 전체 명단을 쓰지 않습니다.');
+  if (!/takenBy/.test(ui)) throw new Error('이미 선택된 아이디를 가려내지 않습니다.');
+  return '전체 명단 제공 · 중복/미존재 거부 · 실행 전 검사 · 앱 드롭다운';
+});
+
+check('사진 인식: 여러 언어로 읽고, 실패 이유를 감추지 않는다', () => {
+  // 명단에는 한글·한자·영문이 섞여 있다. 언어 힌트를 하나만 주면 다른 문자를
+  // 통째로 놓치고, 관리자는 그 사람이 왜 빠졌는지 알 수 없다.
+  if (!/function _ocrImageMulti/.test(gs)) throw new Error('_ocrImageMulti 가 없습니다.');
+  const multi = (gs.match(/function _ocrImageMulti[\s\S]*?\n\}/) ?? [''])[0];
+  for (const lang of ['ko', 'zh-CN', 'en']) {
+    if (!multi.includes(`'${lang}'`)) throw new Error(`${lang} 로 읽어보지 않습니다.`);
+  }
+  // 하나라도 읽혔으면 그걸 써야 한다 — 첫 언어 실패로 전부 포기하면 안 된다
+  if (!/if \(!String\(best\)\.trim\(\) && firstError\) throw firstError;/.test(multi)) {
+    throw new Error('일부 언어만 실패해도 전체를 실패로 만듭니다.');
+  }
+  if (!/_ocrImageMulti\(blob\)/.test(gs)) throw new Error('사진 분석이 다국어 OCR 을 쓰지 않습니다.');
+
+  // ★ "글자를 못 읽었다"만 보여주면 관리자는 사진 탓인 줄 알고 계속 다시 찍는다.
+  //   대부분의 원인은 Drive API 서비스 미설치이고, 그건 한 번이면 해결된다.
+  const analyze = (gs.match(/function api_analyzeMembers[\s\S]*?\n\}\n/) ?? [''])[0];
+  if (!/Drive API/.test(analyze)) throw new Error('Drive API 설치 안내를 하지 않습니다.');
+  if (!/bulk\.ocrSetup/.test(analyze)) throw new Error('설정 문제를 별도 코드로 구분하지 않습니다.');
+  const photo = (gs.match(/function api_analyzePhoto[\s\S]*?\n\}\n/) ?? [''])[0];
+  if (!/ocrFailed: true/.test(photo)) throw new Error('OCR 실패 여부를 결과에 남기지 않습니다.');
+
+  // 앱: 사진 보정을 거쳐야 한다. 원본(수 MB)을 그대로 보내면 OCR 이 더 못 읽는다
+  const bulkUi = readFileSync(resolve(ROOT, 'components/BulkMemberSheet.tsx'), 'utf8');
+  if (!/prepPhoto\(file\)/.test(bulkUi)) throw new Error('명단 일괄 추가가 사진을 보정하지 않습니다.');
+  for (const f of ['components/ItemsTab.tsx', 'components/AllianceTab.tsx']) {
+    const src = readFileSync(resolve(ROOT, f), 'utf8');
+    if (!/prepPhoto\(/.test(src)) throw new Error(`${f} 가 사진 보정을 쓰지 않습니다.`);
+    if (/readAsDataURL/.test(src)) throw new Error(`${f} 에 보정 없는 옛 경로가 남아 있습니다.`);
+  }
+
+  // 보정 함수가 실제로 크기를 줄이는지 (숫자를 눈으로만 믿지 않는다)
+  const client = readFileSync(resolve(ROOT, 'lib/client.ts'), 'utf8');
+  if (!/maxDim = 1600/.test(client)) throw new Error('사진 축소 상한이 없습니다.');
+  if (!/contrast\(160%\)/.test(client)) throw new Error('명암비 보정이 없습니다.');
+  return '3개 언어 · 부분성공 허용 · 설정안내 · 보정 3화면 공유';
 });
 
 check('정원을 올려도 옛 시트에서 터지지 않는다', () => {

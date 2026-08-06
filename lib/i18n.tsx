@@ -577,11 +577,19 @@ const DICT: Record<string, Entry> = {
   'bulk.stExists': ['이미 있음', '已存在', 'Already listed'],
   'bulk.stDup': ['입력 중복', '重复输入', 'Duplicate'],
   'bulk.stInvalid': ['확인 필요', '需要确认', 'Needs a look'],
-  'bulk.opAdd': ['추가', '添加', 'Add'],
+  'bulk.opAdd': ['신규', '新增', 'New'],
   'bulk.opRename': ['개명', '改名', 'Rename'],
   'bulk.opSkip': ['건너뜀', '跳过', 'Skip'],
   'bulk.fromLabel': ['바뀌기 전 이름', '原名', 'Previous name'],
   'bulk.fromPick': ['— 누구였는지 고르세요 —', '— 请选择原来是谁 —', '— pick who this was —'],
+  'bulk.suggestMark': ['(비슷함)', '（相似）', '(similar)'],
+  'bulk.takenMark': ['— {by} 가 선택함', '— 已被 {by} 选择', '— taken by {by}'],
+  'bulk.pickRequired': [
+    '누구였는지 골라야 반영됩니다.',
+    '需要选择原来是谁才能生效。',
+    'Pick who this was before it can be applied.',
+  ],
+  'bulk.useOcr': ['읽은 글자를 입력칸에 넣기', '把识别的文字填入输入框', 'Put the read text in the box'],
   'bulk.renameNote': [
     '개명으로 지정하면 그 사람의 분배전·분배완료·참여횟수·지난 시즌 기록이 새 이름으로 그대로 넘어갑니다. 새로 추가하면 0부터 시작합니다.',
     '选择"改名"会把该成员的待分配·已发放·参与次数·历史赛季记录一并转到新名字；选择"添加"则从 0 开始。',
@@ -863,6 +871,21 @@ const DICT: Record<string, Entry> = {
     '읽은 줄 {total} · 신규 {add} · 개명후보 {rename} · 이미있음 {exists} · 중복 {dup} · 확인필요 {invalid}',
     '共 {total} 行 · 新增 {add} · 疑似改名 {rename} · 已存在 {exists} · 重复 {dup} · 需确认 {invalid}',
     '{total} lines · {add} new · {rename} possible renames · {exists} already listed · {dup} duplicates · {invalid} need a look',
+  ],
+  's.bulk.ocrSetup': [
+    '📷 사진은 저장했지만 글자 인식 기능이 준비되지 않았습니다.\n\nApps Script 편집기 왼쪽 [서비스] → [+] → "Drive API" 를 추가한 뒤 저장하면 됩니다.\n지금 당장은 명단을 텍스트로 붙여넣어 주세요.',
+    '📷 照片已保存，但文字识别功能尚未启用。\n\n请在 Apps Script 编辑器左侧[服务] → [+] 添加 "Drive API" 并保存。\n目前请先把名单粘贴为文本。',
+    '📷 The photo was saved but text recognition is not set up.\n\nIn the Apps Script editor, add "Drive API" under [Services] → [+] and save.\nFor now, paste the roster as text.',
+  ],
+  's.bulk.dupFrom': [
+    '같은 아이디를 두 번 물려받도록 지정했습니다: {list}',
+    '同一个 ID 被指定继承了两次：{list}',
+    'The same ID was assigned twice: {list}',
+  ],
+  's.bulk.noFrom': [
+    '명단에 없는 아이디를 지정했습니다: {list}\n새로고침 후 다시 시도해주세요.',
+    '指定了名单中不存在的 ID：{list}\n请刷新后重试。',
+    'These IDs are not on the roster: {list}\nRefresh and try again.',
   ],
   's.bulk.noText': [
     '📷 사진은 저장했지만 글자를 읽지 못했습니다. 텍스트로 붙여넣어주세요.',

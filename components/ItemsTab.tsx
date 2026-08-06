@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import type { GuildState, LedgerItem, PhotoResult } from '@/lib/types';
-import { api, fitFont, fmt, getStoredEmail, splitName } from '@/lib/client';
+import { api, fitFont, fmt, getStoredEmail, prepPhoto, splitName } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 import LedgerCard from './LedgerCard';
@@ -65,52 +65,13 @@ export default function ItemsTab({
     if (fileRef.current) fileRef.current.value = '';
   }
 
-  /** 사진을 줄이고 대비를 올린 뒤 서버로 보내 OCR 결과를 받는다 (v6.6 에서 검증된 보정값) */
+  /** 사진을 보정(lib/client 의 prepPhoto)한 뒤 서버로 보내 OCR 결과를 받는다 */
   async function onPickPhoto(file: File) {
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(new Error(t('items.readFailed')));
-      reader.readAsDataURL(file);
-    }).catch((e: Error) => {
-      toast(e.message, true);
-      return '';
-    });
-    if (!dataUrl) return;
-
-    const img = new Image();
-    img.src = dataUrl;
-    try {
-      await img.decode();
-    } catch {
+    const jpeg = await prepPhoto(file);
+    if (!jpeg) {
       toast(t('items.formatFailed'), true);
       return;
     }
-
-    const maxDim = 1600;
-    let { width: w, height: h } = img;
-    if (w > maxDim || h > maxDim) {
-      const scale = maxDim / Math.max(w, h);
-      w = Math.round(w * scale);
-      h = Math.round(h * scale);
-    }
-
-    const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      toast(t('items.noCanvas'), true);
-      return;
-    }
-    // 게임 스크린샷은 명암비가 낮아 이 보정 없이는 OCR이 줄을 통째로 놓친다
-    try {
-      ctx.filter = 'contrast(160%) brightness(112%) saturate(105%)';
-    } catch {
-      /* 미지원 브라우저는 원본 그대로 */
-    }
-    ctx.drawImage(img, 0, 0, w, h);
-    const jpeg = canvas.toDataURL('image/jpeg', 0.82);
 
     setPhoto({ preview: jpeg, status: t('items.analyzing'), ocr: '' });
     setShowOcr(false);

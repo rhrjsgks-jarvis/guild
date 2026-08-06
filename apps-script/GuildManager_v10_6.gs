@@ -1,8 +1,30 @@
 // ═══════════════════════════════════════════════════════════════
-//  길드 정산 시스템 v10.5  (분배비중 · 연합 · 게시판 · 마스터관리자 · 3개국어)
+//  길드 정산 시스템 v10.6  (분배비중 · 연합 · 게시판 · 마스터관리자 · 3개국어)
 //  시트 구성: [사용안내] [멤버DB] [참여자현황] [분배대기중] [잔액현황]
 //            [지급기록] [연합] [게시판] [작업기록] + [시즌1] [시즌2] ...
 //            ← 이 순서로 항상 정렬됨
+// ═══════════════════════════════════════════════════════════════
+//  변경점 v10.5 → v10.6  (개명 대상 자유 선택 + 사진 인식 개선)
+//
+//  [개명]
+//   - ★ 개명 대상을 "비슷해 보이는 사람"으로 제한하던 것을 없앴다.
+//       실제로는 `테리` 처럼 전혀 다른 이름으로 갈아타는 경우가 대부분이라,
+//       후보가 0명이면 개명 자체를 못 해서 잔액이 승계되지 않았다.
+//       이제 판정 결과에 **전체 명단(roster)** 을 같이 실어 보내, 앱이
+//       드롭다운으로 아무나 고를 수 있게 한다 (비슷한 사람은 위로 올려 제안).
+//   - ★ 한 아이디를 두 사람이 물려받는 것을 서버가 막는다 (`bulk.dupFrom`).
+//       그냥 두면 먼저 처리된 쪽만 잔액을 가져가고 뒤쪽은 조용히 실패한다.
+//   - ★ 명단에 없는 아이디를 지정하면 거부한다 (`bulk.noFrom`).
+//
+//  [사진 인식]
+//   - ★ `_ocrImageMulti` — ko → zh-CN → en 순으로 읽어보고 가장 많이 건진
+//       결과를 쓴다. 우리 명단은 한글·한자·영문이 한 화면에 섞여 있어서
+//       언어 힌트를 하나만 주면 다른 문자를 통째로 놓친다.
+//       충분히 읽혔으면 나머지는 시도하지 않는다 (Drive 호출 절약).
+//   - ★ 실패 사유를 그대로 올린다. 예전엔 "글자를 읽지 못했습니다"만 나와서
+//       관리자가 사진 탓인 줄 알고 계속 다시 찍었다. 대부분의 원인은
+//       Apps Script 에 **Drive API 서비스가 없는 것**이고, 그건
+//       [서비스] → [+] → "Drive API" 한 번이면 끝난다.
 // ═══════════════════════════════════════════════════════════════
 //  변경점 v10.4 → v10.5  (정원 50명 → 100명)
 //
@@ -418,7 +440,7 @@
 //     '누적기록'을 그대로 찾음 (하위 호환, 리네이밍과 무관)
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION = '10.5';
+const VERSION = '10.6';
 const T2S_MAP = {'國':'国','學':'学','這':'这','個':'个','們':'们','說':'说','話':'话','對':'对','時':'时','間':'间','現':'现','場':'场','開':'开','關':'关','內':'内','東':'东','車':'车','馬':'马','龍':'龙','風':'风','陽':'阳','陰':'阴','電':'电','語':'语','讀':'读','寫':'写','書':'书','紙':'纸','筆':'笔','長':'长','門':'门','問':'问','聽':'听','見':'见','覺':'觉','讓':'让','誰':'谁','還':'还','進':'进','運':'运','動':'动','靜':'静','樂':'乐','藥':'药','華':'华','蘭':'兰','葉':'叶','黃':'黄','麗':'丽','寶':'宝','貴':'贵','財':'财','買':'买','賣':'卖','錢':'钱','銀':'银','鐵':'铁','鋼':'钢','陳':'陈','劉':'刘','張':'张','楊':'杨','蔣':'蒋','鄭':'郑','謝':'谢','呂':'吕','蘇':'苏','韓':'韩','馮':'冯','於':'于','鳳':'凤','雲':'云','劍':'剑','斷':'断','亂':'乱','愛':'爱','聲':'声','醫':'医','藝':'艺','頭':'头','臉':'脸','腳':'脚','氣':'气','樓':'楼','橋':'桥','飛':'飞','機':'机','網':'网','線':'线','條':'条','裡':'里','邊':'边','錯':'错','壞':'坏','舊':'旧','寬':'宽','淺':'浅','週':'周','節':'节','業':'业','後':'后','來':'来','終':'终','結':'结','敗':'败','勝':'胜','負':'负','輸':'输','贏':'赢','強':'强','難':'难','簡':'简','單':'单','複':'复','雜':'杂','純':'纯','淨':'净','髒':'脏','齊':'齐','穩':'稳','變':'变','轉':'转','換':'换','顯':'显','樣':'样','種':'种','類':'类','團':'团','體':'体','統':'统','織':'织','組':'组','構':'构','設':'设','計':'计','劃':'划','數':'数','課':'课','題':'题','試':'试','練':'练','習':'习','師':'师','員':'员','職':'职','務':'务','責':'责','權':'权','應':'应','該':'该','須':'须','願':'愿','夢':'梦','憶':'忆','識':'识','認':'认','歡':'欢','醜':'丑','帥':'帅','靈':'灵','獸':'兽','鷹':'鹰','鶴':'鹤','鴻':'鸿','鱷':'鳄','鯨':'鲸','鯊':'鲨','蝦':'虾','殼':'壳','冑':'胄','戰':'战','爭':'争','鬥':'斗','擊':'击','禦':'御','護':'护','衛':'卫','謀':'谋','陣':'阵','營':'营','軍':'军','隊':'队','將':'将','嬪':'嫔','宮':'宫','廟':'庙','觀':'观','閣':'阁','蓮':'莲','楓':'枫','樺':'桦','檜':'桧','樹':'树','實':'实','幹':'干','莖':'茎','穫':'获','採':'采','鮮':'鲜','籠':'笼','傷':'伤','殺':'杀','斬':'斩','豬':'猪','雞':'鸡','鴨':'鸭','鵝':'鹅','龜':'龟','蟬':'蝉','蟻':'蚁','螞':'蚂','鴉':'鸦','鵰':'雕','鴛':'鸳','鴦':'鸯','賽':'赛','廠':'厂','廣':'广','麼':'么','誒':'诶','歲':'岁','歷':'历','歸':'归','殘':'残','蟲':'虫','貓':'猫','氈':'毡','貫':'贯','質':'质','貨':'货','貼':'贴','費':'费','資':'资','賬':'账','賺':'赚','贈':'赠','賀':'贺','賢':'贤','賦':'赋','賤':'贱','賓':'宾','賴':'赖','齲':'龋','齒':'齿','龄':'齡','齡':'龄','齣':'出','岡':'冈','剛':'刚','剮':'剐','創':'创','劇':'剧','勵':'励','勸':'劝','勻':'匀','匯':'汇','醬':'酱','醞':'酝','釀':'酿','釋':'释','釘':'钉','針':'针','釣':'钓','鈍':'钝','鈴':'铃','鈔':'钞','鉛':'铅','鋸':'锯','鋒':'锋','鍵':'键','鎖':'锁','鑄':'铸','鑼':'锣','錶':'表','鐘':'钟','鏡':'镜','鑽':'钻','鑑':'鉴','閉':'闭','閃':'闪','閏':'闰','閱':'阅','闆':'板','闖':'闯','陸':'陆','隱':'隐','雖':'虽','雙':'双','雛':'雏','靂':'雳','韋':'韦','韌':'韧','頁':'页','頂':'顶','項':'项','順':'顺','頌':'颂','預':'预','頑':'顽','頒':'颁','頗':'颇','領':'领','頡':'颉','頜':'颌','頸':'颈','頻':'频','頹':'颓','顆':'颗','額':'额','顏':'颜','顛':'颠','顧':'顾','飄':'飘','饑':'饥','餃':'饺','餅':'饼','館':'馆','饒':'饶','饞':'馋','馳':'驰','駕':'驾','駛':'驶','駐':'驻','駱':'骆','駭':'骇','騎':'骑','騰':'腾','驅':'驱','驚':'惊','驕':'骄','驗':'验','骯':'肮','髮':'发','鬍':'胡','鬧':'闹','鮑':'鲍','鯉':'鲤','鰲':'鳌','鱉':'鳖','鳥':'鸟','鳴':'鸣','鹹':'咸','麥':'麦','麵':'面','黨':'党'};  // 번체→간체 상용한자 (서체 변환 전용, 다른 뜻 글자는 포함하지 않음)
 const UNIT = '다이아';                 // 재화 단위 표기
 const MAX_MEMBERS = 100;              // 최대 멤버 수 (v10.5: 50 → 100)
@@ -4795,9 +4817,20 @@ function api_analyzeMembers(text, base64) {
     ocrPreview = r.ocrPreview || '';
     source = ocrPreview;
     if (!source.trim()) {
-      return _rc({ ok: true, rows: [], photoUrl: photoUrl, ocrPreview: ocrPreview,
-                   msg: '📷 사진은 저장했지만 글자를 읽지 못했습니다. 텍스트로 붙여넣어주세요.' },
-                 'bulk.noText');
+      // ★ 진짜 이유를 그대로 올린다.
+      //   "글자를 읽지 못했습니다"만 보여주면 관리자는 사진 탓인 줄 알고 계속 다시 찍는다.
+      //   실제로는 Apps Script 에 Drive API 서비스가 없어서인 경우가 대부분이고,
+      //   그건 [서비스] → [+] → "Drive API" 한 번이면 끝난다.
+      const setup = r.ocrFailed === true;
+      return _rc({
+        ok: true, rows: [], photoUrl: photoUrl, ocrPreview: ocrPreview,
+        ocrFailed: setup, ocrError: r.ocrError || '', needsDriveApi: setup && /Drive is not defined|not a function/i.test(String(r.ocrError || '')),
+        msg: setup
+          ? '📷 사진은 저장했지만 글자 인식 기능이 준비되지 않았습니다' + (r.ocrHint || '') +
+            '\n\nApps Script 편집기 왼쪽 [서비스] → [+] → "Drive API" 를 추가한 뒤 저장하면 됩니다.\n' +
+            '지금 당장은 명단을 텍스트로 붙여넣어 주세요.'
+          : '📷 사진은 저장했지만 글자를 읽지 못했습니다. 화면을 더 크게 찍거나, 명단을 텍스트로 붙여넣어주세요.'
+      }, setup ? 'bulk.ocrSetup' : 'bulk.noText', { detail: String(r.ocrError || '') });
     }
   }
 
@@ -4845,6 +4878,12 @@ function api_analyzeMembers(text, base64) {
     rows.push({ raw: raw, name: name, status: suggest.length ? 'rename' : 'new', suggest: suggest });
   });
 
+  // ★ 개명 대상은 "비슷해 보이는 사람"으로 제한하면 안 된다.
+  //   실제로는 `테리` 처럼 전혀 다른 이름으로 갈아타는 경우가 대부분이라,
+  //   후보가 0명이면 개명 자체를 못 하게 되어 잔액이 승계되지 않는다.
+  //   전체 명단을 함께 보내고, 비슷한 사람은 위로 올려 제안만 한다.
+  const roster = members.map(function (m) { return m.name; });
+
   const count = function (st) { return rows.filter(function (r) { return r.status === st; }).length; };
   const summary = {
     total: rows.length,
@@ -4860,6 +4899,7 @@ function api_analyzeMembers(text, base64) {
   return _rc({
     ok: true,
     rows: rows,
+    roster: roster,
     summary: summary,
     room: room,
     serverList: SERVER_LIST,
@@ -4897,6 +4937,32 @@ function api_bulkAddMembers(entries, server, email, confirm) {
   const before = _getMemberRows(ss).filter(function (m) { return m.name !== FUND_NAME; });
   const adds = entries.filter(function (e) { return e.op === 'add'; });
   const renames = entries.filter(function (e) { return e.op === 'rename'; });
+
+  // ★ 한 아이디를 두 사람이 물려받을 수는 없다.
+  //   앱에서도 막지만 앱은 고칠 수 있으므로 서버가 최종 판정을 한다.
+  //   그냥 두면 먼저 처리된 쪽만 잔액을 가져가고 뒤쪽은 조용히 실패한다.
+  const claimed = {};
+  const conflict = [];
+  renames.forEach(function (e) {
+    const key = _normName(String(e.from || '')).toLowerCase();
+    if (!key) return;
+    if (claimed[key]) conflict.push(String(e.from));
+    claimed[key] = true;
+  });
+  if (conflict.length) {
+    return _rc({ ok: false, msg: '같은 아이디를 두 번 물려받도록 지정했습니다: ' + conflict.join(', ') },
+      'bulk.dupFrom', { list: conflict.join(', ') });
+  }
+
+  // 존재하지 않는 아이디를 물려받겠다고 하면 여기서 막는다 (오타·새로고침 누락)
+  const missing = renames.filter(function (e) {
+    const key = _normName(String(e.from || '')).toLowerCase();
+    return !before.some(function (m) { return _normName(m.name).toLowerCase() === key; });
+  }).map(function (e) { return String(e.from); });
+  if (missing.length) {
+    return _rc({ ok: false, msg: '명단에 없는 아이디를 지정했습니다: ' + missing.join(', ') + '\n새로고침 후 다시 시도해주세요.' },
+      'bulk.noFrom', { list: missing.join(', ') });
+  }
 
   if (before.length + adds.length > MAX_MEMBERS) {
     return _rc({ ok: false, msg: '정원을 넘습니다. 현재 ' + before.length + '명 + 추가 ' + adds.length +
@@ -5549,7 +5615,7 @@ function api_analyzePhoto(base64) {
     // OCR (실패해도 사진 저장은 이미 완료된 상태 — 참여자 없이 링크만 반환)
     let ocrText = '';
     try {
-      ocrText = _ocrImage(blob);
+      ocrText = _ocrImageMulti(blob);
     } catch (ocrErr) {
       const emsg = String(ocrErr.message || '');
       const hint = emsg.indexOf('Drive is not defined') >= 0
@@ -5557,7 +5623,7 @@ function api_analyzePhoto(base64) {
         : emsg.indexOf('not a function') >= 0
         ? ' (Drive API 버전 호환성 문제로 추정 — 코드가 최신 버전인지 확인해주세요)'
         : ' (' + emsg + ')';
-      return { ok: true, photoUrl: photoUrl, matched: [],
+      return { ok: true, photoUrl: photoUrl, matched: [], ocrFailed: true, ocrError: emsg, ocrHint: hint,
         msg: '📷 사진은 저장했지만 자동 인식은 실패했습니다' + hint + '. 참여자를 직접 선택해주세요.' };
     }
 
@@ -5612,19 +5678,20 @@ function _ocrSearchKeys(member, displayName) {
   return keys.filter(Boolean);
 }
 
-function _ocrImage(blob) {
+function _ocrImage(blob, lang) {
   const ts = 'ocr_temp_' + new Date().getTime();
+  const language = lang || 'ko';
   let ocrFile;
 
   if (typeof Drive.Files.create === 'function') {
     // Drive API v3 (현재 신규 설치 시 기본값): insert→create, title→name,
     // ocr 불리언 대신 대상 mimeType 지정 + ocrLanguage 파라미터로 변환·인식
     const resource = { name: ts, mimeType: MimeType.GOOGLE_DOCS };
-    ocrFile = Drive.Files.create(resource, blob, { ocrLanguage: 'ko' });
+    ocrFile = Drive.Files.create(resource, blob, { ocrLanguage: language });
   } else if (typeof Drive.Files.insert === 'function') {
     // Drive API v2 (구버전 설치본 호환)
     const resource = { title: ts, mimeType: MimeType.GOOGLE_DOCS };
-    ocrFile = Drive.Files.insert(resource, blob, { ocr: true, ocrLanguage: 'ko' });
+    ocrFile = Drive.Files.insert(resource, blob, { ocr: true, ocrLanguage: language });
   } else {
     throw new Error('Drive API 서비스에서 사용 가능한 업로드 함수를 찾지 못했습니다.');
   }
@@ -5635,6 +5702,34 @@ function _ocrImage(blob) {
   } finally {
     try { Drive.Files.remove(ocrFile.id); } catch (e) { /* 정리 실패는 무시 (임시 문서 하나 남는 정도, 무해) */ }
   }
+}
+
+/**
+ * 여러 언어로 읽어보고 가장 많이 건진 결과를 쓴다 (v10.6).
+ *
+ * 우리 명단은 한글·한자·영문이 한 화면에 섞여 있다. 언어 힌트를 하나만 주면
+ * 다른 문자를 통째로 놓친다 — 'ko' 로만 읽으면 `卡尔K` 같은 줄이 아예 빠지고,
+ * 관리자는 그 사람이 왜 없는지 알 수 없다.
+ *
+ * 첫 시도로 충분히 건졌으면 거기서 멈춘다 (Drive 호출은 느리고 할당량을 쓴다).
+ */
+function _ocrImageMulti(blob) {
+  const langs = ['ko', 'zh-CN', 'en'];
+  let best = '';
+  let firstError = null;
+  for (let i = 0; i < langs.length; i++) {
+    try {
+      const text = _ocrImage(blob, langs[i]);
+      if (String(text || '').replace(/\s/g, '').length > String(best).replace(/\s/g, '').length) best = text;
+      // 이 정도면 충분히 읽혔다고 보고 나머지 언어는 시도하지 않는다
+      if (String(best).replace(/\s/g, '').length >= 40) break;
+    } catch (err) {
+      if (!firstError) firstError = err;
+    }
+  }
+  // 전부 실패했을 때만 오류를 올린다 — 하나라도 읽혔으면 그걸 쓴다
+  if (!String(best).trim() && firstError) throw firstError;
+  return best;
 }
 
 // 인증샷 보관 폴더 확보 (실행 계정 드라이브 기준)

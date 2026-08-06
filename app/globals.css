@@ -872,3 +872,14 @@ select:focus {
 .bulk-from {
   margin-top: 7px;
 }
+
+/* 개명 대상을 아직 안 고른 줄은 눈에 띄어야 한다 — 그대로 두면 반영에서 조용히 빠진다 */
+.bulk-from.need {
+  border-color: var(--pending);
+}
+
+.bulk-warn {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--pending);
+}
