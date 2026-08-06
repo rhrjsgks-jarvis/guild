@@ -865,6 +865,31 @@ await t('마스터 PIN 은 관리자와 다른 등급을 준다', async () => {
   eq(asAdmin.master, false, '관리자는 마스터가 아니다');
 });
 
+await t('마스터 PIN: 앞뒤 공백이 있어도 로그인된다', async () => {
+  // Vercel 대시보드에 붙여넣을 때 줄바꿈·공백이 딸려 들어가는 일이 흔하고,
+  // 폰 키보드도 앞뒤에 공백을 붙인다. 그러면 아무리 정확히 입력해도
+  // "PIN이 올바르지 않습니다"만 뜨고 원인을 알 길이 없다.
+  const res = await post('/api/admin/login', { pin: `  ${MASTER_PIN}  ` });
+  eq(res.status, 200, '공백이 붙은 마스터 PIN');
+  const body = await res.json();
+  eq(body.role, 'master', '등급');
+  eq(body.code, 'auth.master', '결과 코드 (화면 언어로 번역되려면 필요)');
+});
+
+await t('health 가 마스터 PIN 상태를 값 없이 알려준다', async () => {
+  const h = await (await fetch(`${APP}/api/health`)).json();
+  if (!h.master) throw new Error('health 에 마스터 진단이 없습니다.');
+  eq(h.master.set, true, 'MASTER_PIN 설정됨');
+  eq(h.master.sameAsAdmin, false, '관리자 PIN 과 다름');
+  eq(h.master.usable, true, '쓸 수 있는 상태');
+
+  // ★ 값 자체가 새 나가면 안 된다
+  const dump = JSON.stringify(h);
+  if (dump.includes(MASTER_PIN) || dump.includes(PIN)) {
+    throw new Error('health 응답에 PIN 값이 들어 있습니다.');
+  }
+});
+
 await t('앱 이름·관리자 PIN 변경은 마스터만 할 수 있다', async () => {
   eq((await post('/api/master', { action: 'appName', value: '새이름' }, { Cookie: cookie })).status, 401, '관리자 시도');
 

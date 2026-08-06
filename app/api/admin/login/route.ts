@@ -35,14 +35,16 @@ export async function POST(req: Request) {
   let pin = '';
   try {
     const body = (await req.json()) as { pin?: unknown };
-    pin = String(body.pin ?? '');
+    // 폰 키보드·비밀번호 관리자가 앞뒤에 공백을 붙이는 일이 흔하다.
+    // PIN 앞뒤 공백은 어떤 경우에도 의도된 값이 아니다.
+    pin = String(body.pin ?? '').trim();
   } catch {
     return Response.json({ ok: false, msg: '요청 형식이 올바르지 않습니다.' }, { status: 400 });
   }
 
   if (masterConfigured() && (await verifyMasterPin(pin))) {
     await startAdminSession('master');
-    return Response.json({ ok: true, role: 'master', msg: '👑 마스터관리자 모드가 켜졌습니다.' });
+    return Response.json({ ok: true, role: 'master', code: 'auth.master', msg: '👑 마스터관리자 모드가 켜졌습니다.' });
   }
 
   // 시트에 PIN 이 저장돼 있으면 그쪽이 진실이다. 없을 때만 환경변수로 판정한다.
@@ -51,9 +53,9 @@ export async function POST(req: Request) {
   const passed = useStored ? stored.match === true : await verifyPin(pin);
 
   if (!passed) {
-    return Response.json({ ok: false, msg: 'PIN이 올바르지 않습니다.' }, { status: 401 });
+    return Response.json({ ok: false, code: 'auth.badPin', msg: 'PIN이 올바르지 않습니다.' }, { status: 401 });
   }
 
   await startAdminSession('admin');
-  return Response.json({ ok: true, role: 'admin', msg: '🔓 관리자 모드가 켜졌습니다.' });
+  return Response.json({ ok: true, role: 'admin', code: 'auth.admin', msg: '🔓 관리자 모드가 켜졌습니다.' });
 }

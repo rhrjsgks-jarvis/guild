@@ -872,6 +872,13 @@ const DICT: Record<string, Entry> = {
     '共 {total} 行 · 新增 {add} · 疑似改名 {rename} · 已存在 {exists} · 重复 {dup} · 需确认 {invalid}',
     '{total} lines · {add} new · {rename} possible renames · {exists} already listed · {dup} duplicates · {invalid} need a look',
   ],
+  's.auth.master': [
+    '👑 마스터관리자 모드가 켜졌습니다.',
+    '👑 已进入主管理员模式。',
+    '👑 Master admin mode is on.',
+  ],
+  's.auth.admin': ['🔓 관리자 모드가 켜졌습니다.', '🔓 已进入管理员模式。', '🔓 Admin mode is on.'],
+  's.auth.badPin': ['PIN이 올바르지 않습니다.', 'PIN 不正确。', 'That PIN is not correct.'],
   's.bulk.ocrSetup': [
     '📷 사진은 저장했지만 글자 인식 기능이 준비되지 않았습니다.\n\nApps Script 편집기 왼쪽 [서비스] → [+] → "Drive API" 를 추가한 뒤 저장하면 됩니다.\n지금 당장은 명단을 텍스트로 붙여넣어 주세요.',
     '📷 照片已保存，但文字识别功能尚未启用。\n\n请在 Apps Script 编辑器左侧[服务] → [+] 添加 "Drive API" 并保存。\n目前请先把名单粘贴为文本。',

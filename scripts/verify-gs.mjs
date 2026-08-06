@@ -631,6 +631,52 @@ check('관리자 라우트는 전부 인증으로 시작한다', () => {
   return `${adminRoutes.length}개 라우트`;
 });
 
+check('마스터 PIN: 공백이 붙어도 통하고, 관리자 PIN 과 같으면 거부한다', () => {
+  // "MASTER_PIN 을 넣었는데 로그인이 안 된다" 는 실제로 겪은 문제다.
+  // 원인은 둘 중 하나였다 — 붙여넣을 때 딸려온 공백, 또는 ADMIN_PIN 과 같은 값.
+  // 화면에는 "PIN이 올바르지 않습니다"만 뜨므로 스스로 알아낼 방법이 없었다.
+  const src = readFileSync(resolve(ROOT, 'lib/auth.ts'), 'utf8');
+  if (!/function envPin/.test(src)) throw new Error('환경변수 PIN 을 다듬는 경로가 없습니다.');
+  if (!/String\(process\.env\[name\] \?\? ''\)\.trim\(\)/.test(src)) {
+    throw new Error('환경변수 PIN 의 앞뒤 공백을 털어내지 않습니다.');
+  }
+  for (const fn of ['verifyMasterPin', 'verifyPin']) {
+    const body = (src.match(new RegExp(`export async function ${fn}[\\s\\S]*?\\n\\}`)) ?? [''])[0];
+    if (/process\.env\.(MASTER_PIN|ADMIN_PIN)/.test(body)) {
+      throw new Error(`${fn} 이 환경변수를 다듬지 않고 직접 씁니다.`);
+    }
+    if (!/String\(pin \?\? ''\)\.trim\(\)/.test(body)) {
+      throw new Error(`${fn} 이 입력값의 공백을 털어내지 않습니다.`);
+    }
+  }
+  // 같은 값이면 마스터로 인정하지 않는다 — 등급을 나눈 의미가 없어지므로
+  const vm2 = (src.match(/export async function verifyMasterPin[\s\S]*?\n\}/) ?? [''])[0];
+  if (!/if \(expected === envPin\('ADMIN_PIN'\)\) return false;/.test(vm2)) {
+    throw new Error('마스터 PIN 이 관리자 PIN 과 같아도 통과시킵니다.');
+  }
+
+  // 로그인 라우트도 입력을 다듬어야 한다 (폰 키보드가 공백을 붙인다)
+  const login = readFileSync(resolve(ROOT, 'app/api/admin/login/route.ts'), 'utf8');
+  if (!/String\(body\.pin \?\? ''\)\.trim\(\)/.test(login)) {
+    throw new Error('로그인 라우트가 입력 PIN 을 다듬지 않습니다.');
+  }
+  // 마스터 판정이 반드시 먼저여야 한다 — 뒤에 있으면 관리자로 먼저 통과해버린다
+  if (login.indexOf('verifyMasterPin') > login.indexOf('verifyPin(pin)')) {
+    throw new Error('마스터 판정이 관리자 판정보다 뒤에 있습니다.');
+  }
+
+  // ★ 스스로 진단할 수 있어야 한다 — 값은 내보내지 않고 원인만
+  if (!/export function masterDiagnosis/.test(src)) throw new Error('마스터 PIN 진단 경로가 없습니다.');
+  const health = readFileSync(resolve(ROOT, 'app/api/health/route.ts'), 'utf8');
+  if (!/masterDiagnosis\(\)/.test(health)) throw new Error('health 가 진단 결과를 보여주지 않습니다.');
+  if (!/sameAsAdmin/.test(health)) throw new Error('health 가 "관리자 PIN 과 같음"을 알려주지 않습니다.');
+  // 값 자체가 새 나가면 안 된다
+  if (/process\.env\.(MASTER_PIN|ADMIN_PIN)(?!\s*\?\?|\s*\))/.test(health.replace(/Boolean\([^)]*\)/g, ''))) {
+    throw new Error('health 가 PIN 값을 그대로 노출할 수 있습니다.');
+  }
+  return '공백 제거(양쪽) · 동일값 거부 · 마스터 우선 · 값 없는 진단';
+});
+
 check('마스터 전용 라우트는 requireMaster 로 막힌다', () => {
   const src = routes['app/api/master/route.ts'];
   if (!src) throw new Error('app/api/master/route.ts 가 없습니다.');
@@ -686,6 +732,11 @@ check('.gs 결과 코드가 앱 사전에 전부 있다', () => {
   const CODE = "'([a-z]+\\.[A-Za-z]+)'";  // 반드시 'group.name' 꼴 — 액션 이름과 섞이지 않게
   for (const m of gs.matchAll(new RegExp("_rc\\(\\{[\\s\\S]*?\\},\\s*\\n?\\s*" + CODE, 'g'))) codes.add(m[1]);
   for (const m of gs.matchAll(new RegExp("\\bcode:\\s*" + CODE, 'g'))) codes.add(m[1]);
+  // 결과 코드는 시트만 만드는 게 아니다 — 서버 라우트(로그인 등)도 만든다.
+  // 양쪽을 다 모아야 "사전에만 있는 항목"을 잘못 잡아내지 않는다.
+  for (const [, src] of Object.entries(routes)) {
+    for (const m of src.matchAll(new RegExp("\\bcode:\\s*" + CODE, 'g'))) codes.add(m[1]);
+  }
   for (const m of gs.matchAll(/\?\s*'([\w]+\.[\w]+)'\s*:\s*'([\w]+\.[\w]+)'/g)) { codes.add(m[1]); codes.add(m[2]); }
   if (codes.size < 40) throw new Error(`시트에서 찾은 결과 코드가 너무 적습니다 (${codes.size}개).`);
 

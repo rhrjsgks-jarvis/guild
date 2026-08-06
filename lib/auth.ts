@@ -49,27 +49,56 @@ async function safeEqual(a: string, b: string): Promise<boolean> {
   return diff === 0;
 }
 
+/**
+ * 환경변수의 PIN 을 읽는다.
+ *
+ * ★ 반드시 공백을 털어낸다. Vercel 대시보드에 값을 붙여넣을 때 줄바꿈이나
+ *   앞뒤 공백이 딸려 들어가는 일이 흔한데, 그러면 사용자가 아무리 정확히
+ *   입력해도 영원히 틀린 값이 된다. 화면에는 "PIN이 올바르지 않습니다"만
+ *   뜨므로 원인을 찾기가 아주 어렵다 (실제로 그 상황이 있었다).
+ *   PIN 앞뒤의 공백은 어떤 경우에도 의도된 값이 아니다.
+ */
+function envPin(name: 'ADMIN_PIN' | 'MASTER_PIN'): string {
+  return String(process.env[name] ?? '').trim();
+}
+
 export function adminConfigured(): boolean {
-  return Boolean(process.env.ADMIN_PIN && process.env.SESSION_SECRET);
+  return Boolean(envPin('ADMIN_PIN') && process.env.SESSION_SECRET);
 }
 
 export function masterConfigured(): boolean {
-  return Boolean(process.env.MASTER_PIN && process.env.SESSION_SECRET);
+  return Boolean(envPin('MASTER_PIN') && process.env.SESSION_SECRET);
+}
+
+/**
+ * 마스터 PIN 이 왜 안 먹는지 진단한다 — 값 자체는 절대 내보내지 않는다.
+ * /api/health 가 이 결과만 보여줘서, 관리자가 대시보드에서 무엇을 고쳐야
+ * 하는지 스스로 알 수 있게 한다.
+ */
+export function masterDiagnosis(): { set: boolean; sameAsAdmin: boolean; hadSpace: boolean } {
+  const raw = String(process.env.MASTER_PIN ?? '');
+  const master = raw.trim();
+  return {
+    set: Boolean(master),
+    // 같은 값이면 마스터로 치지 않는다 — 그러면 등급을 나눈 의미가 없다
+    sameAsAdmin: Boolean(master) && master === envPin('ADMIN_PIN'),
+    hadSpace: raw !== master,
+  };
 }
 
 /** 환경변수 MASTER_PIN 과 일치하는가. 관리자 PIN 과 같은 값이면 마스터로 치지 않는다. */
 export async function verifyMasterPin(pin: string): Promise<boolean> {
-  const expected = process.env.MASTER_PIN;
+  const expected = envPin('MASTER_PIN');
   if (!expected) return false;
-  if (expected === process.env.ADMIN_PIN) return false;
-  return safeEqual(pin, expected);
+  if (expected === envPin('ADMIN_PIN')) return false;
+  return safeEqual(String(pin ?? '').trim(), expected);
 }
 
 /** 환경변수 ADMIN_PIN 과 일치하는가. 시트에 저장된 PIN 은 로그인 라우트가 따로 확인한다. */
 export async function verifyPin(pin: string): Promise<boolean> {
-  const expected = process.env.ADMIN_PIN;
+  const expected = envPin('ADMIN_PIN');
   if (!expected) return false;
-  return safeEqual(pin, expected);
+  return safeEqual(String(pin ?? '').trim(), expected);
 }
 
 export async function startAdminSession(role: Role = 'admin'): Promise<void> {
