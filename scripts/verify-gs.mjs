@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v10_3.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v10_4.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 const gs = readFileSync(GS_PATH, 'utf8');
@@ -896,6 +896,49 @@ check('앱이 실어 온 상태를 실제로 쓴다', () => {
   // 상태가 안 왔을 때의 물러설 길이 반드시 있어야 한다 (옛 버전 시트 대응)
   if (!/void refresh\(true\)/.test(app)) throw new Error('상태가 없을 때의 대비 경로가 없습니다.');
   return '시트 → 라우트 → 캐시 → 화면 전 구간 연결';
+});
+
+check('명단 일괄 추가: 판정은 쓰지 않고, 실행은 재확인을 거친다', () => {
+  // 40명을 잘못 넣으면 되돌리기가 아주 번거롭다. 이 기능의 핵심은
+  // "빨리 넣는 것"이 아니라 "넣기 전에 걸러내는 것"이다.
+  const analyze = (gs.match(/function api_analyzeMembers[\s\S]*?\n\}\n/) ?? [''])[0];
+  if (!analyze) throw new Error('api_analyzeMembers 가 없습니다.');
+  // ★ 판정 단계는 아무것도 쓰지 않아야 한다
+  const writes = analyze.match(/\.setValue\(|\.setValues\(|deleteRow\(|clearContent\(|insertSheet\(/g);
+  if (writes) throw new Error(`판정 단계가 시트를 씁니다 (${writes.join(', ')}) — 읽기만 해야 합니다.`);
+
+  const bulk = (gs.match(/function api_bulkAddMembers[\s\S]*?\n\}\n/) ?? [''])[0];
+  if (!bulk) throw new Error('api_bulkAddMembers 가 없습니다.');
+  if (!/confirm !== true/.test(bulk)) throw new Error('재확인 없이 실행됩니다 (위험도 2 위반).');
+  if (!/needsConfirm: true/.test(bulk)) throw new Error('needsConfirm 을 돌려주지 않습니다.');
+  // Apps Script 에는 트랜잭션이 없다 — 대상별 개별 try/catch 가 있어야 한다 (규칙 6)
+  const tries = (bulk.match(/try \{/g) ?? []).length;
+  if (tries < 3) throw new Error(`대상별 개별 try/catch 가 부족합니다 (${tries}개).`);
+  if (!/failed\.push\(/.test(bulk)) throw new Error('실패 내역을 모으지 않습니다.');
+  if (!/MAX_MEMBERS/.test(bulk)) throw new Error('정원 초과를 막지 않습니다.');
+  // ★ 개명은 반드시 _renameCore 를 타야 잔액·참여횟수·시즌기록이 승계된다
+  if (!/_renameCore\(/.test(bulk)) throw new Error('개명이 _renameCore 를 거치지 않습니다 — 이력이 승계되지 않습니다.');
+  // 개명을 추가보다 먼저 해야 옛 이름과 새 이름이 빈 칸을 두고 다투지 않는다
+  if (bulk.indexOf('renames.forEach') > bulk.indexOf('adds.forEach')) {
+    throw new Error('추가가 개명보다 먼저 실행됩니다.');
+  }
+
+  // 라우트: confirm 을 임의로 채우지 않는지 + 인증이 첫 줄인지
+  const route = readFileSync(resolve(ROOT, 'app/api/admin/members-bulk/route.ts'), 'utf8');
+  if (!/confirm: body\.confirm === true/.test(route)) {
+    throw new Error('라우트가 confirm 을 그대로 전달하지 않습니다.');
+  }
+  if (!/const denied = await requireAdmin\(\)/.test(route)) throw new Error('라우트에 인증이 없습니다.');
+
+  // 앱: 개명 후보를 자동으로 확정하면 두 사람 잔액이 합쳐진다
+  const ui = readFileSync(resolve(ROOT, 'components/BulkMemberSheet.tsx'), 'utf8');
+  if (!/if \(r\.status === 'rename'\) return \{ op: 'skip'/.test(ui)) {
+    throw new Error('개명 후보가 기본으로 실행되게 되어 있습니다 — 사람이 골라야 합니다.');
+  }
+  if (!/confirm,/.test(ui) || /confirm: true/.test(ui.replace(/apply\(true\)/g, ''))) {
+    throw new Error('앱이 confirm 을 임의로 채웁니다.');
+  }
+  return '판정 무쓰기 · 재확인 · 개별 try/catch · 개명은 _renameCore · 후보 자동확정 없음';
 });
 
 check('연합은 등록과 정산이 분리되어 있다', () => {

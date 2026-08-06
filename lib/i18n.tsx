@@ -545,6 +545,55 @@ const DICT: Record<string, Entry> = {
     'Use this when the admin changes. From then on the old admin needs the new PIN at next sign-in (already-unlocked devices keep their 30-day session — ask them to lock it from [Admin] if it is urgent). The master PIN itself changes only via the Vercel env var MASTER_PIN.',
   ],
 
+  /* ── 혈맹원 일괄 추가 (v10.4) ── */
+  'bulk.title': ['명단 일괄 추가', '批量添加名单', 'Bulk add members'],
+  'bulk.sub': [
+    '넣기 전에 한 줄씩 확인합니다. 잘못 넣으면 되돌리기가 번거롭습니다.',
+    '添加前逐行确认。加错了很难还原。',
+    'Every line is checked before anything is written — mistakes are painful to undo.',
+  ],
+  'bulk.pasteLabel': ['명단 붙여넣기', '粘贴名单', 'Paste the roster'],
+  'bulk.pastePh': ['한 줄에 한 명씩', '每行一个人', 'One name per line'],
+  'bulk.pasteHint': [
+    '쉼표·줄바꿈 어느 쪽으로 구분해도 됩니다. 앞의 번호(1. 2.)는 알아서 떼어냅니다.',
+    '用逗号或换行分隔都可以，前面的编号（1. 2.）会自动去掉。',
+    'Commas or line breaks both work. Leading numbers (1. 2.) are stripped.',
+  ],
+  'bulk.fromPhoto': ['사진에서 읽기', '从照片识别', 'Read from a photo'],
+  'bulk.photoHint': [
+    '게임 명단 스크린샷을 넣으면 글자를 읽어옵니다. 잘 못 읽으면 텍스트로 붙여넣어주세요.',
+    '可以识别游戏名单截图。识别不佳时请直接粘贴文本。',
+    'Reads a roster screenshot. If it reads poorly, paste the text instead.',
+  ],
+  'bulk.analyze': ['확인하기', '开始检查', 'Check'],
+  'bulk.serverLabel': ['서버 지정', '指定服务器', 'Assign a server'],
+  'bulk.serverHint': [
+    '이번에 추가·개명한 사람에게만 반영됩니다. 기존 멤버의 서버는 건드리지 않습니다.',
+    '只对本次添加·改名的人生效，不会改动已有成员的服务器。',
+    'Applies only to the people added or renamed here — existing members are untouched.',
+  ],
+  'bulk.stNew': ['신규', '新增', 'New'],
+  'bulk.stRename': ['개명 후보', '疑似改名', 'Possible rename'],
+  'bulk.stExists': ['이미 있음', '已存在', 'Already listed'],
+  'bulk.stDup': ['입력 중복', '重复输入', 'Duplicate'],
+  'bulk.stInvalid': ['확인 필요', '需要确认', 'Needs a look'],
+  'bulk.opAdd': ['추가', '添加', 'Add'],
+  'bulk.opRename': ['개명', '改名', 'Rename'],
+  'bulk.opSkip': ['건너뜀', '跳过', 'Skip'],
+  'bulk.fromLabel': ['바뀌기 전 이름', '原名', 'Previous name'],
+  'bulk.fromPick': ['— 누구였는지 고르세요 —', '— 请选择原来是谁 —', '— pick who this was —'],
+  'bulk.renameNote': [
+    '개명으로 지정하면 그 사람의 분배전·분배완료·참여횟수·지난 시즌 기록이 새 이름으로 그대로 넘어갑니다. 새로 추가하면 0부터 시작합니다.',
+    '选择"改名"会把该成员的待分配·已发放·参与次数·历史赛季记录一并转到新名字；选择"添加"则从 0 开始。',
+    'Renaming carries the balance, payout history, participation count and past seasons over. Adding starts from zero.',
+  ],
+  'bulk.apply': ['추가 {add} · 개명 {ren} 반영', '添加 {add} · 改名 {ren}', 'Apply {add} add · {ren} rename'],
+  'bulk.overCap': [
+    '정원을 넘습니다 — 추가 {n}명, 남은 자리 {room}명.',
+    '超出上限 — 要添加 {n} 人，仅剩 {room} 个位置。',
+    'Over capacity — {n} to add but only {room} slots left.',
+  ],
+
   /* ── 결과 메시지 (앱이 직접 만드는 것) ── */
   'r.saved': ['저장했습니다.', '已保存。', 'Saved.'],
   'r.deleted': ['삭제했습니다.', '已删除。', 'Deleted.'],
@@ -810,6 +859,48 @@ const DICT: Record<string, Entry> = {
     '⚠️ 发放金额超过待分配（{pending}钻石）。',
     '⚠️ The payout is larger than the unpaid balance ({pending} dia).',
   ],
+  's.bulk.analyzed': [
+    '읽은 줄 {total} · 신규 {add} · 개명후보 {rename} · 이미있음 {exists} · 중복 {dup} · 확인필요 {invalid}',
+    '共 {total} 行 · 新增 {add} · 疑似改名 {rename} · 已存在 {exists} · 重复 {dup} · 需确认 {invalid}',
+    '{total} lines · {add} new · {rename} possible renames · {exists} already listed · {dup} duplicates · {invalid} need a look',
+  ],
+  's.bulk.noText': [
+    '📷 사진은 저장했지만 글자를 읽지 못했습니다. 텍스트로 붙여넣어주세요.',
+    '📷 照片已保存，但没能识别出文字。请直接粘贴文本。',
+    '📷 The photo was saved but no text could be read. Paste the list instead.',
+  ],
+  's.bulk.noName': [
+    '읽어낸 이름이 없습니다. 한 줄에 한 명씩 붙여넣어주세요.',
+    '没有识别到名字。请每行填一个人。',
+    'No names were found. Put one name per line.',
+  ],
+  's.bulk.nothing': ['처리할 대상이 없습니다.', '没有需要处理的对象。', 'Nothing selected to apply.'],
+  's.bulk.tooMany': [
+    '한 번에 {max}명까지만 처리할 수 있습니다.',
+    '一次最多处理 {max} 人。',
+    'At most {max} people at a time.',
+  ],
+  's.bulk.overCap': [
+    '정원을 넘습니다. 현재 {cur}명 + 추가 {add}명 > 최대 {max}명.',
+    '超出上限。现有 {cur} 人 + 新增 {add} 人 > 上限 {max} 人。',
+    'Over capacity: {cur} now + {add} new exceeds the {max} limit.',
+  ],
+  's.bulk.needConfirm': [
+    '추가 {add}명 · 개명 {ren}명을 반영합니다.\n\n개명으로 지정한 건은 기존 잔액·참여횟수가 그대로 넘어갑니다.\n진행할까요?',
+    '将添加 {add} 人 · 改名 {ren} 人。\n\n改名的成员会保留原有余额与参与次数。\n继续吗？',
+    'This adds {add} and renames {ren}.\n\nRenamed members keep their balance and participation count.\nProceed?',
+  ],
+  's.bulk.ok': [
+    '✅ 추가 {add}명 · 개명 {ren}명 완료 (서버 반영 {set}명)',
+    '✅ 已添加 {add} 人 · 改名 {ren} 人（服务器已设置 {set} 人）',
+    '✅ Added {add}, renamed {ren} ({set} got the server)',
+  ],
+  's.bulk.partial': [
+    '⚠️ 추가 {add}명 · 개명 {ren}명 — 실패 {failN}건: {failList}',
+    '⚠️ 添加 {add} 人 · 改名 {ren} 人 — 失败 {failN} 项：{failList}',
+    '⚠️ Added {add}, renamed {ren} — {failN} failed: {failList}',
+  ],
+  's.e.photoFailed': ['사진을 분석하지 못했습니다.', '照片分析失败。', 'Could not analyse the photo.'],
   's.e.payZero': ['"{name}" 분배전 금액이 0입니다.', '「{name}」的待分配金额为 0。', '"{name}" has no unpaid balance.'],
 };
 

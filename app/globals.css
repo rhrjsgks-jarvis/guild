@@ -778,3 +778,97 @@ select:focus {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* ───────── 명단 일괄 추가 (v10.4) ───────── */
+/* 한 줄씩 눈으로 확인하는 것이 이 화면의 목적이므로,
+   상태가 한눈에 구분되도록 왼쪽에 색 띠를 둔다. */
+.bulk-list {
+  margin-top: 12px;
+  max-height: 46vh;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.bulk-row {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  border-left: 4px solid transparent;
+}
+
+.bulk-row:last-child {
+  border-bottom: none;
+}
+
+.bulk-row.s-new { border-left-color: var(--paid); }
+.bulk-row.s-rename { border-left-color: var(--pending); }
+.bulk-row.s-invalid { border-left-color: var(--danger); }
+.bulk-row.s-exists,
+.bulk-row.s-dup { border-left-color: var(--line); opacity: 0.72; }
+
+.bulk-name {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 5px;
+  font-size: 14px;
+}
+
+.bulk-name b {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.bulk-name i {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+
+.bulk-tag {
+  margin-left: auto;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.bulk-tag.t-new { background: var(--paid-soft); color: var(--paid); }
+.bulk-tag.t-rename { background: var(--pending-soft); color: var(--pending); }
+.bulk-tag.t-invalid { background: var(--pending-soft); color: var(--danger); }
+
+.bulk-ops {
+  display: flex;
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.bulk-op {
+  flex: 1;
+  padding: 6px 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.bulk-op.on {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+.bulk-op:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.bulk-from {
+  margin-top: 7px;
+}

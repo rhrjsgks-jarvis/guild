@@ -479,15 +479,15 @@ await t('쓰기 직후 조회(?fresh=1)는 캐시를 건너뛴다', async () => 
   const state = async (q = '') => (await (await fetch(`${APP}/api/state${q}`)).json()).data.version;
 
   await reset();
-  eq(await state(), '10.3', '첫 조회 버전');
+  eq(await state(), '10.4', '첫 조회 버전');
 
   await mock('__setVersion', { version: '9.9' });
-  eq(await state(), '10.3', '캐시된 조회 (시트가 바뀌어도 그대로여야 정상)');
+  eq(await state(), '10.4', '캐시된 조회 (시트가 바뀌어도 그대로여야 정상)');
   eq(await state('?fresh=1'), '9.9', 'fresh 조회 (캐시를 건너뛴 값)');
   // fresh 조회는 캐시도 새 값으로 갈아둔다 — 다음 사람이 낡은 값을 보지 않는다
   eq(await state(), '9.9', 'fresh 이후의 일반 조회');
 
-  await mock('__setVersion', { version: '10.3' });
+  await mock('__setVersion', { version: '10.4' });
 });
 
 await t('쓰기 응답이 최신 상태를 같이 실어 온다 (조회 왕복 없음)', async () => {
@@ -502,7 +502,7 @@ await t('쓰기 응답이 최신 상태를 같이 실어 온다 (조회 왕복 �
     throw new Error('실어 온 상태에 방금 등록한 아이템이 없습니다.');
   }
   eq(typeof body.state.season, 'number', '실어 온 상태의 시즌');
-  eq(body.state.version, '10.3', '실어 온 상태의 버전');
+  eq(body.state.version, '10.4', '실어 온 상태의 버전');
 
   // 그 값이 캐시에도 들어가 있어야 한다 — 다른 사람도 시트를 거치지 않고 받는다
   const shared = (await (await fetch(`${APP}/api/state`)).json()).data;
@@ -699,6 +699,99 @@ await t('연합: 잘못된 서버·아이템명·금액·비중은 거부된다'
     eq((await post('/api/admin/alliance', b, { Cookie: cookie })).status, 400, JSON.stringify(b));
   }
   eq((await post('/api/admin/alliance', { op: '이상한거' }, { Cookie: cookie })).status, 400, '알 수 없는 op');
+});
+
+await t('명단 일괄 추가: 판정이 상태를 정확히 가른다', async () => {
+  await reset();
+  // 가이·PlusS 는 이미 있고, 잠단(斬斷) 은 표기만 다른 개명 후보,
+  // 숫자 줄과 한 글자는 이름으로 볼 수 없고, 신규 둘은 그대로 들어가야 한다
+  const text = ['1. 새사람A', '2. 새사람B', '가이', 'PlusS', '잠단(斬断)', '새사람A', '42', 'ㅋ'].join('\n');
+  const res = await (
+    await post('/api/admin/members-bulk', { op: 'analyze', text }, { Cookie: cookie })
+  ).json();
+  eq(res.ok, true, '판정 ok');
+
+  // '새사람A' 는 일부러 두 번 넣었다 — 첫 줄이 신규, 둘째 줄이 중복이어야 한다
+  const by = {};
+  res.rows.forEach((r) => { if (!(r.name in by)) by[r.name] = r.status; });
+  eq(by['새사람A'], 'new', '신규');
+  eq(by['새사람B'], 'new', '신규2');
+  eq(by['가이'], 'exists', '이미 있음');
+  eq(by['PlusS'], 'exists', '이미 있음(라틴)');
+  eq(by['잠단(斬断)'], 'rename', '표기만 다른 개명 후보');
+  eq(by['42'], 'invalid', '숫자 줄');
+  eq(by['ㅋ'], 'invalid', '한 글자');
+  eq(res.rows.filter((r) => r.status === 'dup').length, 1, '입력 안 중복');
+
+  // 개명 후보에는 누구였는지 제안이 붙어야 사람이 고를 수 있다
+  const cand = res.rows.find((r) => r.status === 'rename');
+  if (!cand.suggest.length) throw new Error('개명 후보에 제안이 없습니다.');
+
+  // ★ 판정만 했는데 명단이 바뀌면 안 된다
+  const roster = (await (await fetch(`${APP}/api/admin/roster`, { headers: { Cookie: cookie } })).json()).data;
+  if (roster.some((m) => m.name === '새사람A')) throw new Error('판정 단계가 명단을 바꿨습니다.');
+});
+
+await t('명단 일괄 추가: 확인 없이는 실행되지 않는다', async () => {
+  const entries = [{ name: '새사람A', op: 'add', from: '' }];
+  const first = await (
+    await post('/api/admin/members-bulk', { op: 'apply', entries, server: '07' }, { Cookie: cookie })
+  ).json();
+  eq(first.ok, false, '첫 호출은 거부');
+  eq(first.needsConfirm, true, '재확인 요구');
+
+  const roster = (await (await fetch(`${APP}/api/admin/roster`, { headers: { Cookie: cookie } })).json()).data;
+  if (roster.some((m) => m.name === '새사람A')) throw new Error('확인 전에 반영됐습니다.');
+});
+
+await t('명단 일괄 추가: 추가는 새로, 개명은 잔액을 승계한다', async () => {
+  await reset();
+  // '대서과Z' 는 분배전 4,500 · 참여 3회 — 개명해도 그대로여야 한다
+  const before = (await (await post('/api/lookup', { name: '대서과Z' })).json()).data;
+  eq(before.pending, 4500, '개명 전 분배전');
+
+  const entries = [
+    { name: '새사람A', op: 'add', from: '' },
+    { name: '대서과ZZ', op: 'rename', from: '대서과Z' },
+    { name: '무시할사람', op: 'skip', from: '' },
+  ];
+  const res = await (
+    await post('/api/admin/members-bulk', { op: 'apply', entries, server: '07', confirm: true }, { Cookie: cookie })
+  ).json();
+  eq(res.ok, true, '반영 ok');
+  eq(res.added.length, 1, '추가 1명');
+  eq(res.renamed.length, 1, '개명 1명');
+  eq(res.failed.length, 0, '실패 0');
+
+  // ★ 개명은 잔액·참여횟수를 그대로 물려받아야 한다 (새로 추가하면 0부터 시작한다)
+  const after = (await (await post('/api/lookup', { name: '대서과ZZ' })).json()).data;
+  eq(after.pending, before.pending, '개명 후 분배전');
+  eq(after.cnt, before.cnt, '개명 후 참여횟수');
+  eq((await (await post('/api/lookup', { name: '대서과Z' })).json()).ok, false, '옛 이름은 사라짐');
+
+  // 새로 추가한 사람은 0부터
+  const fresh = (await (await post('/api/lookup', { name: '새사람A' })).json()).data;
+  eq(fresh.pending, 0, '신규는 0');
+
+  // 서버는 이번에 손댄 사람에게만 반영된다 — 기존 멤버는 그대로
+  const roster = (await (await fetch(`${APP}/api/admin/roster`, { headers: { Cookie: cookie } })).json()).data;
+  eq(roster.find((m) => m.name === '새사람A').server, '07', '신규의 서버');
+  eq(roster.find((m) => m.name === '대서과ZZ').server, '07', '개명자의 서버');
+  eq(roster.find((m) => m.name === '가이').server, '01', '건드리지 않은 멤버의 서버');
+});
+
+await t('명단 일괄 추가: 잘못된 요청은 시트까지 가지 않는다', async () => {
+  const bad = [
+    { op: 'apply', entries: [{ name: '누구', op: 'rename', from: '' }], confirm: true },
+    { op: 'apply', entries: [{ name: '', op: 'add' }], confirm: true },
+    { op: 'apply', entries: [], confirm: true },
+    { op: 'analyze' },
+    { op: '이상한거' },
+  ];
+  for (const b of bad) {
+    eq((await post('/api/admin/members-bulk', b, { Cookie: cookie })).status, 400, JSON.stringify(b).slice(0, 60));
+  }
+  eq((await post('/api/admin/members-bulk', { op: 'analyze', text: 'x' })).status, 401, '비로그인');
 });
 
 await t('아이디 변경 이력이 변경 전/후로 남는다', async () => {
@@ -989,7 +1082,7 @@ await t('헤더의 새로고침 버튼이 보이고, 눌러서 최신 값을 받
   if (!h1.includes('9.9')) throw new Error(`새로고침을 눌렀는데 최신 값이 아닙니다: ${h1}`);
   await shot('15-refresh');
 
-  await mock('__setVersion', { version: '10.3' });
+  await mock('__setVersion', { version: '10.4' });
   await btn.click();
   await page.waitForTimeout(1200);
 });
@@ -999,7 +1092,7 @@ await t('제목 옆에 버전이 보이고, 시트가 옛 버전이면 경고가
   await page.reload({ waitUntil: 'networkidle' });
   const h1 = page.locator('.header h1');
   const same = await h1.innerText();
-  if (!same.includes('v10.3')) throw new Error(`제목 옆 버전이 없습니다: ${same}`);
+  if (!same.includes('v10.4')) throw new Error(`제목 옆 버전이 없습니다: ${same}`);
   if (same.includes('⚠️')) throw new Error(`버전이 같은데 경고가 떴습니다: ${same}`);
   await shot('09-version');
 
@@ -1017,7 +1110,7 @@ await t('제목 옆에 버전이 보이고, 시트가 옛 버전이면 경고가
   if (!warned.includes('⚠️')) throw new Error(`경고 표시가 없습니다: ${warned}`);
   await shot('10-version-mismatch');
 
-  await mock('__setVersion', { version: '10.3' });
+  await mock('__setVersion', { version: '10.4' });
 });
 
 await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', async () => {

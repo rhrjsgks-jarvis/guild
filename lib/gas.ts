@@ -41,6 +41,8 @@ export type GasAction =
   | 'alliance'
   | 'addAlliance'
   | 'creditAlliance'
+  | 'analyzeMembers'
+  | 'bulkAddMembers'
   | 'deleteAlliance'
   | 'countPhoto'
   | 'updateMember'

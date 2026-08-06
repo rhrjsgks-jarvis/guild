@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import BulkMemberSheet from './BulkMemberSheet';
 import Sheet from './Sheet';
 import type { RenameRecord, RosterEntry } from '@/lib/types';
 import { api, fmt, getStoredEmail } from '@/lib/client';
@@ -30,6 +31,8 @@ export default function RosterCard({
   const [error, setError] = useState('');
   const [target, setTarget] = useState<RosterEntry | null>(null);
   const [adding, setAdding] = useState(false);
+  const [bulk, setBulk] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     const res = await api('/api/admin/roster');
@@ -48,6 +51,7 @@ export default function RosterCard({
   const done = (res?: ApiResult) => {
     setTarget(null);
     setAdding(false);
+    setBulk(false);
     void load();
     onChanged(res);
   };
@@ -78,6 +82,10 @@ export default function RosterCard({
             <div className="field" style={{ paddingBottom: 10 }}>
               <button className="btn block" onClick={() => setAdding(true)}>
                 {t('ros.add')}
+              </button>
+              {/* 명단을 통째로 받아오는 길 — 한 명씩 넣는 것은 40명 규모에서 현실적이지 않다 */}
+              <button className="btn ghost block" style={{ marginTop: 8 }} onClick={() => setBulk(true)}>
+                📋 {t('bulk.title')}
               </button>
               <p className="hint">{t('ros.addHint')}</p>
             </div>
@@ -111,6 +119,20 @@ export default function RosterCard({
       <RenameHistoryCard />
 
       {adding ? <AddSheet onClose={() => setAdding(false)} onDone={done} toast={toast} /> : null}
+      {bulk ? (
+        <BulkMemberSheet
+          servers={servers}
+          onClose={() => setBulk(false)}
+          onDone={done}
+          toast={toast}
+          setBusy={setBusy}
+        />
+      ) : null}
+      {busy ? (
+        <div className="overlay">
+          <div className="spinner" />
+        </div>
+      ) : null}
       {target ? (
         <MemberSheet
           member={target}

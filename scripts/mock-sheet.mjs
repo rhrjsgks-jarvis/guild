@@ -24,7 +24,7 @@ const SERVER_LIST = ['01','02','03','04','05','06','07','08','09','10','11','12'
 const ST_WAIT = '⏳미분배';
 const ST_DONE = '✅분배완료';
 // 앱이 기대하는 버전과 같은 값 — 화면에 "버전 불일치" 경고가 뜨지 않아야 정상이다
-let MOCK_GS_VERSION = '10.3';
+let MOCK_GS_VERSION = '10.4';
 
 /**
  * .gs 의 `_rc` 와 같은 모양으로 결과에 코드·값을 붙인다.
@@ -41,6 +41,7 @@ function rc(res, code, vars) {
 const WRITE_ACTIONS = ['register', 'distribute', 'payout', 'rename', 'addMember', 'removeMember',
                        'correctItem', 'deleteItem', 'undoPayout', 'runTool',
                        'deletePost', 'addAlliance', 'creditAlliance', 'deleteAlliance', 'updateMember',
+                       'bulkAddMembers',
                        'setAppName', 'setAdminPin', 'setSeasonServer'];
 
 /**
@@ -722,6 +723,103 @@ const handlers = {
     return { ok: true, msg: `✅ ${name} — ${changes.join(' · ')}` };
   },
 
+  // ── 명단 일괄 추가 (v10.4) — .gs 의 판정 규칙을 같은 순서로 흉내낸다 ──
+  analyzeMembers: ({ text }) => {
+    const raws = String(text || '')
+      .split(/[\r\n,;\t|]+/)
+      // 번호를 떼고 나니 빈 줄이 되면 원문을 남긴다 — 조용히 지우면 누가 빠졌는지 모른다
+      .map((l) => l.trim())
+      .map((l) => l.replace(/^\s*[-•*]?\s*\d{0,3}\s*[.)\]]?\s*/, '').trim() || l)
+      .filter(Boolean);
+    if (raws.length === 0) return rc({ ok: true, rows: [], msg: '읽어낸 이름이 없습니다.' }, 'bulk.noName');
+
+    const members = S.rows.filter((r) => r.name !== FUND_NAME);
+    const core = (v) => norm(String(v).replace(/\(.*$/, '')).toLowerCase();
+    const seen = new Set();
+    const rows = raws.map((raw) => {
+      const name = raw.trim();
+      const bare = name.replace(/[\s()（）]/g, '');
+      if (!bare || /^[0-9.%\-+]+$/.test(bare) || bare.length < 2 || name.length > 30 || name === FUND_NAME) {
+        return { raw, name, status: 'invalid', suggest: [] };
+      }
+      const key = norm(name).toLowerCase();
+      if (seen.has(key)) return { raw, name, status: 'dup', suggest: [] };
+      seen.add(key);
+      if (members.some((m) => norm(m.name).toLowerCase() === key)) {
+        return { raw, name, status: 'exists', suggest: [] };
+      }
+      const x = core(name);
+      const suggest = members
+        .filter((m) => {
+          const y = core(m.name);
+          if (!x || !y) return false;
+          if (x === y) return true;
+          if (x.length < 3 || y.length < 3) return false;
+          if (x.includes(y) || y.includes(x)) return true;
+          if (x.length !== y.length) return false;
+          let diff = 0;
+          for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) diff += 1;
+          return diff === 1;
+        })
+        .map((m) => m.name)
+        .slice(0, 5);
+      return { raw, name, status: suggest.length ? 'rename' : 'new', suggest };
+    });
+
+    const c = (st) => rows.filter((r) => r.status === st).length;
+    const summary = { total: rows.length, add: c('new'), rename: c('rename'), exists: c('exists'), dup: c('dup'), invalid: c('invalid') };
+    return rc(
+      { ok: true, rows, summary, room: 50 - members.length, serverList: SERVER_LIST,
+        msg: `읽은 줄 ${summary.total} · 신규 ${summary.add} · 개명후보 ${summary.rename}` },
+      'bulk.analyzed', summary,
+    );
+  },
+
+  bulkAddMembers: ({ entries, server, confirm }) => {
+    const list = (entries || []).filter((e) => e && e.op !== 'skip');
+    if (list.length === 0) return rc({ ok: false, msg: '처리할 대상이 없습니다.' }, 'bulk.nothing');
+    const sv = String(server || '').trim();
+    if (sv && !SERVER_LIST.includes(sv)) return rc({ ok: false, msg: '서버는 01~12 중에서 선택해주세요.' }, 'e.badServer');
+
+    const adds = list.filter((e) => e.op === 'add');
+    const renames = list.filter((e) => e.op === 'rename');
+    const cur = S.rows.filter((r) => r.name !== FUND_NAME).length;
+    if (cur + adds.length > 50) {
+      return rc({ ok: false, msg: '정원을 넘습니다.' }, 'bulk.overCap', { cur, add: adds.length, max: 50 });
+    }
+    // 되돌리기가 번거로운 작업이라 반드시 한 번 더 확인받는다
+    if (confirm !== true) {
+      return rc({ ok: false, needsConfirm: true, msg: `추가 ${adds.length}명 · 개명 ${renames.length}명을 반영합니다.` },
+        'bulk.needConfirm', { add: adds.length, ren: renames.length, server: sv });
+    }
+
+    const added = [];
+    const renamed = [];
+    const failed = [];
+    // 개명 먼저 — 추가보다 앞에 둬야 빈 칸을 두고 다투지 않는다
+    renames.forEach((e) => {
+      const from = findRow(e.from);
+      if (!from) { failed.push(`${e.from} → ${e.name}: 찾지 못했습니다`); return; }
+      from.name = String(e.name).trim();   // 잔액·참여횟수는 그대로 승계된다
+      if (sv) from.server = sv;
+      renamed.push(`${e.from} → ${e.name}`);
+    });
+    adds.forEach((e) => {
+      const nm = String(e.name).trim();
+      if (findRow(nm)) { failed.push(`${nm}: 이미 명단에 있습니다`); return; }
+      S.rows.push({ name: nm, pending: 0, paid: 0, cnt: 0, weight: 100, server: sv, hanja: '' });
+      added.push(nm);
+    });
+
+    const serverSet = sv ? added.length + renamed.length : 0;
+    return rc(
+      { ok: true, added, renamed, failed, serverSet,
+        msg: `✅ 추가 ${added.length}명 · 개명 ${renamed.length}명` },
+      failed.length ? 'bulk.partial' : 'bulk.ok',
+      { add: added.length, ren: renamed.length, server: sv, set: serverSet, failN: failed.length, failList: failed.join(' / ') },
+    );
+  },
+
   checkPin: ({ pin }) => {
     if (!S.adminPinOverride) return { ok: true, hasOverride: false, match: false };
     return { ok: true, hasOverride: true, match: String(pin || '') === S.adminPinOverride };
@@ -752,13 +850,13 @@ const handlers = {
   // 테스트가 매번 같은 상태에서 시작할 수 있도록
   __reset: () => {
     S = freshState();
-    MOCK_GS_VERSION = '10.3';
+    MOCK_GS_VERSION = '10.4';
     return { ok: true, msg: '초기화됨' };
   },
 
   // "시트만 옛 버전인" 상황을 만들어 보기 위한 것 (테스트 전용)
   __setVersion: ({ version }) => {
-    MOCK_GS_VERSION = String(version || '10.3');
+    MOCK_GS_VERSION = String(version || '10.4');
     return { ok: true, msg: '버전 ' + MOCK_GS_VERSION };
   },
 };

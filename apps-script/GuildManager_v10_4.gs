@@ -1,8 +1,28 @@
 // ═══════════════════════════════════════════════════════════════
-//  길드 정산 시스템 v10.3  (분배비중 · 연합 · 게시판 · 마스터관리자 · 3개국어)
+//  길드 정산 시스템 v10.4  (분배비중 · 연합 · 게시판 · 마스터관리자 · 3개국어)
 //  시트 구성: [사용안내] [멤버DB] [참여자현황] [분배대기중] [잔액현황]
 //            [지급기록] [연합] [게시판] [작업기록] + [시즌1] [시즌2] ...
 //            ← 이 순서로 항상 정렬됨
+// ═══════════════════════════════════════════════════════════════
+//  변경점 v10.3 → v10.4  (명단 일괄 추가 + 오류 검증)
+//
+//   - ★ 사진(OCR) 또는 붙여넣은 텍스트로 혈맹원을 한 번에 등록한다.
+//       40명을 한 명씩 넣는 것은 현실적이지 않고, 손으로 넣으면 오타가 난다.
+//   - ★ 이 기능의 핵심은 "빨리 넣는 것"이 아니라 **넣기 전에 걸러내는 것**이다.
+//       잘못 넣으면 되돌리기가 아주 번거로워서 두 단계로 나눴다:
+//         ① api_analyzeMembers — 아무것도 쓰지 않고 판정만 해서 돌려준다
+//         ② api_bulkAddMembers — 관리자가 표를 보고 확정한 것만 실행한다
+//       판정은 반드시 서버에서 한다. 앱에서만 하면 앱을 고쳐 우회할 수 있다.
+//   - 판정 결과: 신규 / 이미있음 / 입력중복 / 개명후보 / 확인필요
+//   - ★ 개명으로 지정한 건은 추가가 아니라 `_renameCore` 를 태운다.
+//       새로 추가하면 잔액·참여횟수·지난 시즌 기록이 0부터 다시 시작하지만,
+//       개명으로 처리하면 그대로 승계된다 (누적 관리의 핵심).
+//   - ★ 개명 후보를 시스템이 확정하지 않는다. 잘못 이으면 두 사람 잔액이 합쳐진다.
+//       제안만 하고 관리자가 고른다.
+//   - ★ 번호를 떼고 나니 빈 줄이 되는 입력(예: "42")은 버리지 않고 남겨
+//       '확인필요'로 보여준다. 조용히 지우면 OCR 오독으로 누가 빠졌는지 모른다.
+//   - 서버 번호는 이번에 추가·개명한 사람에게만 반영한다 (기존 멤버는 그대로).
+//   - 대상별 개별 try/catch — Apps Script 에는 트랜잭션이 없다 (규칙 6).
 // ═══════════════════════════════════════════════════════════════
 //  변경점 v10.2 → v10.3  (연합 정산을 2단계로 분리)
 //
@@ -386,7 +406,7 @@
 //     '누적기록'을 그대로 찾음 (하위 호환, 리네이밍과 무관)
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION = '10.3';
+const VERSION = '10.4';
 const T2S_MAP = {'國':'国','學':'学','這':'这','個':'个','們':'们','說':'说','話':'话','對':'对','時':'时','間':'间','現':'现','場':'场','開':'开','關':'关','內':'内','東':'东','車':'车','馬':'马','龍':'龙','風':'风','陽':'阳','陰':'阴','電':'电','語':'语','讀':'读','寫':'写','書':'书','紙':'纸','筆':'笔','長':'长','門':'门','問':'问','聽':'听','見':'见','覺':'觉','讓':'让','誰':'谁','還':'还','進':'进','運':'运','動':'动','靜':'静','樂':'乐','藥':'药','華':'华','蘭':'兰','葉':'叶','黃':'黄','麗':'丽','寶':'宝','貴':'贵','財':'财','買':'买','賣':'卖','錢':'钱','銀':'银','鐵':'铁','鋼':'钢','陳':'陈','劉':'刘','張':'张','楊':'杨','蔣':'蒋','鄭':'郑','謝':'谢','呂':'吕','蘇':'苏','韓':'韩','馮':'冯','於':'于','鳳':'凤','雲':'云','劍':'剑','斷':'断','亂':'乱','愛':'爱','聲':'声','醫':'医','藝':'艺','頭':'头','臉':'脸','腳':'脚','氣':'气','樓':'楼','橋':'桥','飛':'飞','機':'机','網':'网','線':'线','條':'条','裡':'里','邊':'边','錯':'错','壞':'坏','舊':'旧','寬':'宽','淺':'浅','週':'周','節':'节','業':'业','後':'后','來':'来','終':'终','結':'结','敗':'败','勝':'胜','負':'负','輸':'输','贏':'赢','強':'强','難':'难','簡':'简','單':'单','複':'复','雜':'杂','純':'纯','淨':'净','髒':'脏','齊':'齐','穩':'稳','變':'变','轉':'转','換':'换','顯':'显','樣':'样','種':'种','類':'类','團':'团','體':'体','統':'统','織':'织','組':'组','構':'构','設':'设','計':'计','劃':'划','數':'数','課':'课','題':'题','試':'试','練':'练','習':'习','師':'师','員':'员','職':'职','務':'务','責':'责','權':'权','應':'应','該':'该','須':'须','願':'愿','夢':'梦','憶':'忆','識':'识','認':'认','歡':'欢','醜':'丑','帥':'帅','靈':'灵','獸':'兽','鷹':'鹰','鶴':'鹤','鴻':'鸿','鱷':'鳄','鯨':'鲸','鯊':'鲨','蝦':'虾','殼':'壳','冑':'胄','戰':'战','爭':'争','鬥':'斗','擊':'击','禦':'御','護':'护','衛':'卫','謀':'谋','陣':'阵','營':'营','軍':'军','隊':'队','將':'将','嬪':'嫔','宮':'宫','廟':'庙','觀':'观','閣':'阁','蓮':'莲','楓':'枫','樺':'桦','檜':'桧','樹':'树','實':'实','幹':'干','莖':'茎','穫':'获','採':'采','鮮':'鲜','籠':'笼','傷':'伤','殺':'杀','斬':'斩','豬':'猪','雞':'鸡','鴨':'鸭','鵝':'鹅','龜':'龟','蟬':'蝉','蟻':'蚁','螞':'蚂','鴉':'鸦','鵰':'雕','鴛':'鸳','鴦':'鸯','賽':'赛','廠':'厂','廣':'广','麼':'么','誒':'诶','歲':'岁','歷':'历','歸':'归','殘':'残','蟲':'虫','貓':'猫','氈':'毡','貫':'贯','質':'质','貨':'货','貼':'贴','費':'费','資':'资','賬':'账','賺':'赚','贈':'赠','賀':'贺','賢':'贤','賦':'赋','賤':'贱','賓':'宾','賴':'赖','齲':'龋','齒':'齿','龄':'齡','齡':'龄','齣':'出','岡':'冈','剛':'刚','剮':'剐','創':'创','劇':'剧','勵':'励','勸':'劝','勻':'匀','匯':'汇','醬':'酱','醞':'酝','釀':'酿','釋':'释','釘':'钉','針':'针','釣':'钓','鈍':'钝','鈴':'铃','鈔':'钞','鉛':'铅','鋸':'锯','鋒':'锋','鍵':'键','鎖':'锁','鑄':'铸','鑼':'锣','錶':'表','鐘':'钟','鏡':'镜','鑽':'钻','鑑':'鉴','閉':'闭','閃':'闪','閏':'闰','閱':'阅','闆':'板','闖':'闯','陸':'陆','隱':'隐','雖':'虽','雙':'双','雛':'雏','靂':'雳','韋':'韦','韌':'韧','頁':'页','頂':'顶','項':'项','順':'顺','頌':'颂','預':'预','頑':'顽','頒':'颁','頗':'颇','領':'领','頡':'颉','頜':'颌','頸':'颈','頻':'频','頹':'颓','顆':'颗','額':'额','顏':'颜','顛':'颠','顧':'顾','飄':'飘','饑':'饥','餃':'饺','餅':'饼','館':'馆','饒':'饶','饞':'馋','馳':'驰','駕':'驾','駛':'驶','駐':'驻','駱':'骆','駭':'骇','騎':'骑','騰':'腾','驅':'驱','驚':'惊','驕':'骄','驗':'验','骯':'肮','髮':'发','鬍':'胡','鬧':'闹','鮑':'鲍','鯉':'鲤','鰲':'鳌','鱉':'鳖','鳥':'鸟','鳴':'鸣','鹹':'咸','麥':'麦','麵':'面','黨':'党'};  // 번체→간체 상용한자 (서체 변환 전용, 다른 뜻 글자는 포함하지 않음)
 const UNIT = '다이아';                 // 재화 단위 표기
 const MAX_MEMBERS = 50;               // 최대 멤버 수
@@ -4624,6 +4644,296 @@ function api_updateMember(name, patch, email) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  📋 혈맹원 일괄 추가 (v10.4)
+//
+//  길드 명단을 사진이나 텍스트로 통째로 받아 한 번에 등록한다.
+//  40명을 한 명씩 넣는 것은 현실적이지 않고, 손으로 넣으면 오타가 난다.
+//
+//  ★ 이 기능의 핵심은 "빨리 넣는 것"이 아니라 **넣기 전에 걸러내는 것**이다.
+//    잘못 넣으면 되돌리기가 아주 번거롭다. 그래서 두 단계로 나눈다:
+//
+//      ① analyzeMembers — 아무것도 쓰지 않고 **판정만** 해서 돌려준다
+//      ② bulkAddMembers — 관리자가 표를 보고 확정한 것만 실행한다
+//
+//  판정은 반드시 **서버에서** 한다. 앱에서만 검사하면 앱을 고쳐 우회할 수 있다.
+//
+//  개명(rename)으로 지정한 건은 추가가 아니라 _renameCore 를 태운다.
+//  새로 추가해버리면 잔액·참여횟수·지난 시즌 기록이 0부터 다시 시작하지만,
+//  개명으로 처리하면 그대로 승계된다 — 사용자가 말한 "누적 관리"의 핵심.
+// ═══════════════════════════════════════════════════════════════
+
+/** 한 번에 처리할 수 있는 최대 줄 수 — 화면에서 검토가 불가능해지는 것을 막는다 */
+const BULK_MAX_LINES = 80;
+
+/**
+ * 붙여넣은 텍스트 · OCR 결과에서 이름 후보를 뽑는다.
+ *
+ * 게임 명단을 복사하면 레벨·직업·순위 같은 것이 섞여 들어온다.
+ * ★ 애매한 줄을 "알아서 고쳐서" 넣지 않는다 — 지어낸 이름은 엉뚱한 사람에게
+ *   다이아가 가는 사고로 이어진다 (규칙 7). 판정만 하고 사람이 고치게 한다.
+ */
+function _parseNameList(text) {
+  return String(text || '')
+    .split(/[\r\n,;\t|]+/)
+    .map(function (line) {
+      const src = String(line).trim();
+      // "1. 이름", "01) 이름", "- 이름" 같은 목록 기호만 떼어낸다
+      const stripped = src.replace(/^\s*[-•*]?\s*\d{0,3}\s*[.)\]]?\s*/, '').trim();
+      // ★ 떼고 나니 아무것도 안 남는 줄(예: "42")은 **버리지 않고 원문을 남긴다.**
+      //   조용히 지우면 OCR 이 이름을 숫자로 잘못 읽었을 때 그 사람이 소리 없이
+      //   누락되고, 관리자는 누가 빠졌는지 영영 모른다. 판정에서 걸러 보여준다.
+      return stripped || src;
+    })
+    .filter(function (v) { return v.length > 0; })
+    .slice(0, BULK_MAX_LINES * 3);   // 터무니없이 긴 입력은 여기서 끊는다
+}
+
+/** 두 이름이 같은 사람일 가능성이 있는가 — 개명 후보 판정용 (확정이 아니라 제안) */
+function _looksLikeSame(a, b) {
+  const x = _toSimplified(_normName(_coreName(a)).toLowerCase());
+  const y = _toSimplified(_normName(_coreName(b)).toLowerCase());
+  if (!x || !y) return false;
+  if (x === y) return true;
+  // 2글자 이하는 우연히 겹치기 쉬워 제안하지 않는다 (오귀속 위험)
+  if (x.length < 3 || y.length < 3) return false;
+  if (x.indexOf(y) >= 0 || y.indexOf(x) >= 0) return true;
+  // 길이가 같을 때 한 글자 차이까지만 (斬斷 ↔ 斬断 류의 표기 차이)
+  if (x.length !== y.length) return false;
+  let diff = 0;
+  for (let i = 0; i < x.length; i++) {
+    if (x.charAt(i) !== y.charAt(i)) { diff++; if (diff > 1) return false; }
+  }
+  return diff === 1;
+}
+
+/**
+ * ① 판정 — 아무것도 쓰지 않는다.
+ *
+ * 각 줄을 다음 중 하나로 분류해 돌려준다:
+ *   new      신규 — 그대로 추가하면 된다
+ *   exists   이미 멤버DB에 있음 — 건너뛴다
+ *   dup      입력 안에서 중복 — 한 번만 처리한다
+ *   rename   기존 멤버와 비슷함 — 관리자가 "개명"인지 "동명이인"인지 고른다
+ *   invalid  이름으로 볼 수 없음 — OCR 오독일 가능성이 높다
+ */
+function api_analyzeMembers(text, base64) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let source = String(text || '');
+  let photoUrl = '';
+  let ocrPreview = '';
+
+  // 사진이 오면 OCR 을 돌려 그 결과를 텍스트로 쓴다
+  if (!source.trim() && base64) {
+    const r = api_analyzePhoto(base64);
+    if (!r.ok) return _rc({ ok: false, msg: r.msg || '사진을 분석하지 못했습니다.' }, 'e.photoFailed');
+    photoUrl = r.photoUrl || '';
+    ocrPreview = r.ocrPreview || '';
+    source = ocrPreview;
+    if (!source.trim()) {
+      return _rc({ ok: true, rows: [], photoUrl: photoUrl, ocrPreview: ocrPreview,
+                   msg: '📷 사진은 저장했지만 글자를 읽지 못했습니다. 텍스트로 붙여넣어주세요.' },
+                 'bulk.noText');
+    }
+  }
+
+  const raws = _parseNameList(source);
+  if (raws.length === 0) {
+    return _rc({ ok: true, rows: [], photoUrl: photoUrl, ocrPreview: ocrPreview,
+                 msg: '읽어낸 이름이 없습니다. 한 줄에 한 명씩 붙여넣어주세요.' }, 'bulk.noName');
+  }
+
+  const members = _getMemberRows(ss).filter(function (m) { return m.name !== FUND_NAME; });
+  const seen = {};
+  const rows = [];
+
+  raws.forEach(function (raw) {
+    const name = String(raw).trim();
+    const key = _normName(name).toLowerCase();
+
+    // 이름으로 볼 수 없는 줄 — 숫자만, 한 글자, 지나치게 긺
+    const bare = name.replace(/[\s()（）]/g, '');
+    if (!bare || /^[0-9.%\-+]+$/.test(bare) || bare.length < 2 || name.length > 30) {
+      rows.push({ raw: raw, name: name, status: 'invalid', suggest: [] });
+      return;
+    }
+    if (name === FUND_NAME) {
+      rows.push({ raw: raw, name: name, status: 'invalid', suggest: [] });
+      return;
+    }
+    if (seen[key]) {
+      rows.push({ raw: raw, name: name, status: 'dup', suggest: [] });
+      return;
+    }
+    seen[key] = true;
+
+    if (members.some(function (m) { return _normName(m.name).toLowerCase() === key; })) {
+      rows.push({ raw: raw, name: name, status: 'exists', suggest: [] });
+      return;
+    }
+
+    // 기존 멤버와 비슷하면 개명 후보로 제안한다 — 확정은 사람이 한다
+    const suggest = members
+      .filter(function (m) { return _looksLikeSame(m.name, name); })
+      .map(function (m) { return m.name; })
+      .slice(0, 5);
+
+    rows.push({ raw: raw, name: name, status: suggest.length ? 'rename' : 'new', suggest: suggest });
+  });
+
+  const count = function (st) { return rows.filter(function (r) { return r.status === st; }).length; };
+  const summary = {
+    total: rows.length,
+    add: count('new'),
+    rename: count('rename'),
+    exists: count('exists'),
+    dup: count('dup'),
+    invalid: count('invalid')
+  };
+  // 다 넣었을 때 정원을 넘는지 미리 알려준다 — 넣다가 중간에 끊기는 것보다 낫다
+  const room = MAX_MEMBERS - members.length;
+
+  return _rc({
+    ok: true,
+    rows: rows,
+    summary: summary,
+    room: room,
+    serverList: SERVER_LIST,
+    photoUrl: photoUrl,
+    ocrPreview: ocrPreview.slice(0, 800),
+    msg: '읽은 줄 ' + summary.total + ' · 신규 ' + summary.add + ' · 개명후보 ' + summary.rename +
+         ' · 이미있음 ' + summary.exists + ' · 중복 ' + summary.dup + ' · 확인필요 ' + summary.invalid
+  }, 'bulk.analyzed', summary);
+}
+
+/**
+ * ② 실행 — 관리자가 표를 보고 확정한 것만 처리한다.
+ *
+ * entries: [{ name, op: 'add' | 'rename' | 'skip', from }]
+ *   add    멤버DB 빈 칸에 새로 넣는다
+ *   rename 기존 `from` 을 `name` 으로 바꾼다 → 잔액·참여횟수·이력이 승계된다
+ *   skip   아무것도 하지 않는다
+ *
+ * ★ Apps Script 에는 트랜잭션이 없다. 실제로 19명 중 16명에서 끊긴 사고가 있었다.
+ *   그래서 대상마다 개별 try/catch 를 두고, 무엇이 되고 무엇이 안 됐는지
+ *   정확히 돌려준다 (규칙 6).
+ */
+function api_bulkAddMembers(entries, server, email, confirm) {
+  entries = (entries || []).filter(function (e) { return e && e.op !== 'skip'; });
+  if (entries.length === 0) return _rc({ ok: false, msg: '처리할 대상이 없습니다.' }, 'bulk.nothing');
+  if (entries.length > BULK_MAX_LINES) {
+    return _rc({ ok: false, msg: '한 번에 ' + BULK_MAX_LINES + '명까지만 처리할 수 있습니다.' },
+      'bulk.tooMany', { max: BULK_MAX_LINES });
+  }
+
+  const sv = String(server || '').trim();
+  if (sv && SERVER_LIST.indexOf(sv) < 0) return _rc({ ok: false, msg: '서버는 01~12 중에서 선택해주세요.' }, 'e.badServer');
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const before = _getMemberRows(ss).filter(function (m) { return m.name !== FUND_NAME; });
+  const adds = entries.filter(function (e) { return e.op === 'add'; });
+  const renames = entries.filter(function (e) { return e.op === 'rename'; });
+
+  if (before.length + adds.length > MAX_MEMBERS) {
+    return _rc({ ok: false, msg: '정원을 넘습니다. 현재 ' + before.length + '명 + 추가 ' + adds.length +
+                 '명 > 최대 ' + MAX_MEMBERS + '명.' },
+      'bulk.overCap', { cur: before.length, add: adds.length, max: MAX_MEMBERS });
+  }
+
+  // 되돌리기가 번거로운 작업이라 반드시 한 번 더 확인받는다 (위험도 2)
+  if (confirm !== true) {
+    return _rc({
+      ok: false, needsConfirm: true,
+      summary: { add: adds.length, rename: renames.length, server: sv },
+      msg: '추가 ' + adds.length + '명 · 개명 ' + renames.length + '명' +
+           (sv ? ' · 서버 ' + sv : '') + ' 을(를) 반영합니다.\n\n' +
+           '개명으로 지정한 건은 기존 잔액·참여횟수가 그대로 넘어갑니다.\n진행할까요?'
+    }, 'bulk.needConfirm', { add: adds.length, ren: renames.length, server: sv });
+  }
+
+  const db = ss.getSheetByName('멤버DB');
+  if (!db) return _rc({ ok: false, msg: '멤버DB 시트를 찾을 수 없습니다.' }, 'e.noSheet', { sheet: '멤버DB' });
+
+  const actor = _getActorEmail(email);
+  const added = [];
+  const renamed = [];
+  const failed = [];
+
+  // ── 개명 먼저 ── 추가보다 앞에 둬야 "옛 이름 → 새 이름"이 빈 칸을 두고 다투지 않는다
+  renames.forEach(function (e) {
+    const from = String(e.from || '').trim();
+    const to = String(e.name || '').trim();
+    try {
+      if (!from || !to) throw new Error('이름이 비어 있습니다');
+      const r = _renameCore(ss, from, to, actor);
+      renamed.push(from + ' → ' + to + (r && r.merged ? ' (병합)' : ''));
+    } catch (err) {
+      failed.push(from + ' → ' + to + ': ' + (err && err.message ? err.message : err));
+    }
+  });
+
+  // ── 그다음 신규 추가 ──
+  adds.forEach(function (e) {
+    const name = String(e.name || '').trim();
+    try {
+      if (!name) throw new Error('이름이 비어 있습니다');
+      const cur = _getMembers(ss);
+      if (cur.some(function (m) { return _normName(m) === _normName(name); })) {
+        throw new Error('이미 명단에 있습니다');
+      }
+      const vals = db.getRange(2, MEM_COL.NAME, MAX_MEMBERS, 1).getValues();
+      let slot = -1;
+      for (let i = 0; i < vals.length; i++) {
+        if (!String(vals[i][0]).trim()) { slot = i + 2; break; }
+      }
+      if (slot < 0) throw new Error('멤버DB에 빈 자리가 없습니다');
+      db.getRange(slot, MEM_COL.NAME).setValue(name);
+      added.push(name);
+    } catch (err) {
+      failed.push(name + ': ' + (err && err.message ? err.message : err));
+    }
+  });
+
+  // ── 서버 번호를 이번에 처리한 사람들에게만 반영한다 ──
+  let serverSet = 0;
+  if (sv) {
+    const touched = {};
+    added.forEach(function (n) { touched[_normName(n)] = true; });
+    renames.forEach(function (e) { touched[_normName(String(e.name || ''))] = true; });
+    _getMemberRows(ss).forEach(function (m) {
+      if (!touched[_normName(m.name)]) return;
+      try {
+        db.getRange(m.row, MEM_COL.SERVER).setValue(sv);
+        serverSet += 1;
+      } catch (err) {
+        failed.push(m.name + ' (서버): ' + (err && err.message ? err.message : err));
+      }
+    });
+  }
+
+  try {
+    _syncMembers(ss);
+    _applyMemberNameFormatting(ss);
+  } catch (err) {
+    failed.push('명단 동기화: ' + (err && err.message ? err.message : err));
+  }
+
+  _logAction(ss, '멤버일괄추가', added.length + '명 추가 / ' + renamed.length + '명 개명', actor,
+    (sv ? sv + '서버 · ' : '') + '추가[' + added.join(', ') + '] 개명[' + renamed.join(', ') + ']' +
+    (failed.length ? ' 실패[' + failed.join(' / ') + ']' : ''));
+
+  let msg = '✅ 추가 ' + added.length + '명 · 개명 ' + renamed.length + '명';
+  if (sv) msg += ' · 서버 ' + sv + ' 반영 ' + serverSet + '명';
+  if (failed.length) msg += '\n⚠️ 실패 ' + failed.length + '건: ' + failed.join(' / ');
+
+  return _rc({
+    ok: true, added: added, renamed: renamed, failed: failed, serverSet: serverSet,
+    msg: msg
+  }, failed.length ? 'bulk.partial' : 'bulk.ok',
+     { add: added.length, ren: renamed.length, server: sv, set: serverSet,
+       failN: failed.length, failList: failed.join(' / ') });
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  🕘 아이디 변경 이력 (v10.0) — 작업기록에서 이름 변경만 뽑아온다
 // ═══════════════════════════════════════════════════════════════
 function api_getRenameHistory() {
@@ -4738,6 +5048,7 @@ const API_TOKEN_PROP = 'API_TOKEN';
 const API_WRITE_ACTIONS = ['register', 'distribute', 'payout', 'rename', 'addMember', 'removeMember',
                            'correctItem', 'deleteItem', 'undoPayout', 'runTool',
                            'deletePost', 'addAlliance', 'creditAlliance', 'deleteAlliance', 'updateMember',
+                           'bulkAddMembers',
                            'setAppName', 'setAdminPin', 'setSeasonServer'];
 
 // 마스터관리자(개발자)만 부를 수 있는 작업 — Vercel 의 requireMaster 가 지킨다.
@@ -4959,6 +5270,12 @@ function _apiRoute(action, req) {
 
     case 'addAlliance':
       return api_addAlliance(req.server, req.item, req.people, req.photoLink, req.email);
+
+    case 'analyzeMembers':
+      return api_analyzeMembers(req.text, req.base64);
+
+    case 'bulkAddMembers':
+      return api_bulkAddMembers(req.entries, req.server, req.email, req.confirm);
 
     case 'creditAlliance':
       return api_creditAlliance(req.row, req.amount, req.pct, req.email);
