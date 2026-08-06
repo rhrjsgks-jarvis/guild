@@ -189,14 +189,23 @@ export default function App() {
     <>
       <header className="header">
         <h1>
-          {/* 마스터가 넣은 줄바꿈이 그대로 살아야 한다 — 어디서 끊을지는 사람이 정한다 */}
-          <span className="nm">🛡️ {title}</span>
-          <span
-            className={'ver' + (versionMismatch ? ' warn' : '')}
-            title={`v${APP_VERSION}${versionMismatch ? ` / sheet v${sheetVersion}` : ''}`}
-          >
-            v{APP_VERSION}
-            {versionMismatch ? ` ⚠️ ${sheetVersion}` : ''}
+          {/* 앱 아이콘과 같은 그림. 이모지 대신 마스코트를 쓰면 홈 화면 아이콘과
+              헤더가 같은 얼굴이 돼서, 여러 앱 사이에서 찾기가 쉬워진다 (v10.8.3).
+              alt 를 비워둔 이유: 바로 옆에 앱 이름이 글자로 있어 읽어줄 것이 없다. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="logo" src="/icon-192.png" alt="" width={26} height={26} />
+          {/* 마스코트는 항상 왼쪽에 붙어 있어야 한다. 제목과 같은 흐름에 두면
+              이름이 길 때 그림만 윗줄에 남아 제목이 세 줄로 밀린다. */}
+          <span className="ttl">
+            {/* 마스터가 넣은 줄바꿈이 그대로 살아야 한다 — 어디서 끊을지는 사람이 정한다 */}
+            <span className="nm">{title}</span>
+            <span
+              className={'ver' + (versionMismatch ? ' warn' : '')}
+              title={`v${APP_VERSION}${versionMismatch ? ` / sheet v${sheetVersion}` : ''}`}
+            >
+              v{APP_VERSION}
+              {versionMismatch ? ` ⚠️ ${sheetVersion}` : ''}
+            </span>
           </span>
         </h1>
         <div className="meta">

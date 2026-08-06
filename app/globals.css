@@ -1,26 +1,41 @@
+/*
+ * 색 (v10.8.3) — 앱 아이콘의 그림에서 뽑았다.
+ *
+ *   돌·갑옷    깊은 회청색   → 배경과 헤더
+ *   룬의 빛    청록          → 브랜드(버튼·활성 탭·포커스)
+ *   금화·주판  황동색        → 돈을 가리키는 강조 (버전 칩·합계·테두리)
+ *   양피지     따뜻한 미색   → 밝은 화면의 바탕
+ *
+ * ★ 청록을 브랜드로 쓰는 이유: 분배전(주황)·분배완료(초록)과 섞이지 않는다.
+ *   금색을 버튼에 쓰면 주황과 구분이 안 돼 "받을 돈"이 묻힌다.
+ */
 :root {
-  --bg: #f2f4f8;
-  --surface: #ffffff;
-  --surface-2: #f7f8fa;
-  --line: #e6e9ef;
-  --text: #16181d;
-  --text-dim: #6b7280;
-  --text-faint: #9aa1ac;
+  /* 따뜻한 돌·양피지 계열 — 예전의 푸른 회색보다 그림에 가깝다 */
+  --bg: #eeeae1;
+  --surface: #fdfbf6;
+  --surface-2: #f5f1e8;
+  --line: #e1dace;
+  --text: #1a1815;
+  --text-dim: #6a6559;
+  --text-faint: #9a9488;
 
-  /* 아이콘(어두운 돌 + 금색 W)과 같은 계열 — v10.0 */
-  --brand: #262a35;
-  --brand-deep: #0b0d13;
-  --brand-soft: #eef0f4;
-  --gold: #d9a740;
+  /* 룬의 청록 — 흰 글씨를 얹어도 읽히는 깊이까지 낮췄다 */
+  --brand: #1f6d8a;
+  --on-brand: #ffffff;
+  --brand-deep: #12313f;
+  --brand-soft: #dfeaef;
+  /* 금화 — 밝은 바탕에서도 글씨로 읽히도록 어둡게 */
+  --gold: #a5761a;
+  --gold-line: rgba(217, 167, 64, 0.55);
 
-  --pending: #e06a00;
-  --pending-soft: #fff2e4;
-  --paid: #1f8a4c;
-  --paid-soft: #e7f6ed;
-  --danger: #c92a3a;
+  --pending: #d1620a;
+  --pending-soft: #fdefe0;
+  --paid: #1c7f4a;
+  --paid-soft: #e4f3ea;
+  --danger: #bf2a3a;
 
   --radius: 16px;
-  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 16px rgba(16, 24, 40, 0.06);
+  --shadow: 0 1px 2px rgba(40, 32, 16, 0.06), 0 4px 16px rgba(40, 32, 16, 0.07);
 
   --nav-h: 60px;
   --header-h: 52px;
@@ -28,17 +43,23 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0e1014;
-    --surface: #181b21;
-    --surface-2: #202430;
-    --line: #2a2f3a;
-    --text: #eef0f4;
-    --text-dim: #a3abb8;
-    --text-faint: #6f7885;
+    /* 그림의 밤 전장 — 푸른빛이 도는 짙은 돌색 */
+    --bg: #0d1014;
+    --surface: #161b22;
+    --surface-2: #1e242e;
+    --line: #2b323d;
+    --text: #ecebe5;
+    --text-dim: #a3a79f;
+    --text-faint: #6e747c;
 
-    --brand: #7d84ff;
-    --brand-deep: #5a61e8;
-    --brand-soft: #232744;
+    /* 어두운 바탕에서는 청록을 밝게 쓰고 글씨를 어둡게 뒤집는다 —
+       흰 글씨를 얹으면 대비가 모자라 버튼 글씨가 흐릿해진다 */
+    --brand: #5ec3e6;
+    --on-brand: #08222c;
+    --brand-deep: #0a2632;
+    --brand-soft: #12313d;
+    --gold: #e0b153;
+    --gold-line: rgba(224, 177, 83, 0.4);
 
     --pending: #ffa04d;
     --pending-soft: #2e2317;
@@ -46,7 +67,7 @@
     --paid-soft: #16281f;
     --danger: #ff6b7a;
 
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.3);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 4px 16px rgba(0, 0, 0, 0.35);
   }
 }
 
@@ -101,15 +122,33 @@ button {
   gap: 10px;
   min-height: calc(var(--header-h) + env(safe-area-inset-top));
   padding: calc(env(safe-area-inset-top) + 6px) 16px 6px;
-  background: linear-gradient(135deg, var(--brand-deep), var(--brand));
+  /* 밤의 돌바닥 위에 룬빛이 스미는 느낌 — 아이콘 그림의 배경과 같은 층위 */
+  background:
+    radial-gradient(120% 180% at 12% 0%, rgba(94, 195, 230, 0.22), transparent 60%),
+    linear-gradient(135deg, #0b1016, #17242e 55%, #1d3340);
+  /* 메달리온 테두리와 같은 금색 한 줄 — 헤더와 본문을 가르는 선 */
+  border-bottom: 1px solid var(--gold-line);
   color: #fff;
+}
+
+/* 헤더의 마스코트 — 앱 아이콘과 같은 그림 (v10.8.3).
+   좁은 폰에서 제목을 밀어내지 않을 만큼만 차지한다. */
+.header .logo {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  object-fit: cover;
+  box-shadow: 0 0 0 1px var(--gold-line);
 }
 
 .header h1 {
   display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 2px 6px;
+  /* 마스코트 그림이 들어오면서 baseline 정렬로는 그림이 글자에 걸린다 */
+  align-items: center;
+  /* ★ 여기서는 줄을 바꾸지 않는다. 바꾸면 그림만 윗줄에 남고 제목이 밀린다. */
+  flex-wrap: nowrap;
+  gap: 6px;
   min-width: 0;
   font-size: 16px;
   font-weight: 700;
@@ -117,9 +156,21 @@ button {
   line-height: 1.25;
 }
 
-/* 마스터가 넣은 줄바꿈을 그대로 보여준다 (직접 정한 자리에서 끊기도록) */
+/* 이름과 버전만 함께 흐른다 — 이름이 두 줄이 돼도 그림은 왼쪽에 그대로 */
+.header h1 .ttl {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  min-width: 0;
+}
+
+/* 마스터가 넣은 줄바꿈을 그대로 보여준다 (직접 정한 자리에서 끊기도록).
+   word-break: keep-all — 한국어를 글자 단위로 끊으면 "길드정 / 산" 처럼
+   읽을 수 없게 된다. 낱말 단위로만 넘긴다. */
 .header h1 .nm {
   white-space: pre-line;
+  word-break: keep-all;
   overflow-wrap: anywhere;
 }
 
@@ -196,6 +247,26 @@ button {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* 좁은 폰(390px 언저리)에서는 오른쪽 칩 셋이 제목을 밀어낸다.
+   눌러야 하는 것은 칩이지만, 여기가 어느 앱인지 못 읽는 것이 더 나쁘다.
+   칩을 조금 줄여 제목에 자리를 내준다. */
+@media (max-width: 420px) {
+  .header {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .header .meta {
+    gap: 5px;
+  }
+
+  .chip,
+  .header .meta button.sync {
+    padding: 3px 7px;
+    font-size: 10.5px;
   }
 }
 
@@ -289,7 +360,7 @@ button {
   font-size: 20px;
   font-weight: 800;
   letter-spacing: -0.5px;
-  color: var(--brand);
+  color: var(--gold);
   font-variant-numeric: tabular-nums;
 }
 
@@ -425,7 +496,7 @@ button {
 .daychip.on {
   background: var(--brand);
   border-color: var(--brand);
-  color: #fff;
+  color: var(--on-brand);
 }
 
 /* 오늘은 고르지 않았을 때도 티가 나야 한다 — 어느 요일을 보고 있는지 헷갈리면
@@ -496,7 +567,7 @@ button {
   font-size: 13px;
   font-weight: 700;
   background: var(--brand);
-  color: #fff;
+  color: var(--on-brand);
   white-space: nowrap;
   transition: opacity 0.12s;
 }
@@ -754,6 +825,23 @@ select:focus {
   color: var(--brand);
 }
 
+/* 활성 탭 위에 금색 선 하나. 색만으로 구분하면 색각 이상이 있는 사람에게는
+   표시가 없는 것과 같다 — 위치로도 알 수 있어야 한다. */
+.nav button.on::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 22%;
+  right: 22%;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: var(--gold);
+}
+
+.nav button {
+  position: relative;
+}
+
 /* ───────── 시트 모달 ───────── */
 .backdrop {
   position: fixed;
@@ -994,7 +1082,7 @@ select:focus {
 .bulk-op.on {
   background: var(--brand);
   border-color: var(--brand);
-  color: #fff;
+  color: var(--on-brand);
 }
 
 .bulk-op:disabled {

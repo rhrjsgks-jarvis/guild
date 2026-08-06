@@ -22,9 +22,10 @@ export const viewport: Viewport = {
   maximumScale: 5,
   // 노치 영역까지 헤더 배경이 이어지게 한다
   viewportFit: 'cover',
+  // 헤더 배경(밤의 돌바닥)과 같은 색 — 상태표시줄까지 이어져 보인다
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#0b0d13' },
-    { media: '(prefers-color-scheme: dark)', color: '#07080c' },
+    { media: '(prefers-color-scheme: light)', color: '#12313f' },
+    { media: '(prefers-color-scheme: dark)', color: '#0b1016' },
   ],
 };
 
