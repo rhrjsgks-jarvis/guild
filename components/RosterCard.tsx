@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import BulkMemberSheet from './BulkMemberSheet';
 import Sheet from './Sheet';
 import type { RenameRecord, RosterEntry } from '@/lib/types';
-import { api, fmt, getStoredEmail, splitName } from '@/lib/client';
+import { api, fmt, fullName, getStoredEmail, mergeName } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
@@ -92,8 +92,14 @@ export default function RosterCard({
             {roster.map((m) => (
               <div className="row" key={m.name}>
                 <div className="row-main">
+                  {/* 한자표기는 이름 옆에 붙는다 (v10.8.1).
+                      아래 줄에 작게 두면 아이디에 괄호로 넣은 사람과 모양이 달라져,
+                      같은 명단인데 어떤 사람은 한자가 있고 어떤 사람은 없어 보인다. */}
                   <div className="row-name">
-                    {m.name}
+                    {mergeName(m.name, m.hanja).main}
+                    {mergeName(m.name, m.hanja).sub ? (
+                      <span className="hanja">({mergeName(m.name, m.hanja).sub})</span>
+                    ) : null}
                     {m.isFund ? (
                       <span className="badge" style={{ marginLeft: 6 }}>
                         {t('ros.fundBadge')}
@@ -101,7 +107,6 @@ export default function RosterCard({
                     ) : null}
                   </div>
                   <div className="row-sub">
-                    {m.hanja ? `${m.hanja} · ` : ''}
                     {m.server ? `${t('ali.serverN', { s: m.server })} · ` : ''}
                     {m.weight !== undefined && m.weight !== 100 ? `${t('c.ratio')} ${m.weight}% · ` : ''}
                     {t('c.pending')} {fmt(m.pending)} {unit}
@@ -289,13 +294,8 @@ function MemberSheet({
   const trimmed = newName.trim();
   const changed = trimmed.length > 0 && trimmed !== member.name;
   const hanjaChanged = hanja.trim() !== (member.hanja ?? '').trim();
-  // 잔액·아이템에 실제로 나갈 모양을 그대로 보여준다 — nameParts 와 같은 규칙
-  const preview = (() => {
-    const base = splitName(trimmed || member.name);
-    const h = hanja.trim();
-    const sub = h && h !== base.sub ? h : base.sub;
-    return sub ? `${base.main} (${sub})` : base.main;
-  })();
+  // 잔액·아이템에 실제로 나갈 모양을 그대로 보여준다 — 화면과 같은 함수를 쓴다
+  const preview = fullName(trimmed || member.name, hanja);
   const nameChanged = changed || hanjaChanged;
   const settingsChanged =
     weight !== (member.weight ?? 100) || server !== (member.server ?? '') || hanjaChanged;
@@ -419,7 +419,11 @@ function MemberSheet({
   }
 
   return (
-    <Sheet title={t('ros.memberTitle')} subtitle={t('ros.current', { v: member.name })} onClose={onClose}>
+    <Sheet
+      title={t('ros.memberTitle')}
+      subtitle={t('ros.current', { v: fullName(member.name, member.hanja) })}
+      onClose={onClose}
+    >
       {/* 아이디와 한자표기는 붙어 있어야 한다 (v10.8).
           같은 사람의 두 표기인데 예전에는 분배비중·서버를 사이에 두고 떨어져 있어서,
           한자를 넣어야 한다는 것 자체를 모르고 지나가기 쉬웠다. */}

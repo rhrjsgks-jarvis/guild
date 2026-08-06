@@ -1323,6 +1323,11 @@ await t('혈맹원 관리: 아이디 바로 아래에 한자표기 칸이 있다
   await page.locator('.nav button').last().click();
   await page.waitForTimeout(900);
 
+  // ★ 명단 자체에도 이름 옆에 한자가 붙어야 한다. 아래 줄에 작게 두면
+  //   아이디에 괄호로 넣은 사람과 모양이 달라져 "얘만 한자가 없네"로 보인다.
+  const listed = await page.locator('.row').filter({ hasText: 'TC무식' }).first().locator('.row-name').innerText();
+  if (!listed.includes('车武植')) throw new Error(`혈맹원 목록 이름줄에 한자가 없습니다: "${listed}"`);
+
   await page.locator('.row').filter({ hasText: 'TC무식' }).first().getByRole('button', { name: '관리' }).click();
   await page.waitForTimeout(600);
 
@@ -1334,6 +1339,9 @@ await t('혈맹원 관리: 아이디 바로 아래에 한자표기 칸이 있다
     throw new Error(`입력칸 순서가 다릅니다: ${order.join(' → ')} (기대 newName → mh → mw)`);
   }
   eq(await page.locator('.sheet input#mh').inputValue(), '车武植', '한자표기 칸의 현재 값');
+  // 실제로 표시될 모양을 입력칸 아래에 미리 보여준다
+  const preview = await page.locator('.sheet').innerText();
+  if (!preview.includes('TC무식 (车武植)')) throw new Error('표시될 모양 미리보기가 없습니다.');
 
   // 아이디와 한자표기를 한 번에 저장한다
   await page.locator('.sheet input#mh').fill('車武植K');
@@ -1547,6 +1555,8 @@ await t('제목 옆에 버전이 보이고, 시트가 옛 버전이면 경고가
   const h1 = page.locator('.header h1');
   const same = await h1.innerText();
   if (!same.includes('v10.8')) throw new Error(`제목 옆 버전이 없습니다: ${same}`);
+  // ★ 시트가 10.8 이고 앱이 10.8.1 이어도 경고가 붙으면 안 된다 (앱 전용 패치)
+  if (same.includes('⚠️')) throw new Error(`앱 패치 버전인데 시트 경고가 떴습니다: ${same}`);
   if (same.includes('⚠️')) throw new Error(`버전이 같은데 경고가 떴습니다: ${same}`);
   await shot('09-version');
 

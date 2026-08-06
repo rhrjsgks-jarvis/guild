@@ -193,12 +193,29 @@ export type HanjaSource = { memberInfo?: { name: string; hanja?: string }[] };
  *   기계가 만든 한자는 다른 사람으로 읽혀 다이아가 엉뚱한 곳으로 간다.
  */
 export function nameParts(state: HanjaSource | null | undefined, name: string): { main: string; sub: string } {
-  const parts = splitName(name);
   const hit = (state?.memberInfo ?? []).find((m) => normName(m.name) === normName(name));
-  const listed = String(hit?.hanja ?? '').trim();
+  return mergeName(name, hit?.hanja);
+}
+
+/**
+ * 이름과 한자표기를 합쳐 두 줄로 — 규칙의 본체다.
+ *
+ * 명단을 이미 손에 들고 있는 화면([혈맹원 관리])은 `memberInfo` 를 뒤질 필요가
+ * 없으므로 이걸 직접 쓴다. `nameParts` 도 결국 이 함수를 부른다 —
+ * 규칙이 두 벌이 되면 화면마다 다르게 보이기 시작한다.
+ */
+export function mergeName(name: string, hanja?: string): { main: string; sub: string } {
+  const parts = splitName(name);
+  const listed = String(hanja ?? '').trim();
   // G열이 이름 괄호와 같은 값이면 두 번 쓰지 않는다 (`잠단(斬斷)` + hanja `斬斷`)
   if (listed && listed !== parts.sub) return { main: parts.main, sub: listed };
   return parts;
+}
+
+/** 한 줄로 붙인 표시용 이름 — `잡이K (卡尔K)`. 한자가 없으면 이름만 */
+export function fullName(name: string, hanja?: string): string {
+  const { main, sub } = mergeName(name, hanja);
+  return sub ? `${main} (${sub})` : main;
 }
 
 /**

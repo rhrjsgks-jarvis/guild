@@ -94,7 +94,21 @@ check('버전이 네 곳에서 같다 (.gs · 파일명 · package.json · 앱)'
   if (!/version:\s*VERSION/.test(extractFn(gs, 'api_getState'))) {
     throw new Error('api_getState 가 version 을 내려주지 않습니다 — 앱이 버전을 대조할 수 없습니다.');
   }
-  return `v${gsVer} (4곳 일치)`;
+
+  /*
+   * ★ 시트를 건드리지 않는 화면 수정은 세 번째 자리만 올린다 (10.8 → 10.8.1).
+   *   그때 헤더가 "시트가 옛 버전"이라고 경고하면 안 된다 — 멀쩡한 시트를
+   *   다시 붙여넣게 만드는 거짓 경고다. 앞 두 자리로만 비교하는지 확인한다.
+   */
+  const appSrc = readFileSync(resolve(ROOT, 'components/App.tsx'), 'utf8');
+  const cmp = (appSrc.match(/const versionMismatch = [^;]+;/) ?? [''])[0];
+  if (!cmp) throw new Error('App.tsx 에서 버전 대조를 찾지 못했습니다.');
+  if (/sheetVersion !== APP_VERSION/.test(cmp)) {
+    throw new Error('버전을 전체 자리로 비교합니다 — 앱만 패치해도 시트 경고가 뜹니다.');
+  }
+  if (!/short\(/.test(cmp)) throw new Error('버전 비교가 앞 두 자리로 줄여지지 않습니다.');
+
+  return `v${gsVer} (4곳 일치, 앱 v${appVer}) · 패치 자리는 경고 없음`;
 });
 
 check('doGet 이 내주는 화면은 아무것도 바꿀 수 없다', () => {
@@ -1416,10 +1430,12 @@ check('멤버DB 한자표기가 잔액·아이템 화면까지 이어진다', ()
       else if (sig[i] === ')') { depth -= 1; if (depth === 0) { close = i; break; } }
     }
     const params = sig.slice(open + 1, close).split(',').map((x) => x.trim()).filter(Boolean)
-      .map((x) => (x.includes('=') ? x.replace(/:\s*[^=]+(?==)/, '') : x.replace(/:.*$/, '')).trim());
+      .map((x) => (x.includes('=') ? x.replace(/:\s*[^=]+(?==)/, '') : x.replace(/:.*$/, '')).trim())
+      // `hanja?: string` → `hanja` (선택 인자 표시는 자바스크립트 문법이 아니다)
+      .map((x) => x.replace(/\?$/, ''));
     return `function ${name}(${params.join(', ')}) {` + block[0].slice(nl) + '\n';
   };
-  vm.runInContext(strip('normName') + strip('splitName') + strip('nameParts'), ctx);
+  vm.runInContext(strip('normName') + strip('splitName') + strip('mergeName') + strip('nameParts'), ctx);
   const parts = (state, name) => { ctx.__s = state; ctx.__n = name; return vm.runInContext('nameParts(__s, __n)', ctx); };
 
   const st = {
@@ -1473,7 +1489,7 @@ check('멤버DB 한자표기가 잔액·아이템 화면까지 이어진다', ()
     throw new Error('한자표기를 개명보다 먼저 저장합니다 — 옛 이름에 저장돼 사라집니다.');
   }
 
-  return `해석 ${cases.length}케이스 · 화면 4곳 연결 · splitName 직접사용 0곳 · 입력칸 인접 · 개명 우선`;
+  return `해석 ${cases.length}케이스 · 화면 5곳 연결 · splitName 직접사용 0곳 · 입력칸 인접 · 개명 우선`;
 });
 
 check('잔액 목록에 서버 번호가 보인다', () => {

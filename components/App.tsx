@@ -167,8 +167,13 @@ export default function App() {
 
   // 시트(.gs)는 사용자가 직접 붙여넣고 재배포해야 해서, 앱만 새 버전인 상태가 되기 쉽다.
   // 그 어긋남을 제목 옆에서 바로 보이게 한다.
+  //
+  // ★ 앞 두 자리(10.8)만 본다. 시트를 건드리지 않는 화면 수정은 세 번째 자리만
+  //   올리는데(10.8 → 10.8.1), 그것까지 비교하면 멀쩡한 시트에 경고가 붙는다.
+  //   시트가 정말 뒤처졌는지는 major.minor 로만 판단할 수 있다.
   const sheetVersion = state?.version ?? '';
-  const versionMismatch = Boolean(sheetVersion) && sheetVersion !== APP_VERSION;
+  const short = (v: string) => v.split('.').slice(0, 2).join('.');
+  const versionMismatch = Boolean(sheetVersion) && short(sheetVersion) !== short(APP_VERSION);
 
   // "지금 보는 숫자가 언제 것인지" 를 버튼에 같이 띄운다.
   // 새로고침을 눌러야 할지 사용자가 스스로 판단할 수 있게 하는 것이 목적이다.
