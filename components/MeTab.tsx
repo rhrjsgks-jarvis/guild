@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { GuildState, LookupResult } from '@/lib/types';
-import { api, fmt, getStoredName, nameParts, setStoredName } from '@/lib/client';
+import { api, fmt, getStoredName, personLabel, setStoredName } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 import ShareBtn from './ShareBtn';
 
@@ -26,11 +26,10 @@ export default function MeTab({
 
   const options = state.members.filter((m) => m !== state.fundName);
 
-  // 한자만 아는 길드원도 목록에서 자기 이름을 찾을 수 있어야 한다
-  const label = (n: string) => {
-    const { main, sub } = nameParts(state, n);
-    return sub ? `${main} (${sub})` : main;
-  };
+  // 한자만 아는 길드원도 목록에서 자기 이름을 찾을 수 있어야 한다.
+  // 서버까지 붙인다 (v10.8.8) — 비슷한 이름이 서버마다 있어, 목록에서 남의
+  // 이름을 고르면 남의 잔액을 보게 된다.
+  const label = (n: string) => personLabel(state, n);
   const u = unit(state.unit);
 
   useEffect(() => {

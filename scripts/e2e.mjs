@@ -1222,6 +1222,24 @@ await t('아이템 등록: 서버로 좁혀도 체크한 사람은 사라지지 
   // ② 아무것도 안 고르면 예전처럼 전원 (혈비 계정 제외 9명)
   eq(await grid.count(), 9, '서버를 안 골랐을 때 보이는 인원');
 
+  // ★ 참여자 칩에도 [잔액]과 같은 서버 배지가 붙는다 (v10.8.8).
+  //   이름만으로는 비슷한 이름이 서버마다 있어 누구인지 가릴 수 없다.
+  const guy = grid.filter({ hasText: '가이' }).first();
+  eq(await guy.locator('.svr').innerText(), '01', '참여자 칩의 서버 배지');
+  //   시트에 '2' 로 저장된 사람도 '02' 로 (잔액 화면과 같게)
+  const pad2 = grid.filter({ hasText: '詹阿呆' }).first();
+  eq(await pad2.locator('.svr').innerText(), '02', "'2' 로 저장된 사람의 칩 배지");
+  //   서버가 없는 사람에게는 빈 배지를 만들지 않는다 — 지정된 사람과 같아 보인다
+  eq(await grid.filter({ hasText: '향로셔틀' }).first().locator('.svr').count(), 0, '미지정자의 배지');
+  //   배지가 붙어도 이름이 칩 밖으로 나가지 않아야 한다
+  for (const nm of ['가이', '선륙소농포']) {
+    const box = await grid.filter({ hasText: nm }).first().boundingBox();
+    const inner = await grid.filter({ hasText: nm }).first().locator('.nm b').boundingBox();
+    if (inner.x + inner.width > box.x + box.width + 1) {
+      throw new Error(`"${nm}" 의 이름줄이 칩 밖으로 나갑니다.`);
+    }
+  }
+
   // ③ 01 서버 → 가이·TC무식만
   await chips.filter({ hasText: /^01/ }).click();
   await page.waitForTimeout(300);
@@ -1275,6 +1293,10 @@ await t('아이템 등록: 서버로 좁혀도 체크한 사람은 사라지지 
   await page.waitForTimeout(400);
   const sheet = await page.locator('.sheet').innerText();
   if (!/2\s*명/.test(sheet)) throw new Error(`확인 화면의 인원이 다릅니다: ${sheet.replace(/\n/g, ' ')}`);
+  // 잘못 체크된 사람을 잡아내는 자리다 — 서버가 없는 사람은 이름만 나온다
+  if (!sheet.includes('향로셔틀') || !sheet.includes('팩맨')) {
+    throw new Error(`확인 화면에 참여자 이름이 없습니다: ${sheet.replace(/\n/g, ' ')}`);
+  }
   await page.getByRole('button', { name: '등록하기' }).click();
   await page.waitForTimeout(1800);
 
@@ -1327,7 +1349,15 @@ await t('참여자 칩이 국문·한문 두 줄로 나오고 이름이 잘리�
 
   const chip = page.locator('.mchip').filter({ hasText: '잠단' }).first();
   if (!(await chip.isVisible())) throw new Error('참여자 칩을 찾지 못했습니다.');
-  eq(await chip.locator('.nm b').innerText(), '잠단', '첫 줄 (국문)');
+  // 첫 줄은 [서버 배지][국문] 이다 (v10.8.8). 이름 자체가 잘리지 않았는지 보는 것이
+  // 이 검사의 목적이므로 배지를 뺀 나머지를 본다.
+  const koLine = await chip.locator('.nm b').evaluate((el) => {
+    const c = el.cloneNode(true);
+    c.querySelectorAll('.svr').forEach((x) => x.remove());
+    return c.textContent.trim();
+  });
+  eq(koLine, '잠단', '첫 줄 (국문, 배지 제외)');
+  eq(await chip.locator('.nm b .svr').innerText(), '02', '첫 줄의 서버 배지');
   eq(await chip.locator('.nm i').innerText(), '斬斷', '둘째 줄 (한문)');
 
   // ★ 잘린 이름은 다른 사람으로 오인돼 엉뚱한 사람이 참여자로 체크된다.
@@ -1347,7 +1377,10 @@ await t('참여자 칩이 국문·한문 두 줄로 나오고 이름이 잘리�
   const sizes = await page.evaluate(() => {
     const out = {};
     document.querySelectorAll('.mchip .nm b').forEach((el) => {
-      out[el.textContent] = parseFloat(getComputedStyle(el).fontSize);
+      // 서버 배지는 이름이 아니다 — 키에서 뺀다 (v10.8.8)
+      const c = el.cloneNode(true);
+      c.querySelectorAll('.svr').forEach((x) => x.remove());
+      out[c.textContent.trim()] = parseFloat(getComputedStyle(el).fontSize);
     });
     return out;
   });
@@ -1524,6 +1557,24 @@ await t('혈맹운영비가 잔액·혈맹원 관리 맨 위에 온다 (화면)'
     throw new Error(`혈맹원 관리 맨 윗줄이 혈비가 아닙니다: ${(await rosterFirst.innerText()).split('\n')[0]}`);
   }
   await shot('25-fund-first');
+});
+
+await t('지급 창에 서버·한자까지 나온다 (누구에게 주는지가 이 창의 전부다)', async () => {
+  await page.locator('.nav button').filter({ hasText: /잔액/ }).click();
+  await page.waitForTimeout(700);
+  await page.locator('.card .row').filter({ hasText: 'TC무식' }).first()
+    .getByRole('button', { name: '지급' }).click();
+  await page.waitForTimeout(600);
+
+  // 서버가 갈리면서 비슷한 이름이 서버마다 생겼고, 지급은 되돌리기가 번거롭다.
+  // (앞선 검사가 이 사람의 아이디·한자를 바꿔 놓으므로 모양으로 확인한다)
+  const who = (await page.locator('.sheet h2').innerText()).trim();
+  if (!/^💰\s*01\s+TC무식\S*\s+\([^)]+\)/.test(who)) {
+    throw new Error(`지급 창의 대상 표기가 다릅니다: "${who}" (기대 "01 이름 (한자)")`);
+  }
+  await shot('26-payout-who');
+  await page.getByRole('button', { name: '취소' }).click();
+  await page.waitForTimeout(400);
 });
 
 await t('서버 일괄 지정: 칩으로 고르고 여러 명을 한 번에 넣는다 (화면)', async () => {

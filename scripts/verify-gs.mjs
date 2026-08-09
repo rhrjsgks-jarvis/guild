@@ -1463,10 +1463,14 @@ check('멤버DB 한자표기가 잔액·아이템 화면까지 이어진다', ()
   // ★ 없는 한자를 지어내지 않는다 (규칙 7)
   if (parts({ memberInfo: [] }, '잡이K').sub !== '') throw new Error('명단에 없는데 한자를 만들어냅니다.');
 
-  // 화면들이 실제로 이 함수를 쓰는지 — 하나라도 빠지면 그 화면만 한자가 사라진다
+  // 화면들이 실제로 이 함수를 쓰는지 — 하나라도 빠지면 그 화면만 한자가 사라진다.
+  // `personLabel`(서버까지 붙이는 한 줄 표기)도 안에서 nameParts 를 부르므로 같이 인정한다.
+  if (!/nameParts\(/.test(readFileSync(resolve(ROOT, 'lib/client.ts'), 'utf8').match(/export function personLabel[\s\S]*?\n\}/)[0])) {
+    throw new Error('personLabel 이 한자표기를 거치지 않습니다.');
+  }
   for (const file of ['BalanceTab', 'ItemsTab', 'MeTab', 'PayoutSheet']) {
     const body = readFileSync(resolve(ROOT, `components/${file}.tsx`), 'utf8');
-    if (!/nameParts\(/.test(body)) throw new Error(`${file} 이(가) 한자표기를 반영하지 않습니다.`);
+    if (!/nameParts\(|personLabel\(/.test(body)) throw new Error(`${file} 이(가) 한자표기를 반영하지 않습니다.`);
   }
   // 이름을 화면에 그리면서 splitName 을 직접 쓰면 G열을 놓치게 된다
   for (const file of ['BalanceTab', 'ItemsTab', 'MeTab']) {
@@ -1723,6 +1727,73 @@ check('서버 표기는 한 곳에서 맞춘다 (01 과 1 이 같은 서버다)'
   }
 
   return `표기 맞춤 11케이스 · 화면 ${files.length}곳 + serverOf · 개별 padStart 0곳`;
+});
+
+check('누구인지 확인하는 자리에는 어디서나 서버가 붙는다', () => {
+  const src = readFileSync(resolve(ROOT, 'lib/client.ts'), 'utf8');
+
+  // 규칙은 한 벌이다 — 화면마다 따로 조립하면 같은 사람이 화면마다 다르게 보인다
+  const m = src.match(/export function personLabel[\s\S]*?\n\}/);
+  if (!m) throw new Error('personLabel 이 없습니다.');
+  if (!/serverOf\(state, name\)/.test(m[0])) throw new Error('personLabel 이 서버를 읽지 않습니다.');
+  // ★ 서버가 없으면 아무것도 붙이지 않는다. 빈 자리나 '--' 를 넣으면
+  //   지정된 사람과 아닌 사람이 같아 보인다.
+  if (!/return sv \? .+ : who;/.test(m[0])) throw new Error('서버가 없을 때도 자리를 만듭니다.');
+
+  // 사람을 가려내야 하는 화면은 전부 이 함수를 지난다
+  const need = {
+    'components/PayoutSheet.tsx': '지급 창',
+    'components/ItemsTab.tsx': '등록 확인',
+    'components/DistributeSheet.tsx': '분배 확인',
+    'components/MeTab.tsx': '내 정보 목록',
+  };
+  for (const [f, what] of Object.entries(need)) {
+    const s = readFileSync(resolve(ROOT, f), 'utf8');
+    if (!/personLabel\(/.test(s)) throw new Error(`${what}(${f})에 서버가 안 붙습니다.`);
+    // 각자 `main (sub)` 를 조립하면 규칙이 두 벌이 된다
+    if (/\$\{main\} \(\$\{sub\}\)/.test(s)) throw new Error(`${what}가 표기를 직접 조립합니다 — personLabel 을 쓰세요.`);
+  }
+
+  // 참여자 칩은 배지로 붙인다 ([잔액] 목록과 같은 .svr)
+  const items = readFileSync(resolve(ROOT, 'components/ItemsTab.tsx'), 'utf8');
+  if (!/className="svr">\{sv\}/.test(items)) throw new Error('참여자 칩에 서버 배지가 없습니다.');
+  // ★ 배지를 공짜로 얹으면 그만큼 이름이 삐져나간다. 예산에서 빼야 한다.
+  if (!/CHIP_NAME_PX - \(sv \? CHIP_SVR_PX : 0\)/.test(items)) {
+    throw new Error('서버 배지가 먹는 폭을 이름 예산에서 빼지 않습니다 — 이름이 삐져나갑니다.');
+  }
+  const css = readFileSync(resolve(ROOT, 'app/globals.css'), 'utf8');
+  if (!/\.mchip \.nm b \.svr/.test(css)) throw new Error('참여자 칩의 서버 배지 스타일이 없습니다.');
+  // 체크된 칩은 초록 바탕이라 청록 배지가 묻힌다
+  if (!/\.mchip\.sel \.nm b \.svr/.test(css)) throw new Error('체크된 칩에서 배지가 묻힙니다.');
+
+  // 배지가 붙은 이름이 실제로 칩을 안 넘는지 계산해 본다
+  const CHIP = Number((src.match(/export const CHIP_NAME_PX = (\d+)/) ?? [])[1]);
+  const SVR = Number((src.match(/export const CHIP_SVR_PX = (\d+)/) ?? [])[1]);
+  if (!CHIP || !SVR) throw new Error('칩 폭 상수가 없습니다.');
+  if (SVR >= CHIP / 2) throw new Error(`배지(${SVR}px)가 이름 폭(${CHIP}px)의 절반을 넘게 먹습니다.`);
+  const ctx = vm.createContext({});
+  for (const fn of ['fitFont', 'fitIn']) {
+    const b = src.match(new RegExp(`export function ${fn}[\\s\\S]*?\\n\\}`))[0];
+    const nl = b.indexOf('\n');
+    const sig = b.slice(0, nl);
+    const params = sig
+      .slice(sig.indexOf('(') + 1, sig.lastIndexOf(')'))
+      .split(',')
+      .map((x) => x.trim())
+      .map((x) => (x.includes('=') ? x.replace(/:\s*[^=]+(?==)/, '') : x.replace(/:.*$/, '')).trim());
+    vm.runInContext(`function ${fn}(${params.join(', ')}) {` + b.slice(nl), ctx);
+  }
+  const widthOf = (text) =>
+    [...text].reduce((n, ch) => n + (/[ᄀ-ᇿ⺀-鿿가-힯豈-﫿＀-｠]/.test(ch) ? 1 : 0.55), 0);
+  for (const name of ['가이', 'TC무식', '선륙소농포', 'PlusS']) {
+    ctx.__a = name; ctx.__b = CHIP - SVR;
+    const px = vm.runInContext('fitIn(__a, __b, 14, 10)', ctx);
+    if (px > 10 && widthOf(name) * px + SVR > CHIP + 0.5) {
+      throw new Error(`${name}: 배지까지 ${Math.round(widthOf(name) * px + SVR)}px 로 칩(${CHIP}px)을 넘습니다.`);
+    }
+  }
+
+  return `규칙 1벌 · 화면 ${Object.keys(need).length}곳 + 참여자 칩 · 폭 예산 4케이스`;
 });
 
 check('혈맹운영비는 목록 맨 위에 온다', () => {

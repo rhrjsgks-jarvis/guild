@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Sheet from './Sheet';
 import type { GuildState, LedgerItem } from '@/lib/types';
-import { api, calcSplit, fmt, getStoredEmail, nameParts, weightsOf } from '@/lib/client';
+import { api, calcSplit, fmt, getStoredEmail, personLabel, weightsOf } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
@@ -93,7 +93,7 @@ export default function DistributeSheet({
             return (
               <div className="calc-line" key={nm + i}>
                 <span>
-                  ⚖️ {nameParts(state, nm).main} ({weightList[idx]}%)
+                  ⚖️ {personLabel(state, nm)} ({weightList[idx]}%)
                 </span>
                 <strong>{fmt(split.shares[idx])}</strong>
               </div>

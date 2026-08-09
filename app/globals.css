@@ -820,6 +820,29 @@ select:focus {
   overflow-wrap: anywhere;
 }
 
+/* 참여자 칩의 서버 번호 (v10.8.8) — [잔액] 목록과 같은 모양이다.
+   같은 정보가 화면마다 다르게 보이면 누구인지 가리는 데 쓸 수가 없다.
+   크기는 이름을 밀어내지 않도록 잔액 쪽보다 한 단계 작게 잡았고,
+   먹는 폭(CHIP_SVR_PX)은 이름 크기 계산에서 미리 빼둔다. */
+.mchip .nm b .svr {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 0 4px;
+  border-radius: 5px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 9.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  vertical-align: 1.5px;
+}
+
+/* 체크된 칩은 초록 바탕이라 청록 배지가 묻힌다 — 같은 계열로 뒤집는다 */
+.mchip.sel .nm b .svr {
+  background: var(--paid);
+  color: var(--surface);
+}
+
 /* 한자 줄은 국문보다 크다 (v10.8) — 중국 길드원에게는 이쪽이 본명이라
    작게 두면 자기 칸을 못 찾는다. 크기는 인라인(fitIn)이 폭에 맞춰 정한다.
    ellipsis 를 쓰지 않는 이유는 위와 같다 — 잘리느니 줄바꿈이 낫다. */
