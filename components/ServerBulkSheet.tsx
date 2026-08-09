@@ -157,9 +157,13 @@ export default function ServerBulkSheet({
                     {main}
                     {sub ? <i>({sub})</i> : null}
                   </span>
-                  <span className={'cur' + (bad ? ' bad' : '')}>
-                    {cur ? (bad ? `${cur} ⚠️` : cur) : t('sv.none')}
-                  </span>
+                  {/* 지정된 값은 다른 화면과 같은 배지로 (v10.8.9).
+                      미지정은 배지를 만들지 않는다 — 빈 배지는 지정된 것처럼 보인다. */}
+                  {cur ? (
+                    <span className={'svr' + (bad ? ' bad' : '')}>{bad ? `${cur} ⚠️` : cur}</span>
+                  ) : (
+                    <span className="cur">{t('sv.none')}</span>
+                  )}
                 </label>
               );
             })

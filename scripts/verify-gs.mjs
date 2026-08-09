@@ -1766,6 +1766,28 @@ check('누구인지 확인하는 자리에는 어디서나 서버가 붙는다',
   // 체크된 칩은 초록 바탕이라 청록 배지가 묻힌다
   if (!/\.mchip\.sel \.nm b \.svr/.test(css)) throw new Error('체크된 칩에서 배지가 묻힙니다.');
 
+  // [관리]의 명단·일괄 지정도 같은 배지다 (v10.8.9). 여기만 글로 적어두면
+  // 같은 정보가 화면마다 다르게 보여 누구인지 가리는 데 쓸 수가 없다.
+  const ros = readFileSync(resolve(ROOT, 'components/RosterCard.tsx'), 'utf8');
+  if (!/className="svr">\{normServer\(m\.server\)\}/.test(ros)) {
+    throw new Error('혈맹원 관리 명단에 서버 배지가 없습니다.');
+  }
+  // 아랫줄의 "01 서버 ·" 글은 배지와 겹치므로 남아 있으면 안 된다
+  if (/ali\.serverN[^)]*\}\)\} · `/.test(ros) || /m\.server \? `\$\{t\('ali\.serverN'/.test(ros)) {
+    throw new Error('명단 아랫줄에 서버가 글로 또 적혀 있습니다.');
+  }
+  const bulk = readFileSync(resolve(ROOT, 'components/ServerBulkSheet.tsx'), 'utf8');
+  if (!/className=\{'svr'/.test(bulk)) throw new Error('서버 일괄 지정 목록에 서버 배지가 없습니다.');
+  // ★ 미지정에는 배지를 만들지 않는다 — 빈 배지는 지정된 것처럼 보인다
+  if (!/\) : \(\s*<span className="cur">\{t\('sv\.none'\)\}<\/span>/.test(bulk)) {
+    throw new Error('미지정에도 배지를 만듭니다.');
+  }
+  if (!/\.svrow \.svr/.test(css)) throw new Error('일괄 지정 목록의 배지 스타일이 없습니다.');
+  // 잘못된 값은 danger 색으로. 정의되지 않은 토큰을 쓰면 배경이 엉뚱하게 나온다
+  if (!/--danger-soft:/.test(css)) throw new Error('--danger-soft 토큰이 없습니다.');
+  const dark = css.slice(css.indexOf('prefers-color-scheme: dark'), css.indexOf('\n}\n\n*'));
+  if (!/--danger-soft:/.test(dark)) throw new Error('어두운 화면에 --danger-soft 가 없습니다.');
+
   // 배지가 붙은 이름이 실제로 칩을 안 넘는지 계산해 본다
   const CHIP = Number((src.match(/export const CHIP_NAME_PX = (\d+)/) ?? [])[1]);
   const SVR = Number((src.match(/export const CHIP_SVR_PX = (\d+)/) ?? [])[1]);
@@ -1793,7 +1815,7 @@ check('누구인지 확인하는 자리에는 어디서나 서버가 붙는다',
     }
   }
 
-  return `규칙 1벌 · 화면 ${Object.keys(need).length}곳 + 참여자 칩 · 폭 예산 4케이스`;
+  return `규칙 1벌 · 화면 ${Object.keys(need).length}곳 + 참여자 칩 + 관리 2곳 · 폭 예산 4케이스`;
 });
 
 check('혈맹운영비는 목록 맨 위에 온다', () => {

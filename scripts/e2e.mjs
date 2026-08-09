@@ -1451,6 +1451,16 @@ await t('혈맹원 관리: 아이디 바로 아래에 한자표기 칸이 있다
   const listed = await page.locator('.row').filter({ hasText: 'TC무식' }).first().locator('.row-name').innerText();
   if (!listed.includes('车武植')) throw new Error(`혈맹원 목록 이름줄에 한자가 없습니다: "${listed}"`);
 
+  // 서버는 [잔액]·[아이템]과 같은 배지로 (v10.8.9). 아랫줄에 글로 또 적지 않는다 —
+  // 같은 정보가 화면마다 다르게 보이면 누구인지 가리는 데 쓸 수가 없다.
+  const row = page.locator('.row').filter({ hasText: 'TC무식' }).first();
+  eq(await row.locator('.row-name .svr').innerText(), '01', '혈맹원 명단의 서버 배지');
+  const sub = await row.locator('.row-sub').innerText();
+  if (/서버/.test(sub)) throw new Error(`아랫줄에 서버가 글로 또 적혀 있습니다: "${sub}"`);
+  // 서버가 없는 사람에게는 빈 배지를 만들지 않는다
+  const noSv = page.locator('.row').filter({ hasText: '향로셔틀' }).first();
+  eq(await noSv.locator('.row-name .svr').count(), 0, '미지정자의 배지');
+
   await page.locator('.row').filter({ hasText: 'TC무식' }).first().getByRole('button', { name: '관리' }).click();
   await page.waitForTimeout(600);
 
@@ -1619,8 +1629,12 @@ await t('서버 일괄 지정: 칩으로 고르고 여러 명을 한 번에 넣�
   if (all.some((n) => n.includes('혈맹운영비'))) throw new Error('혈비 계정이 목록에 있습니다.');
   // '2' 로 저장된 사람도 '02' 로 보이고, 경고(⚠️)가 붙지 않아야 한다 — 앱이 알아서 맞춘다
   const padRow = rows.filter({ hasText: '詹阿呆' }).first();
-  eq((await padRow.locator('.cur').innerText()).trim(), '02', "'2' 로 저장된 사람의 표기");
-  eq(await padRow.locator('.cur.bad').count(), 0, "'2' 를 형식 오류로 표시하는지");
+  eq((await padRow.locator('.svr').innerText()).trim(), '02', "'2' 로 저장된 사람의 표기");
+  eq(await padRow.locator('.svr.bad').count(), 0, "'2' 를 형식 오류로 표시하는지");
+  // 미지정에는 배지를 만들지 않는다 — 빈 배지는 지정된 것처럼 보인다
+  const emptyRow = rows.filter({ hasText: '향로셔틀' }).first();
+  eq(await emptyRow.locator('.svr').count(), 0, '미지정자의 배지');
+  eq((await emptyRow.locator('.cur').innerText()).trim(), '미지정', '미지정 표기');
   await page.locator('.sheet .chkline input').check();
   await page.waitForTimeout(200);
 
