@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v10_8.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v10_9.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 const gs = readFileSync(GS_PATH, 'utf8');
@@ -68,7 +68,7 @@ check('VERSION 상수와 파일명 일치', () => {
   return `v${v}`;
 });
 
-check('버전이 네 곳에서 같다 (.gs · 파일명 · package.json · 앱)', () => {
+check('버전이 다섯 곳에서 같다 (.gs · 파일명 · package.json · 앱 · 모의 시트)', () => {
   // 화면 상단에 버전을 띄우고 시트 버전과 대조하므로, 앱이 아는 값이 틀리면
   // 멀쩡한 배포에도 "버전 불일치" 경고가 뜬다. 네 곳을 한 번에 묶어둔다.
   const gsVer = gs.match(/const VERSION = '([\d.]+)'/)?.[1];
@@ -80,7 +80,13 @@ check('버전이 네 곳에서 같다 (.gs · 파일명 · package.json · 앱)'
   if (!gsVer) throw new Error('.gs 의 VERSION 상수를 찾을 수 없습니다.');
   if (!appVer) throw new Error('lib/version.ts 의 APP_VERSION 을 찾을 수 없습니다.');
 
-  const seen = { '.gs': gsVer, '파일명': nameVer, 'lib/version.ts': appVer, 'package.json': pkgVer };
+  // 모의 시트가 옛 버전을 내주면 E2E 가 "실어 온 상태의 버전이 다르다"로
+  // 엉뚱하게 실패한다. 실제로 겪었으므로 같이 묶어둔다.
+  const mockVer = readFileSync(resolve(ROOT, 'scripts/mock-sheet.mjs'), 'utf8')
+    .match(/const GS_VERSION = '([\d.]+)'/)?.[1];
+  if (!mockVer) throw new Error('모의 시트의 GS_VERSION 을 찾을 수 없습니다.');
+
+  const seen = { '.gs': gsVer, '파일명': nameVer, 'lib/version.ts': appVer, 'package.json': pkgVer, '모의 시트': mockVer };
   // package.json 은 semver 라 뒤에 .0 이 붙는다
   const norm = (v) => String(v).split('.').slice(0, 2).join('.');
   const bad = Object.entries(seen).filter(([, v]) => v && norm(v) !== norm(gsVer));
@@ -108,7 +114,7 @@ check('버전이 네 곳에서 같다 (.gs · 파일명 · package.json · 앱)'
   }
   if (!/short\(/.test(cmp)) throw new Error('버전 비교가 앞 두 자리로 줄여지지 않습니다.');
 
-  return `v${gsVer} (4곳 일치, 앱 v${appVer}) · 패치 자리는 경고 없음`;
+  return `v${gsVer} (5곳 일치, 앱 v${appVer}) · 패치 자리는 경고 없음`;
 });
 
 check('doGet 이 내주는 화면은 아무것도 바꿀 수 없다', () => {
@@ -1274,6 +1280,70 @@ check('명단 일괄 추가: 판정은 쓰지 않고, 실행은 재확인을 거
     throw new Error('앱이 confirm 을 임의로 채웁니다.');
   }
   return '판정 무쓰기 · 재확인 · 개별 try/catch · 개명은 _renameCore · 후보 자동확정 없음';
+});
+
+check('명단의 [혈맹·서버] 표시는 이름에서 떼어내되, 애매하면 지어내지 않는다', () => {
+  // 게임 명단을 찍으면 `참관K[어레02] +` 처럼 나온다. 그대로 넣으면 멤버DB에
+  // 태그째로 들어가고, 이후 인증샷 OCR 은 `참관K` 로 읽으므로 영원히 매칭되지 않는다.
+  const m = gs.match(/function _stripNameTag[\s\S]*?\n\}/);
+  if (!m) throw new Error('_stripNameTag 가 없습니다.');
+  const ctx = vm.createContext({});
+  vm.runInContext(m[0], ctx);
+  const strip = (v) => { ctx.__v = v; return vm.runInContext('_stripNameTag(__v)', ctx); };
+
+  const cases = [
+    // 잘 닫힌 대괄호 + 친구추가 '+'
+    ['참상혼K[어레이2] +', '참상혼K'],
+    ['참관K[어레02] +', '참관K'],
+    ['참살K[어레이2]', '참살K'],
+    ['[어레02] 참관K', '참관K'],
+    // ★ 소괄호는 절대 건드리지 않는다 — 한자 표기가 사라진다
+    ['잠단 (斬斷)', '잠단 (斬斷)'],
+    ['선륙소농포 (鮮肉小籠包) [어레02]', '선륙소농포 (鮮肉小籠包)'],
+    // 여는 대괄호가 OCR 에서 떨어져 나간 꼬리 — 뒤 토막만 버린다
+    ['노왕계색마재 어레02]', '노왕계색마재'],
+    // ★ 그 토막이 첫 토막이면 손대지 않는다. 지우면 이름 쪽을 지우게 된다.
+    ['곡중인산K02] 관', '곡중인산K02] 관'],
+    // 이름 안의 '+' 는 남긴다 (홀로 선 것만 화면 기호로 본다)
+    ['A+B', 'A+B'],
+    ['가이', '가이'],
+    ['', ''],
+  ];
+  for (const [input, want] of cases) {
+    const got = strip(input);
+    if (got !== want) throw new Error(`_stripNameTag(${JSON.stringify(input)}) = ${JSON.stringify(got)} (기대 ${JSON.stringify(want)})`);
+  }
+
+  // 판정이 실제로 이걸 쓰고, 떼어내지 못한 대괄호는 '확인 필요'로 넘긴다 (규칙 7)
+  const analyze = (gs.match(/function api_analyzeMembers[\s\S]*?\n\}\n/) ?? [''])[0];
+  if (!/_stripNameTag\(raw\)/.test(analyze)) throw new Error('판정이 태그를 떼어내지 않습니다.');
+  if (!/\/\[\\\[\\\]\]\/\.test\(name\)[\s\S]{0,120}?status: 'invalid'/.test(analyze)) {
+    throw new Error("대괄호가 남은 줄을 '확인 필요'로 넘기지 않습니다 — 태그째로 등록됩니다.");
+  }
+  // ★ 원문(raw)은 그대로 함께 돌려줘야 한다. 무엇을 떼어냈는지 관리자가 봐야 한다.
+  if (!/raw: raw, name: name/.test(analyze)) throw new Error('원문을 함께 돌려주지 않습니다.');
+  const bulk = readFileSync(resolve(ROOT, 'components/BulkMemberSheet.tsx'), 'utf8');
+  if (!/r\.raw\.trim\(\) !== r\.name/.test(bulk) || !/bulk\.cleaned/.test(bulk)) {
+    throw new Error('떼어낸 줄의 원문을 화면에 보여주지 않습니다 — 조용히 바뀌면 알 수 없습니다.');
+  }
+
+  // 모의 시트도 같은 규칙이어야 E2E 가 진짜 동작을 검사한다
+  const mock = readFileSync(resolve(ROOT, 'scripts/mock-sheet.mjs'), 'utf8');
+  const mm = mock.match(/function stripTag[\s\S]*?\n\}/);
+  if (!mm) throw new Error('모의 시트에 같은 규칙이 없습니다.');
+  const ctx2 = vm.createContext({});
+  vm.runInContext(mm[0], ctx2);
+  for (const [input, want] of cases) {
+    ctx2.__v = input;
+    const got = vm.runInContext('stripTag(__v)', ctx2);
+    if (got !== want) throw new Error(`모의 시트가 다르게 떼어냅니다: ${JSON.stringify(input)} → ${JSON.stringify(got)}`);
+  }
+
+  // 서버는 이름이 아니라 상단에서 고른다 — 드롭다운은 칩으로 바뀌었다
+  if (/<select[^>]*id="bulkSv"/.test(bulk)) throw new Error('서버 지정이 아직 드롭다운입니다.');
+  if (!/<ServerPicker[\s\S]{0,160}?id="bulkSv"/.test(bulk)) throw new Error('서버를 고를 칩이 없습니다.');
+
+  return `떼어내기 ${cases.length}케이스 (시트·모의 동일) · 확인필요 처리 · 원문 표시 · 서버 칩`;
 });
 
 check('연합은 등록과 정산이 분리되어 있다', () => {

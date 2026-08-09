@@ -24,8 +24,11 @@ const SERVER_LIST = ['01','02','03','04','05','06','07','08','09','10','11','12'
 const MAX_MEMBERS = 100;   // .gs 의 MAX_MEMBERS 와 반드시 같아야 한다
 const ST_WAIT = '⏳미분배';
 const ST_DONE = '✅분배완료';
-// 앱이 기대하는 버전과 같은 값 — 화면에 "버전 불일치" 경고가 뜨지 않아야 정상이다
-let MOCK_GS_VERSION = '10.8';
+// 앱이 기대하는 버전과 같은 값 — 화면에 "버전 불일치" 경고가 뜨지 않아야 정상이다.
+// ★ 한 곳에만 적는다. 여기저기 흩어 적으면 버전을 올릴 때 한 군데가 남아
+//   "실어 온 상태의 버전이 다르다"는 엉뚱한 실패로 나타난다 (실제로 겪었다).
+const GS_VERSION = '10.9';
+let MOCK_GS_VERSION = GS_VERSION;
 
 /**
  * .gs 의 `_rc` 와 같은 모양으로 결과에 코드·값을 붙인다.
@@ -268,6 +271,22 @@ function add(name, amount) {
   const row = findRow(name);
   if (row) row.pending += amount;
   else S.rows.push({ name, pending: amount, paid: 0, cnt: 0 });
+}
+
+/**
+ * 이름에 딸려 온 게임 화면 요소를 떼어낸다 — `.gs` 의 `_stripNameTag` 와 같은 규칙.
+ * 두 벌이 어긋나면 E2E 가 실제 시트와 다른 것을 검사하게 된다.
+ */
+function stripTag(raw) {
+  let out = String(raw || '');
+  out = out.replace(/\[[^[\]]*\]/g, ' ');
+  out = out.replace(/(^|\s)[+＋]+(?=\s|$)/g, ' ');
+  const parts = out.trim().split(/\s+/).filter(Boolean);
+  if (parts.length > 1) {
+    const kept = parts.filter((p, i) => i === 0 || !p.includes(']'));
+    if (kept.length > 0) out = kept.join(' ');
+  }
+  return out.replace(/\s{2,}/g, ' ').trim();
 }
 
 const handlers = {
@@ -826,11 +845,14 @@ const handlers = {
     const core = (v) => norm(String(v).replace(/\(.*$/, '')).toLowerCase();
     const seen = new Set();
     const rows = raws.map((raw) => {
-      const name = raw.trim();
+      // 게임 화면의 [혈맹·서버] 표시와 '+' 를 떼어낸다 (.gs 의 _stripNameTag 와 같은 규칙)
+      const name = stripTag(raw);
       const bare = name.replace(/[\s()（）]/g, '');
       if (!bare || /^[0-9.%\-+]+$/.test(bare) || bare.length < 2 || name.length > 30 || name === FUND_NAME) {
-        return { raw, name, status: 'invalid', suggest: [] };
+        return { raw, name: name || raw.trim(), status: 'invalid', suggest: [] };
       }
+      // 떼어내지 못한 대괄호가 남으면 어디까지가 이름인지 알 수 없다 — 확인 필요
+      if (/[[\]]/.test(name)) return { raw, name, status: 'invalid', suggest: [] };
       const key = norm(name).toLowerCase();
       if (seen.has(key)) return { raw, name, status: 'dup', suggest: [] };
       seen.add(key);
@@ -965,13 +987,13 @@ const handlers = {
   // 테스트가 매번 같은 상태에서 시작할 수 있도록
   __reset: () => {
     S = freshState();
-    MOCK_GS_VERSION = '10.8';
+    MOCK_GS_VERSION = GS_VERSION;
     return { ok: true, msg: '초기화됨' };
   },
 
   // "시트만 옛 버전인" 상황을 만들어 보기 위한 것 (테스트 전용)
   __setVersion: ({ version }) => {
-    MOCK_GS_VERSION = String(version || '10.8');
+    MOCK_GS_VERSION = String(version || GS_VERSION);
     return { ok: true, msg: '버전 ' + MOCK_GS_VERSION };
   },
 };

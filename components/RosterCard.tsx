@@ -159,6 +159,7 @@ export default function RosterCard({
       {bulk ? (
         <BulkMemberSheet
           servers={servers}
+          inUse={inUse}
           onClose={() => setBulk(false)}
           onDone={done}
           toast={toast}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import ServerPicker from './ServerPicker';
 import Sheet from './Sheet';
 import { api, getStoredEmail, prepPhoto, splitName } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
@@ -55,12 +56,15 @@ function defaultDecision(r: AnalyzedRow): Decision {
 
 export default function BulkMemberSheet({
   servers,
+  inUse,
   onClose,
   onDone,
   toast,
   setBusy,
 }: {
   servers: string[];
+  /** 실제로 인원이 있는 서버 — 안 쓰는 서버는 칩에서 접어 둔다 */
+  inUse: string[];
   onClose: () => void;
   onDone: (res?: ApiResult) => void;
   toast: (msg: string, isError?: boolean) => void;
@@ -260,17 +264,12 @@ export default function BulkMemberSheet({
             {note}
           </div>
 
-          <label className="fl" htmlFor="bulkSv" style={{ marginTop: 12 }}>
+          {/* 서버는 이름에서 떼어냈으니 여기서 고른다 (v10.9).
+              드롭다운은 열고·굴리고·누르는 세 동작이라 칩으로 바꿨다 — 다른 화면과 같다. */}
+          <label className="fl" style={{ marginTop: 12 }}>
             {t('bulk.serverLabel')}
           </label>
-          <select id="bulkSv" value={server} onChange={(e) => setServer(e.target.value)}>
-            <option value="">{t('ali.none')}</option>
-            {servers.map((s) => (
-              <option key={s} value={s}>
-                {t('ali.serverN', { s })}
-              </option>
-            ))}
-          </select>
+          <ServerPicker id="bulkSv" servers={servers} value={server} onChange={setServer} inUse={inUse} />
           <p className="hint">{t('bulk.serverHint')}</p>
 
           <div className="bulk-list">
@@ -284,6 +283,11 @@ export default function BulkMemberSheet({
                     {sub ? <i>({sub})</i> : null}
                     <span className={'bulk-tag t-' + r.status}>{t(STATUS_KEY[r.status])}</span>
                   </div>
+                  {/* 시트가 [혈맹/서버] 표시를 떼어냈으면 원문을 같이 보여준다 (v10.9).
+                      조용히 바꾸면 무엇이 지워졌는지 관리자가 알 수 없다. */}
+                  {r.raw.trim() !== r.name ? (
+                    <div className="bulk-raw">{t('bulk.cleaned', { raw: r.raw.trim() })}</div>
+                  ) : null}
 
                   <div className="bulk-ops">
                     {(['add', 'rename', 'skip'] as const).map((op) => {
