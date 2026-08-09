@@ -25,7 +25,7 @@ const MAX_MEMBERS = 100;   // .gs 의 MAX_MEMBERS 와 반드시 같아야 한다
 const ST_WAIT = '⏳미분배';
 const ST_DONE = '✅분배완료';
 // 앱이 기대하는 버전과 같은 값 — 화면에 "버전 불일치" 경고가 뜨지 않아야 정상이다
-let MOCK_GS_VERSION = '10.8';
+let MOCK_GS_VERSION = '10.9';
 
 /**
  * .gs 의 `_rc` 와 같은 모양으로 결과에 코드·값을 붙인다.
@@ -44,7 +44,8 @@ const WRITE_ACTIONS = ['register', 'distribute', 'payout', 'rename', 'addMember'
                        'deletePost', 'addAlliance', 'creditAlliance', 'deleteAlliance', 'updateMember',
                        'bulkAddMembers',
                        'addRaid', 'updateRaid', 'deleteRaid',
-                       'setAppName', 'setAdminPin', 'setSeasonServer'];
+                       'setAppName', 'setAdminPin', 'setSeasonServer',
+                       'setupAuth', 'setAuthPin'];
 
 /**
  * .gs 의 `_withState` 와 같은 규약 (v10.2).
@@ -120,6 +121,12 @@ function freshState() {
     ],
     nextRaidRow: 23,
     adminPinOverride: '',
+    /**
+     * 최초 설정 레코드 (v10.9). 진짜 시트의 DocumentProperties 와 같은 모양이다.
+     * 기본은 "아직 안 정함" — 그래야 개발·E2E 가 환경변수 PIN 경로를 그대로 쓴다.
+     */
+    auth: { salt: '', master: '', admin: '', rounds: 0, at: '' },
+    authResetUntil: 0,
     renames: [
       { at: '07/12 09:30', before: '옛닉네임', after: '가이', by: 'admin@example.com', merged: false, detail: '"옛닉네임" → "가이"' },
     ],
@@ -934,6 +941,59 @@ const handlers = {
     return { ok: true, hasOverride: true, match: String(pin || '') === S.adminPinOverride };
   },
 
+  /* ── 최초 설정 (v10.9) — .gs 의 api_getAuth / api_setupAuth / api_setAuthPin 과 같은 규약 ── */
+
+  getAuth: () => {
+    const a = S.auth;
+    return {
+      ok: true,
+      configured: Boolean(a.salt && a.master && a.admin && a.rounds),
+      salt: a.salt,
+      rounds: a.rounds,
+      master: a.master,
+      admin: a.admin,
+      resetOpen: S.authResetUntil > Date.now(),
+      at: a.at,
+    };
+  },
+
+  setupAuth: ({ salt, master, admin, rounds }) => {
+    const s = String(salt || '').trim();
+    const m = String(master || '').trim();
+    const ad = String(admin || '').trim();
+    const r = Number(rounds || 0);
+    if (s.length < 32 || m.length < 32 || ad.length < 32 || !(r >= 100000)) {
+      return rc({ ok: false, msg: '설정 값의 형식이 올바르지 않습니다.' }, 'e.authBadHash');
+    }
+    if (m === ad) return rc({ ok: false, msg: '마스터 PIN 과 관리자 PIN 은 서로 달라야 합니다.' }, 'e.pinSame');
+
+    const already = Boolean(S.auth.salt && S.auth.master && S.auth.admin && S.auth.rounds);
+    if (already && !(S.authResetUntil > Date.now())) {
+      return rc({ ok: false, msg: '이미 설정이 끝났습니다.' }, 'e.setupDone');
+    }
+    S.auth = { salt: s, master: m, admin: ad, rounds: r, at: '2026-01-01T00:00:00.000Z' };
+    S.authResetUntil = 0;
+    S.adminPinOverride = '';
+    return rc({ ok: true, msg: '✅ PIN 을 설정했습니다.' }, 'auth.setupOk');
+  },
+
+  setAuthPin: ({ which, hash }) => {
+    const w = String(which || '');
+    const h = String(hash || '').trim();
+    if ((w !== 'master' && w !== 'admin') || h.length < 32) {
+      return rc({ ok: false, msg: '설정 값의 형식이 올바르지 않습니다.' }, 'e.authBadHash');
+    }
+    if (!(S.auth.salt && S.auth.master && S.auth.admin)) {
+      return rc({ ok: false, msg: '아직 최초 설정이 끝나지 않았습니다.' }, 'e.setupNone');
+    }
+    if (h === (w === 'master' ? S.auth.admin : S.auth.master)) {
+      return rc({ ok: false, msg: '마스터 PIN 과 관리자 PIN 은 서로 달라야 합니다.' }, 'e.pinSame');
+    }
+    S.auth[w] = h;
+    const label = w === 'master' ? '마스터' : '관리자';
+    return rc({ ok: true, msg: `✅ ${label} PIN 을 바꿨습니다.` }, 'auth.pinChanged', { role: label });
+  },
+
   setAppName: ({ name }) => {
     // 줄바꿈은 두 줄까지 (긴 이름을 마스터가 직접 끊을 수 있게)
     const lines = String(name || '').replace(/\r/g, '').split('\n').map((v) => v.trim());
@@ -963,13 +1023,20 @@ const handlers = {
   // 테스트가 매번 같은 상태에서 시작할 수 있도록
   __reset: () => {
     S = freshState();
-    MOCK_GS_VERSION = '10.8';
+    MOCK_GS_VERSION = '10.9';
     return { ok: true, msg: '초기화됨' };
+  },
+
+  // 구글시트 메뉴 [🔐 앱 PIN 재설정 창 열기] 를 흉내낸다 (테스트 전용).
+  // 진짜 시트에서는 앱이 절대 열 수 없는 문이라, 여기서만 흉내낸다.
+  __openReset: () => {
+    S.authResetUntil = Date.now() + 10 * 60 * 1000;
+    return { ok: true, msg: '재설정 창 열림' };
   },
 
   // "시트만 옛 버전인" 상황을 만들어 보기 위한 것 (테스트 전용)
   __setVersion: ({ version }) => {
-    MOCK_GS_VERSION = String(version || '10.8');
+    MOCK_GS_VERSION = String(version || '10.9');
     return { ok: true, msg: '버전 ' + MOCK_GS_VERSION };
   },
 };

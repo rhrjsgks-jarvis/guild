@@ -1,8 +1,37 @@
 // ═══════════════════════════════════════════════════════════════
-//  길드 정산 시스템 v10.8  (분배비중 · 연합 · 레이드 · 게시판 · 마스터관리자 · 3개국어)
+//  길드 정산 시스템 v10.9  (분배비중 · 연합 · 레이드 · 게시판 · 마스터관리자 · 3개국어)
 //  시트 구성: [사용안내] [멤버DB] [참여자현황] [분배대기중] [잔액현황]
 //            [지급기록] [연합] [레이드] [게시판] [작업기록] + [시즌1] [시즌2] ...
 //            ← 이 순서로 항상 정렬됨
+// ═══════════════════════════════════════════════════════════════
+//  변경점 v10.8 → v10.9  (최초 실행 시 길드가 직접 PIN 을 정한다)
+//
+//  【무엇이 문제였나】
+//   PIN 은 Vercel 환경변수(ADMIN_PIN · MASTER_PIN)로만 정해졌다. 즉 앱을
+//   세팅해 준 사람이 길드의 마스터 비밀번호를 **알고 있는 상태로 시작**한다.
+//   기능상 문제는 아니지만, 쓰는 길드 입장에서는 "설치해 준 사람이 내
+//   최고 권한 비밀번호를 안다"는 사실 자체가 불안 요소다.
+//
+//  【어떻게 고쳤나】
+//   - ★ 앱을 처음 열면 [최초 설정] 화면이 뜬다. 길드가 그 자리에서
+//       마스터 PIN 과 관리자 PIN 을 **직접** 정한다. 설치해 준 사람은
+//       PIN 을 보지도, 정하지도 않는다.
+//   - ★ 낯선 사람이 링크만 알고 먼저 들어와 마스터를 선점하는 것을 막으려고
+//       **설치 코드**(Vercel 의 SETUP_CODE)를 한 번만 요구한다. 설정이
+//       끝나는 순간 그 코드는 영구히 무효가 된다 — PIN 이 아니므로
+//       나중에 새 나가도 아무것도 열리지 않는다.
+//   - ★ 정해진 PIN 은 **평문으로 어디에도 저장되지 않는다.** 앱 서버가
+//       PBKDF2(SHA-256, 21만 회)로 해시만 만들어 보내고, 시트는 그
+//       해시와 소금값만 보관한다. 시트를 열어봐도 PIN 은 알 수 없다.
+//   - ★ 설정이 끝나면 환경변수 PIN(ADMIN_PIN · MASTER_PIN)은 **더 이상
+//       로그인에 쓰이지 않는다.** 배포자가 아는 값으로는 못 들어간다.
+//   - ★ PIN 을 잊었을 때: 구글시트 메뉴 [🔐 앱 PIN 재설정 창 열기]
+//       → 10분 동안만 앱의 최초 설정 화면이 다시 열린다. 시트를 열 수 있는
+//       사람 = 데이터의 주인이므로, 이것이 정당한 복구 경로다.
+//   - ★ 마스터 PIN 도 이제 앱에서 바꿀 수 있다 (예전엔 환경변수뿐이었다).
+//
+//  ※ 아직 설정하지 않은 기존 설치는 **그대로 환경변수로 동작한다.**
+//    최초 설정을 실제로 마친 뒤에만 전환된다.
 // ═══════════════════════════════════════════════════════════════
 //  변경점 v10.7 → v10.8  (보스 시간표 — [레이드] 시트)
 //
@@ -483,7 +512,7 @@
 //     '누적기록'을 그대로 찾음 (하위 호환, 리네이밍과 무관)
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION = '10.8';
+const VERSION = '10.9';
 const T2S_MAP = {'國':'国','學':'学','這':'这','個':'个','們':'们','說':'说','話':'话','對':'对','時':'时','間':'间','現':'现','場':'场','開':'开','關':'关','內':'内','東':'东','車':'车','馬':'马','龍':'龙','風':'风','陽':'阳','陰':'阴','電':'电','語':'语','讀':'读','寫':'写','書':'书','紙':'纸','筆':'笔','長':'长','門':'门','問':'问','聽':'听','見':'见','覺':'觉','讓':'让','誰':'谁','還':'还','進':'进','運':'运','動':'动','靜':'静','樂':'乐','藥':'药','華':'华','蘭':'兰','葉':'叶','黃':'黄','麗':'丽','寶':'宝','貴':'贵','財':'财','買':'买','賣':'卖','錢':'钱','銀':'银','鐵':'铁','鋼':'钢','陳':'陈','劉':'刘','張':'张','楊':'杨','蔣':'蒋','鄭':'郑','謝':'谢','呂':'吕','蘇':'苏','韓':'韩','馮':'冯','於':'于','鳳':'凤','雲':'云','劍':'剑','斷':'断','亂':'乱','愛':'爱','聲':'声','醫':'医','藝':'艺','頭':'头','臉':'脸','腳':'脚','氣':'气','樓':'楼','橋':'桥','飛':'飞','機':'机','網':'网','線':'线','條':'条','裡':'里','邊':'边','錯':'错','壞':'坏','舊':'旧','寬':'宽','淺':'浅','週':'周','節':'节','業':'业','後':'后','來':'来','終':'终','結':'结','敗':'败','勝':'胜','負':'负','輸':'输','贏':'赢','強':'强','難':'难','簡':'简','單':'单','複':'复','雜':'杂','純':'纯','淨':'净','髒':'脏','齊':'齐','穩':'稳','變':'变','轉':'转','換':'换','顯':'显','樣':'样','種':'种','類':'类','團':'团','體':'体','統':'统','織':'织','組':'组','構':'构','設':'设','計':'计','劃':'划','數':'数','課':'课','題':'题','試':'试','練':'练','習':'习','師':'师','員':'员','職':'职','務':'务','責':'责','權':'权','應':'应','該':'该','須':'须','願':'愿','夢':'梦','憶':'忆','識':'识','認':'认','歡':'欢','醜':'丑','帥':'帅','靈':'灵','獸':'兽','鷹':'鹰','鶴':'鹤','鴻':'鸿','鱷':'鳄','鯨':'鲸','鯊':'鲨','蝦':'虾','殼':'壳','冑':'胄','戰':'战','爭':'争','鬥':'斗','擊':'击','禦':'御','護':'护','衛':'卫','謀':'谋','陣':'阵','營':'营','軍':'军','隊':'队','將':'将','嬪':'嫔','宮':'宫','廟':'庙','觀':'观','閣':'阁','蓮':'莲','楓':'枫','樺':'桦','檜':'桧','樹':'树','實':'实','幹':'干','莖':'茎','穫':'获','採':'采','鮮':'鲜','籠':'笼','傷':'伤','殺':'杀','斬':'斩','豬':'猪','雞':'鸡','鴨':'鸭','鵝':'鹅','龜':'龟','蟬':'蝉','蟻':'蚁','螞':'蚂','鴉':'鸦','鵰':'雕','鴛':'鸳','鴦':'鸯','賽':'赛','廠':'厂','廣':'广','麼':'么','誒':'诶','歲':'岁','歷':'历','歸':'归','殘':'残','蟲':'虫','貓':'猫','氈':'毡','貫':'贯','質':'质','貨':'货','貼':'贴','費':'费','資':'资','賬':'账','賺':'赚','贈':'赠','賀':'贺','賢':'贤','賦':'赋','賤':'贱','賓':'宾','賴':'赖','齲':'龋','齒':'齿','龄':'齡','齡':'龄','齣':'出','岡':'冈','剛':'刚','剮':'剐','創':'创','劇':'剧','勵':'励','勸':'劝','勻':'匀','匯':'汇','醬':'酱','醞':'酝','釀':'酿','釋':'释','釘':'钉','針':'针','釣':'钓','鈍':'钝','鈴':'铃','鈔':'钞','鉛':'铅','鋸':'锯','鋒':'锋','鍵':'键','鎖':'锁','鑄':'铸','鑼':'锣','錶':'表','鐘':'钟','鏡':'镜','鑽':'钻','鑑':'鉴','閉':'闭','閃':'闪','閏':'闰','閱':'阅','闆':'板','闖':'闯','陸':'陆','隱':'隐','雖':'虽','雙':'双','雛':'雏','靂':'雳','韋':'韦','韌':'韧','頁':'页','頂':'顶','項':'项','順':'顺','頌':'颂','預':'预','頑':'顽','頒':'颁','頗':'颇','領':'领','頡':'颉','頜':'颌','頸':'颈','頻':'频','頹':'颓','顆':'颗','額':'额','顏':'颜','顛':'颠','顧':'顾','飄':'飘','饑':'饥','餃':'饺','餅':'饼','館':'馆','饒':'饶','饞':'馋','馳':'驰','駕':'驾','駛':'驶','駐':'驻','駱':'骆','駭':'骇','騎':'骑','騰':'腾','驅':'驱','驚':'惊','驕':'骄','驗':'验','骯':'肮','髮':'发','鬍':'胡','鬧':'闹','鮑':'鲍','鯉':'鲤','鰲':'鳌','鱉':'鳖','鳥':'鸟','鳴':'鸣','鹹':'咸','麥':'麦','麵':'面','黨':'党'};  // 번체→간체 상용한자 (서체 변환 전용, 다른 뜻 글자는 포함하지 않음)
 const UNIT = '다이아';                 // 재화 단위 표기
 const MAX_MEMBERS = 100;              // 최대 멤버 수 (v10.5: 50 → 100)
@@ -1051,6 +1080,7 @@ function onOpen() {
     .addItem('📥 기존 길드정산 파일에서 가져오기 (새 파일로 이전)', 'importFromExisting')
     .addItem('📥 v2 데이터 가져오기 (아주 옛 파일에서)', 'importFromV2')
     .addItem('🔑 웹 API 토큰 (Vercel 앱 연동)', 'manageApiToken')
+    .addItem('🔐 앱 PIN 재설정 창 열기 (10분)', 'openPinReset')
     .addItem('🔗 디스코드 웹훅 설정', 'setDiscordWebhook')
     .addItem('📤 디스코드로 전송', 'sendLatestToDiscord')
     .addItem('📖 사용안내 새로고침', 'refreshGuide')
@@ -2546,8 +2576,21 @@ function _rebuildGuide(ss) {
     ['③ 메뉴 [🔑 웹 API 토큰]으로 토큰 발급 → 복사', 'b'],
     ['④ Vercel → Settings → Environment Variables 에 등록', 'b'],
     ['   GAS_URL(=위 /exec 주소) · GAS_TOKEN(=③ 토큰)', 'b'],
-    ['   ADMIN_PIN(관리자 비밀번호) · SESSION_SECRET(아무 긴 문자열)', 'b'],
+    ['   SESSION_SECRET(아무 긴 문자열) · SETUP_CODE(최초 설정용 1회 코드)', 'b'],
     ['⑤ 저장 후 Redeploy → 폰에서 열고 "홈 화면에 추가"', 'b'],
+    ['🔐 최초 실행 시 PIN 은 길드가 직접 정합니다 (v' + VERSION + ')', 'sec'],
+    ['앱을 처음 열면 [⚙️ 관리] 탭에 [최초 설정] 화면이 뜹니다.', 'b'],
+    ['거기서 마스터 PIN 과 관리자 PIN 을 직접 정하면 됩니다.', 'b'],
+    ['① 앱을 세팅해 준 사람에게 "설치 코드"만 받습니다 (PIN 이 아닙니다)', 'b'],
+    ['② 설치 코드 + 새 마스터 PIN + 새 관리자 PIN 을 입력', 'b'],
+    ['③ 저장하면 설치 코드는 그 즉시 영구히 무효가 됩니다', 'b'],
+    ['· 정한 PIN 은 평문으로 어디에도 저장되지 않습니다. 이 시트에도', 'b'],
+    ['  되돌릴 수 없는 해시만 남으므로, 시트를 열어봐도 알 수 없습니다', 'b'],
+    ['· 설정을 마치면 Vercel 의 ADMIN_PIN·MASTER_PIN 환경변수는 더 이상', 'b'],
+    ['  로그인에 쓰이지 않습니다 — 앱을 세팅해 준 사람도 못 들어옵니다', 'b'],
+    ['⚠️ PIN 을 잊었다면 메뉴 [🔐 앱 PIN 재설정 창 열기]를 누르세요.', 'warn'],
+    ['   10분 동안만 [최초 설정] 화면이 다시 열립니다. 이 메뉴는 이', 'warn'],
+    ['   시트를 열 수 있는 사람만 쓸 수 있습니다 (= 데이터의 주인)', 'warn'],
     ['[권한 구분]', 'b'],
     ['· 길드원: 링크만 있으면 잔액·아이템 현황을 자유롭게 조회', 'b'],
     ['· 관리자: 앱 하단 [관리] 탭에서 PIN 입력 후에만 등록·분배·지급', 'b'],
@@ -5429,6 +5472,180 @@ function api_checkPin(pin) {
   return { ok: true, hasOverride: true, match: _tokenEq(stored, String(pin || '')) };
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  🔐 최초 설정 — 길드가 직접 정하는 PIN (v10.9)
+//
+//  왜 이렇게 만들었나:
+//    앱을 세팅해 주는 사람이 길드의 마스터 PIN 을 알고 시작하는 것이
+//    구조적으로 불편했다. 그래서 PIN 은 **앱을 처음 여는 자리에서 길드가
+//    직접** 정하고, 여기에는 되돌릴 수 없는 형태(해시)로만 남긴다.
+//
+//  여기 저장되는 것:
+//    · AUTH_SALT   — 이 설치 전용 무작위 소금값 (앱 서버가 만든다)
+//    · AUTH_MASTER — 마스터 PIN 의 PBKDF2 해시
+//    · AUTH_ADMIN  — 관리자 PIN 의 PBKDF2 해시
+//    · AUTH_ROUNDS — 해시 반복 횟수
+//
+//  ★ 평문 PIN 은 이 파일에 **들어오지도 않는다.** 앱 서버가 해시를 만들어
+//    보내고, 여기서는 그 문자열을 그대로 보관할 뿐이다. 시트를 열 수 있는
+//    사람도 PIN 자체는 알 수 없다.
+//
+//  ★ 한 번 설정되면 다시 설정할 수 없다. 유일한 예외가 재설정 창인데,
+//    그 창은 **구글시트 메뉴에서만** 열린다 (아래 openPinReset).
+//    시트를 열 수 있는 사람 = 데이터의 주인이므로 이것이 정당한 복구 경로다.
+// ═══════════════════════════════════════════════════════════════
+const AUTH_SALT_PROP = 'AUTH_SALT';
+const AUTH_MASTER_PROP = 'AUTH_MASTER';
+const AUTH_ADMIN_PROP = 'AUTH_ADMIN';
+const AUTH_ROUNDS_PROP = 'AUTH_ROUNDS';
+const AUTH_AT_PROP = 'AUTH_SETUP_AT';
+const AUTH_RESET_PROP = 'AUTH_RESET_UNTIL';
+
+const AUTH_RESET_MS = 10 * 60 * 1000;   // 재설정 창이 열려 있는 시간
+const AUTH_HASH_MIN = 32;               // 해시 문자열 최소 길이 (형식 점검용)
+
+/** 재설정 창이 지금 열려 있는가 */
+function _authResetOpen() {
+  const until = Number(PropertiesService.getDocumentProperties().getProperty(AUTH_RESET_PROP) || 0);
+  return Number.isFinite(until) && until > Date.now();
+}
+
+/**
+ * 앱 서버(Vercel)가 로그인·설정 화면을 그리기 위해 부른다.
+ *
+ * 해시와 소금값을 내보낸다. 이 응답은 doPost 의 토큰 검사를 통과한
+ * 요청에만 나가고, 해시는 21만 회 PBKDF2 라 되돌릴 수 없다.
+ * ★ 평문 PIN 은 애초에 여기 없으므로 내보낼 것도 없다.
+ */
+function api_getAuth() {
+  const props = PropertiesService.getDocumentProperties();
+  const master = String(props.getProperty(AUTH_MASTER_PROP) || '');
+  const admin = String(props.getProperty(AUTH_ADMIN_PROP) || '');
+  const salt = String(props.getProperty(AUTH_SALT_PROP) || '');
+  const rounds = Number(props.getProperty(AUTH_ROUNDS_PROP) || 0);
+  return {
+    ok: true,
+    configured: Boolean(salt && master && admin && rounds),
+    salt: salt,
+    rounds: rounds,
+    master: master,
+    admin: admin,
+    resetOpen: _authResetOpen(),
+    at: String(props.getProperty(AUTH_AT_PROP) || '')
+  };
+}
+
+/**
+ * 최초 설정(또는 재설정 창 안에서의 재설정).
+ *
+ * mode 는 앱이 보내는 값이지만 **판정은 여기서 다시 한다** — 앱을 고쳐서
+ * 우회할 수 있는 값을 믿으면 안 되기 때문이다 (규칙 5-4 와 같은 이유).
+ *   · 아직 설정 전     → 통과 (설치 코드 확인은 앱 서버가 이미 했다)
+ *   · 이미 설정됨      → 재설정 창이 열려 있을 때만 통과
+ * 성공하면 재설정 창은 **즉시 닫는다.** 열어둔 채로 두면 10분 동안
+ * 다른 사람이 한 번 더 바꿀 수 있다.
+ */
+function api_setupAuth(salt, master, admin, rounds, email) {
+  salt = String(salt || '').trim();
+  master = String(master || '').trim();
+  admin = String(admin || '').trim();
+  rounds = Number(rounds || 0);
+
+  if (!salt || salt.length < AUTH_HASH_MIN ||
+      !master || master.length < AUTH_HASH_MIN ||
+      !admin || admin.length < AUTH_HASH_MIN ||
+      !(rounds >= 100000)) {
+    return _rc({ ok: false, msg: '설정 값의 형식이 올바르지 않습니다.' }, 'e.authBadHash');
+  }
+  // 같은 해시 = 같은 PIN. 등급을 나눈 의미가 없어지므로 여기서도 막는다
+  // (앱 서버도 막지만, 마지막 방어선은 데이터를 쥔 쪽에 있어야 한다)
+  if (_tokenEq(master, admin)) {
+    return _rc({ ok: false, msg: '마스터 PIN 과 관리자 PIN 은 서로 달라야 합니다.' }, 'e.pinSame');
+  }
+
+  const props = PropertiesService.getDocumentProperties();
+  const already = api_getAuth().configured;
+  if (already && !_authResetOpen()) {
+    return _rc({ ok: false, msg: '이미 설정이 끝났습니다. 다시 정하려면 구글시트 메뉴에서 재설정 창을 열어주세요.' },
+      'e.setupDone');
+  }
+
+  props.setProperties({
+    AUTH_SALT: salt,
+    AUTH_MASTER: master,
+    AUTH_ADMIN: admin,
+    AUTH_ROUNDS: String(rounds),
+    AUTH_SETUP_AT: new Date().toISOString()
+  });
+  props.deleteProperty(AUTH_RESET_PROP);
+  // 예전 평문 PIN 이 남아 있으면 지운다 — 새 방식으로 넘어온 이상 쓰이지 않아야 한다
+  props.deleteProperty(ADMIN_PIN_PROP);
+
+  // ★ PIN 도 해시도 어떤 기록에도 남기지 않는다.
+  _logAction(SpreadsheetApp.getActiveSpreadsheet(), already ? 'PIN재설정' : '최초PIN설정', '-',
+    _getActorEmail(email), already ? '재설정 창에서 마스터·관리자 PIN 을 다시 정함' : '앱에서 마스터·관리자 PIN 을 처음 정함');
+
+  return _rc({ ok: true, msg: '✅ PIN 을 설정했습니다. 이제부터 이 PIN 으로만 들어올 수 있습니다.' }, 'auth.setupOk');
+}
+
+/**
+ * 이미 설정을 마친 뒤의 PIN 교체. 앱 서버가 마스터 세션을 확인한 요청만 보낸다.
+ * which 는 'master' 또는 'admin'. 소금값은 그대로 두고 해시만 갈아끼운다.
+ */
+function api_setAuthPin(which, hash, email) {
+  which = String(which || '').trim();
+  hash = String(hash || '').trim();
+  if (which !== 'master' && which !== 'admin') {
+    return _rc({ ok: false, msg: '설정 값의 형식이 올바르지 않습니다.' }, 'e.authBadHash');
+  }
+  if (!hash || hash.length < AUTH_HASH_MIN) {
+    return _rc({ ok: false, msg: '설정 값의 형식이 올바르지 않습니다.' }, 'e.authBadHash');
+  }
+
+  const cur = api_getAuth();
+  if (!cur.configured) {
+    return _rc({ ok: false, msg: '아직 최초 설정이 끝나지 않았습니다.' }, 'e.setupNone');
+  }
+  // 둘이 같아지면 마스터와 관리자를 구분할 수 없다
+  const other = which === 'master' ? cur.admin : cur.master;
+  if (_tokenEq(hash, other)) {
+    return _rc({ ok: false, msg: '마스터 PIN 과 관리자 PIN 은 서로 달라야 합니다.' }, 'e.pinSame');
+  }
+
+  PropertiesService.getDocumentProperties()
+    .setProperty(which === 'master' ? AUTH_MASTER_PROP : AUTH_ADMIN_PROP, hash);
+
+  const label = which === 'master' ? '마스터' : '관리자';
+  _logAction(SpreadsheetApp.getActiveSpreadsheet(), label + 'PIN변경', '-', _getActorEmail(email),
+    label + ' PIN 을 새 값으로 교체');
+  return _rc({ ok: true, msg: '✅ ' + label + ' PIN 을 바꿨습니다. 해당 기기는 다음 로그인부터 새 PIN 이 필요합니다.' },
+    'auth.pinChanged', { role: label });
+}
+
+/**
+ * 구글시트 메뉴 — PIN 을 잊었을 때의 유일한 복구 경로.
+ *
+ * 여기서 창을 열면 10분 동안만 앱의 [최초 설정] 화면이 다시 열린다.
+ * 시트를 열 수 있는 사람이 곧 데이터의 주인이므로, 이 권한이 재설정의 근거다.
+ * ★ 앱(doPost) 으로는 절대 열 수 없다 — 열 수 있으면 복구 경로가 아니라 뒷문이 된다.
+ */
+function openPinReset() {
+  const ui = SpreadsheetApp.getUi();
+  const ans = ui.alert('🔐 앱 PIN 재설정 창 열기',
+    '지금부터 10분 동안 앱의 [최초 설정] 화면이 다시 열립니다.\n' +
+    '그 화면에서 마스터 PIN 과 관리자 PIN 을 새로 정할 수 있습니다.\n\n' +
+    '⚠️ 그 10분 사이에 앱 주소를 아는 사람이 먼저 들어가면 그 사람이 PIN 을 정하게 됩니다.\n' +
+    '앱을 바로 열 수 있는 상태에서 눌러주세요.\n\n' +
+    '지금 여시겠습니까?', ui.ButtonSet.YES_NO);
+  if (ans !== ui.Button.YES) return;
+
+  PropertiesService.getDocumentProperties().setProperty(AUTH_RESET_PROP, String(Date.now() + AUTH_RESET_MS));
+  _logAction(SpreadsheetApp.getActiveSpreadsheet(), 'PIN재설정창', '-', _getActorEmail(''), '10분짜리 재설정 창을 열었음');
+  ui.alert('✅ 재설정 창을 열었습니다',
+    '지금 앱을 열고 [⚙️ 관리] 탭으로 가면 [최초 설정] 화면이 보입니다.\n' +
+    '10분이 지나면 자동으로 닫히고, PIN 을 새로 정하면 그 즉시 닫힙니다.', ui.ButtonSet.OK);
+}
+
 // 시즌 서버 이름 (시즌 시작 시 지정 — 표시 전용)
 function api_setSeasonServer(server, email) {
   const sv = String(server || '').trim();
@@ -5474,10 +5691,13 @@ const API_WRITE_ACTIONS = ['register', 'distribute', 'payout', 'rename', 'addMem
                            'deletePost', 'addAlliance', 'creditAlliance', 'deleteAlliance', 'updateMember',
                            'bulkAddMembers',
                            'addRaid', 'updateRaid', 'deleteRaid',
-                           'setAppName', 'setAdminPin', 'setSeasonServer'];
+                           'setAppName', 'setAdminPin', 'setSeasonServer',
+                           'setupAuth', 'setAuthPin'];
 
 // 마스터관리자(개발자)만 부를 수 있는 작업 — Vercel 의 requireMaster 가 지킨다.
-const API_MASTER_ACTIONS = ['setAppName', 'setAdminPin'];
+// setupAuth 는 여기 없다 — 최초 설정은 아직 마스터가 없는 상태에서 하는 일이라,
+// 마스터 세션 대신 **설치 코드 또는 시트에서 연 재설정 창**이 그 자리를 대신한다.
+const API_MASTER_ACTIONS = ['setAppName', 'setAdminPin', 'setAuthPin'];
 
 // 🔑 토큰 발급·확인·재발급 (메뉴)
 function manageApiToken() {
@@ -5733,6 +5953,17 @@ function _apiRoute(action, req) {
 
     case 'checkPin':
       return api_checkPin(req.pin);
+
+    /* ── v10.9 최초 설정 · PIN 보관 ── */
+
+    case 'getAuth':
+      return api_getAuth();
+
+    case 'setupAuth':
+      return api_setupAuth(req.salt, req.master, req.admin, req.rounds, req.email);
+
+    case 'setAuthPin':
+      return api_setAuthPin(req.which, req.hash, req.email);
 
     case 'setAppName':
       return api_setAppName(req.name, req.email);

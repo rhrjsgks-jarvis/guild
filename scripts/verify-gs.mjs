@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v10_8.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v10_9.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 const gs = readFileSync(GS_PATH, 'utf8');
@@ -181,6 +181,7 @@ check('API 라우터 — 필요한 액션 노출 / 위험한 액션 차단', () 
     'renameHistory', 'posts', 'addPost', 'deletePost',
     'alliance', 'addAlliance', 'deleteAlliance', 'countPhoto',
     'updateMember', 'checkPin', 'setAppName', 'setAdminPin', 'setSeasonServer',
+    'getAuth', 'setupAuth', 'setAuthPin',
   ];
   const missing = required.filter((a) => !routed.includes(a));
   if (missing.length) throw new Error(`누락된 액션: ${missing.join(', ')}`);
@@ -200,7 +201,8 @@ check('쓰기 액션은 전부 LockService 대상', () => {
   const actions = list.replace(/['\s]/g, '').split(',').filter(Boolean);
   const mustLock = ['register', 'distribute', 'payout', 'rename', 'addMember', 'removeMember',
                     'correctItem', 'deleteItem', 'undoPayout', 'runTool',
-                    'addAlliance', 'updateMember', 'setAppName', 'setAdminPin'];
+                    'addAlliance', 'updateMember', 'setAppName', 'setAdminPin',
+                    'setupAuth', 'setAuthPin'];
   const unlocked = mustLock.filter((a) => !actions.includes(a));
   if (unlocked.length) throw new Error(`락이 걸리지 않는 쓰기 액션: ${unlocked.join(', ')}`);
   if (!/lock\.waitLock\(/.test(gs)) throw new Error('waitLock 호출이 없습니다.');
@@ -708,6 +710,119 @@ check('되돌릴 수 없는 작업은 마스터관리자에게만 열린다', ()
   return `위험도3 도구 ${d3}개 · 정정·삭제·지급취소 · 시트 판정 · 실패 시 차단 · 관리자에게 비표시`;
 });
 
+check('최초 설정: 평문 PIN 은 절대 시트로 넘어가지 않는다', () => {
+  /*
+   * v10.9 의 존재 이유 자체다. PIN 을 앱에서 정하게 만들어 놓고 그 값을
+   * 시트에 그대로 보내면, "앱을 설치해 준 사람은 PIN 을 모른다"가 거짓이 된다
+   * (시트를 열 수 있는 사람이 곧 그 사람인 경우가 많다).
+   * 그래서 callGas 로 나가는 페이로드에 평문 PIN 이 실리는지 직접 본다.
+   */
+  const pin = readFileSync(resolve(ROOT, 'lib/pin.ts'), 'utf8');
+  if (!/export const PIN_ROUNDS = ([\d_]+)/.test(pin)) throw new Error('PIN_ROUNDS 상수를 찾을 수 없습니다.');
+  const rounds = Number(pin.match(/export const PIN_ROUNDS = ([\d_]+)/)[1].replace(/_/g, ''));
+  // 6자리 숫자 PIN 은 100만 가지뿐이다. 반복이 얕으면 해시를 손에 넣은 사람이 곧바로 되짚는다
+  if (!(rounds >= 100_000)) throw new Error(`PBKDF2 반복 횟수가 너무 적습니다 (${rounds}). 10만 회 이상이어야 합니다.`);
+  if (!/PBKDF2/.test(pin) || !/deriveBits/.test(pin)) throw new Error('PIN 해시가 PBKDF2 로 만들어지지 않습니다.');
+  if (!/import 'server-only'/.test(pin)) throw new Error('lib/pin.ts 가 server-only 가 아닙니다 — 번들에 실릴 수 있습니다.');
+
+  const setup = readFileSync(resolve(ROOT, 'app/api/setup/route.ts'), 'utf8');
+  // callGas 호출의 페이로드에 평문 PIN 변수가 들어가면 안 된다
+  for (const m of setup.matchAll(/callGas\(\s*'(\w+)'\s*,\s*\{([^}]*)\}/g)) {
+    if (/\b(masterPin|adminPin)\b/.test(m[2])) {
+      throw new Error(`평문 PIN 이 시트로 넘어갑니다 (callGas '${m[1]}').`);
+    }
+  }
+  if (!/derive\(masterPin/.test(setup) || !/derive\(adminPin/.test(setup)) {
+    throw new Error('설정 라우트가 PIN 을 해시로 바꾸지 않습니다.');
+  }
+  // 시트 쪽에도 평문이 저장되는 경로가 없어야 한다
+  const setupAuth = extractFn(gs, 'api_setupAuth');
+  if (/req\.(masterPin|adminPin)|pin\b/.test(setupAuth)) {
+    throw new Error('api_setupAuth 가 평문 PIN 을 다룹니다.');
+  }
+
+  // 마스터 PIN 교체도 같은 규칙이다
+  const master = readFileSync(resolve(ROOT, 'app/api/master/route.ts'), 'utf8');
+  for (const m of master.matchAll(/callGas\(\s*'setAuthPin'\s*,\s*\{([^}]*)\}/g)) {
+    if (!/\bhash\b/.test(m[1]) || /\bpin\b/.test(m[1])) {
+      throw new Error('마스터 라우트가 setAuthPin 에 해시가 아닌 값을 보냅니다.');
+    }
+  }
+  return `PBKDF2 ${rounds.toLocaleString()}회 · 평문 유출 경로 0건`;
+});
+
+check('최초 설정: 아무나 마스터를 선점할 수 없다', () => {
+  const setup = readFileSync(resolve(ROOT, 'app/api/setup/route.ts'), 'utf8');
+  const post = setup.slice(setup.indexOf('export async function POST'));
+
+  // ① 판정은 시트가 돌려준 레코드로만 한다 — 앱이 보낸 값은 고쳐서 우회할 수 있다
+  if (!/const auth = await readAuth\(\)/.test(post)) {
+    throw new Error('설정 가능 여부를 시트 레코드로 판정하지 않습니다.');
+  }
+  // ② 레코드를 못 받아오면 막는 쪽으로 간다. 최고 권한을 넘기는 자리에서
+  //    "확인이 안 되니 일단 통과"는 절대 하면 안 된다
+  if (!/if \(!auth\)[\s\S]{0,400}?status: 502/.test(post)) {
+    throw new Error('시트를 못 읽었을 때 설정을 막지 않습니다.');
+  }
+  // ③ 이미 설정을 마쳤으면 재설정 창 안에서만 통과한다
+  if (!/auth\.configured && !auth\.resetOpen/.test(post)) {
+    throw new Error('이미 설정된 앱을 다시 설정할 수 있습니다.');
+  }
+  // ④ 최초 설정에는 설치 코드가 반드시 필요하다. 비어 있으면 통과가 아니라 거부다
+  if (!/if \(!auth\.configured\)/.test(post)) throw new Error('설치 코드 검사 구간이 없습니다.');
+  const codeBlock = post.slice(post.indexOf('if (!auth.configured)'));
+  if (!/if \(!expected\)/.test(codeBlock)) {
+    throw new Error('SETUP_CODE 가 비어 있을 때 그냥 통과합니다 — 누구나 마스터가 됩니다.');
+  }
+  if (!/hashEqual\(code, expected\)/.test(codeBlock)) {
+    throw new Error('설치 코드를 상수시간으로 비교하지 않습니다.');
+  }
+  // ⑤ 마스터와 관리자가 같은 PIN 이면 등급을 나눈 의미가 없다
+  if (!/masterPin === adminPin/.test(post)) throw new Error('마스터·관리자 PIN 이 같아도 통과합니다.');
+  // ⑥ 무작위로 찔러보는 것을 막는다
+  if (!/rateLimit\(`setup:/.test(post)) throw new Error('설정 라우트에 시도 제한이 없습니다.');
+
+  // ⑦ 재설정 창은 시트에서만 열린다 — 앱(doPost)에서 열 수 있으면 복구 경로가 아니라 뒷문이다
+  const router = gs.slice(gs.indexOf('function _apiRoute'));
+  if (/openPinReset\(/.test(router)) throw new Error('앱에서 재설정 창을 열 수 있습니다 — 뒷문입니다.');
+  if (!/function openPinReset/.test(gs)) throw new Error('시트 메뉴의 재설정 경로가 없습니다.');
+  if (!/\.addItem\('🔐 앱 PIN 재설정 창 열기[^']*', 'openPinReset'\)/.test(gs)) {
+    throw new Error('재설정 메뉴가 시트 메뉴에 붙어 있지 않습니다 — 잊으면 복구할 방법이 없습니다.');
+  }
+  // 성공하면 창은 즉시 닫아야 한다. 열어둔 채로 두면 10분 동안 한 번 더 바뀔 수 있다
+  const setupAuth = extractFn(gs, 'api_setupAuth');
+  if (!/deleteProperty\(AUTH_RESET_PROP\)/.test(setupAuth)) {
+    throw new Error('설정 후 재설정 창을 닫지 않습니다.');
+  }
+  return '레코드 판정 · 실패 시 차단 · 설치 코드 필수 · 시트에서만 재설정';
+});
+
+check('설정을 마치면 환경변수 PIN 으로는 못 들어온다', () => {
+  /*
+   * 이것이 안 지켜지면 v10.9 는 아무 의미가 없다 — 길드가 PIN 을 새로 정해도
+   * 앱을 세팅해 준 사람이 아는 환경변수 값으로 그대로 들어올 수 있게 된다.
+   */
+  const login = readFileSync(resolve(ROOT, 'app/api/admin/login/route.ts'), 'utf8');
+  const recordBlock = login.match(/if \(auth\?\.configured\) \{[\s\S]*?\n  \}/);
+  if (!recordBlock) throw new Error('시트 레코드로 판정하는 구간을 찾지 못했습니다.');
+  if (/verifyMasterPin|verifyPin\(|process\.env\.(ADMIN|MASTER)_PIN/.test(recordBlock[0])) {
+    throw new Error('설정을 마친 뒤에도 환경변수 PIN 을 봅니다.');
+  }
+  // 레코드 경로는 반드시 실패로 끝나야 한다 — 아래 환경변수 경로로 흘러내리면 안 된다
+  if (!/return Response\.json\(\s*\{ ok: false, code: 'auth\.badPin'/.test(recordBlock[0])) {
+    throw new Error('레코드로 판정하다 실패하면 환경변수 경로로 흘러내립니다.');
+  }
+  // 반쯤 채워진 레코드를 "설정됨"으로 보면 아무도 로그인할 수 없게 된다
+  const pin = readFileSync(resolve(ROOT, 'lib/pin.ts'), 'utf8');
+  const rec = (pin.match(/export function toAuthRecord[\s\S]*?\n\}/) ?? [''])[0];
+  for (const field of ['salt', 'master', 'admin']) {
+    if (!new RegExp(`${field}\\.length >= HASH_MIN_LEN`).test(rec)) {
+      throw new Error(`toAuthRecord 가 ${field} 의 형식을 확인하지 않습니다.`);
+    }
+  }
+  return '레코드 우선 · 환경변수 미참조 · 부분 레코드 차단';
+});
+
 check('마스터 PIN: 공백이 붙어도 통하고, 관리자 PIN 과 같으면 거부한다', () => {
   // "MASTER_PIN 을 넣었는데 로그인이 안 된다" 는 실제로 겪은 문제다.
   // 원인은 둘 중 하나였다 — 붙여넣을 때 딸려온 공백, 또는 ADMIN_PIN 과 같은 값.
@@ -940,7 +1055,7 @@ check('쓰기 라우트는 쓴 뒤에 캐시를 버린다', () => {
   // 경로가 아니라 **액션 이름**으로 판정한다. 경로로 면제하면 나중에 같은 폴더에
   // 진짜 쓰기가 들어와도 그냥 통과해버린다.
   const READ_ONLY = ['photo', 'countPhoto', 'checkPin', 'previewReverse', 'lastPayout', 'tools', 'roster',
-                     'itemsAll', 'renameHistory', 'members', 'lookup', 'ping'];
+                     'itemsAll', 'renameHistory', 'members', 'lookup', 'ping', 'getAuth'];
 
   const bad = [];
   for (const [path, src] of files) {

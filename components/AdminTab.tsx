@@ -8,6 +8,7 @@ import ShareCard from './ShareCard';
 import RosterCard from './RosterCard';
 import ToolsCard from './ToolsCard';
 import MasterCard from './MasterCard';
+import SetupCard from './SetupCard';
 
 export default function AdminTab({
   admin,
@@ -89,6 +90,14 @@ export default function AdminTab({
           <p className="hint">{t('adm.langNote')}</p>
         </div>
       </div>
+
+      {/*
+        🔐 최초 설정 (v10.9) — 아직 PIN 을 정하지 않았거나, 시트에서 재설정
+        창을 열었을 때만 스스로 나타난다. 보일지 말지는 서버가 정한다.
+        PIN 입력칸보다 위에 둔다 — 아직 PIN 이 없는 사람에게 PIN 을 먼저
+        물어보면 무엇을 넣어야 하는지 알 길이 없다.
+      */}
+      <SetupCard onDone={onAuthChange} toast={toast} />
 
       <div className="sect">{master ? t('adm.masterMode') : admin ? t('adm.adminMode') : t('adm.needAuth')}</div>
 
