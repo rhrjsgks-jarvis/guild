@@ -2,10 +2,11 @@
 
 import { useMemo, useRef, useState } from 'react';
 import type { GuildState, LedgerItem, PhotoResult } from '@/lib/types';
-import { CHIP_NAME_PX, api, fitIn, fmt, getStoredEmail, nameParts, prepPhoto } from '@/lib/client';
+import { CHIP_NAME_PX, api, fitIn, fmt, getStoredEmail, nameParts, prepPhoto, serverOf } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 import LedgerCard from './LedgerCard';
+import ServerFilter, { NO_SERVER } from './ServerFilter';
 import ShareBtn from './ShareBtn';
 
 type PhotoState = {
@@ -38,6 +39,8 @@ export default function ItemsTab({
   const [photo, setPhoto] = useState<PhotoState | null>(null);
   const [showOcr, setShowOcr] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [svPick, setSvPick] = useState<string[]>([]);
+  const [showRest, setShowRest] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // 혈맹운영비 계정은 참여자가 될 수 없다
@@ -45,6 +48,40 @@ export default function ItemsTab({
     () => state.members.filter((m) => m !== state.fundName),
     [state.members, state.fundName],
   );
+
+  // 이름 → 서버. 한 번만 만들어 두고 아래 세 곳에서 쓴다
+  const svOf = useMemo(() => {
+    const map = new Map<string, string>();
+    selectable.forEach((m) => map.set(m, serverOf(state, m)));
+    return map;
+  }, [selectable, state]);
+
+  const { counts, noneCount } = useMemo(() => {
+    const c: Record<string, number> = {};
+    let none = 0;
+    svOf.forEach((sv) => {
+      if (sv) c[sv] = (c[sv] ?? 0) + 1;
+      else none += 1;
+    });
+    return { counts: c, noneCount: none };
+  }, [svOf]);
+
+  /**
+   * 보이는 사람 = 고른 서버의 사람 **∪ 이미 체크된 사람**.
+   *
+   * ★ 두 번째 항이 핵심이다. 사진에서 자동으로 찾아낸 참여자가 다른 서버에
+   *   속해 있다는 이유로 화면에서 사라지면, 관리자는 그 사람이 빠진 줄 알고
+   *   등록한다 — 실제로는 들어가 있으므로 확인 화면과 결과가 어긋난다.
+   *   체크된 사람은 서버와 무관하게 언제나 보인다.
+   */
+  const visible = useMemo(() => {
+    if (svPick.length === 0) return selectable;
+    return selectable.filter((m) => svPick.includes(svOf.get(m) ?? NO_SERVER) || picked.has(m));
+  }, [selectable, svPick, svOf, picked]);
+
+  // 접어둔 나머지 — 숨기지 않는다. 예외 상황에서 아무나 고를 수 있어야 한다
+  const folded = useMemo(() => selectable.filter((m) => !visible.includes(m)), [selectable, visible]);
+  const shown = showRest ? selectable : visible;
 
   function toggle(name: string) {
     setPicked((prev) => {
@@ -55,8 +92,14 @@ export default function ItemsTab({
     });
   }
 
+  // 전체 선택·해제는 **지금 보이는 사람**에게만 적용된다.
+  // 서버로 좁혀 놓고 눌렀는데 안 보이는 사람까지 딸려 들어가면 좁힌 의미가 없다.
   function selectAll(on: boolean) {
-    setPicked(on ? new Set(selectable) : new Set());
+    setPicked((prev) => {
+      const next = new Set(prev);
+      shown.forEach((m) => (on ? next.add(m) : next.delete(m)));
+      return next;
+    });
   }
 
   function resetForm() {
@@ -65,6 +108,8 @@ export default function ItemsTab({
     setPicked(new Set());
     setPhoto(null);
     setShowOcr(false);
+    setSvPick([]);
+    setShowRest(false);
     if (fileRef.current) fileRef.current.value = '';
   }
 
@@ -234,7 +279,26 @@ export default function ItemsTab({
 
             <div className="field">
               <label className="fl">{t('items.membersLabel', { n: pickedList.length })}</label>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+
+              {/* 서버로 좁히기 (v10.8.6). 아무것도 안 고르면 예전처럼 전원이 나온다 —
+                  서버 칸이 아직 비어 있어도 등록이 막히지 않아야 한다. */}
+              <div className="note" style={{ marginBottom: 8 }}>
+                {svPick.length === 0 ? t('items.svAsk') : t('items.svMore')}
+              </div>
+              <ServerFilter
+                servers={state.serverList}
+                counts={counts}
+                noneCount={noneCount}
+                value={svPick}
+                onChange={setSvPick}
+              />
+              {svPick.length > 0 ? (
+                <p className="hint" style={{ marginTop: 6 }}>
+                  {t('items.svShowing', { n: visible.length, total: selectable.length })}
+                </p>
+              ) : null}
+
+              <div style={{ display: 'flex', gap: 8, margin: '10px 0' }}>
                 <button className="btn ghost" style={{ flex: 1 }} onClick={() => selectAll(true)}>
                   {t('items.selectAll')}
                 </button>
@@ -243,7 +307,7 @@ export default function ItemsTab({
                 </button>
               </div>
               <div className="mgrid">
-                {selectable.map((m) => {
+                {shown.map((m) => {
                   // 국문 위 · 한문 아래. 잘린 이름은 다른 사람으로 오인돼
                   // 엉뚱한 사람이 참여자로 체크되므로, 줄이더라도 끝까지 보여준다.
                   //
@@ -263,6 +327,17 @@ export default function ItemsTab({
                   );
                 })}
               </div>
+              {/* 좁혀둔 나머지는 **감추는 것이 아니라 접어두는 것**이다.
+                  갑자기 다른 서버 사람이 낀 레이드에서 고를 길이 없으면 안 된다. */}
+              {folded.length > 0 ? (
+                <button
+                  className="btn ghost block"
+                  style={{ marginTop: 8 }}
+                  onClick={() => setShowRest((v) => !v)}
+                >
+                  {showRest ? t('items.svFold') : t('items.svUnfold', { n: folded.length })}
+                </button>
+              ) : null}
             </div>
 
             <div className="field">

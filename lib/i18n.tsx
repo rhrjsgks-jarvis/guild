@@ -159,6 +159,24 @@ const DICT: Record<string, Entry> = {
   'items.membersLabel': ['👥 참여 멤버 — {n}명 선택됨', '👥 参与成员 — 已选 {n} 人', '👥 Participants — {n} selected'],
   'items.selectAll': ['전체 선택', '全选', 'Select all'],
   'items.clearAll': ['전체 해제', '全部取消', 'Clear all'],
+  /* 서버로 좁히기 (v10.8.6) */
+  'items.svAsk': [
+    '🗂️ 서버를 선택해주세요. 그 서버의 혈맹원만 보여드립니다. (고르지 않으면 전원)',
+    '🗂️ 请选择服务器，只显示该服务器的成员。（不选则显示全部）',
+    '🗂️ Pick a server to show only its members. (None picked = everyone)',
+  ],
+  'items.svMore': [
+    '🗂️ 더 추가하실 서버는 없나요? 여러 개를 함께 고를 수 있습니다.',
+    '🗂️ 还要加别的服务器吗？可以同时选择多个。',
+    '🗂️ Any more servers? You can pick several at once.',
+  ],
+  'items.svShowing': [
+    '{total}명 중 {n}명을 보고 있습니다. 체크한 사람은 다른 서버여도 계속 보입니다.',
+    '正在显示 {total} 人中的 {n} 人。已勾选的人即使不同服务器也会一直显示。',
+    'Showing {n} of {total}. Anyone you ticked stays visible even from another server.',
+  ],
+  'items.svUnfold': ['+ 나머지 {n}명도 보기', '+ 显示其余 {n} 人', '+ Show the other {n}'],
+  'items.svFold': ['− 나머지 접기', '− 收起其余', '− Collapse the rest'],
   'items.checkNote': [
     '⚠️ 등록 전에 체크된 참여자가 맞는지 꼭 확인해주세요. 자동 감지는 참고용입니다.',
     '⚠️ 登记前请务必确认勾选的参与者是否正确。自动识别仅供参考。',
@@ -469,6 +487,7 @@ const DICT: Record<string, Entry> = {
     'Only those without a server ({n})',
   ],
   'sv.none': ['미지정', '未设置', 'none'],
+  'sv.noneChip': ['서버 미지정', '未设服务器', 'No server'],
   'sv.allDone': [
     '서버가 비어 있는 사람이 없습니다.',
     '没有未设置服务器的成员。',

@@ -212,6 +212,40 @@ export function mergeName(name: string, hanja?: string): { main: string; sub: st
   return parts;
 }
 
+/** `serverOf` 가 필요로 하는 최소한의 상태 */
+export type ServerSource = { memberInfo?: { name: string; server?: string }[] };
+
+/** 멤버DB F열의 서버. 없으면 빈 문자열 — 지어내지 않는다 */
+export function serverOf(state: ServerSource | null | undefined, name: string): string {
+  const hit = (state?.memberInfo ?? []).find((m) => normName(m.name) === normName(name));
+  return String(hit?.server ?? '').trim();
+}
+
+/**
+ * 안 쓰는 서버를 접는 규칙 — 한 벌만 둔다 (v10.8.6).
+ *
+ * [혈맹원 관리]의 한 개 고르기(`ServerPicker`)와 [아이템 등록]의 여러 개
+ * 고르기(`ServerFilter`)가 같은 규칙을 써야 한다. 두 벌로 두면 한쪽만 고쳐져
+ * 화면마다 다르게 접힌다.
+ *
+ * @param all      전체 서버 목록 ('01'~'12')
+ * @param inUse    실제로 인원이 있는 서버 — **접을지 말지는 이것만 보고 정한다**
+ * @param pinned   접힌 쪽에 있어도 반드시 보여야 하는 것 (지금 고른 값)
+ */
+export function foldServers(
+  all: string[],
+  inUse: string[],
+  pinned: string[] = [],
+): { primary: string[]; rest: string[] } {
+  const live = inUse.filter((s) => all.includes(s));
+  // 쓰는 서버가 하나뿐이거나 아예 없으면 접을 이유가 없다 — 접으면 고를 것이 없어진다.
+  // ★ 판정에 pinned 를 넣으면 안 된다. 아무도 배정되지 않은 상태에서 하나를 고르는
+  //   순간 나머지 열한 개가 접혀버려, 다음 사람을 다른 서버로 지정할 수가 없다.
+  if (live.length < 2) return { primary: all, rest: [] };
+  const primary = all.filter((s) => live.includes(s) || pinned.includes(s));
+  return { primary, rest: all.filter((s) => !primary.includes(s)) };
+}
+
 /** 한 줄로 붙인 표시용 이름 — `잡이K (卡尔K)`. 한자가 없으면 이름만 */
 export function fullName(name: string, hanja?: string): string {
   const { main, sub } = mergeName(name, hanja);
