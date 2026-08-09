@@ -1393,6 +1393,70 @@ await t('잔액 목록에 서버 번호가 붙는다', async () => {
   await shot('17-balance-server');
 });
 
+await t('서버 일괄 지정: 칩으로 고르고 여러 명을 한 번에 넣는다 (화면)', async () => {
+  await reset();
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.locator('.nav button').last().click();
+  await page.waitForTimeout(900);
+
+  // 서버가 비어 있는 사람이 있으면 관리자에게 미리 알려준다 —
+  // 비워 두면 나중에 아이템 등록을 서버로 좁힐 수 없다 (혈비 계정은 세지 않는다)
+  const note = await page.locator('.note').filter({ hasText: '서버가 비어 있는' }).first().innerText();
+  if (!note.includes('2명')) throw new Error(`미지정 안내 인원이 다릅니다: "${note}"`);
+
+  await page.getByRole('button', { name: /서버 일괄 지정/ }).click();
+  await page.waitForTimeout(600);
+
+  // ① 실제로 쓰는 서버(01·02·03·04·06)만 앞에 두고 나머지 7개는 접는다.
+  //    12개를 매번 다 늘어놓으면 안 쓰는 여덟 개가 계속 눈에 걸린다.
+  const chips = await page.locator('.sheet .svpick .svchip:not(.more)').allInnerTexts();
+  eq(chips.join(','), '01,02,03,04,06', '펼쳐 보이는 서버 칩');
+  const more = await page.locator('.sheet .svpick .svchip.more').innerText();
+  if (!more.includes('7')) throw new Error(`접힌 서버 개수가 다릅니다: "${more}"`);
+
+  // 접힌 것을 펼치면 12개가 다 나온다 — 예외 상황에서 05 서버를 골라야 할 수도 있다
+  await page.locator('.sheet .svpick .svchip.more').click();
+  await page.waitForTimeout(200);
+  eq(await page.locator('.sheet .svpick .svchip:not(.more)').count(), 12, '펼친 뒤 서버 칩');
+
+  // ② 기본은 '서버가 비어 있는 사람만' — 40명 중 이미 넣은 사람까지 훑을 이유가 없다
+  const rows = page.locator('.sheet .svrow');
+  eq(await rows.count(), 2, '미지정 인원');
+  const names = await rows.locator('.nm').allInnerTexts();
+  if (!names.some((n) => n.includes('향로셔틀')) || !names.some((n) => n.includes('팩맨'))) {
+    throw new Error(`미지정 목록이 다릅니다: ${names.join(', ')}`);
+  }
+
+  // 체크를 풀면 전원이 보이되 혈비 계정은 빠진다 — 계정에는 서버가 없다
+  await page.locator('.sheet .chkline input').uncheck();
+  await page.waitForTimeout(200);
+  const all = await rows.locator('.nm').allInnerTexts();
+  eq(all.length, 9, '혈비 제외 전체 인원');
+  if (all.some((n) => n.includes('혈맹운영비'))) throw new Error('혈비 계정이 목록에 있습니다.');
+  await page.locator('.sheet .chkline input').check();
+  await page.waitForTimeout(200);
+
+  // ③ 서버 05 를 골라 두 명을 한 번에 지정한다
+  await page.locator('.sheet .svpick .svchip', { hasText: /^05$/ }).click();
+  await page.locator('.sheet').getByRole('button', { name: '전체 선택' }).click();
+  await page.waitForTimeout(200);
+  await shot('23-server-bulk');
+  await page.locator('.sheet').getByRole('button', { name: /2명을 05 서버로 지정/ }).click();
+  await page.waitForTimeout(2500);
+
+  // 성공 알림에 인원과 서버가 같이 나와야 한다
+  const toast = await page.locator('.toast').first().innerText();
+  if (!/2명.*05/.test(toast)) throw new Error(`알림이 인원·서버를 알려주지 않습니다: "${toast}"`);
+
+  // ④ 실제로 시트까지 갔는지 — 화면만 바뀌고 저장이 안 되면 다음 로드에서 되돌아간다
+  const roster = await (await fetch(`${APP}/api/admin/roster`, { headers: { Cookie: cookie } })).json();
+  for (const nm of ['향로셔틀', '팩맨']) {
+    eq(roster.data.find((m) => m.name === nm)?.server, '05', `${nm} 의 서버`);
+  }
+  // 이미 서버가 있던 사람은 건드리지 않는다
+  eq(roster.data.find((m) => m.name === '가이')?.server, '01', '가이의 서버(그대로)');
+});
+
 await t('연합: 사진 등록 → 나중에 금액 넣기 (화면 흐름)', async () => {
   await reset();
   await page.reload({ waitUntil: 'networkidle' });
