@@ -18,6 +18,15 @@
 //   - ★ 원문(raw)은 그대로 함께 돌려준다. 앱이 "읽은 줄: … — 표시를 떼어냈습니다"로
 //       보여주므로, 무엇이 지워졌는지 관리자가 눈으로 확인할 수 있다.
 //
+//   - ★ 개명 병합이 멤버DB에 중복 행을 남기던 버그를 고쳤다.
+//       "먼저 신규로 넣어두고 나중에 옛 아이디에서 불러오는" 흐름에서 늘 생겼다.
+//       예전 `_renameCore` 는 옛 행의 이름만 새 이름으로 덮어써서 **같은 이름이
+//       두 줄** 남았고, 명단·참여자 칩에 한 사람이 두 번 보였다.
+//       (잔액현황은 예전에도 정상적으로 합쳐졌다 — 금액이 틀어진 적은 없다.)
+//       이제 이미 있던 행만 살리고 옛 행은 지운다. 살아남는 행의 **빈 칸만**
+//       옛 행에서 채워 온다 — 채워져 있는 값을 덮어쓰면 관리자가 명시적으로
+//       넣은 것을 지우게 된다.
+//
 //  변경점 v10.7 → v10.8  (보스 시간표 — [레이드] 시트)
 //
 //   - ★ [레이드] 시트를 새로 만들었다. 열은 요일 · 시간 · 보스 · 비고 · 수정자 · 수정일.
@@ -1688,17 +1697,42 @@ function _renameMember(ss, oldName, newName, email) {
 function _renameCore(ss, oldName, newName, email) {
   const db = ss.getSheetByName('멤버DB');
   let found = false;
+  let dbMerged = false;
   if (db) {
     const vals = _memberBlock(db, 2, 2, 1);
-    vals.forEach((r, i) => {
-      if (_normName(r[0]) === _normName(oldName)) {
-        db.getRange(i + 2, 2).setValue(newName);
-        found = true;
-      }
+    let oldRow = -1;
+    let keepRow = -1;
+    vals.forEach(function (r, i) {
+      const nm = _normName(r[0]);
+      if (nm === _normName(oldName)) oldRow = i + 2;
+      else if (nm === _normName(newName)) keepRow = i + 2;
     });
+    found = oldRow > 0;
+
+    if (oldRow > 0 && keepRow > 0) {
+      // ★ 병합 (v10.9) — 바꿀 이름이 멤버DB에 이미 있다.
+      //   "먼저 신규로 넣어두고 나중에 옛 아이디에서 불러오는" 흐름에서 늘 생긴다.
+      //   예전에는 옛 행의 이름만 새 이름으로 덮어써서 **같은 이름이 두 줄** 남았고,
+      //   명단·참여자 칩에 한 사람이 두 번 보였다 (CLAUDE.md 규칙 4 의 그 증상).
+      //
+      //   살리는 쪽은 이미 있던 행(keepRow)이다 — 관리자가 방금 손으로 넣은 값이라
+      //   가장 최근 의도다. 다만 **그쪽이 비어 있는 칸만** 옛 행에서 채워 온다.
+      //   채워져 있는 값을 덮어쓰면 관리자가 명시적으로 넣은 것을 지우게 된다.
+      [MEM_COL.DISPLAY, MEM_COL.SERVER, MEM_COL.HANJA].forEach(function (col) {
+        const keep = String(db.getRange(keepRow, col).getValue()).trim();
+        if (keep) return;
+        const from = String(db.getRange(oldRow, col).getValue()).trim();
+        if (from) db.getRange(keepRow, col).setValue(from);
+      });
+      db.deleteRow(oldRow);
+      dbMerged = true;
+    } else if (oldRow > 0) {
+      db.getRange(oldRow, MEM_COL.NAME).setValue(newName);
+    }
   }
   const result = _renameMember(ss, oldName, newName, email);
   result.foundInDb = found;
+  result.dbMerged = dbMerged;
   return result;
 }
 

@@ -1346,6 +1346,50 @@ check('명단의 [혈맹·서버] 표시는 이름에서 떼어내되, 애매하
   return `떼어내기 ${cases.length}케이스 (시트·모의 동일) · 확인필요 처리 · 원문 표시 · 서버 칩`;
 });
 
+check('개명 병합이 멤버DB에 같은 이름을 두 줄 남기지 않는다', () => {
+  // "먼저 신규로 넣어두고 나중에 옛 아이디에서 불러오는" 흐름에서 늘 생긴다.
+  // 잔액은 예전에도 합쳐졌지만 멤버DB에 옛 행이 이름만 바뀐 채 남아,
+  // 명단·참여자 칩에 한 사람이 두 번 보였다 (CLAUDE.md 규칙 4 의 그 증상).
+  const core = (gs.match(/function _renameCore[\s\S]*?\n\}/) ?? [''])[0];
+  if (!core) throw new Error('_renameCore 가 없습니다.');
+  if (!/db\.deleteRow\(oldRow\)/.test(core)) {
+    throw new Error('병합할 때 옛 멤버DB 행을 지우지 않습니다 — 같은 이름이 두 줄 남습니다.');
+  }
+  // ★ 채워져 있는 값을 덮어쓰면 관리자가 명시적으로 넣은 것을 지우게 된다
+  if (!/if \(keep\) return;/.test(core)) {
+    throw new Error('살아남는 행의 채워진 값을 덮어씁니다.');
+  }
+  // 비중은 항상 값이 있으므로 옮길 대상이 아니다. 표시명·서버·한자만 옮긴다.
+  const moved = (core.match(/MEM_COL\.(DISPLAY|SERVER|HANJA|WEIGHT)/g) ?? []).join(',');
+  if (/WEIGHT/.test(moved)) throw new Error('분배비중까지 옮깁니다 — 비중은 살아남는 행의 값을 씁니다.');
+  for (const need of ['DISPLAY', 'SERVER', 'HANJA']) {
+    if (!moved.includes(need)) throw new Error(`${need} 를 옮기지 않습니다 — 옛 행에만 있던 값이 사라집니다.`);
+  }
+  // 중복이 아닐 때는 예전처럼 이름만 바꾼다
+  if (!/db\.getRange\(oldRow, MEM_COL\.NAME\)\.setValue\(newName\)/.test(core)) {
+    throw new Error('중복이 아닌 단순 개명에서 이름을 바꾸지 않습니다.');
+  }
+  // 이름 비교는 반드시 정규화를 거친다 (규칙 4)
+  if (!/_normName\(r\[0\]\)/.test(core)) throw new Error('이름을 _normName 없이 비교합니다.');
+
+  // 잔액 쪽 병합은 예전 그대로여야 한다 — 분배전·분배완료·참여횟수 셋 다 합산
+  const rn = (gs.match(/function _renameMember[\s\S]*?\n\}/) ?? [''])[0];
+  // (분배전만 옮긴 금액을 따로 담아 메시지에 쓰므로 더하는 항의 모양이 다르다)
+  for (const [col, addend] of [['PENDING', 'movedPending'], ['PAID', 'num\\(oldRow'], ['CNT', 'num\\(oldRow']]) {
+    if (!new RegExp(`BAL_COL\\.${col}\\)\\.setValue\\(num\\(newRow, BAL_COL\\.${col}\\) \\+ ${addend}`).test(rn)) {
+      throw new Error(`병합에서 ${col} 를 합산하지 않습니다.`);
+    }
+  }
+  if (!/bal\.deleteRow\(oldRow\)/.test(rn)) throw new Error('잔액현황의 옛 행을 지우지 않습니다.');
+
+  // 되묻기가 살아 있어야 한다 — 잘못 이으면 두 사람 잔액이 합쳐진다 (규칙 5-1)
+  const api = (gs.match(/function api_renameMember[\s\S]*?\n\}\n/) ?? [''])[0];
+  if (!/dup && confirmMerge !== true/.test(api)) throw new Error('병합 전에 되묻지 않습니다.');
+  if (!/needsConfirm: true/.test(api)) throw new Error('되물을 때 needsConfirm 을 주지 않습니다.');
+
+  return '멤버DB 옛 행 삭제 · 빈 칸만 승계 · 비중 제외 · 잔액 3항목 합산 · 되묻기 유지';
+});
+
 check('연합은 등록과 정산이 분리되어 있다', () => {
   // 레이드 직후엔 아직 안 팔려서 금액을 모르는 것이 정상이다.
   // 등록 단계에서 금액을 요구하면 등록 자체가 미뤄져 인증샷을 잃어버린다.

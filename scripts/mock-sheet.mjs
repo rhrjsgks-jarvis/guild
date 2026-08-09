@@ -429,6 +429,11 @@ const handlers = {
       dup.pending += from.pending;
       dup.paid += from.paid;
       dup.cnt += from.cnt;
+      // 살아남는 쪽의 **빈 칸만** 옛 행에서 채워 온다 (.gs 의 _renameCore 와 같은 규칙, v10.9).
+      // 채워져 있는 값을 덮어쓰면 관리자가 방금 넣은 값을 지우게 된다.
+      ['server', 'hanja'].forEach((k) => {
+        if (!String(dup[k] ?? '').trim() && String(from[k] ?? '').trim()) dup[k] = from[k];
+      });
       S.rows.splice(S.rows.indexOf(from), 1);
       S.renames.push({ at: '08/04 12:00', before: oldName, after: newName, by: 'mock', merged: true, detail: `"${oldName}" → "${newName}" (중복 병합 발생)` });
       return rc({ ok: true, merged: true, msg: `✅ "${oldName}" → "${newName}" 변경 완료 (중복 계정 병합됨)` },

@@ -280,6 +280,51 @@ await t('아이디 변경: 이미 있는 이름이면 합치기 전에 되묻는
   eq((await (await post('/api/lookup', { name: '가이' })).json()).ok, true, '가이가 그대로 있어야 함');
 });
 
+await t('먼저 신규로 넣고 나중에 옛 아이디에서 불러오면 과거 기록이 합쳐진다', async () => {
+  await reset();
+  // 사진 등록 때 개명을 고르지 않고 일단 신규로 넣은 상황을 만든다.
+  // (서버만 지정하고 잔액·참여횟수는 0인 새 행)
+  eq((await (await post('/api/admin/member', { name: '가이2' }, { Cookie: cookie })).json()).ok, true, '신규 추가');
+  eq((await (await post('/api/admin/member-settings', { name: '가이2', server: '07' }, { Cookie: cookie })).json()).ok,
+    true, '새 행에 서버 지정');
+
+  const before = (await (await fetch(`${APP}/api/admin/roster`, { headers: { Cookie: cookie } })).json()).data;
+  const old = before.find((m) => m.name === '가이');
+  eq(before.find((m) => m.name === '가이2')?.pending, 0, '새 행은 0부터');
+
+  // ★ 되묻지 않고 합치면 안 된다 — 다른 사람이면 두 사람 잔액이 합쳐진다 (규칙 5-1)
+  const ask = await (await post('/api/admin/rename', { oldName: '가이', newName: '가이2' }, { Cookie: cookie })).json();
+  eq(ask.ok, false, '확인 없이는 거부');
+  eq(ask.needsConfirm, true, '되묻기');
+  if (!ask.msg.includes('12,400')) throw new Error(`되물을 때 구체적인 금액이 없습니다: ${ask.msg}`);
+
+  // 확인하면 과거 기록이 새 아이디로 넘어온다
+  const done = await (
+    await post('/api/admin/rename', { oldName: '가이', newName: '가이2', confirmMerge: true }, { Cookie: cookie })
+  ).json();
+  eq(done.ok, true, '병합 결과');
+
+  const after = (await (await fetch(`${APP}/api/admin/roster`, { headers: { Cookie: cookie } })).json()).data;
+  const merged = after.filter((m) => m.name === '가이2');
+  // ★ 같은 이름이 두 줄 남으면 명단·참여자 칩에 한 사람이 두 번 보인다 (규칙 4)
+  eq(merged.length, 1, '병합 뒤 같은 이름의 줄 수');
+  eq(after.some((m) => m.name === '가이'), false, '옛 아이디는 사라진다');
+  eq(merged[0].pending, old.pending, '분배전 승계');
+  // 나중에 지정한 서버(07)가 살아남는다 — 관리자가 방금 넣은 값이다
+  eq(merged[0].server, '07', '살아남는 행의 서버');
+
+  // 잔액·참여횟수도 함께 넘어온다
+  const st = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
+  const row = st.rows.find((r) => r.name === '가이2');
+  eq(row.pending, 12400, '분배전');
+  eq(row.paid, 88000, '분배완료');
+  eq(row.cnt, 31, '참여횟수');
+  eq(st.rows.filter((r) => r.name === '가이2').length, 1, '잔액현황의 줄 수');
+
+  // 이 검사는 '가이' 를 없애버리므로, 뒤 검사들을 위해 원래 상태로 돌려놓는다
+  await reset();
+});
+
 await t('아이디 변경: 혈비 계정은 거부된다', async () => {
   const res = await post(
     '/api/admin/rename',
