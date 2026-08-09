@@ -718,10 +718,18 @@ const DICT: Record<string, Entry> = {
     'Pick who this was before it can be applied.',
   ],
   'bulk.useOcr': ['읽은 글자를 입력칸에 넣기', '把识别的文字填入输入框', 'Put the read text in the box'],
+  /* ★ "지난 시즌 기록도 넘어간다"고 적어두었었지만 사실이 아니다 (v10.9).
+     시즌1·시즌2 시트는 그 시점에 얼어붙은 기록이고 개명은 건드리지 않는다 —
+     지난 기록을 나중에 고쳐 쓰면 "기록은 지워지지 않는다"는 약속이 깨진다. */
   'bulk.renameNote': [
-    '개명으로 지정하면 그 사람의 분배전·분배완료·참여횟수·지난 시즌 기록이 새 이름으로 그대로 넘어갑니다. 새로 추가하면 0부터 시작합니다.',
-    '选择"改名"会把该成员的待分配·已发放·参与次数·历史赛季记录一并转到新名字；选择"添加"则从 0 开始。',
-    'Renaming carries the balance, payout history, participation count and past seasons over. Adding starts from zero.',
+    '개명으로 지정하면 그 사람의 분배전·분배완료·참여횟수가 새 이름으로 그대로 넘어갑니다. 새로 추가하면 0부터 시작합니다. (지난 시즌 기록은 그때의 이름 그대로 남습니다)',
+    '选择"改名"会把该成员的待分配·已发放·参与次数转到新名字；选择"添加"则从 0 开始。（历史赛季记录仍保留当时的名字）',
+    'Renaming carries the balance, payout total and participation count over. Adding starts from zero. (Past-season records keep the name used back then.)',
+  ],
+  'bulk.cleaned': [
+    '읽은 줄: {raw} — [혈맹·서버] 표시를 떼어냈습니다',
+    '识别原文：{raw} — 已去掉[血盟·服务器]标记',
+    'Read as: {raw} — the [clan/server] tag was removed',
   ],
   'bulk.apply': ['추가 {add} · 개명 {ren} 반영', '添加 {add} · 改名 {ren}', 'Apply {add} add · {ren} rename'],
   'bulk.overCap': [

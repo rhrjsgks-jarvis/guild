@@ -9,7 +9,7 @@
  * 스크린샷을 남기려면: E2E_SHOTS=./shots npm run e2e
  */
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 /**
@@ -280,6 +280,51 @@ await t('아이디 변경: 이미 있는 이름이면 합치기 전에 되묻는
   eq((await (await post('/api/lookup', { name: '가이' })).json()).ok, true, '가이가 그대로 있어야 함');
 });
 
+await t('먼저 신규로 넣고 나중에 옛 아이디에서 불러오면 과거 기록이 합쳐진다', async () => {
+  await reset();
+  // 사진 등록 때 개명을 고르지 않고 일단 신규로 넣은 상황을 만든다.
+  // (서버만 지정하고 잔액·참여횟수는 0인 새 행)
+  eq((await (await post('/api/admin/member', { name: '가이2' }, { Cookie: cookie })).json()).ok, true, '신규 추가');
+  eq((await (await post('/api/admin/member-settings', { name: '가이2', server: '07' }, { Cookie: cookie })).json()).ok,
+    true, '새 행에 서버 지정');
+
+  const before = (await (await fetch(`${APP}/api/admin/roster`, { headers: { Cookie: cookie } })).json()).data;
+  const old = before.find((m) => m.name === '가이');
+  eq(before.find((m) => m.name === '가이2')?.pending, 0, '새 행은 0부터');
+
+  // ★ 되묻지 않고 합치면 안 된다 — 다른 사람이면 두 사람 잔액이 합쳐진다 (규칙 5-1)
+  const ask = await (await post('/api/admin/rename', { oldName: '가이', newName: '가이2' }, { Cookie: cookie })).json();
+  eq(ask.ok, false, '확인 없이는 거부');
+  eq(ask.needsConfirm, true, '되묻기');
+  if (!ask.msg.includes('12,400')) throw new Error(`되물을 때 구체적인 금액이 없습니다: ${ask.msg}`);
+
+  // 확인하면 과거 기록이 새 아이디로 넘어온다
+  const done = await (
+    await post('/api/admin/rename', { oldName: '가이', newName: '가이2', confirmMerge: true }, { Cookie: cookie })
+  ).json();
+  eq(done.ok, true, '병합 결과');
+
+  const after = (await (await fetch(`${APP}/api/admin/roster`, { headers: { Cookie: cookie } })).json()).data;
+  const merged = after.filter((m) => m.name === '가이2');
+  // ★ 같은 이름이 두 줄 남으면 명단·참여자 칩에 한 사람이 두 번 보인다 (규칙 4)
+  eq(merged.length, 1, '병합 뒤 같은 이름의 줄 수');
+  eq(after.some((m) => m.name === '가이'), false, '옛 아이디는 사라진다');
+  eq(merged[0].pending, old.pending, '분배전 승계');
+  // 나중에 지정한 서버(07)가 살아남는다 — 관리자가 방금 넣은 값이다
+  eq(merged[0].server, '07', '살아남는 행의 서버');
+
+  // 잔액·참여횟수도 함께 넘어온다
+  const st = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
+  const row = st.rows.find((r) => r.name === '가이2');
+  eq(row.pending, 12400, '분배전');
+  eq(row.paid, 88000, '분배완료');
+  eq(row.cnt, 31, '참여횟수');
+  eq(st.rows.filter((r) => r.name === '가이2').length, 1, '잔액현황의 줄 수');
+
+  // 이 검사는 '가이' 를 없애버리므로, 뒤 검사들을 위해 원래 상태로 돌려놓는다
+  await reset();
+});
+
 await t('아이디 변경: 혈비 계정은 거부된다', async () => {
   const res = await post(
     '/api/admin/rename',
@@ -491,15 +536,15 @@ await t('쓰기 직후 조회(?fresh=1)는 캐시를 건너뛴다', async () => 
   const state = async (q = '') => (await (await fetch(`${APP}/api/state${q}`)).json()).data.version;
 
   await reset();
-  eq(await state(), '10.8', '첫 조회 버전');
+  eq(await state(), '10.9', '첫 조회 버전');
 
   await mock('__setVersion', { version: '9.9' });
-  eq(await state(), '10.8', '캐시된 조회 (시트가 바뀌어도 그대로여야 정상)');
+  eq(await state(), '10.9', '캐시된 조회 (시트가 바뀌어도 그대로여야 정상)');
   eq(await state('?fresh=1'), '9.9', 'fresh 조회 (캐시를 건너뛴 값)');
   // fresh 조회는 캐시도 새 값으로 갈아둔다 — 다음 사람이 낡은 값을 보지 않는다
   eq(await state(), '9.9', 'fresh 이후의 일반 조회');
 
-  await mock('__setVersion', { version: '10.8' });
+  await mock('__setVersion', { version: '10.9' });
 });
 
 await t('쓰기 응답이 최신 상태를 같이 실어 온다 (조회 왕복 없음)', async () => {
@@ -514,7 +559,7 @@ await t('쓰기 응답이 최신 상태를 같이 실어 온다 (조회 왕복 �
     throw new Error('실어 온 상태에 방금 등록한 아이템이 없습니다.');
   }
   eq(typeof body.state.season, 'number', '실어 온 상태의 시즌');
-  eq(body.state.version, '10.8', '실어 온 상태의 버전');
+  eq(body.state.version, '10.9', '실어 온 상태의 버전');
 
   // 그 값이 캐시에도 들어가 있어야 한다 — 다른 사람도 시트를 거치지 않고 받는다
   const shared = (await (await fetch(`${APP}/api/state`)).json()).data;
@@ -806,6 +851,41 @@ await t('명단 일괄 추가: 판정이 상태를 정확히 가른다', async (
   // ★ 판정만 했는데 명단이 바뀌면 안 된다
   const roster = (await (await fetch(`${APP}/api/admin/roster`, { headers: { Cookie: cookie } })).json()).data;
   if (roster.some((m) => m.name === '새사람A')) throw new Error('판정 단계가 명단을 바꿨습니다.');
+});
+
+await t('명단 일괄 추가: [혈맹·서버] 표시를 떼어내되 애매하면 지어내지 않는다', async () => {
+  await reset();
+  // 게임 명단 사진에서 실제로 나오는 모양 그대로
+  const text = [
+    '참상혼K[어레02] +',        // 잘 닫힌 대괄호 + 친구추가 버튼
+    '가이[어레02] +',           // 떼어내면 기존 멤버와 같아진다
+    '노왕계색마재 어레02]',      // 여는 대괄호가 떨어져 나간 꼬리
+    '곡중인산K02] 관',          // 어디까지가 이름인지 알 수 없다
+    '선륙소농포 (鮮肉小籠包) [어레02]', // 소괄호(한자)는 건드리면 안 된다
+  ].join('\n');
+  const res = await (
+    await post('/api/admin/members-bulk', { op: 'analyze', text }, { Cookie: cookie })
+  ).json();
+  eq(res.ok, true, '판정 ok');
+
+  const at = (i) => res.rows[i];
+  eq(at(0).name, '참상혼K', '대괄호·+ 를 뗀 이름');
+  eq(at(0).status, 'new', '뗀 뒤의 판정');
+  // ★ 떼어내야만 기존 멤버와 이어진다. 안 떼면 신규가 되어 잔액이 0부터 시작한다.
+  eq(at(1).name, '가이', '대괄호를 뗀 기존 멤버');
+  eq(at(1).status, 'exists', '기존 멤버로 인식');
+  eq(at(2).name, '노왕계색마재', '떨어져 나간 꼬리 제거');
+  // ★ 첫 토막에 대괄호가 붙으면 이름 쪽을 지우게 되므로 손대지 않고 '확인 필요'로
+  eq(at(3).status, 'invalid', '알아볼 수 없는 줄');
+  // ★ 소괄호 안 한자는 그대로 — 지우면 중국 길드원이 자기 이름을 못 찾는다
+  eq(at(4).name, '선륙소농포 (鮮肉小籠包)', '한자 표기 보존');
+
+  // 원문을 함께 돌려줘야 무엇을 떼어냈는지 관리자가 볼 수 있다
+  eq(at(0).raw.trim(), '참상혼K[어레02] +', '원문 보존');
+
+  // 판정만 했으므로 명단은 그대로다
+  const roster = (await (await fetch(`${APP}/api/admin/roster`, { headers: { Cookie: cookie } })).json()).data;
+  if (roster.some((m) => m.name.includes('['))) throw new Error('태그가 붙은 이름이 명단에 들어갔습니다.');
 });
 
 await t('명단 일괄 추가: 확인 없이는 실행되지 않는다', async () => {
@@ -1831,7 +1911,7 @@ await t('헤더의 새로고침 버튼이 보이고, 눌러서 최신 값을 받
   if (!h1.includes('9.9')) throw new Error(`새로고침을 눌렀는데 최신 값이 아닙니다: ${h1}`);
   await shot('15-refresh');
 
-  await mock('__setVersion', { version: '10.8' });
+  await mock('__setVersion', { version: '10.9' });
   await btn.click();
   await page.waitForTimeout(1200);
 });
@@ -1841,10 +1921,13 @@ await t('제목 옆에 버전이 보이고, 시트가 옛 버전이면 경고가
   await page.reload({ waitUntil: 'networkidle' });
   const h1 = page.locator('.header h1');
   const same = await h1.innerText();
-  if (!same.includes('v10.8')) throw new Error(`제목 옆 버전이 없습니다: ${same}`);
-  // ★ 시트가 10.8 이고 앱이 10.8.1 이어도 경고가 붙으면 안 된다 (앱 전용 패치)
+  // 버전을 여기에 적어두면 올릴 때마다 검사가 깨진다 — 소스에서 읽는다
+  const appVer = (readFileSync(new URL('../lib/version.ts', import.meta.url), 'utf8')
+    .match(/APP_VERSION = '([\d.]+)'/) ?? [])[1];
+  if (!appVer) throw new Error('APP_VERSION 을 읽지 못했습니다.');
+  if (!same.includes('v' + appVer)) throw new Error(`제목 옆 버전이 없습니다: ${same} (기대 v${appVer})`);
+  // ★ 시트가 10.9 이고 앱이 10.9.0 이어도 경고가 붙으면 안 된다 (세 번째 자리는 앱 전용)
   if (same.includes('⚠️')) throw new Error(`앱 패치 버전인데 시트 경고가 떴습니다: ${same}`);
-  if (same.includes('⚠️')) throw new Error(`버전이 같은데 경고가 떴습니다: ${same}`);
   await shot('09-version');
 
   // 시트만 옛 버전으로 바꾸면 경고가 떠야 한다.
@@ -1861,7 +1944,7 @@ await t('제목 옆에 버전이 보이고, 시트가 옛 버전이면 경고가
   if (!warned.includes('⚠️')) throw new Error(`경고 표시가 없습니다: ${warned}`);
   await shot('10-version-mismatch');
 
-  await mock('__setVersion', { version: '10.8' });
+  await mock('__setVersion', { version: '10.9' });
 });
 
 await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', async () => {

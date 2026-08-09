@@ -1216,6 +1216,15 @@ select:focus {
   overflow-wrap: anywhere;
 }
 
+/* 시트가 [혈맹·서버] 표시를 떼어냈을 때 보여주는 원문 (v10.9).
+   조용히 바꾸면 무엇이 지워졌는지 관리자가 알 수 없다. */
+.bulk-raw {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--text-faint);
+  overflow-wrap: anywhere;
+}
+
 .bulk-tag {
   margin-left: auto;
   padding: 1px 7px;
