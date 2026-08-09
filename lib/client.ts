@@ -480,11 +480,25 @@ export async function shareText(title: string, text: string): Promise<'shared' |
   }
 }
 
-/** 연합 적립액 — Apps Script 의 `_calcAlliance` 와 같은 산식 */
-export function calcAlliance(amount: number, pct: number) {
-  const a = Math.floor(Number(amount) || 0);
-  let p = Math.round(Number(pct));
-  if (!Number.isFinite(p) || p < 1) p = 1;
-  if (p > 100) p = 100;
-  return { amount: a, pct: p, credited: Math.floor((a * p) / 100) };
+/**
+ * 연합 적립액 (v11.0) — Apps Script 의 `_calcAlliance` 와 **반드시 같아야 한다** (CLAUDE.md 규칙 1).
+ *
+ *   혈비     = floor(판매금액 × 10%)
+ *   분배가능 = 판매금액 − 혈비
+ *   서버별   = floor(분배가능 × 그 서버 인원 ÷ 총 인원)
+ *   잔여     = 분배가능 − Σ서버별   → 전액 혈비로 추가 귀속
+ *
+ * 불변식: `fundTotal + Σshares = amount`
+ */
+export function calcAlliance(amount: number, counts: number[], fundRate: number) {
+  const a = Math.max(Math.floor(Number(amount) || 0), 0);
+  const list = (counts || []).map((n) => Math.max(Math.floor(Number(n) || 0), 0));
+  const people = list.reduce((t, n) => t + n, 0);
+  const fund = Math.floor(a * fundRate);
+  const pool = a - fund;
+  // 인원이 하나도 없으면 나눌 기준이 없다 — 전액 혈비로 둔다 (지어내지 않는다)
+  const shares = list.map((n) => (people > 0 ? Math.floor((pool * n) / people) : 0));
+  const given = shares.reduce((t, v) => t + v, 0);
+  const remainder = pool - given;
+  return { amount: a, fund, pool, shares, remainder, fundTotal: fund + remainder, people };
 }

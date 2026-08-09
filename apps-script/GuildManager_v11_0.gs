@@ -1,8 +1,30 @@
 // ═══════════════════════════════════════════════════════════════
-//  길드 정산 시스템 v10.9  (분배비중 · 연합 · 레이드 · 게시판 · 마스터관리자 · 3개국어)
+//  길드 정산 시스템 v11.0  (분배비중 · 연합 · 레이드 · 게시판 · 마스터관리자 · 3개국어)
 //  시트 구성: [사용안내] [멤버DB] [참여자현황] [분배대기중] [잔액현황]
 //            [지급기록] [연합] [레이드] [게시판] [작업기록] + [시즌1] [시즌2] ...
 //            ← 이 순서로 항상 정렬됨
+// ═══════════════════════════════════════════════════════════════
+//  변경점 v10.9 → v11.0  (연합: 아이템 하나 = 여러 서버 · 사진 여러 장 · 아이템 수정)
+//
+//   - ★ 연합 등록이 **아이템 하나에 여러 서버**를 받는다. 시트에는 서버마다 한 줄이
+//       들어가고 새 **'묶음'(K열)** 값으로 이어진다. 앱은 언제나 묶음 단위로 보여준다.
+//       예전에는 서버 하나당 등록을 따로 해야 해서, 같은 아이템이 3서버에 걸치면
+//       세 번 등록하고 세 번 금액을 넣어야 했다 — 그러다 한 건을 빠뜨리면 아무도 모른다.
+//   - ★ 정산 산식이 **비중(%)에서 인원수 비례**로 바뀌었다. 아이템 분배와 같은 모양이다:
+//         혈비 = floor(금액 × 10%) · 분배가능 = 금액 − 혈비
+//         서버별 = floor(분배가능 × 그 서버 인원 ÷ 총 인원)
+//         잔여 = 분배가능 − Σ서버별  → 전액 혈비로 추가 귀속
+//       불변식: `혈비 + Σ서버별 = 금액`. `lib/client.ts` 의 `calcAlliance` 와 같아야 한다.
+//   - ★ 연합 혈비가 **혈맹운영비 잔액에 실제로 적립된다** (새 L열 '혈비'에 기록).
+//       삭제하면 적립분을 되돌린다 — 안 되돌리면 지운 기록의 혈비만 잔액에 남는다.
+//   - ★ 인증샷이 **여러 장**이다. 연합·아이템 둘 다. 한 장이면 예전처럼 HYPERLINK,
+//       두 장 이상이면 URL 을 줄바꿈으로 나열한다 (HYPERLINK 은 한 개만 담긴다).
+//   - ★ `api_editItem` — **미분배** 아이템의 아이템명·참여자를 고친다 (마스터관리자).
+//       이미 분배된 행은 거부한다. 그쪽은 금액을 회수했다가 다시 나눠줘야 해서
+//       [정정]이 담당한다. 참여횟수는 증감하지 않고 `_recalcAllParticipationCounts`
+//       로 **전부 다시 센다** (규칙 3).
+//   - 옛 연합 시트(v10.9 이하)는 '묶음'·'혈비' 열이 없다. `_ensureAllianceHeaders`
+//     가 헤더만 채워 넣고, 묶음이 빈 행은 **그 한 줄이 한 건**으로 그대로 읽힌다.
 // ═══════════════════════════════════════════════════════════════
 //  변경점 v10.8 → v10.9  (명단 사진에서 [혈맹·서버] 표시 떼어내기)
 //
@@ -506,7 +528,7 @@
 //     '누적기록'을 그대로 찾음 (하위 호환, 리네이밍과 무관)
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION = '10.9';
+const VERSION = '11.0';
 const T2S_MAP = {'國':'国','學':'学','這':'这','個':'个','們':'们','說':'说','話':'话','對':'对','時':'时','間':'间','現':'现','場':'场','開':'开','關':'关','內':'内','東':'东','車':'车','馬':'马','龍':'龙','風':'风','陽':'阳','陰':'阴','電':'电','語':'语','讀':'读','寫':'写','書':'书','紙':'纸','筆':'笔','長':'长','門':'门','問':'问','聽':'听','見':'见','覺':'觉','讓':'让','誰':'谁','還':'还','進':'进','運':'运','動':'动','靜':'静','樂':'乐','藥':'药','華':'华','蘭':'兰','葉':'叶','黃':'黄','麗':'丽','寶':'宝','貴':'贵','財':'财','買':'买','賣':'卖','錢':'钱','銀':'银','鐵':'铁','鋼':'钢','陳':'陈','劉':'刘','張':'张','楊':'杨','蔣':'蒋','鄭':'郑','謝':'谢','呂':'吕','蘇':'苏','韓':'韩','馮':'冯','於':'于','鳳':'凤','雲':'云','劍':'剑','斷':'断','亂':'乱','愛':'爱','聲':'声','醫':'医','藝':'艺','頭':'头','臉':'脸','腳':'脚','氣':'气','樓':'楼','橋':'桥','飛':'飞','機':'机','網':'网','線':'线','條':'条','裡':'里','邊':'边','錯':'错','壞':'坏','舊':'旧','寬':'宽','淺':'浅','週':'周','節':'节','業':'业','後':'后','來':'来','終':'终','結':'结','敗':'败','勝':'胜','負':'负','輸':'输','贏':'赢','強':'强','難':'难','簡':'简','單':'单','複':'复','雜':'杂','純':'纯','淨':'净','髒':'脏','齊':'齐','穩':'稳','變':'变','轉':'转','換':'换','顯':'显','樣':'样','種':'种','類':'类','團':'团','體':'体','統':'统','織':'织','組':'组','構':'构','設':'设','計':'计','劃':'划','數':'数','課':'课','題':'题','試':'试','練':'练','習':'习','師':'师','員':'员','職':'职','務':'务','責':'责','權':'权','應':'应','該':'该','須':'须','願':'愿','夢':'梦','憶':'忆','識':'识','認':'认','歡':'欢','醜':'丑','帥':'帅','靈':'灵','獸':'兽','鷹':'鹰','鶴':'鹤','鴻':'鸿','鱷':'鳄','鯨':'鲸','鯊':'鲨','蝦':'虾','殼':'壳','冑':'胄','戰':'战','爭':'争','鬥':'斗','擊':'击','禦':'御','護':'护','衛':'卫','謀':'谋','陣':'阵','營':'营','軍':'军','隊':'队','將':'将','嬪':'嫔','宮':'宫','廟':'庙','觀':'观','閣':'阁','蓮':'莲','楓':'枫','樺':'桦','檜':'桧','樹':'树','實':'实','幹':'干','莖':'茎','穫':'获','採':'采','鮮':'鲜','籠':'笼','傷':'伤','殺':'杀','斬':'斩','豬':'猪','雞':'鸡','鴨':'鸭','鵝':'鹅','龜':'龟','蟬':'蝉','蟻':'蚁','螞':'蚂','鴉':'鸦','鵰':'雕','鴛':'鸳','鴦':'鸯','賽':'赛','廠':'厂','廣':'广','麼':'么','誒':'诶','歲':'岁','歷':'历','歸':'归','殘':'残','蟲':'虫','貓':'猫','氈':'毡','貫':'贯','質':'质','貨':'货','貼':'贴','費':'费','資':'资','賬':'账','賺':'赚','贈':'赠','賀':'贺','賢':'贤','賦':'赋','賤':'贱','賓':'宾','賴':'赖','齲':'龋','齒':'齿','龄':'齡','齡':'龄','齣':'出','岡':'冈','剛':'刚','剮':'剐','創':'创','劇':'剧','勵':'励','勸':'劝','勻':'匀','匯':'汇','醬':'酱','醞':'酝','釀':'酿','釋':'释','釘':'钉','針':'针','釣':'钓','鈍':'钝','鈴':'铃','鈔':'钞','鉛':'铅','鋸':'锯','鋒':'锋','鍵':'键','鎖':'锁','鑄':'铸','鑼':'锣','錶':'表','鐘':'钟','鏡':'镜','鑽':'钻','鑑':'鉴','閉':'闭','閃':'闪','閏':'闰','閱':'阅','闆':'板','闖':'闯','陸':'陆','隱':'隐','雖':'虽','雙':'双','雛':'雏','靂':'雳','韋':'韦','韌':'韧','頁':'页','頂':'顶','項':'项','順':'顺','頌':'颂','預':'预','頑':'顽','頒':'颁','頗':'颇','領':'领','頡':'颉','頜':'颌','頸':'颈','頻':'频','頹':'颓','顆':'颗','額':'额','顏':'颜','顛':'颠','顧':'顾','飄':'飘','饑':'饥','餃':'饺','餅':'饼','館':'馆','饒':'饶','饞':'馋','馳':'驰','駕':'驾','駛':'驶','駐':'驻','駱':'骆','駭':'骇','騎':'骑','騰':'腾','驅':'驱','驚':'惊','驕':'骄','驗':'验','骯':'肮','髮':'发','鬍':'胡','鬧':'闹','鮑':'鲍','鯉':'鲤','鰲':'鳌','鱉':'鳖','鳥':'鸟','鳴':'鸣','鹹':'咸','麥':'麦','麵':'面','黨':'党'};  // 번체→간체 상용한자 (서체 변환 전용, 다른 뜻 글자는 포함하지 않음)
 const UNIT = '다이아';                 // 재화 단위 표기
 const MAX_MEMBERS = 100;              // 최대 멤버 수 (v10.5: 50 → 100)
@@ -2423,7 +2445,7 @@ function _rebuildGuide(ss) {
     ['   ※ 이름은 "' + LEDGER_SHEET + '"이지만 분배완료 이력도 함께 보관됩니다', 'b'],
     ['🟡 잔액현황 → 멤버별 분배전/분배완료/참여횟수 + 지급✓ 버튼', 'b'],
     ['🔴 지급기록 → 중간정산 지급 이력 자동 저장', 'b'],
-    ['🤝 ' + ALLIANCE_SHEET + ' → 연합 정산 (서버별 누적, 혈맹 잔액과 무관)', 'b'],
+    ['🤝 ' + ALLIANCE_SHEET + ' → 연합 정산 (서버별 누적, 개인 잔액과 무관)', 'b'],
     ['🗡️ ' + RAID_SHEET + ' → 보스 등장 시간표 (요일 × 시간)', 'b'],
     ['📢 ' + BOARD_SHEET + ' → 게시판·공지', 'b'],
     ['⬜ 시즌1, 시즌2... → 시즌 종료 시 자동 생성되는 보관 기록', 'b'],
@@ -2628,10 +2650,37 @@ function _rebuildGuide(ss) {
     ['  분배 자체에는 전혀 영향이 없습니다', 'b'],
     ['· [📤 디스코드로 전송]은 특정 건을 수동으로 다시 보낼 때 사용', 'b'],
     [''  , 'sp'],
+    ['🤝 연합 정산 — [' + ALLIANCE_SHEET + '] 시트 (v11.0)', 'sec'],
+    ['· ⭐ 아이템 하나에 참여 서버를 여러 곳 넣을 수 있습니다', 'b'],
+    ['  (시트에는 서버마다 한 줄이 들어가고 K열 "묶음" 값으로 한 건이 됩니다)', 'b'],
+    ['· 등록할 때는 아이템명과 서버별 인원수만 넣습니다 — 금액은 팔린 뒤에', 'b'],
+    ['· 인증샷은 여러 장 붙일 수 있고, 없어도 등록됩니다', 'b'],
+    ['· 정산(금액 넣기) 산식은 아이템 분배와 같은 모양입니다:', 'b'],
+    ['    혈비     = 판매금액 × ' + pct + '%  (버림)', 'b'],
+    ['    분배가능 = 판매금액 − 혈비', 'b'],
+    ['    서버별   = 분배가능 × 그 서버 인원 ÷ 총 인원  (버림)', 'b'],
+    ['    남은 몫  = 전액 혈비로 추가 귀속', 'b'],
+    ['· ⭐ 이 혈비는 [잔액현황]의 ' + FUND_NAME + ' 잔액에 실제로 적립됩니다', 'b'],
+    ['  (기록을 삭제하면 적립분도 함께 회수됩니다)', 'b'],
+    ['· 연합 인원은 우리 멤버DB와 무관하므로 "몇 명"만 셉니다 — 누구인지는', 'b'],
+    ['  판별하지 않습니다. 개인 잔액은 어느 단계에서도 바뀌지 않습니다', 'b'],
+    ['', 'sp'],
+
+    ['✏️ 미분배 아이템 수정 (v11.0 · 마스터관리자)', 'sec'],
+    ['· 앱 [📦 아이템] 탭의 ' + ST_WAIT + ' 목록에서 [수정]을 누릅니다', 'b'],
+    ['· 고칠 수 있는 것은 아이템명과 참여자입니다', 'b'],
+    ['· 참여자를 바꾸면 참여횟수는 등록 이력 전체를 다시 세어 맞춥니다', 'b'],
+    ['· 이미 ' + ST_DONE + ' 된 아이템은 여기서 못 고칩니다 — [정정]을 쓰세요', 'warn'],
+    ['  (금액을 회수했다가 다시 나눠줘야 해서 절차가 완전히 다릅니다)', 'warn'],
+    ['', 'sp'],
+
     ['📷 인증샷 첨부 시 참여자 자동 감지 (아이템 등록)', 'sec'],
     ['① 아이템 등록 화면에서 "사진 선택/촬영"으로 인증샷 첨부', 'b'],
+    ['  ⭐ v11.0 부터 한 아이템에 여러 장을 한꺼번에 고를 수 있습니다', 'b'],
     ['② 자동으로 드라이브에 저장 + 링크 자동 입력', 'b'],
+    ['  (두 장 이상이면 인증샷 칸에 링크가 줄바꿈으로 나열됩니다)', 'b'],
     ['③ 사진 속 글자를 인식해 일치하는 멤버를 자동 체크', 'b'],
+    ['  (여러 장이면 장마다 찾은 사람이 계속 더해집니다)', 'b'],
     ['※ 인식률이 완벽하지 않을 수 있어 항상 "제안"으로만 작동합니다', 'warn'],
     ['   등록 전 반드시 체크된 멤버 목록을 눈으로 확인해주세요', 'warn'],
     ['[최초 1회 설정 — PC에서]', 'b'],
@@ -2986,6 +3035,31 @@ function registerItem() {
   }
 }
 
+/**
+ * 인증샷 칸 쓰기 (v11.0) — 한 아이템에 사진이 여러 장 붙을 수 있다.
+ *
+ * 한 장이면 예전처럼 `=HYPERLINK(...)` 로 둔다 (시트에서 바로 눌러 볼 수 있다).
+ * 두 장 이상이면 HYPERLINK 이 한 개밖에 못 담으므로 **URL 을 줄바꿈으로 나열**한다.
+ * 시즌종료·이관 경로는 수식이 없으면 값을 그대로 복사하므로 이 형태도 함께 옮겨간다.
+ */
+function _writeLedgerPhotos(ledger, r, links) {
+  const list = _photoList(_photoCell(links));
+  if (list.length === 0) return list;
+  if (list.length === 1) ledger.getRange(r, LG.PHOTO).setFormula('=HYPERLINK("' + list[0] + '","📷 보기")');
+  else ledger.getRange(r, LG.PHOTO).setValue(list.join('\n'));
+  return list;
+}
+
+/** 인증샷 칸 읽기 — 수식(옛 한 장)과 줄바꿈 나열(여러 장)을 하나로 본다 */
+function _readLedgerPhotos(formula, display) {
+  const out = [];
+  const re = /HYPERLINK\("([^"]+)"/g;
+  let m;
+  while ((m = re.exec(String(formula || '')))) out.push(m[1]);
+  if (out.length > 0) return out;
+  return _photoList(display);
+}
+
 // 등록 코어 (메뉴 + 웹앱 공용, UI 없음)
 function _registerCore(ss, itemName, participants, photoLink, clientEmail) {
   const ledger = ss.getSheetByName(LEDGER_SHEET);
@@ -2994,7 +3068,8 @@ function _registerCore(ss, itemName, participants, photoLink, clientEmail) {
   const r = ledger.getLastRow() + 1;
   ledger.getRange(r, LG.DATE, 1, 5).setValues([[new Date(), itemName, ST_WAIT, participants.length, participants.join(', ')]]);
   ledger.getRange(r, LG.DATE).setNumberFormat('yyyy-mm-dd hh:mm');
-  if (photoLink) ledger.getRange(r, LG.PHOTO).setFormula(`=HYPERLINK("${photoLink}","📷 보기")`);
+  // photoLink 는 문자열 한 개일 수도, 배열일 수도 있다 (v11.0 부터 여러 장)
+  const photos = _writeLedgerPhotos(ledger, r, Array.isArray(photoLink) ? photoLink : [photoLink]);
   ledger.getRange(r, LG.CHECK).insertCheckboxes();
   ledger.getRange(r, LG.AMOUNT).setBackground('#FFF9C4').setNumberFormat('#,##0').setHorizontalAlignment('right');
   ledger.getRange(r, LG.STATUS).setHorizontalAlignment('center');
@@ -3002,11 +3077,78 @@ function _registerCore(ss, itemName, participants, photoLink, clientEmail) {
   _recalcAllParticipationCounts(ss);   // ★ 등록 즉시 참여횟수 반영 (분배 여부 무관 — 레이드 출석 기준)
   _logAction(ss, '등록', itemName, actor, participants.length + '명 참여 등록');
   const regRow = ledger.getRange(r, 1, 1, 11).getValues()[0];
-  _notifyDiscord(_formatDiscordMsg(regRow, false) + (photoLink ? `\n📷 인증샷: ${photoLink}` : ''));
+  _notifyDiscord(_formatDiscordMsg(regRow, false) +
+    (photos.length ? '\n📷 인증샷: ' + photos.join('\n') : ''));
   return r;
 }
 
 // ─────────────────────────────────────────
+/**
+ * ✏️ 미분배 아이템 수정 (v11.0) — 아이템명 · 참여자.
+ *
+ * 이미 분배된 행은 여기서 못 고친다. 그쪽은 [정정]이 담당한다 —
+ * 금액을 회수했다가 다시 나눠줘야 해서 절차가 완전히 다르다.
+ *
+ * ★ 참여횟수는 손으로 더하고 빼지 않는다. 참여자명단을 고친 뒤
+ *   `_recalcAllParticipationCounts` 로 **전부 다시 센다.**
+ *   증감으로 맞추면 한 번만 어긋나도 영원히 틀어진 채로 남는다 (규칙 3).
+ * ★ 미분배 상태라 다이아(분배전)는 아직 아무에게도 안 갔다 — 잔액은 건드리지 않는다.
+ */
+function api_editItem(row, itemName, participants, email) {
+  row = Number(row);
+  itemName = String(itemName || '').trim();
+  if (!itemName) return _rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
+
+  // 같은 사람이 두 번 들어가면 그 사람만 참여횟수가 두 번 올라간다
+  const seen = {};
+  const parts = [];
+  (participants || []).forEach(function (p) {
+    const nm = String(p || '').trim();
+    if (!nm) return;
+    const key = _normName(nm);
+    if (seen[key]) return;
+    seen[key] = true;
+    parts.push(nm);
+  });
+  if (parts.length === 0) return _rc({ ok: false, msg: '참여자를 한 명 이상 골라주세요.' }, 'e.noParts');
+
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(15000); } catch (e) { return _rc({ ok: false, msg: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.' }, 'e.busy'); }
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ledger = ss.getSheetByName(LEDGER_SHEET);
+    if (!ledger || row < 2 || row > ledger.getLastRow()) {
+      return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+    }
+    const status = String(ledger.getRange(row, LG.STATUS).getValue()).trim();
+    if (status !== ST_WAIT) {
+      return _rc({ ok: false, msg: '이미 분배된 아이템입니다. [정정]을 사용해주세요.' }, 'e.alreadyDone');
+    }
+    const before = String(ledger.getRange(row, LG.ITEM).getValue()).trim();
+    const beforeN = Number(ledger.getRange(row, LG.CNT).getValue()) || 0;
+    const actor = _getActorEmail(email);
+
+    ledger.getRange(row, LG.ITEM).setValue(itemName);
+    ledger.getRange(row, LG.CNT).setValue(parts.length);
+    ledger.getRange(row, LG.NAMES).setValue(parts.join(', '));
+    ledger.getRange(row, LG.EDITBY).setValue(actor);
+
+    // 명단이 바뀌었으니 참여횟수를 전부 다시 센다
+    _recalcAllParticipationCounts(ss);
+
+    _logAction(ss, '아이템수정', itemName, actor,
+      '"' + before + '" → "' + itemName + '" · 참여 ' + beforeN + '명 → ' + parts.length + '명');
+    return _rc({
+      ok: true, item: itemName, n: parts.length,
+      msg: '✅ "' + itemName + '" 수정 완료 — 참여 ' + parts.length + '명'
+    }, 'item.editOk', { item: itemName, n: parts.length });
+  } catch (e) {
+    return { ok: false, msg: '오류: ' + e.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 // ★ 참여횟수(레이드 출석) 전면 재계산
 //   분배대기중의 모든 행(상태 무관 — 미분배/분배완료 둘 다)의
 //   참여자명단을 스캔해 각 멤버가 몇 번 등장하는지 세고,
@@ -3186,9 +3328,9 @@ function _distributeCore(ss, ledger, row, amount, clientEmail) {
   ledger.getRange(row, LG.DISTBY).setValue(actor);
   _logAction(ss, '분배', itemName, actor, amount.toLocaleString() + UNIT + ' 분배 (' + participants.length + '명 × ' + s.perPerson.toLocaleString() + ')');
   const distRow = ledger.getRange(row, 1, 1, 11).getValues()[0];
-  const photoFormula = ledger.getRange(row, LG.PHOTO).getFormula();
-  const pm = photoFormula.match(/HYPERLINK\("([^"]+)"/);
-  _notifyDiscord(_formatDiscordMsg(distRow, true) + (pm ? `\n📷 인증샷: ${pm[1]}` : ''));
+  const cell = ledger.getRange(row, LG.PHOTO);
+  const pics = _readLedgerPhotos(cell.getFormula(), cell.getDisplayValue());
+  _notifyDiscord(_formatDiscordMsg(distRow, true) + (pics.length ? '\n📷 인증샷: ' + pics.join('\n') : ''));
 
   return { ok: true, item: itemName, amount: amount, fund: s.fund, fundTotal: fundTotal,
            perPerson: s.perPerson, shares: paidList, weights: s.weights,
@@ -3401,12 +3543,11 @@ function sendLatestToDiscord() {
   if (idx < 0) idx = n - 1;
   const row = vals[idx];
   const r = idx + 2;
-  const photoFormula = ledger.getRange(r, LG.PHOTO).getFormula();
-  const m = photoFormula.match(/HYPERLINK\("([^"]+)"/);
-  const photoUrl = m ? m[1] : '';
+  const pcell = ledger.getRange(r, LG.PHOTO);
+  const pics = _readLedgerPhotos(pcell.getFormula(), pcell.getDisplayValue());
 
   let msg = _formatDiscordMsg(row, isDone);
-  if (photoUrl) msg += `\n📷 인증샷: ${photoUrl}`;
+  if (pics.length) msg += '\n📷 인증샷: ' + pics.join('\n');
 
   _notifyDiscord(msg);
   ui.alert('📤 디스코드로 전송했습니다.');
@@ -4621,8 +4762,8 @@ function api_deletePost(id, email) {
 //    레이드 직후엔 금액을 모르는 것이 정상이라, 예전처럼 한 번에 다 받으면
 //    금액이 정해질 때까지 등록 자체를 미루게 된다 (그러다 인증샷을 잃어버린다).
 // ═══════════════════════════════════════════════════════════════
-const ALLIANCE_HEADERS = ['등록일', '서버', '아이템명', '금액', '비중(%)', '인원수', '적립액', '인증샷', '입력자', '상태'];
-const ALLY_COL = { DATE: 1, SERVER: 2, ITEM: 3, AMOUNT: 4, PCT: 5, PEOPLE: 6, CREDITED: 7, PHOTO: 8, BY: 9, STATUS: 10 };
+const ALLIANCE_HEADERS = ['등록일','서버','아이템명','금액','비중(%)','인원수','적립액','인증샷','입력자','상태','묶음','혈비'];
+const ALLY_COL = { DATE:1, SERVER:2, ITEM:3, AMOUNT:4, PCT:5, PEOPLE:6, CREDITED:7, PHOTO:8, BY:9, STATUS:10, GROUP:11, FUND:12 };
 
 function _buildAlliance(ss) {
   const sheet = ss.insertSheet(ALLIANCE_SHEET);
@@ -4633,17 +4774,20 @@ function _buildAlliance(ss) {
 }
 
 function _styleAllianceHeader(sheet) {
-  [110, 70, 180, 110, 80, 80, 110, 80, 160, 100].forEach(function (w, i) { sheet.setColumnWidth(i + 1, w); });
+  [110, 70, 180, 110, 80, 80, 110, 90, 160, 100, 130, 100]
+    .forEach(function (w, i) { sheet.setColumnWidth(i + 1, w); });
   sheet.getRange(1, 1, 1, ALLIANCE_HEADERS.length).setValues([ALLIANCE_HEADERS])
     .setBackground('#4E342E').setFontColor('#FFF').setFontWeight('bold').setHorizontalAlignment('center');
-  sheet.getRange(1, ALLY_COL.PCT).setNote('그 서버에 귀속시킬 비율입니다. 적립액 = floor(금액 × 비중 ÷ 100).');
-  sheet.getRange(1, ALLY_COL.PEOPLE).setNote('인증샷에서 자동으로 센 인원수입니다. 누구인지는 판별하지 않습니다.');
+  sheet.getRange(1, ALLY_COL.PCT).setNote('v11.0 부터 쓰지 않습니다. 옛 기록을 그대로 읽기 위해 열만 남겨둡니다.');
+  sheet.getRange(1, ALLY_COL.PEOPLE).setNote('그 서버에서 참여한 인원수입니다. 누구인지는 판별하지 않습니다.');
+  sheet.getRange(1, ALLY_COL.GROUP).setNote('같은 아이템을 여러 서버가 나눠 가진 경우 이 값으로 한 건을 묶습니다.');
+  sheet.getRange(1, ALLY_COL.FUND).setNote('혈맹운영비로 귀속된 몫(10% + 원단위 잔여). 묶음의 첫 줄에만 적습니다.');
   sheet.getRange(1, ALLY_COL.STATUS).setNote('⏳미분배 = 금액이 아직 안 정해진 등록 건. ✅분배완료 = 금액까지 넣어 서버에 누적된 건.');
 }
 
 /**
- * v10.2 이하에서 만들어진 연합 시트에는 '상태' 열이 없다.
- * 헤더만 채워 넣으면 기존 행은 그대로 쓸 수 있다 (금액이 있으면 분배완료로 읽는다).
+ * v10.9 이하에서 만들어진 연합 시트에는 '묶음'·'혈비' 열이 없다.
+ * 헤더만 채워 넣으면 기존 행은 그대로 쓸 수 있다 (묶음이 없는 행은 한 줄이 한 건이다).
  */
 function _ensureAllianceHeaders(sheet) {
   const cur = sheet.getRange(1, 1, 1, ALLIANCE_HEADERS.length).getValues()[0];
@@ -4658,13 +4802,69 @@ function _getOrCreateAlliance(ss) {
   return sheet;
 }
 
-// 연합 적립액 산식 (단일 소스 — lib/client.ts 의 calcAlliance 와 반드시 일치)
-function _calcAlliance(amount, pct) {
-  const a = Math.floor(Number(amount) || 0);
-  let p = Math.round(Number(pct));
-  if (!isFinite(p) || p < 1) p = 1;
-  if (p > 100) p = 100;
-  return { amount: a, pct: p, credited: Math.floor(a * p / 100) };
+/**
+ * 연합 정산 산식 (v11.0) — 아이템 분배와 같은 모양이다.
+ *
+ *   혈비     = floor(판매금액 × 10%)
+ *   분배가능 = 판매금액 − 혈비
+ *   서버별   = floor(분배가능 × 그 서버 인원 ÷ 총 인원)
+ *   잔여     = 분배가능 − Σ서버별   → 전액 혈비로 추가 귀속
+ *
+ * ★ 불변식: `fundTotal + Σshares = amount` — 다이아는 사라지지도 생겨나지도 않는다.
+ * ★ lib/client.ts 의 `calcAlliance` 와 **반드시 같아야 한다** (CLAUDE.md 규칙 1).
+ *   한쪽만 고치면 확인 화면의 숫자와 실제 결과가 달라진다.
+ * ★ 잔여를 특정 서버에 얹지 않는다 — 그 서버만 금액이 달라져 버그로 오인된다 (규칙 2).
+ */
+function _calcAlliance(amount, counts) {
+  const a = Math.max(Math.floor(Number(amount) || 0), 0);
+  const list = (counts || []).map(function (n) { return Math.max(Math.floor(Number(n) || 0), 0); });
+  const people = list.reduce(function (t, n) { return t + n; }, 0);
+  const fund = Math.floor(a * FUND_RATE);
+  const pool = a - fund;
+  // 인원이 하나도 없으면 나눌 기준이 없다 — 전액 혈비로 둔다 (지어내지 않는다)
+  const shares = list.map(function (n) { return people > 0 ? Math.floor(pool * n / people) : 0; });
+  const given = shares.reduce(function (t, v) { return t + v; }, 0);
+  const remainder = pool - given;
+  return { amount: a, fund: fund, pool: pool, shares: shares, remainder: remainder,
+           fundTotal: fund + remainder, people: people };
+}
+
+/** 인증샷 여러 장 — 셀에는 줄바꿈으로 넣는다 (HYPERLINK 은 한 개만 되므로 원문 URL 그대로) */
+function _photoCell(links) {
+  return (links || []).map(function (u) { return String(u || '').trim(); })
+    .filter(function (u) { return u; }).join('\n');
+}
+function _photoList(cell) {
+  return String(cell || '').split(/[\n,\s]+/)
+    .map(function (u) { return u.trim(); })
+    .filter(function (u) { return /^https?:\/\//.test(u); });
+}
+
+/** 혈맹운영비 잔액에 더한다 (음수면 뺀다). 참여횟수는 건드리지 않는다 — 다른 사건이다 (규칙 3) */
+function _creditFundBalance(ss, delta) {
+  if (!delta) return 0;
+  const bal = ss.getSheetByName('잔액현황');
+  if (!bal) return 0;
+  const last = bal.getLastRow();
+  let fundRow = -1, totalRow = -1;
+  if (last > 1) {
+    const vals = bal.getRange(2, 1, last - 1, 1).getValues();
+    vals.forEach(function (r, i) {
+      const nm = String(r[0]).trim();
+      if (_normName(nm) === _normName(FUND_NAME)) fundRow = i + 2;
+      if (nm === '합계') totalRow = i + 2;
+    });
+  }
+  if (fundRow > 0) {
+    const cur = Number(String(bal.getRange(fundRow, BAL_COL.PENDING).getValue()).replace(/,/g, '')) || 0;
+    bal.getRange(fundRow, BAL_COL.PENDING).setValue(Math.max(cur + delta, 0));
+  } else if (delta > 0) {
+    const at = totalRow > 0 ? totalRow : bal.getLastRow() + 1;
+    if (totalRow > 0) bal.insertRowBefore(totalRow);
+    _writeBalanceRow(bal, at, FUND_NAME, delta, 0, 0, false);
+    _rewriteBalanceTotal(bal);
+  }
+  return delta;
 }
 
 function api_getAlliance() {
@@ -4677,21 +4877,24 @@ function api_getAlliance() {
   if (sheet && sheet.getLastRow() > 1) {
     const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, ALLIANCE_HEADERS.length).getValues();
     vals.forEach(function (r, i) {
-      const server = String(r[1]).trim();
+      const server = String(r[ALLY_COL.SERVER - 1]).trim();
       if (!server) return;
-      const amount = Number(String(r[3]).replace(/,/g, '')) || 0;
-      // v10.2 이하 행에는 상태 칸이 없다 — 금액이 있으면 정산이 끝난 건으로 읽는다
-      const status = String(r[9]).trim() || (amount > 0 ? ST_DONE : ST_WAIT);
+      const amount = Number(String(r[ALLY_COL.AMOUNT - 1]).replace(/,/g, '')) || 0;
+      const status = String(r[ALLY_COL.STATUS - 1]).trim() || (amount > 0 ? ST_DONE : ST_WAIT);
       const rec = {
         row: i + 2,
-        date: _cellText(r[0]),
+        date: _cellText(r[ALLY_COL.DATE - 1]),
         server: server,
-        item: String(r[2]).trim(),
+        item: String(r[ALLY_COL.ITEM - 1]).trim(),
         amount: amount,
-        pct: Number(r[4]) || 0,
-        people: Number(r[5]) || 0,
-        credited: Number(String(r[6]).replace(/,/g, '')) || 0,
-        photo: String(r[7]).trim(),
+        pct: Number(r[ALLY_COL.PCT - 1]) || 0,
+        people: Number(r[ALLY_COL.PEOPLE - 1]) || 0,
+        credited: Number(String(r[ALLY_COL.CREDITED - 1]).replace(/,/g, '')) || 0,
+        photos: _photoList(r[ALLY_COL.PHOTO - 1]),
+        // 묶음이 없는 옛 행은 그 줄 하나가 한 건이다
+        group: String(r[ALLY_COL.GROUP - 1]).trim() || ('r' + (i + 2)),
+        fund: Number(String(r[ALLY_COL.FUND - 1]).replace(/,/g, '')) || 0,
+        by: String(r[ALLY_COL.BY - 1]).trim(),
         status: status,
         done: status === ST_DONE
       };
@@ -4706,10 +4909,36 @@ function api_getAlliance() {
     });
   }
 
-  const waiting = rows.filter(function (r) { return !r.done; });
+  // 같은 묶음을 한 건으로 모은다 — 화면은 "아이템 하나"로 보여준다
+  const byGroup = {};
+  const order = [];
+  rows.forEach(function (r) {
+    if (!byGroup[r.group]) {
+      byGroup[r.group] = {
+        group: r.group, date: r.date, item: r.item, by: r.by,
+        amount: 0, fund: 0, people: 0, credited: 0,
+        photos: [], servers: [], rows: [], done: r.done
+      };
+      order.push(r.group);
+    }
+    const g = byGroup[r.group];
+    g.servers.push({ server: r.server, people: r.people, credited: r.credited });
+    g.rows.push(r.row);
+    g.people += r.people;
+    g.credited += r.credited;
+    g.fund += r.fund;
+    // 판매금액은 묶음 전체의 값이라 줄마다 같다 — 합치지 않고 가장 큰 값을 쓴다
+    if (r.amount > g.amount) g.amount = r.amount;
+    r.photos.forEach(function (u) { if (g.photos.indexOf(u) < 0) g.photos.push(u); });
+    if (!r.done) g.done = false;
+  });
+  const groups = order.map(function (k) { return byGroup[k]; }).reverse();
+
   return {
     rows: rows.reverse(),
-    waiting: waiting.reverse(),
+    groups: groups,
+    waiting: groups.filter(function (g) { return !g.done; }),
+    records: groups.filter(function (g) { return g.done; }),
     totals: SERVER_LIST.map(function (s) { return totals[s]; }),
     serverList: SERVER_LIST,
     unit: UNIT
@@ -4717,38 +4946,62 @@ function api_getAlliance() {
 }
 
 /**
- * ① 연합 등록 (v10.3) — 서버·아이템명·인증샷(인원수)까지만.
+ * ① 연합 등록 (v11.0) — 아이템 하나에 **여러 서버 · 서버별 인원 · 사진 여러 장**.
  *
  * 금액은 받지 않는다. 레이드 직후엔 아직 안 팔렸으므로 모르는 것이 정상이고,
  * 그때 금액을 요구하면 등록 자체가 미뤄져 인증샷을 잃어버린다.
- * 혈맹 아이템 등록(_registerCore)과 같은 순서다.
+ * 인증샷은 **없어도 등록된다** — 증거를 못 찍었다고 기록을 통째로 막을 이유가 없다.
  */
-function api_addAlliance(server, item, people, photoLink, email) {
-  server = String(server || '').trim();
+function api_addAlliance(item, entries, photoLinks, email) {
   item = String(item || '').trim();
-  if (SERVER_LIST.indexOf(server) < 0) return _rc({ ok: false, msg: '서버를 01~12 중에서 선택해주세요.' }, 'e.badServer');
   if (!item) return _rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
 
-  const n = Math.max(Math.floor(Number(people) || 0), 0);
+  const list = (entries || []).map(function (e) {
+    return { server: String((e && e.server) || '').trim(),
+             people: Math.max(Math.floor(Number(e && e.people) || 0), 0) };
+  }).filter(function (e) { return e.server; });
+
+  if (list.length === 0) return _rc({ ok: false, msg: '참여한 서버를 하나 이상 넣어주세요.' }, 'e.badServer');
+  const seen = {};
+  for (let i = 0; i < list.length; i++) {
+    if (SERVER_LIST.indexOf(list[i].server) < 0) {
+      return _rc({ ok: false, msg: '서버를 01~12 중에서 선택해주세요.' }, 'e.badServer');
+    }
+    // 같은 서버를 두 줄로 넣으면 인원이 갈려 분배 비율이 틀어진다
+    if (seen[list[i].server]) {
+      return _rc({ ok: false, msg: list[i].server + '서버가 두 번 들어갔습니다. 한 줄로 합쳐주세요.' },
+        'e.dupServer', { s: list[i].server });
+    }
+    seen[list[i].server] = true;
+  }
 
   const lock = LockService.getScriptLock();
   try { lock.waitLock(15000); } catch (e) { return _rc({ ok: false, msg: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.' }, 'e.busy'); }
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = _getOrCreateAlliance(ss);
-    const row = sheet.getLastRow() + 1;
     const actor = _getActorEmail(email);
-    sheet.getRange(row, 1, 1, ALLIANCE_HEADERS.length)
-      .setValues([[new Date(), server, item, '', '', n, '', '', actor, ST_WAIT]]);
-    sheet.getRange(row, ALLY_COL.DATE).setNumberFormat('yyyy-mm-dd hh:mm');
-    sheet.getRange(row, ALLY_COL.AMOUNT).setNumberFormat('#,##0');
-    sheet.getRange(row, ALLY_COL.CREDITED).setNumberFormat('#,##0');
-    if (photoLink) sheet.getRange(row, ALLY_COL.PHOTO).setFormula('=HYPERLINK("' + photoLink + '","📷")');
-    _logAction(ss, '연합등록', item, actor, server + '서버 ' + n + '명 (' + ST_WAIT + ')');
+    const group = 'A' + new Date().getTime();
+    const photos = _photoCell(photoLinks);
+    const at = sheet.getLastRow() + 1;
+    const now = new Date();
+
+    const values = list.map(function (e, i) {
+      return [now, e.server, item, '', '', e.people, '', i === 0 ? photos : '', actor, ST_WAIT, group, ''];
+    });
+    sheet.getRange(at, 1, values.length, ALLIANCE_HEADERS.length).setValues(values);
+    sheet.getRange(at, ALLY_COL.DATE, values.length, 1).setNumberFormat('yyyy-mm-dd hh:mm');
+    sheet.getRange(at, ALLY_COL.AMOUNT, values.length, 1).setNumberFormat('#,##0');
+    sheet.getRange(at, ALLY_COL.CREDITED, values.length, 1).setNumberFormat('#,##0');
+    sheet.getRange(at, ALLY_COL.FUND, values.length, 1).setNumberFormat('#,##0');
+
+    const total = list.reduce(function (t, e) { return t + e.people; }, 0);
+    const where = list.map(function (e) { return e.server + '서버 ' + e.people + '명'; }).join(' · ');
+    _logAction(ss, '연합등록', item, actor, where + ' (' + ST_WAIT + ')');
     return _rc({
-      ok: true, server: server, row: row, people: n,
-      msg: '✅ ' + server + '서버 "' + item + '" 등록 완료 (' + n + '명, ' + ST_WAIT + ')'
-    }, 'ally.regOk', { s: server, item: item, n: n });
+      ok: true, group: group, servers: list.length, people: total,
+      msg: '✅ "' + item + '" 등록 완료 — ' + where + ' (' + ST_WAIT + ')'
+    }, 'ally.regMulti', { item: item, sv: list.length, n: total });
   } catch (e) {
     return { ok: false, msg: '오류: ' + e.message };
   } finally {
@@ -4757,11 +5010,14 @@ function api_addAlliance(server, item, people, photoLink, email) {
 }
 
 /**
- * ② 연합 정산 (v10.3) — 등록해둔 건에 금액·비중을 넣어 서버에 누적한다.
+ * ② 연합 정산 (v11.0) — 등록해둔 묶음에 판매금액을 넣어 서버별로 나눈다.
+ *
+ * 혈비를 먼저 떼고 남은 것을 **인원수 비례**로 서버에 귀속시킨다.
+ * 원단위로 남는 몫은 전액 혈비로 간다 — 특정 서버에 얹으면 그 서버만 값이 달라진다.
  * 이미 정산된 건은 거부한다 (두 번 누적되면 서버 총액이 틀어진다).
  */
-function api_creditAlliance(row, amount, pct, email) {
-  row = Number(row);
+function api_creditAlliance(group, amount, email) {
+  group = String(group || '').trim();
   const amt = Number(String(amount).replace(/,/g, ''));
   if (!amt || amt <= 0 || amt !== Math.floor(amt)) return _rc({ ok: false, msg: '금액은 양의 정수여야 합니다.' }, 'e.badAmount');
 
@@ -4770,34 +5026,51 @@ function api_creditAlliance(row, amount, pct, email) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName(ALLIANCE_SHEET);
-    if (!sheet || row < 2 || row > sheet.getLastRow()) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+    if (!sheet || sheet.getLastRow() < 2) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
     _ensureAllianceHeaders(sheet);
 
-    const cur = sheet.getRange(row, 1, 1, ALLIANCE_HEADERS.length).getValues()[0];
-    const server = String(cur[ALLY_COL.SERVER - 1]).trim();
-    const item = String(cur[ALLY_COL.ITEM - 1]).trim();
-    if (!server) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+    const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, ALLIANCE_HEADERS.length).getValues();
+    const targets = [];
+    vals.forEach(function (r, i) {
+      const g = String(r[ALLY_COL.GROUP - 1]).trim() || ('r' + (i + 2));
+      if (g !== group) return;
+      targets.push({ row: i + 2, server: String(r[ALLY_COL.SERVER - 1]).trim(),
+                     item: String(r[ALLY_COL.ITEM - 1]).trim(),
+                     people: Number(r[ALLY_COL.PEOPLE - 1]) || 0,
+                     status: String(r[ALLY_COL.STATUS - 1]).trim() ||
+                             ((Number(String(r[ALLY_COL.AMOUNT - 1]).replace(/,/g, '')) || 0) > 0 ? ST_DONE : ST_WAIT) });
+    });
+    if (targets.length === 0) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
 
-    const had = Number(String(cur[ALLY_COL.AMOUNT - 1]).replace(/,/g, '')) || 0;
-    const status = String(cur[ALLY_COL.STATUS - 1]).trim() || (had > 0 ? ST_DONE : ST_WAIT);
-    if (status === ST_DONE) {
+    const item = targets[0].item;
+    if (targets.some(function (t) { return t.status === ST_DONE; })) {
       return _rc({ ok: false, msg: '이미 정산된 건입니다. 새로고침해주세요.' }, 'e.allyDone', { item: item });
     }
 
-    const s = _calcAlliance(amt, pct);
-    const n = Number(cur[ALLY_COL.PEOPLE - 1]) || 0;
+    const s = _calcAlliance(amt, targets.map(function (t) { return t.people; }));
     const actor = _getActorEmail(email);
-    sheet.getRange(row, ALLY_COL.AMOUNT).setValue(s.amount);
-    sheet.getRange(row, ALLY_COL.PCT).setValue(s.pct);
-    sheet.getRange(row, ALLY_COL.CREDITED).setValue(s.credited);
-    sheet.getRange(row, ALLY_COL.STATUS).setValue(ST_DONE);
-    sheet.getRange(row, ALLY_COL.BY).setValue(actor);
+
+    targets.forEach(function (t, i) {
+      sheet.getRange(t.row, ALLY_COL.AMOUNT).setValue(s.amount);
+      sheet.getRange(t.row, ALLY_COL.CREDITED).setValue(s.shares[i]);
+      sheet.getRange(t.row, ALLY_COL.STATUS).setValue(ST_DONE);
+      sheet.getRange(t.row, ALLY_COL.BY).setValue(actor);
+    });
+    // 혈비는 묶음의 첫 줄에만 적는다 — 줄마다 적으면 합계가 부풀려진다
+    sheet.getRange(targets[0].row, ALLY_COL.FUND).setValue(s.fundTotal);
+    _creditFundBalance(ss, s.fundTotal);
+
+    const where = targets.map(function (t, i) {
+      return t.server + ' ' + t.people + '명 ' + s.shares[i].toLocaleString();
+    }).join(' · ');
     _logAction(ss, '연합정산', item, actor,
-      server + '서버 ' + s.amount.toLocaleString() + UNIT + ' × ' + s.pct + '% = ' + s.credited.toLocaleString() + ' (' + n + '명)');
+      s.amount.toLocaleString() + UNIT + ' → ' + FUND_NAME + ' ' + s.fundTotal.toLocaleString() + ' · ' + where);
+
     return _rc({
-      ok: true, credited: s.credited, server: server,
-      msg: '✅ ' + server + '서버에 ' + s.credited.toLocaleString() + UNIT + ' 누적했습니다 (' + n + '명 참여).'
-    }, 'ally.ok', { s: server, credited: s.credited, n: n });
+      ok: true, group: group, credited: s.pool - s.remainder, fund: s.fundTotal, people: s.people,
+      msg: '✅ "' + item + '" ' + s.amount.toLocaleString() + UNIT + ' 정산 완료 — ' +
+           FUND_NAME + ' ' + s.fundTotal.toLocaleString() + ' · ' + where
+    }, 'ally.creditMulti', { item: item, amount: s.amount, fund: FUND_NAME, fundTotal: s.fundTotal, n: s.people, where: where });
   } catch (e) {
     return { ok: false, msg: '오류: ' + e.message };
   } finally {
@@ -4805,17 +5078,41 @@ function api_creditAlliance(row, amount, pct, email) {
   }
 }
 
-function api_deleteAlliance(row, email) {
-  row = Number(row);
+/**
+ * 연합 기록 삭제 (v11.0) — 묶음 전체를 지운다.
+ *
+ * ★ 이미 정산된 건이면 혈맹운영비에 적립했던 몫을 **되돌린다.**
+ *   안 되돌리면 지운 기록의 혈비만 잔액에 남아 장부가 맞지 않는다.
+ */
+function api_deleteAlliance(group, email) {
+  group = String(group || '').trim();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(ALLIANCE_SHEET);
-  if (!sheet || row < 2 || row > sheet.getLastRow()) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
-  const r = sheet.getRange(row, 1, 1, ALLIANCE_HEADERS.length).getValues()[0];
-  const detail = String(r[1]) + '서버 ' + String(r[2]) + ' ' + Number(r[6]).toLocaleString() + UNIT;
-  sheet.deleteRow(row);
-  _logAction(ss, '연합삭제', String(r[2]), _getActorEmail(email), detail + ' 삭제');
+  if (!sheet || sheet.getLastRow() < 2) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+  _ensureAllianceHeaders(sheet);
+
+  const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, ALLIANCE_HEADERS.length).getValues();
+  const hit = [];
+  let item = '', credited = 0, fund = 0;
+  vals.forEach(function (r, i) {
+    const g = String(r[ALLY_COL.GROUP - 1]).trim() || ('r' + (i + 2));
+    if (g !== group) return;
+    hit.push(i + 2);
+    item = String(r[ALLY_COL.ITEM - 1]).trim();
+    credited += Number(String(r[ALLY_COL.CREDITED - 1]).replace(/,/g, '')) || 0;
+    fund += Number(String(r[ALLY_COL.FUND - 1]).replace(/,/g, '')) || 0;
+  });
+  if (hit.length === 0) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+
+  // 뒤에서부터 지워야 앞 행의 번호가 밀리지 않는다
+  hit.sort(function (a, b) { return b - a; }).forEach(function (r) { sheet.deleteRow(r); });
+  if (fund > 0) _creditFundBalance(ss, -fund);
+
+  const detail = item + ' ' + credited.toLocaleString() + UNIT +
+                 (fund > 0 ? ' (' + FUND_NAME + ' ' + fund.toLocaleString() + ' 회수)' : '');
+  _logAction(ss, '연합삭제', item, _getActorEmail(email), detail + ' 삭제');
   return _rc({ ok: true, msg: '✅ 삭제했습니다 — ' + detail },
-    'ally.delOk', { s: String(r[1]), item: String(r[2]), credited: Number(r[6]) || 0 });
+    'ally.delMulti', { item: item, credited: credited, fund: fund });
 }
 
 // 연합 인증샷: 아이디는 전혀 판별하지 않고 인원수만 센다.
@@ -5567,7 +5864,7 @@ const API_TOKEN_PROP = 'API_TOKEN';
 //   ※ 'addPost'(일반 글쓰기)는 의도적으로 빠져 있다 — 혈맹원 누구나 쓸 수 있어야 하므로.
 //     공지 여부(isNotice)만 관리자 라우트에서 넘어온다.
 const API_WRITE_ACTIONS = ['register', 'distribute', 'payout', 'rename', 'addMember', 'removeMember',
-                           'correctItem', 'deleteItem', 'undoPayout', 'runTool',
+                           'correctItem', 'deleteItem', 'editItem', 'undoPayout', 'runTool',
                            'deletePost', 'addAlliance', 'creditAlliance', 'deleteAlliance', 'updateMember',
                            'bulkAddMembers',
                            'addRaid', 'updateRaid', 'deleteRaid',
@@ -5721,7 +6018,7 @@ function _apiRoute(action, req) {
       return api_lookupBalance(req.name);
 
     case 'register':
-      return api_register(req.itemName, req.participants, req.photoLink, req.email);
+      return api_register(req.itemName, req.participants, req.photoLink, req.email, req.photoLinks);
 
     case 'distribute':
       return api_distribute(req.row, req.amount, req.email);
@@ -5755,6 +6052,10 @@ function _apiRoute(action, req) {
 
     case 'deleteItem':
       return api_deleteItem(req.row, req.email, req.confirm === true);
+
+    // 미분배 아이템의 아이템명·참여자 고치기 (v11.0) — 이미 분배된 행은 [정정]이 담당한다
+    case 'editItem':
+      return api_editItem(req.row, req.itemName, req.participants, req.email);
 
     case 'lastPayout':
       return api_getLastPayout();
@@ -5794,7 +6095,7 @@ function _apiRoute(action, req) {
       return { ok: true, data: api_getAlliance() };
 
     case 'addAlliance':
-      return api_addAlliance(req.server, req.item, req.people, req.photoLink, req.email);
+      return api_addAlliance(req.item, req.entries, req.photoLinks, req.email);
 
     case 'analyzeMembers':
       return api_analyzeMembers(req.text, req.base64);
@@ -5803,10 +6104,10 @@ function _apiRoute(action, req) {
       return api_bulkAddMembers(req.entries, req.server, req.email, req.confirm);
 
     case 'creditAlliance':
-      return api_creditAlliance(req.row, req.amount, req.pct, req.email);
+      return api_creditAlliance(req.group, req.amount, req.email);
 
     case 'deleteAlliance':
-      return api_deleteAlliance(req.row, req.email);
+      return api_deleteAlliance(req.group, req.email);
 
     /* ── v10.8 레이드 시간표 ── */
 
@@ -5947,7 +6248,9 @@ function api_getState() {
   const items = [];
   if (ledger && ledger.getLastRow() > 1) {
     const n = ledger.getLastRow() - 1;
-    const vals = ledger.getRange(2, 1, n, 5).getValues();
+    const vals = ledger.getRange(2, 1, n, LG.PHOTO).getValues();
+    const pf = ledger.getRange(2, LG.PHOTO, n, 1).getFormulas();
+    const pd = ledger.getRange(2, LG.PHOTO, n, 1).getDisplayValues();
     vals.forEach((r, i) => {
       if (String(r[LG.STATUS - 1]).trim() === ST_WAIT) {
         items.push({
@@ -5956,7 +6259,8 @@ function api_getState() {
           date: Utilities.formatDate(new Date(r[LG.DATE - 1]), Session.getScriptTimeZone(), 'MM/dd'),
           cnt: Number(r[LG.CNT - 1]) || 0,
           // 앱이 분배 미리보기에서 참여자별 비중을 적용하려면 명단이 필요하다
-          names: String(r[LG.NAMES - 1]).split(',').map(function (s) { return s.trim(); }).filter(Boolean)
+          names: String(r[LG.NAMES - 1]).split(',').map(function (s) { return s.trim(); }).filter(Boolean),
+          photos: _readLedgerPhotos(pf[i][0], pd[i][0])
         });
       }
     });
@@ -5986,14 +6290,15 @@ function api_getState() {
   };
 }
 
-// 아이템 등록 API
-function api_register(itemName, participants, photoLink, email) {
+// 아이템 등록 API — photoLinks(여러 장) 를 우선 쓰고, 없으면 옛 photoLink(한 장)
+function api_register(itemName, participants, photoLink, email, photoLinks) {
   itemName = String(itemName || '').trim();
   participants = (participants || []).map(p => String(p).trim()).filter(p => p && p !== FUND_NAME);
   if (!itemName) return _rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
   if (participants.length === 0) return _rc({ ok: false, msg: '참여 멤버를 선택해주세요.' }, 'e.noParticipants');
   try {
-    _registerCore(SpreadsheetApp.getActiveSpreadsheet(), itemName, participants, String(photoLink || '').trim(), email);
+    const pics = (photoLinks && photoLinks.length) ? photoLinks : [String(photoLink || '').trim()];
+    _registerCore(SpreadsheetApp.getActiveSpreadsheet(), itemName, participants, pics, email);
     return _rc({ ok: true, msg: '✅ "' + itemName + '" 등록 완료 (' + participants.length + '명, ' + ST_WAIT + ')' },
                'reg.ok', { item: itemName, n: participants.length });
   } catch (e) {

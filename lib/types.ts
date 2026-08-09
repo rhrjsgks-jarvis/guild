@@ -19,6 +19,8 @@ export type LedgerItem = {
   cnt: number;
   /** 등록 당시 참여자 명단 — 분배 미리보기에서 비중을 적용하는 데 쓴다 */
   names: string[];
+  /** 인증샷 — v11.0 부터 한 아이템에 여러 장 (옛 기록은 0~1장) */
+  photos?: string[];
 };
 
 export type GuildState = {
@@ -100,19 +102,41 @@ export type BoardPost = {
   at: string;
 };
 
-/** 연합 정산 — 혈맹 내부 분배와 완전히 분리된 장부 */
+/** 연합 정산 — 혈맹 내부 분배와 완전히 분리된 장부. 시트의 한 줄 = 한 서버의 몫 */
 export type AllianceRow = {
   row: number;
   date: string;
   server: string;
   item: string;
   amount: number;
+  /** v10.9 이하 기록에만 값이 있다 (v11.0 부터 인원수 비례로 바뀌었다) */
   pct: number;
   people: number;
   credited: number;
-  photo: string;
+  photos: string[];
+  /** 같은 아이템을 여러 서버가 나눠 가진 경우 이 값으로 한 건을 묶는다 */
+  group: string;
+  /** 혈맹운영비로 귀속된 몫 — 묶음의 첫 줄에만 값이 있다 */
+  fund: number;
+  by: string;
   /** '⏳미분배' | '✅분배완료' — v10.2 이하 행은 금액 유무로 판정된다 */
   status: string;
+  done: boolean;
+};
+
+/** 아이템 하나 = 여러 서버 줄을 묶은 것. 화면은 항상 이 단위로 보여준다 */
+export type AllianceGroup = {
+  group: string;
+  date: string;
+  item: string;
+  by: string;
+  amount: number;
+  fund: number;
+  people: number;
+  credited: number;
+  photos: string[];
+  servers: { server: string; people: number; credited: number }[];
+  rows: number[];
   done: boolean;
 };
 
@@ -126,8 +150,10 @@ export type AllianceTotal = {
 
 export type AllianceState = {
   rows: AllianceRow[];
+  groups: AllianceGroup[];
   /** 아직 금액이 안 정해진 등록 건 (서버별 누적에는 들어가지 않는다) */
-  waiting: AllianceRow[];
+  waiting: AllianceGroup[];
+  records: AllianceGroup[];
   totals: AllianceTotal[];
   serverList: string[];
   unit: string;

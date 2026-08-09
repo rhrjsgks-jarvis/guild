@@ -147,6 +147,17 @@ const DICT: Record<string, Entry> = {
     '📷 截图（自动识别并勾选参与者）',
     '📷 Screenshot (participants are detected and ticked for you)',
   ],
+  'items.photoMulti': [
+    '여러 장을 한꺼번에 고를 수 있습니다. 장마다 찾은 사람이 계속 더해집니다.',
+    '可一次选择多张。每张识别到的人会累加勾选。',
+    'You can pick several at once — matches from each add up.',
+  ],
+  'items.edit': ['수정', '修改', 'Edit'],
+  'items.editSub': [
+    '아직 분배하지 않은 아이템만 고칠 수 있습니다. 참여자를 바꾸면 참여횟수도 다시 계산됩니다.',
+    '仅可修改尚未分配的物品。改动参与者后参与次数会重新统计。',
+    'Only items that have not been distributed yet. Changing participants recounts attendance.',
+  ],
   'items.photoPick': ['📎 사진 선택 / 촬영', '📎 选择照片 / 拍摄', '📎 Choose or take a photo'],
   'items.photoAlt': ['인증샷 미리보기', '截图预览', 'Screenshot preview'],
   'items.ocrShow': ['🔍 인식된 텍스트 보기', '🔍 查看识别文本', '🔍 Show recognised text'],
@@ -275,15 +286,15 @@ const DICT: Record<string, Entry> = {
   'ali.title': ['연합 정산', '联盟结算', 'Alliance ledger'],
   'ali.byServer': ['서버별 누적', '各服务器累计', 'Totals by server'],
   'ali.records': ['🧾 정산 완료', '🧾 已结算', '🧾 Settled'],
-  'ali.register': ['연합 등록 (사진)', '登记联盟（照片）', 'Register (photo)'],
+  'ali.register': ['연합 등록', '登记联盟', 'Register'],
   'ali.registerSub': [
-    '서버·아이템명과 인증샷만 먼저 넣습니다. 금액은 팔린 뒤에 넣습니다.',
-    '先填服务器、物品名和截图。金额等卖出后再填。',
-    'Server, item name and the screenshot first. The amount comes after it sells.',
+    '아이템명과 참여 서버별 인원만 먼저 넣습니다. 금액은 팔린 뒤에 넣습니다.',
+    '先填物品名和各服务器参与人数。金额等卖出后再填。',
+    'Item name and the head count per server first. The amount comes after it sells.',
   ],
   'ali.registerHint': [
-    '혈맹 아이템과 같은 순서입니다 — 먼저 등록해두고, 팔린 뒤에 [금액 넣기]로 서버에 누적하세요.',
-    '与血盟物品流程相同 — 先登记，卖出后用[填入金额]累计到服务器。',
+    '혈맹 아이템과 같은 순서입니다 — 먼저 등록해두고, 팔린 뒤에 [금액 넣기]로 나누세요.',
+    '与血盟物品流程相同 — 先登记，卖出后用[填入金额]分配。',
     'Same flow as guild items — register now, then use [Enter amount] once it sells.',
   ],
   'ali.waitingSect': ['금액 대기 중', '待填金额', 'Awaiting amount'],
@@ -294,10 +305,30 @@ const DICT: Record<string, Entry> = {
   ],
   'ali.credit': ['금액 넣기', '填入金额', 'Enter amount'],
   'ali.creditSub': [
-    '{s} 서버 · {n}명 — 금액을 넣으면 이 서버에 누적됩니다.',
-    '{s} 服 · {n}人 — 填入金额后累计到该服务器。',
-    'Server {s} · {n} people — the amount is credited to this server.',
+    '서버 {sv}곳 · 모두 {n}명 — 혈비를 뗀 나머지를 인원수에 맞춰 나눕니다.',
+    '{sv} 个服务器 · 共 {n} 人 — 扣除运营费后按人数分配。',
+    '{sv} servers · {n} people — the pool is split by head count after the guild fee.',
   ],
+  /* v11.0 — 아이템 하나에 여러 서버 · 사진 여러 장 */
+  'ali.serversLabel': ['참여 서버 · 인원', '参与服务器 · 人数', 'Servers & head count'],
+  'ali.addServer': ['＋ 서버 추가', '＋ 添加服务器', '+ Add server'],
+  'ali.dupServer': [
+    '같은 서버를 두 번 넣을 수 없습니다.',
+    '同一服务器不能填两次。',
+    'The same server cannot be added twice.',
+  ],
+  'ali.photosLabel': ['인증샷 (선택 · 여러 장)', '截图（可选 · 多张）', 'Screenshots (optional, multiple)'],
+  'ali.photoAdd': ['📷 사진 추가', '📷 添加照片', '📷 Add photo'],
+  'ali.photoOptional': [
+    '인증샷은 없어도 등록됩니다. 사진을 넣으면 인원수를 대신 세어줍니다.',
+    '没有截图也能登记。上传照片可自动统计人数。',
+    'Screenshots are optional. If you add one, it counts heads for you.',
+  ],
+  'ali.photoN': ['📷 {n}장', '📷 {n} 张', '📷 {n}'],
+  'ali.remove': ['빼기', '移除', 'Remove'],
+  'ali.fundShare': ['🏦 {fund} (혈비 + 잔여)', '🏦 {fund}（运营费 + 余数）', '🏦 {fund} (fee + remainder)'],
+  'ali.detail': ['참여 서버 보기', '查看参与服务器', 'View servers'],
+  'ali.serverLine': ['{s} 서버 · {n}명', '{s} 服 · {n}人', 'Server {s} · {n}'],
   'ali.add': ['연합 정산 등록', '登记联盟结算', 'Add alliance entry'],
   'ali.photoCount': ['인증샷으로 인원 세기', '用截图统计人数', 'Count people from a screenshot'],
   'ali.empty': ['등록된 연합 정산이 없습니다.', '暂无联盟结算记录。', 'No alliance entries yet.'],
@@ -488,6 +519,7 @@ const DICT: Record<string, Entry> = {
   ],
   'sv.none': ['미지정', '未设置', 'none'],
   'sv.noneChip': ['서버 미지정', '未设服务器', 'No server'],
+
   'sv.allDone': [
     '서버가 비어 있는 사람이 없습니다.',
     '没有未设置服务器的成员。',
@@ -888,25 +920,26 @@ const DICT: Record<string, Entry> = {
   's.post.ok': ['✅ 글을 등록했습니다.', '✅ 已发布。', '✅ Posted.'],
   's.post.noticeOk': ['✅ 공지를 등록했습니다.', '✅ 已发布公告。', '✅ Notice posted.'],
   's.post.delOk': ['✅ 삭제했습니다.', '✅ 已删除。', '✅ Deleted.'],
-  's.ally.regOk': [
-    '✅ {s}서버 "{item}" 등록 완료 ({n}명) — 팔린 뒤 금액을 넣어주세요.',
-    '✅ 已登记 {s} 服「{item}」（{n}人）— 卖出后请填入金额。',
-    '✅ Registered "{item}" on server {s} ({n} people) — add the amount once it sells.',
-  ],
   's.e.allyDone': [
     '"{item}" 은(는) 이미 정산된 건입니다. 새로고침해주세요.',
     '「{item}」已结算，请刷新。',
     '"{item}" is already settled. Refresh.',
   ],
-  's.ally.ok': [
-    '✅ {s}서버에 {credited}다이아 누적했습니다 ({n}명 참여).',
-    '✅ 已在 {s} 服累计 {credited}钻石（{n}人参与）。',
-    '✅ Added {credited} dia to server {s} ({n} participants).',
+  /* ── 연합 v11.0 — 여러 서버 · 서버별 인원 · 사진 여러 장 ── */
+  's.ally.regMulti': [
+    '✅ "{item}" 등록 완료 — 서버 {sv}곳 · {n}명 (금액은 팔린 뒤에)',
+    '✅ 已登记 "{item}" — {sv} 个服务器 · {n} 人（金额待售出后填）',
+    '✅ Registered "{item}" — {sv} servers · {n} people (amount comes later)',
   ],
-  's.ally.delOk': [
-    '✅ 삭제했습니다 — {s}서버 {item} {credited}다이아',
-    '✅ 已删除 — {s} 服 {item} {credited}钻石',
-    '✅ Deleted — server {s}, {item}, {credited} dia',
+  's.ally.creditMulti': [
+    '✅ "{item}" {amount} 정산 완료 — {fund} {fundTotal} · {where}',
+    '✅ "{item}" {amount} 结算完成 — {fund} {fundTotal} · {where}',
+    '✅ Settled "{item}" {amount} — {fund} {fundTotal} · {where}',
+  ],
+  's.ally.delMulti': [
+    '✅ 삭제했습니다 — {item} (적립 {credited} 회수 · {fund} 회수)',
+    '✅ 已删除 — {item}（收回累计 {credited} · 运营费 {fund}）',
+    '✅ Deleted — {item} (reclaimed {credited} · fund {fund})',
   ],
   's.photo.count': [
     '📷 사진에서 {n}명으로 읽었습니다. 실제 인원과 다르면 숫자를 직접 고쳐주세요.',
@@ -1002,6 +1035,21 @@ const DICT: Record<string, Entry> = {
   's.e.titleLong': ['제목이 너무 깁니다 ({max}자 이내).', '标题太长（{max} 字以内）。', 'The title is too long ({max} characters max).'],
   's.e.bodyLong': ['내용이 너무 깁니다 ({max}자 이내).', '内容太长（{max} 字以内）。', 'The body is too long ({max} characters max).'],
   's.e.badServer': ['서버를 01~12 중에서 선택해주세요.', '请从 01~12 中选择服务器。', 'Pick a server from 01–12.'],
+  's.e.dupServer': [
+    '{s}서버가 두 번 들어갔습니다. 한 줄로 합쳐주세요.',
+    '{s} 服重复了，请合并成一行。',
+    'Server {s} appears twice — merge it into one line.',
+  ],
+  's.e.noParts': [
+    '참여자를 한 명 이상 골라주세요.',
+    '请至少选择一名参与者。',
+    'Pick at least one participant.',
+  ],
+  's.item.editOk': [
+    '✅ "{item}" 수정 완료 — 참여 {n}명',
+    '✅ 已修改 "{item}" — 参与 {n} 人',
+    '✅ Updated "{item}" — {n} participants',
+  ],
   's.e.itemEmpty': ['아이템명을 입력해주세요.', '请输入物品名称。', 'Enter the item name.'],
   's.e.badAmount': ['금액은 양의 정수여야 합니다.', '金额必须是正整数。', 'The amount must be a positive whole number.'],
   's.e.badWeight': [
