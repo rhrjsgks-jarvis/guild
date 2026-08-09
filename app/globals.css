@@ -578,6 +578,39 @@ button {
 }
 
 /* 지정된 서버는 다른 화면과 같은 배지 (v10.8.9) */
+/* 기록을 가져올 옛 아이디 고르기 — 목록의 한 줄이 버튼이다 (v10.9.1) */
+.svrow.pick {
+  width: 100%;
+  text-align: left;
+  background: none;
+  font: inherit;
+  color: inherit;
+}
+
+.svrow.pick:disabled {
+  opacity: 0.5;
+}
+
+/* 이름 앞의 서버 배지 — 다른 화면과 같은 모양 */
+.svrow .nm .svr {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  vertical-align: 1px;
+}
+
+/* 따라올 금액 — 0 이면 조용히, 남아 있으면 눈에 띄게 */
+.svrow .cur.has {
+  color: var(--pending);
+}
+
 .svrow .svr {
   flex: none;
   display: inline-block;

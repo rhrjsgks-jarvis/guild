@@ -1346,6 +1346,58 @@ check('명단의 [혈맹·서버] 표시는 이름에서 떼어내되, 애매하
   return `떼어내기 ${cases.length}케이스 (시트·모의 동일) · 확인필요 처리 · 원문 표시 · 서버 칩`;
 });
 
+check('기록 가져오기는 고르는 자리에서만 하고, 아이디 칸으로는 못 합친다', () => {
+  const ros = readFileSync(resolve(ROOT, 'components/RosterCard.tsx'), 'utf8');
+
+  // ① 아이디 칸에 이미 있는 이름을 치면 막는다 (v10.9.1).
+  //    예전에는 곧바로 "합칠까요?" 가 떠서, 오타 하나로 두 사람 잔액이 합쳐질 수 있었다.
+  if (!/const taken = changed/.test(ros)) throw new Error('아이디 중복 검사가 없습니다.');
+  if (!/normName\(m\.name\) === normName\(trimmed\)/.test(ros)) {
+    throw new Error('아이디 중복을 _normName 없이 비교합니다 (규칙 4).');
+  }
+  if (!/const dirty = \(changed && !taken\)/.test(ros)) {
+    throw new Error('중복 아이디인데도 저장 버튼이 살아 있습니다.');
+  }
+  if (!/ros\.idTaken/.test(ros)) throw new Error('왜 막혔는지 알려주지 않습니다.');
+
+  // ② 가져올 후보에서 자기 자신과 혈비를 뺀다.
+  //    자신을 고르는 것은 뜻이 없고, 혈비는 사람이 아니라 길드의 금고다.
+  const cand = (ros.match(/const candidates = useMemo\([\s\S]*?\n  \);/) ?? [''])[0];
+  if (!cand) throw new Error('가져올 후보 목록이 없습니다.');
+  if (!/!m\.isFund/.test(cand)) throw new Error('혈비 계정을 후보에서 빼지 않습니다.');
+  if (!/normName\(m\.name\) !== normName\(member\.name\)/.test(cand)) {
+    throw new Error('자기 자신을 후보에서 빼지 않습니다.');
+  }
+
+  // ③ 서버가 되묻기 전에는 절대 실행하지 않는다 (규칙 5-1).
+  //    앱이 confirmMerge 를 임의로 채우면 안전장치가 통째로 무력화된다.
+  const pull = (ros.match(/async function pull\([\s\S]*?\n  \}/) ?? [''])[0];
+  if (!pull) throw new Error('가져오기 실행 함수가 없습니다.');
+  if (!/confirmMerge,/.test(pull) || /confirmMerge: true/.test(pull)) {
+    throw new Error('가져오기가 확인값을 임의로 채웁니다.');
+  }
+  if (!/res\.needsConfirm/.test(pull)) throw new Error('서버의 되묻기를 무시합니다.');
+  if (!/void pull\(m, false\)/.test(ros)) throw new Error('처음부터 확인 없이 실행합니다.');
+  // 확인 화면의 실행 버튼이 실제로 가져오기를 부르는지
+  if (!/from \? pull\(from, true\) : save\(true\)/.test(ros)) {
+    throw new Error('확인 뒤에 가져오기가 실행되지 않습니다.');
+  }
+  // 따라올 금액을 후보마다 보여준다 — 이걸 보고 같은 사람인지 판단한다
+  if (!/fmt\(m\.pending\)/.test(ros)) throw new Error('후보의 따라올 금액을 보여주지 않습니다.');
+
+  // ④ 추가 입구는 하나다 (v10.9.1). 같은 일을 하는 버튼이 둘이면 무엇이 다른지 묻게 된다.
+  if (/AddSheet/.test(ros)) throw new Error('한 명 추가 전용 화면이 남아 있습니다.');
+  const addBtns = (ros.match(/onClick=\{\(\) => setBulk\(true\)\}/g) ?? []).length;
+  if (addBtns !== 1) throw new Error(`추가 버튼이 ${addBtns}개입니다 — 하나여야 합니다.`);
+
+  const dict = readFileSync(resolve(ROOT, 'lib/i18n.tsx'), 'utf8');
+  const used = new Set([...ros.matchAll(/t\('(ros\.pull[\w.]*|ros\.idTaken)'/g)].map((m) => m[1]));
+  const missing = [...used].filter((k) => !dict.includes(`'${k}':`));
+  if (missing.length) throw new Error(`사전에 없는 문구: ${missing.join(', ')}`);
+
+  return `중복 아이디 차단 · 후보에서 본인/혈비 제외 · 되묻기 유지 · 추가 입구 1개 · 문구 ${used.size}개`;
+});
+
 check('개명 병합이 멤버DB에 같은 이름을 두 줄 남기지 않는다', () => {
   // "먼저 신규로 넣어두고 나중에 옛 아이디에서 불러오는" 흐름에서 늘 생긴다.
   // 잔액은 예전에도 합쳐졌지만 멤버DB에 옛 행이 이름만 바뀐 채 남아,

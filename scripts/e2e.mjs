@@ -1590,6 +1590,89 @@ await t('혈맹원 관리: 아이디 바로 아래에 한자표기 칸이 있다
   if (roster.data.some((m) => m.name === 'TC무식')) throw new Error('옛 이름 행이 남아 있습니다.');
 });
 
+await t('혈맹원 추가 버튼 하나로 한 명도 여럿도 넣는다 (화면)', async () => {
+  await reset();
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.locator('.nav button').last().click();
+  await page.waitForTimeout(900);
+
+  // 같은 일을 하는 버튼이 둘이면 무엇이 다른지 묻게 된다 — 입구는 하나다
+  if ((await page.getByRole('button', { name: /명단 일괄 추가/ }).count()) > 0) {
+    throw new Error('[명단 일괄 추가] 버튼이 남아 있습니다.');
+  }
+  await page.getByRole('button', { name: /혈맹원 추가/ }).first().click();
+  await page.waitForTimeout(600);
+
+  // 한 명만 넣을 때도 같은 화면 — 이름 하나만 적으면 된다
+  await page.locator('#bulkText').fill('혼자온사람');
+  await page.locator('.sheet-actions .btn:not(.ghost)').last().click();
+  await page.waitForTimeout(1500);
+  const row = page.locator('.bulk-row').filter({ hasText: '혼자온사람' }).first();
+  if (!(await row.isVisible())) throw new Error('한 명 입력이 판정 화면으로 넘어가지 않았습니다.');
+  // 시트는 confirm === true 없이는 쓰지 않는다 (규칙 5-4) — 앱이 한 번 더 물어본다.
+  // 브라우저 기본 동작은 "취소"라서, 받아들이는 쪽을 명시해야 실제 흐름이 돌아간다.
+  page.once('dialog', (d) => void d.accept());
+  await page.getByRole('button', { name: /추가 1/ }).click();
+  await page.waitForTimeout(2200);
+
+  const roster = (await (await fetch(`${APP}/api/admin/roster`, { headers: { Cookie: cookie } })).json()).data;
+  if (!roster.some((m) => m.name === '혼자온사람')) throw new Error('한 명 추가가 반영되지 않았습니다.');
+  await reset();
+});
+
+await t('이전 아이디에서 기록 가져오기 (화면) — 중복 아이디는 막힌다', async () => {
+  await reset();
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.locator('.nav button').last().click();
+  await page.waitForTimeout(900);
+
+  // '팩맨'(기록 0)을 열어 '가이'(분배전 12,400)의 기록을 가져온다
+  await page.locator('.row').filter({ hasText: '팩맨' }).first().getByRole('button', { name: '관리' }).click();
+  await page.waitForTimeout(600);
+
+  // ① 아이디 칸에 이미 있는 이름을 치면 막힌다 — 오타 하나로 두 사람이 합쳐지던 자리다
+  await page.locator('.sheet input#newName').fill('가이');
+  await page.waitForTimeout(300);
+  const warn = await page.locator('.sheet .note').filter({ hasText: '이미 명단에 있는' }).first().innerText();
+  if (!warn.includes('가이')) throw new Error(`중복 안내가 없습니다: "${warn}"`);
+  const saveBtn = page.locator('.sheet .sheet-actions .btn:not(.ghost)').first();
+  if (await saveBtn.isEnabled()) throw new Error('중복 아이디인데 저장이 눌립니다.');
+  await page.locator('.sheet input#newName').fill('팩맨');
+  await page.waitForTimeout(300);
+
+  // ② 가져오기 화면 — 본인과 혈비는 후보에 없어야 한다
+  await page.getByRole('button', { name: /이전 아이디에서 불러오기/ }).click();
+  await page.waitForTimeout(500);
+  const names = await page.locator('.sheet .svrow .nm').allInnerTexts();
+  if (names.some((n) => n.includes('팩맨'))) throw new Error('자기 자신이 후보에 있습니다.');
+  if (names.some((n) => n.includes('혈맹운영비'))) throw new Error('혈비 계정이 후보에 있습니다.');
+  // 따라올 금액이 후보마다 보여야 같은 사람인지 판단할 수 있다
+  const guyRow = page.locator('.sheet .svrow').filter({ hasText: '가이' }).first();
+  if (!(await guyRow.innerText()).includes('12,400')) throw new Error('따라올 금액이 안 보입니다.');
+  await shot('27-pull-from');
+
+  // ③ 고르면 서버가 구체적인 숫자로 되묻는다 (규칙 5-1)
+  await guyRow.click();
+  await page.waitForTimeout(1500);
+  const ask = await page.locator('.sheet .note').first().innerText();
+  if (!ask.includes('12,400')) throw new Error(`되물을 때 금액이 없습니다: ${ask.replace(/\n/g, ' ')}`);
+
+  await page.getByRole('button', { name: /합치기|가져오기/ }).last().click();
+  await page.waitForTimeout(2000);
+
+  // ④ 기록이 넘어오고, 옛 아이디는 사라지고, 같은 이름이 두 줄 남지 않는다
+  const after = (await (await fetch(`${APP}/api/admin/roster`, { headers: { Cookie: cookie } })).json()).data;
+  eq(after.filter((m) => m.name === '팩맨').length, 1, '병합 뒤 줄 수');
+  eq(after.some((m) => m.name === '가이'), false, '옛 아이디는 사라진다');
+  eq(after.find((m) => m.name === '팩맨')?.pending, 12400, '분배전 승계');
+
+  const st = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
+  const merged = st.rows.find((r) => r.name === '팩맨');
+  eq(merged.paid, 88000, '분배완료 승계');
+  eq(merged.cnt, 31, '참여횟수 승계');
+  await reset();
+});
+
 await t('잔액 목록에 서버 번호가 붙는다', async () => {
   await page.locator('.nav button').filter({ hasText: /잔액/ }).click();
   await page.waitForTimeout(600);

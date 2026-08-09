@@ -1,12 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import BulkMemberSheet from './BulkMemberSheet';
 import ServerBulkSheet from './ServerBulkSheet';
 import ServerPicker from './ServerPicker';
 import Sheet from './Sheet';
 import type { RenameRecord, RosterEntry } from '@/lib/types';
-import { api, fmt, fullName, fundFirst, getStoredEmail, mergeName, normServer } from '@/lib/client';
+import { api, fmt, fullName, fundFirst, getStoredEmail, mergeName, normName, normServer } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
@@ -32,7 +32,6 @@ export default function RosterCard({
   const [roster, setRoster] = useState<RosterEntry[] | null>(null);
   const [error, setError] = useState('');
   const [target, setTarget] = useState<RosterEntry | null>(null);
-  const [adding, setAdding] = useState(false);
   const [bulk, setBulk] = useState(false);
   const [svBulk, setSvBulk] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -60,7 +59,6 @@ export default function RosterCard({
 
   const done = (res?: ApiResult) => {
     setTarget(null);
-    setAdding(false);
     setBulk(false);
     void load();
     onChanged(res);
@@ -90,12 +88,8 @@ export default function RosterCard({
         ) : (
           <>
             <div className="field" style={{ paddingBottom: 10 }}>
-              <button className="btn block" onClick={() => setAdding(true)}>
+              <button className="btn block" onClick={() => setBulk(true)}>
                 {t('ros.add')}
-              </button>
-              {/* 명단을 통째로 받아오는 길 — 한 명씩 넣는 것은 40명 규모에서 현실적이지 않다 */}
-              <button className="btn ghost block" style={{ marginTop: 8 }} onClick={() => setBulk(true)}>
-                📋 {t('bulk.title')}
               </button>
               {/* 서버를 한 명씩 넣으려면 40번 열었다 닫아야 한다 — 한 화면에서 끝내는 길 */}
               <button className="btn ghost block" style={{ marginTop: 8 }} onClick={() => setSvBulk(true)}>
@@ -155,7 +149,6 @@ export default function RosterCard({
           toast={toast}
         />
       ) : null}
-      {adding ? <AddSheet onClose={() => setAdding(false)} onDone={done} toast={toast} /> : null}
       {bulk ? (
         <BulkMemberSheet
           servers={servers}
@@ -174,6 +167,7 @@ export default function RosterCard({
       {target ? (
         <MemberSheet
           member={target}
+          roster={roster ?? []}
           unit={unit}
           servers={servers}
           inUse={inUse}
@@ -245,63 +239,13 @@ function RenameHistoryCard() {
 
 /* ───────────────────────── 추가 ───────────────────────── */
 
-function AddSheet({
-  onClose,
-  onDone,
-  toast,
-}: {
-  onClose: () => void;
-  onDone: (res?: ApiResult) => void;
-  toast: (msg: string, isError?: boolean) => void;
-}) {
-  const { t, srv } = useT();
-  const [name, setName] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  async function submit() {
-    setBusy(true);
-    const res = await api('/api/admin/member', { name: name.trim(), email: getStoredEmail() });
-    setBusy(false);
-    toast(srv(res, res.ok ? 'r.added' : 'r.addFailed'), !res.ok);
-    if (res.ok) onDone(res);
-  }
-
-  return (
-    <Sheet title={t('ros.add')} subtitle={t('ros.addSub')} onClose={onClose}>
-      <label className="fl" htmlFor="addName">
-        {t('ros.id')}
-      </label>
-      <input
-        id="addName"
-        type="text"
-        placeholder={t('ros.idPh')}
-        value={name}
-        autoFocus
-        onChange={(e) => setName(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && name.trim()) void submit();
-        }}
-      />
-      <p className="hint">{t('ros.idHint')}</p>
-
-      <div className="sheet-actions">
-        <button className="btn ghost" onClick={onClose}>
-          {t('c.cancel')}
-        </button>
-        <button className="btn" disabled={!name.trim() || busy} onClick={submit}>
-          {busy ? t('ros.adding') : t('ros.addDo')}
-        </button>
-      </div>
-    </Sheet>
-  );
-}
-
 /* ──────────────────── 아이디 변경 · 탈퇴 ──────────────────── */
 
-type Mode = 'edit' | 'confirmMerge' | 'confirmRemove';
+type Mode = 'edit' | 'pickFrom' | 'confirmMerge' | 'confirmRemove';
 
 function MemberSheet({
   member,
+  roster,
   unit,
   servers,
   inUse,
@@ -310,6 +254,8 @@ function MemberSheet({
   toast,
 }: {
   member: RosterEntry;
+  /** 전체 명단 — "이전 아이디에서 불러오기" 후보와 중복 검사에 쓴다 (v10.9.1) */
+  roster: RosterEntry[];
   unit: string;
   servers: string[];
   /** 실제로 인원이 있는 서버 — 안 쓰는 서버는 접어 둔다 */
@@ -323,6 +269,8 @@ function MemberSheet({
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<Mode>('edit');
   const [warning, setWarning] = useState('');
+  /** 기록을 가져올 옛 아이디 (v10.9.1) */
+  const [from, setFrom] = useState<RosterEntry | null>(null);
 
   const [weight, setWeight] = useState(member.weight ?? 100);
   // `1` 로 저장된 사람도 `01` 칩이 켜져 보여야 한다 — 안 그러면 아무것도 안 고른 것처럼 보인다
@@ -331,12 +279,66 @@ function MemberSheet({
 
   const trimmed = newName.trim();
   const changed = trimmed.length > 0 && trimmed !== member.name;
+
+  /**
+   * 이미 명단에 있는 아이디로는 바꿀 수 없다 (v10.9.1).
+   *
+   * 예전에는 여기에 남의 이름을 치면 곧바로 "합칠까요?" 가 떴다. 개명하려던
+   * 관리자가 오타 하나로 두 사람 잔액을 합쳐버리기 좋은 자리였다.
+   * 기록을 가져오는 일은 아래 [이전 아이디에서 불러오기]로만 하게 하고,
+   * 여기서는 **막고 그쪽을 가리킨다.**
+   */
+  const taken = changed
+    ? (roster.find((m) => normName(m.name) === normName(trimmed) && m.name !== member.name) ?? null)
+    : null;
+
   const hanjaChanged = hanja.trim() !== (member.hanja ?? '').trim();
   // 잔액·아이템에 실제로 나갈 모양을 그대로 보여준다 — 화면과 같은 함수를 쓴다
   const preview = fullName(trimmed || member.name, hanja);
   const settingsChanged =
     hanjaChanged || weight !== (member.weight ?? 100) || server !== normServer(member.server);
-  const dirty = changed || settingsChanged;
+  const dirty = (changed && !taken) || settingsChanged;
+
+  /**
+   * 기록을 가져올 후보 (v10.9.1).
+   *
+   * 자기 자신과 혈비 계정은 뺀다 — 자신을 고르는 것은 뜻이 없고, 혈비는
+   * 사람이 아니라 길드의 금고라 누구에게도 합쳐지면 안 된다.
+   * 잔액이 남은 사람을 위로 올린다 — 합쳤을 때 실제로 옮겨오는 것이 그 값이다.
+   */
+  const candidates = useMemo(
+    () =>
+      roster
+        .filter((m) => !m.isFund && normName(m.name) !== normName(member.name))
+        .sort((a, b) => b.pending - a.pending),
+    [roster, member.name],
+  );
+
+  /**
+   * 옛 아이디의 기록을 이 아이디로 가져온다 — 서버의 개명 병합을 그대로 쓴다.
+   *
+   * ★ 먼저 `confirmMerge` 없이 불러 **서버가 구체적인 숫자로 되묻게** 한다 (규칙 5-1).
+   *   앱이 임의로 true 를 채우면 안전장치가 통째로 무력화된다.
+   */
+  async function pull(target: RosterEntry, confirmMerge: boolean) {
+    setBusy(true);
+    const res = await api('/api/admin/rename', {
+      oldName: target.name,
+      newName: member.name,
+      email: getStoredEmail(),
+      confirmMerge,
+    });
+    setBusy(false);
+
+    if (res.needsConfirm) {
+      setFrom(target);
+      setWarning(srv(res));
+      setMode('confirmMerge');
+      return;
+    }
+    toast(srv(res, res.ok ? 'r.saved' : 'r.changeFailed'), !res.ok);
+    if (res.ok) onDone(res);
+  }
 
   /**
    * 이 사람에 대한 변경을 **한 번에** 저장한다 (v10.8.2).
@@ -418,6 +420,54 @@ function MemberSheet({
     if (res.ok) onDone(res);
   }
 
+  /* 어느 캐릭터의 기록을 이 아이디로 가져올지 고르는 화면 (v10.9.1) */
+  if (mode === 'pickFrom') {
+    return (
+      <Sheet
+        title={t('ros.pullTitle')}
+        subtitle={t('ros.pullSub', { v: fullName(member.name, member.hanja) })}
+        onClose={() => setMode('edit')}
+      >
+        <div className="note">{t('ros.pullNote')}</div>
+        <div className="svlist" style={{ marginTop: 10 }}>
+          {candidates.length === 0 ? (
+            <div className="empty">{t('ros.pullNone')}</div>
+          ) : (
+            candidates.map((m) => {
+              const { main, sub } = mergeName(m.name, m.hanja);
+              return (
+                <button
+                  key={m.name}
+                  className="svrow pick"
+                  disabled={busy}
+                  onClick={() => void pull(m, false)}
+                >
+                  <span className="nm">
+                    {normServer(m.server) ? <i className="svr">{normServer(m.server)}</i> : null}
+                    {main}
+                    {sub ? <i>({sub})</i> : null}
+                  </span>
+                  {/* 합쳤을 때 실제로 옮겨오는 값 — 이걸 보고 같은 사람인지 판단한다 */}
+                  <span className={'cur' + (m.pending > 0 ? ' has' : '')}>
+                    {fmt(m.pending)} {unit}
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
+        <p className="hint" style={{ marginTop: 10 }}>
+          {t('ros.pullHint')}
+        </p>
+        <div className="sheet-actions">
+          <button className="btn ghost" onClick={() => setMode('edit')}>
+            {t('c.back')}
+          </button>
+        </div>
+      </Sheet>
+    );
+  }
+
   if (mode !== 'edit') {
     const merging = mode === 'confirmMerge';
     return (
@@ -441,7 +491,16 @@ function MemberSheet({
           >
             {t('c.back')}
           </button>
-          <button className="btn warn" disabled={busy} onClick={() => (merging ? save(true) : remove(true))}>
+          <button
+            className="btn warn"
+            disabled={busy}
+            onClick={() => {
+              if (!merging) return void remove(true);
+              // `from` 이 있으면 [이전 아이디에서 불러오기], 없으면 아이디 칸을 통한 개명이다.
+              // 두 경로 모두 서버가 되물은 뒤에만 여기에 온다.
+              return void (from ? pull(from, true) : save(true));
+            }}
+          >
             {merging ? t('ros.merge') : t('ros.removeDo')}
           </button>
         </div>
@@ -477,6 +536,14 @@ function MemberSheet({
       />
       <p className="hint">{t('ros.hanjaHint', { v: preview })}</p>
 
+      {/* 이미 있는 아이디로는 못 바꾼다 — 오타 하나로 두 사람 잔액이 합쳐지던 자리다 (v10.9.1).
+          기록을 가져오는 일은 아래 [이전 아이디에서 불러오기]로만 한다. */}
+      {taken ? (
+        <div className="note" style={{ marginTop: 8, color: 'var(--danger)' }}>
+          {t('ros.idTaken', { name: fullName(taken.name, taken.hanja) })}
+        </div>
+      ) : null}
+
       <div className="calc">
         <div className="calc-line">
           <span>{t('ros.carried')}</span>
@@ -491,6 +558,14 @@ function MemberSheet({
           </div>
         ) : null}
       </div>
+
+      {/* 옛 아이디의 기록을 이 아이디로 가져온다 (v10.9.1).
+          "먼저 신규로 넣어두고 나중에 이어붙이는" 흐름을 그 사람 화면에서 바로 할 수 있게 한다.
+          누구의 기록이 따라오는지 **고르고 눈으로 확인한 뒤** 실행한다. */}
+      <button className="btn ghost block" style={{ marginTop: 8 }} onClick={() => setMode('pickFrom')}>
+        ⏪ {t('ros.pullOpen')}
+      </button>
+      <p className="hint">{t('ros.pullOpenHint')}</p>
 
       <label className="fl" htmlFor="mw" style={{ marginTop: 12 }}>
         {t('ros.weight')}
