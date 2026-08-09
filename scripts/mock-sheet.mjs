@@ -27,7 +27,7 @@ const ST_DONE = '✅분배완료';
 // 앱이 기대하는 버전과 같은 값 — 화면에 "버전 불일치" 경고가 뜨지 않아야 정상이다.
 // ★ 한 곳에만 적는다. 여기저기 흩어 적으면 버전을 올릴 때 한 군데가 남아
 //   "실어 온 상태의 버전이 다르다"는 엉뚱한 실패로 나타난다 (실제로 겪었다).
-const GS_VERSION = '10.9';
+const GS_VERSION = '11.0';
 let MOCK_GS_VERSION = GS_VERSION;
 
 /**
@@ -43,7 +43,7 @@ function rc(res, code, vars) {
 
 /** .gs 의 API_WRITE_ACTIONS 와 같은 목록 — 상태를 실어 보낼 대상 판정에 쓴다 */
 const WRITE_ACTIONS = ['register', 'distribute', 'payout', 'rename', 'addMember', 'removeMember',
-                       'correctItem', 'deleteItem', 'undoPayout', 'runTool',
+                       'correctItem', 'deleteItem', 'editItem', 'undoPayout', 'runTool',
                        'deletePost', 'addAlliance', 'creditAlliance', 'deleteAlliance', 'updateMember',
                        'bulkAddMembers',
                        'addRaid', 'updateRaid', 'deleteRaid',
@@ -103,12 +103,17 @@ function freshState() {
       { id: 1, kind: 'notice', title: '이번 주 공성 일정', body: '토요일 21시 집합입니다.', author: '군주', at: '08/01 10:00' },
       { id: 2, kind: 'post', title: '레이드 파티 구합니다', body: '오늘 밤 9시요', author: 'PlusS', at: '08/03 19:20' },
     ],
+    // 연합 — 시트와 같이 **서버마다 한 줄**이고, 같은 묶음(group)이 아이템 하나다 (v11.0)
     alliance: [
-      { row: 2, date: '08/02 14:00', server: '03', item: '연합 보스', amount: 40000, pct: 50, people: 12, credited: 20000, photo: '', done: true },
+      { row: 2, group: 'A1', date: '08/02 14:00', server: '03', item: '연합 보스',
+        amount: 40000, pct: 0, people: 12, credited: 24000, photos: [], fund: 12000, done: true },
+      { row: 3, group: 'A1', date: '08/02 14:00', server: '05', item: '연합 보스',
+        amount: 40000, pct: 0, people: 6, credited: 12000, photos: [], fund: 0, done: true },
       // 금액을 기다리는 등록 건 — v10.3 의 2단계 흐름을 화면에서 볼 수 있게
-      { row: 3, date: '08/05 21:00', server: '05', item: '연합 레이드', amount: 0, pct: 0, people: 18, credited: 0, photo: '', done: false },
+      { row: 4, group: 'A2', date: '08/05 21:00', server: '05', item: '연합 레이드',
+        amount: 0, pct: 0, people: 18, credited: 0, photos: [], fund: 0, done: false },
     ],
-    nextAllianceRow: 4,
+    nextAllianceRow: 5,
     // 보스 시간표 (v10.8) — 요일은 1(월)~7(일). 요일마다 한 줄이다.
     raid: [
       { row: 2, day: 1, time: '20:20', boss: '다이아몬드골렘', note: '' },
@@ -245,6 +250,31 @@ function findRow(name) {
   return S.rows.find((r) => norm(r.name) === norm(name));
 }
 
+/**
+ * .gs 의 _recalcAllParticipationCounts — 참여횟수는 **전부 다시 센다.**
+ * 증감으로 맞추면 한 번만 어긋나도 영원히 틀어진 채로 남는다 (규칙 3).
+ */
+function recalcCounts() {
+  const tally = new Map();
+  for (const it of [...S.items, ...S.done]) {
+    for (const nm of participantsOf(it)) {
+      tally.set(norm(nm), (tally.get(norm(nm)) ?? 0) + 1);
+    }
+  }
+  for (const r of S.rows) {
+    if (r.name === FUND_NAME) continue;
+    r.cnt = tally.get(norm(r.name)) ?? 0;
+  }
+}
+
+/** 혈맹운영비 잔액에 더한다 (음수면 뺀다). 참여횟수는 건드리지 않는다 — 다른 사건이다 (규칙 3) */
+function creditFund(delta) {
+  if (!delta) return;
+  const row = findRow(FUND_NAME);
+  if (row) row.pending = Math.max(row.pending + delta, 0);
+  else if (delta > 0) S.rows.push({ name: FUND_NAME, pending: delta, paid: 0, cnt: 0, weight: 100, server: '', hanja: '' });
+}
+
 /** 아이템의 참여자 명단 (없으면 혈비를 뺀 앞쪽 인원으로 근사) */
 function participantsOf(item) {
   if (item.names) return item.names;
@@ -321,7 +351,7 @@ const handlers = {
       : { ok: false, msg: '멤버DB에서 찾지 못했습니다. 이름을 다시 확인해주세요.' };
   },
 
-  register: ({ itemName, participants }) => {
+  register: ({ itemName, participants, photoLink, photoLinks }) => {
     const list = (participants || []).filter((p) => p && p !== FUND_NAME);
     if (!itemName) return rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
     if (list.length === 0) return rc({ ok: false, msg: '참여 멤버를 선택해주세요.' }, 'e.noParticipants');
@@ -331,15 +361,45 @@ const handlers = {
       const r = findRow(p);
       if (r) r.cnt += 1;
     });
+    // v11.0 — 한 아이템에 인증샷 여러 장. 옛 photoLink(한 장)도 그대로 받는다
+    const pics = ((photoLinks && photoLinks.length ? photoLinks : [photoLink]) || [])
+      .map((u) => String(u || '').trim())
+      .filter(Boolean);
     S.items.push({
       row: S.nextRow++,
       item: itemName,
       date: new Date().toISOString().slice(5, 10).replace('-', '/'),
       cnt: list.length,
       names: list,
+      photos: pics,
     });
     return rc({ ok: true, msg: `✅ "${itemName}" 등록 완료 (${list.length}명, ⏳미분배)` },
       'reg.ok', { item: itemName, n: list.length });
+  },
+
+  // ✏️ 미분배 아이템 수정 (v11.0, 마스터 전용) — 참여횟수는 전면 재계산한다
+  editItem: ({ row, itemName, participants }) => {
+    const it = S.items.find((i) => i.row === Number(row));
+    if (!it) return rc({ ok: false, msg: '이미 분배된 아이템입니다. [정정]을 사용해주세요.' }, 'e.alreadyDone');
+    const nm = String(itemName || '').trim();
+    if (!nm) return rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
+
+    const seen = new Set();
+    const parts = [];
+    for (const p of participants || []) {
+      const v = String(p || '').trim();
+      if (!v || seen.has(norm(v))) continue;
+      seen.add(norm(v));
+      parts.push(v);
+    }
+    if (parts.length === 0) return rc({ ok: false, msg: '참여자를 한 명 이상 골라주세요.' }, 'e.noParts');
+
+    it.item = nm;
+    it.names = parts;
+    it.cnt = parts.length;
+    recalcCounts();
+    return rc({ ok: true, item: nm, n: parts.length, msg: `✅ "${nm}" 수정 완료 — 참여 ${parts.length}명` },
+      'item.editOk', { item: nm, n: parts.length });
   },
 
   distribute: ({ row, amount }) => {
@@ -711,11 +771,36 @@ const handlers = {
         count: rows.length,
       };
     });
+
+    // 같은 묶음을 아이템 하나로 모은다 — 화면은 언제나 이 단위로 본다
+    const byGroup = new Map();
+    for (const r of S.alliance) {
+      if (!byGroup.has(r.group)) {
+        byGroup.set(r.group, {
+          group: r.group, date: r.date, item: r.item, by: '',
+          amount: 0, fund: 0, people: 0, credited: 0,
+          photos: [], servers: [], rows: [], done: r.done,
+        });
+      }
+      const g = byGroup.get(r.group);
+      g.servers.push({ server: r.server, people: r.people, credited: r.credited });
+      g.rows.push(r.row);
+      g.people += r.people;
+      g.credited += r.credited;
+      g.fund += r.fund;
+      if (r.amount > g.amount) g.amount = r.amount;
+      for (const u of r.photos) if (!g.photos.includes(u)) g.photos.push(u);
+      if (!r.done) g.done = false;
+    }
+    const groups = [...byGroup.values()].reverse();
+
     return {
       ok: true,
       data: {
         rows: [...S.alliance].reverse().map(shape),
-        waiting: [...S.alliance].filter((r) => !r.done).reverse().map(shape),
+        groups,
+        waiting: groups.filter((g) => !g.done),
+        records: groups.filter((g) => g.done),
         totals,
         serverList: SERVER_LIST,
         unit: UNIT,
@@ -723,48 +808,86 @@ const handlers = {
     };
   },
 
-  // ① 등록 — 금액은 받지 않는다 (v10.3)
-  addAlliance: ({ server, item, people }) => {
-    if (!SERVER_LIST.includes(String(server))) return rc({ ok: false, msg: '서버를 01~12 중에서 선택해주세요.' }, 'e.badServer');
+  // ① 등록 — 금액은 받지 않는다. 아이템 하나에 여러 서버 · 사진 여러 장 (v11.0)
+  addAlliance: ({ item, entries, photoLinks }) => {
     const nm = String(item || '').trim();
     if (!nm) return rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
-    const n = Math.max(Math.floor(Number(people) || 0), 0);
-    const row = S.nextAllianceRow++;
-    S.alliance.push({
-      row, date: '08/05 09:00', server: String(server), item: nm,
-      amount: 0, pct: 0, people: n, credited: 0, photo: '', done: false,
+
+    const list = (entries || [])
+      .map((e) => ({ server: String((e && e.server) || '').trim(), people: Math.max(Math.floor(Number(e && e.people) || 0), 0) }))
+      .filter((e) => e.server);
+    if (list.length === 0) return rc({ ok: false, msg: '참여한 서버를 하나 이상 넣어주세요.' }, 'e.badServer');
+
+    const seen = new Set();
+    for (const e of list) {
+      if (!SERVER_LIST.includes(e.server)) return rc({ ok: false, msg: '서버를 01~12 중에서 선택해주세요.' }, 'e.badServer');
+      // 같은 서버를 두 줄로 넣으면 인원이 갈려 분배 비율이 틀어진다
+      if (seen.has(e.server)) {
+        return rc({ ok: false, msg: `${e.server}서버가 두 번 들어갔습니다. 한 줄로 합쳐주세요.` }, 'e.dupServer', { s: e.server });
+      }
+      seen.add(e.server);
+    }
+
+    const group = 'A' + S.nextAllianceRow;
+    const pics = (photoLinks || []).map((u) => String(u || '').trim()).filter(Boolean);
+    list.forEach((e, i) => {
+      S.alliance.push({
+        row: S.nextAllianceRow++, group, date: '08/05 09:00', server: e.server, item: nm,
+        amount: 0, pct: 0, people: e.people, credited: 0, photos: i === 0 ? pics : [], fund: 0, done: false,
+      });
     });
-    return rc({ ok: true, server, row, people: n, msg: `✅ ${server}서버 "${nm}" 등록 완료 (${n}명, ${ST_WAIT})` },
-      'ally.regOk', { s: server, item: nm, n });
+
+    const total = list.reduce((a, e) => a + e.people, 0);
+    const where = list.map((e) => `${e.server}서버 ${e.people}명`).join(' · ');
+    return rc({ ok: true, group, servers: list.length, people: total,
+                msg: `✅ "${nm}" 등록 완료 — ${where} (${ST_WAIT})` },
+      'ally.regMulti', { item: nm, sv: list.length, n: total });
   },
 
-  // ② 정산 — 등록해둔 건에 금액·비중을 넣는다 (v10.3)
-  creditAlliance: ({ row, amount, pct }) => {
-    const rec = S.alliance.find((r) => r.row === Number(row));
-    if (!rec) return rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+  // ② 정산 — 혈비를 떼고 인원수 비례로 서버에 나눈다 (v11.0)
+  creditAlliance: ({ group, amount }) => {
+    const targets = S.alliance.filter((r) => r.group === String(group));
+    if (targets.length === 0) return rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
     const amt = Number(amount);
     if (!Number.isInteger(amt) || amt <= 0) return rc({ ok: false, msg: '금액은 양의 정수여야 합니다.' }, 'e.badAmount');
     // 두 번 누적되면 서버 총액이 틀어진다
-    if (rec.done) return rc({ ok: false, msg: '이미 정산된 건입니다. 새로고침해주세요.' }, 'e.allyDone', { item: rec.item });
+    if (targets.some((r) => r.done)) {
+      return rc({ ok: false, msg: '이미 정산된 건입니다. 새로고침해주세요.' }, 'e.allyDone', { item: targets[0].item });
+    }
 
-    let p = Math.round(Number(pct));
-    if (!Number.isFinite(p) || p < 1) p = 1;
-    if (p > 100) p = 100;
-    rec.amount = amt;
-    rec.pct = p;
-    rec.credited = Math.floor((amt * p) / 100);
-    rec.done = true;
-    return rc({ ok: true, credited: rec.credited, server: rec.server,
-                msg: `✅ ${rec.server}서버에 ${rec.credited.toLocaleString()}${UNIT} 누적했습니다 (${rec.people}명 참여).` },
-      'ally.ok', { s: rec.server, credited: rec.credited, n: rec.people });
+    // ★ .gs 의 _calcAlliance 와 같은 산식이어야 한다 (규칙 1)
+    const fund = Math.floor(amt * FUND_RATE);
+    const pool = amt - fund;
+    const people = targets.reduce((a, r) => a + r.people, 0);
+    const shares = targets.map((r) => (people > 0 ? Math.floor((pool * r.people) / people) : 0));
+    const fundTotal = fund + (pool - shares.reduce((a, b) => a + b, 0));
+
+    targets.forEach((r, i) => {
+      r.amount = amt;
+      r.credited = shares[i];
+      r.fund = i === 0 ? fundTotal : 0;
+      r.done = true;
+    });
+    // 혈맹운영비 잔액에 실제로 적립된다 (개인 잔액은 건드리지 않는다)
+    creditFund(fundTotal);
+
+    const where = targets.map((r, i) => `${r.server} ${r.people}명 ${shares[i].toLocaleString()}`).join(' · ');
+    return rc({ ok: true, group, credited: pool - (pool - shares.reduce((a, b) => a + b, 0)), fund: fundTotal, people,
+                msg: `✅ "${targets[0].item}" ${amt.toLocaleString()}${UNIT} 정산 완료 — ${FUND_NAME} ${fundTotal.toLocaleString()} · ${where}` },
+      'ally.creditMulti', { item: targets[0].item, amount: amt, fund: FUND_NAME, fundTotal, n: people, where });
   },
 
-  deleteAlliance: ({ row }) => {
-    const i = S.alliance.findIndex((r) => r.row === Number(row));
-    if (i < 0) return { ok: false, msg: '기록을 찾을 수 없습니다.' };
-    const [rec] = S.alliance.splice(i, 1);
-    return rc({ ok: true, msg: `✅ 삭제했습니다 — ${rec.server}서버 ${rec.item} ${rec.credited.toLocaleString()}${UNIT}` },
-      'ally.delOk', { s: rec.server, item: rec.item, credited: rec.credited });
+  deleteAlliance: ({ group }) => {
+    const hit = S.alliance.filter((r) => r.group === String(group));
+    if (hit.length === 0) return rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+    const item = hit[0].item;
+    const credited = hit.reduce((a, r) => a + r.credited, 0);
+    const fund = hit.reduce((a, r) => a + r.fund, 0);
+    S.alliance = S.alliance.filter((r) => r.group !== String(group));
+    // 적립했던 혈비를 되돌린다 — 안 그러면 지운 기록의 혈비만 잔액에 남는다
+    if (fund > 0) creditFund(-fund);
+    return rc({ ok: true, msg: `✅ 삭제했습니다 — ${item} ${credited.toLocaleString()}${UNIT}` },
+      'ally.delMulti', { item, credited, fund });
   },
 
   /* ── 레이드 (v10.8) — 실제 시트와 같은 판정을 흉내낸다 ── */

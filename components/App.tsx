@@ -307,7 +307,16 @@ export default function App() {
               onChanged={refreshNow}
             />
           ) : null}
-          {tab === 'alliance' ? <AllianceTab admin={admin} toast={toast} setBusy={setBusy} /> : null}
+          {tab === 'alliance' ? (
+            // 연합 정산은 혈맹운영비 잔액을 실제로 늘리고 줄인다 — 잔액 탭도 같이 맞춰야 한다
+            <AllianceTab
+              admin={admin}
+              fundName={state.fundName}
+              toast={toast}
+              setBusy={setBusy}
+              onWrote={refreshNow}
+            />
+          ) : null}
           {tab === 'raid' ? <RaidTab admin={admin} toast={toast} setBusy={setBusy} /> : null}
           {tab === 'me' ? <MeTab state={state} toast={toast} /> : null}
           {tab === 'admin' ? (

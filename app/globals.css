@@ -1343,3 +1343,91 @@ select:focus {
 .pin-eye:active {
   background: var(--surface-2);
 }
+
+/* ───────── 연합: 아이템 하나 = 여러 서버 (v11.0) ─────────
+   서버마다 "칩 한 줄 + 인원 한 칸"이다. 한 칸에 `01:5, 02:3` 처럼 몰아 적게 하면
+   오타가 그대로 분배 비율이 되므로, 고르는 것과 세는 것을 따로 둔다. */
+.ali-entry {
+  margin-top: 8px;
+  padding: 10px;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.ali-entry-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ali-entry-foot input {
+  width: 92px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.ali-entry-foot .hint {
+  margin-top: 0;
+  flex: 1;
+}
+
+/* 인증샷 여러 장 — 미리보기를 쌓으면 시트가 길어지므로 번호 배지로만 둔다 */
+.ali-photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.ali-photos .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 9px;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.ali-photos .badge .x {
+  font-size: 14px;
+  line-height: 1;
+  color: inherit;
+  opacity: 0.7;
+}
+
+/* 눌러서 상세를 여는 이름 — 버튼이지만 목록 줄에서는 글자처럼 보여야 한다 */
+.row-name.linkish {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 3px;
+}
+
+.hint.err {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+/* 인증샷 여러 장 — 장마다 상태와 [빼기]를 한 줄에 둔다 (v11.0) */
+.photo-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.photo-foot .hint {
+  margin-top: 0;
+  flex: 1;
+}

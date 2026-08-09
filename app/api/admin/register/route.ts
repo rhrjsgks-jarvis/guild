@@ -10,7 +10,13 @@ export async function POST(req: Request) {
   const denied = await requireAdmin();
   if (denied) return denied;
 
-  let body: { itemName?: unknown; participants?: unknown; photoLink?: unknown; email?: unknown };
+  let body: {
+    itemName?: unknown;
+    participants?: unknown;
+    photoLink?: unknown;
+    photoLinks?: unknown;
+    email?: unknown;
+  };
   try {
     body = await req.json();
   } catch {
@@ -27,12 +33,18 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, msg: '참여 멤버를 한 명 이상 선택해주세요.' }, { status: 400 });
   }
 
+  // v11.0 부터 한 아이템에 인증샷 여러 장. photoLink(한 장)는 옛 앱 호환으로 남긴다.
+  const photoLinks = (Array.isArray(body.photoLinks) ? body.photoLinks : [])
+    .map((u) => String(u ?? '').trim())
+    .filter((u) => /^https?:\/\//.test(u));
+
   const res = await callGas(
     'register',
     {
       itemName,
       participants,
       photoLink: String(body.photoLink ?? '').trim(),
+      photoLinks,
       email: String(body.email ?? '').trim(),
     },
     { timeoutMs: 45_000, withState: true },

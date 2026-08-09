@@ -54,7 +54,9 @@ export type GasAction =
   | 'deleteRaid'
   | 'setAppName'
   | 'setAdminPin'
-  | 'setSeasonServer';
+  | 'setSeasonServer'
+  /* v11.0 — 미분배 아이템 수정 (마스터관리자) */
+  | 'editItem';
 
 export type GasResponse = Record<string, unknown> & { ok: boolean; msg?: string };
 

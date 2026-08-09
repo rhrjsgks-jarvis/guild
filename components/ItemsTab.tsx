@@ -20,11 +20,16 @@ import { useT } from '@/lib/i18n';
 import LedgerCard from './LedgerCard';
 import ServerFilter, { NO_SERVER } from './ServerFilter';
 import ShareBtn from './ShareBtn';
+import Sheet from './Sheet';
 
 type PhotoState = {
+  /** 목록 안에서 이 장을 가리키는 값 — 분석이 끝나는 순서가 뒤섞여도 흔들리지 않는다 */
+  id: string;
   preview: string;
   status: string;
   ocr: string;
+  /** 드라이브에 저장된 원본 링크 — 등록할 때 이 목록을 그대로 보낸다 */
+  url: string;
 };
 
 export default function ItemsTab({
@@ -48,9 +53,12 @@ export default function ItemsTab({
   const [itemName, setItemName] = useState('');
   const [photoLink, setPhotoLink] = useState('');
   const [picked, setPicked] = useState<Set<string>>(new Set());
-  const [photo, setPhoto] = useState<PhotoState | null>(null);
-  const [showOcr, setShowOcr] = useState(false);
+  // v11.0 — 한 아이템에 인증샷 여러 장. 레이드 참여자가 한 화면에 다 안 들어가서
+  // 두세 장으로 나눠 찍는 일이 흔한데, 예전에는 마지막 한 장만 남았다.
+  const [photos, setPhotos] = useState<PhotoState[]>([]);
+  const [showOcr, setShowOcr] = useState('');
   const [confirming, setConfirming] = useState(false);
+  const [editing, setEditing] = useState<LedgerItem | null>(null);
   const [svPick, setSvPick] = useState<string[]>([]);
   const [showRest, setShowRest] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -119,14 +127,20 @@ export default function ItemsTab({
     setItemName('');
     setPhotoLink('');
     setPicked(new Set());
-    setPhoto(null);
-    setShowOcr(false);
+    setPhotos([]);
+    setShowOcr('');
     setSvPick([]);
     setShowRest(false);
     if (fileRef.current) fileRef.current.value = '';
   }
 
-  /** 사진을 보정(lib/client 의 prepPhoto)한 뒤 서버로 보내 OCR 결과를 받는다 */
+  /**
+   * 사진을 보정(lib/client 의 prepPhoto)한 뒤 서버로 보내 OCR 결과를 받는다.
+   *
+   * 여러 장을 넣으면 **한 장씩** 처리하고 매칭된 사람을 계속 더한다.
+   * 한 번에 묶어 보내지 않는 이유: 한 장이 실패해도 나머지는 살아야 하고,
+   * 어느 사진에서 못 읽었는지 사용자가 보고 그 장만 다시 찍을 수 있어야 한다.
+   */
   async function onPickPhoto(file: File) {
     const jpeg = await prepPhoto(file);
     if (!jpeg) {
@@ -134,18 +148,24 @@ export default function ItemsTab({
       return;
     }
 
-    setPhoto({ preview: jpeg, status: t('items.analyzing'), ocr: '' });
-    setShowOcr(false);
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const put = (next: Partial<PhotoState>) =>
+      setPhotos((cur) => cur.map((p) => (p.id === id ? { ...p, ...next } : p)));
+
+    setPhotos((cur) => [
+      ...cur,
+      { id, preview: jpeg, status: t('items.analyzing'), ocr: '', url: '' },
+    ]);
 
     const res = await api('/api/admin/photo', { base64: jpeg.split(',')[1] });
 
     if (!res.ok) {
-      setPhoto({ preview: jpeg, status: t('items.analyzeFailed', { v: srv(res) }), ocr: '' });
+      put({ status: t('items.analyzeFailed', { v: srv(res) }) });
       return;
     }
 
+    // 매칭된 사람은 장마다 **더한다.** 덮어쓰면 앞 장에서 찾은 사람이 사라진다
     const r = res as unknown as PhotoResult;
-    if (r.photoUrl) setPhotoLink(r.photoUrl);
     if (r.matched && r.matched.length > 0) {
       setPicked((prev) => {
         const next = new Set(prev);
@@ -153,16 +173,22 @@ export default function ItemsTab({
         return next;
       });
     }
-    setPhoto({ preview: jpeg, status: srv(r, 'items.analyzeDone'), ocr: r.ocrPreview ?? '' });
+    put({ status: srv(r, 'items.analyzeDone'), ocr: r.ocrPreview ?? '', url: r.photoUrl ?? '' });
   }
 
   async function submit() {
     setConfirming(false);
     setBusy(true);
+    // 업로드된 사진 + 손으로 붙여넣은 링크. 같은 URL 이 두 번 들어가지 않게 거른다
+    const links: string[] = [];
+    for (const u of [...photos.map((p) => p.url), photoLink.trim()]) {
+      if (u && !links.includes(u)) links.push(u);
+    }
     const res = await api('/api/admin/register', {
       itemName: itemName.trim(),
       participants: [...picked],
       photoLink: photoLink.trim(),
+      photoLinks: links,
       email: getStoredEmail(),
     });
     setBusy(false);
@@ -202,8 +228,18 @@ export default function ItemsTab({
                 <div className="row-name">{it.item}</div>
                 <div className="row-sub">
                   {it.date} · {t('c.joined')} {t('c.persons', { n: it.cnt })}
+                  {it.photos && it.photos.length > 0
+                    ? ` · ${t('ali.photoN', { n: it.photos.length })}`
+                    : ''}
                 </div>
               </div>
+              {/* 아직 분배 전이라 되돌릴 것이 없다. 그래도 참여자를 고치면 참여횟수가
+                  다시 계산되므로 마스터관리자에게 둔다 (분배 후는 [정정]이 담당). */}
+              {master ? (
+                <button className="btn ghost" onClick={() => setEditing(it)}>
+                  {t('items.edit')}
+                </button>
+              ) : null}
               {admin ? (
                 <button className="btn warn" onClick={() => onDistribute(it)}>
                   {t('items.distribute')}
@@ -247,33 +283,51 @@ export default function ItemsTab({
                 ref={fileRef}
                 type="file"
                 accept="image/*"
+                multiple
                 hidden
                 onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) void onPickPhoto(f);
+                  // 여러 장을 한꺼번에 고를 수 있다 (v11.0). 한 장씩 차례로 분석한다 —
+                  // 동시에 던지면 Apps Script 실행이 겹쳐 서로 대기하다 타임아웃이 난다.
+                  const list = Array.from(e.target.files ?? []);
+                  e.target.value = '';
+                  void (async () => {
+                    for (const f of list) await onPickPhoto(f);
+                  })();
                 }}
               />
+              <p className="hint">{t('items.photoMulti')}</p>
 
-              {photo ? (
-                <div className="photo-prev">
+              {photos.map((p, i) => (
+                <div className="photo-prev" key={p.id}>
                   {/* 로컬 canvas 결과라 next/image 최적화 대상이 아니다 */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={photo.preview} alt={t('items.photoAlt')} />
-                  <div className="hint">{photo.status}</div>
-                  {photo.ocr ? (
+                  <img src={p.preview} alt={t('items.photoAlt')} />
+                  <div className="photo-foot">
+                    <span className="hint">
+                      📷 {i + 1} · {p.status}
+                    </span>
+                    <button
+                      className="btn ghost"
+                      style={{ fontSize: 12, padding: '7px 11px' }}
+                      onClick={() => setPhotos((cur) => cur.filter((x) => x.id !== p.id))}
+                    >
+                      {t('ali.remove')}
+                    </button>
+                  </div>
+                  {p.ocr ? (
                     <>
                       <button
                         className="btn ghost"
                         style={{ marginTop: 8, fontSize: 12, padding: '7px 11px' }}
-                        onClick={() => setShowOcr((v) => !v)}
+                        onClick={() => setShowOcr((v) => (v === p.id ? '' : p.id))}
                       >
-                        {showOcr ? t('items.ocrHide') : t('items.ocrShow')}
+                        {showOcr === p.id ? t('items.ocrHide') : t('items.ocrShow')}
                       </button>
-                      {showOcr ? <div className="ocr-raw">{photo.ocr}</div> : null}
+                      {showOcr === p.id ? <div className="ocr-raw">{p.ocr}</div> : null}
                     </>
                   ) : null}
                 </div>
-              ) : null}
+              ))}
             </div>
 
             <div className="field">
@@ -396,7 +450,122 @@ export default function ItemsTab({
           onConfirm={submit}
         />
       ) : null}
+
+      {editing ? (
+        <EditItemSheet
+          state={state}
+          entry={editing}
+          onClose={() => setEditing(null)}
+          onDone={(res) => {
+            setEditing(null);
+            onDone(res);
+          }}
+          toast={toast}
+          setBusy={setBusy}
+        />
+      ) : null}
     </div>
+  );
+}
+
+/**
+ * ✏️ 미분배 아이템 수정 (v11.0) — 마스터관리자 전용.
+ *
+ * 아이템명과 참여자만 고친다. 이미 분배된 아이템은 시트가 거부한다 —
+ * 그쪽은 금액을 회수했다가 다시 나눠줘야 해서 [정정]이 담당한다.
+ */
+function EditItemSheet({
+  state,
+  entry,
+  onClose,
+  onDone,
+  toast,
+  setBusy,
+}: {
+  state: GuildState;
+  entry: LedgerItem;
+  onClose: () => void;
+  onDone: (res?: ApiResult) => void;
+  toast: (msg: string, isError?: boolean) => void;
+  setBusy: (on: boolean) => void;
+}) {
+  const { t, srv } = useT();
+  const [name, setName] = useState(entry.item);
+  const [picked, setPicked] = useState<Set<string>>(new Set(entry.names));
+
+  // 이름순(ㄱ~ㅎ). 이미 참여로 잡혀 있는 사람은 명단에서 빠졌더라도 계속 보여야 한다 —
+  // 안 보이면 체크를 풀 수도, 그대로 둘 수도 없어 저장 자체가 막힌다.
+  const selectable = useMemo(() => {
+    const all = new Set(state.members.filter((m) => m !== state.fundName));
+    entry.names.forEach((n) => all.add(n));
+    return [...all].sort((a, b) => byName(a, b));
+  }, [state.members, state.fundName, entry.names]);
+
+  const valid = name.trim().length > 0 && picked.size > 0;
+
+  async function submit() {
+    if (!valid) return;
+    setBusy(true);
+    const res = await api('/api/master/item', {
+      row: entry.row,
+      itemName: name.trim(),
+      participants: [...picked],
+      email: getStoredEmail(),
+    });
+    setBusy(false);
+    toast(srv(res, res.ok ? 'r.done' : 'r.failed'), !res.ok);
+    if (res.ok) onDone(res);
+  }
+
+  return (
+    <Sheet title={`✏️ ${t('items.edit')}`} subtitle={t('items.editSub')} onClose={onClose}>
+      <label className="fl" htmlFor="eIt">
+        {t('items.name')}
+      </label>
+      <input id="eIt" type="text" value={name} onChange={(e) => setName(e.target.value)} />
+
+      <label className="fl" style={{ marginTop: 12 }}>
+        {t('items.membersLabel', { n: picked.size })}
+      </label>
+      <div className="mgrid">
+        {selectable.map((m) => {
+          const sv = serverOf(state, m);
+          const on = picked.has(m);
+          return (
+            <button
+              key={m}
+              type="button"
+              className={'mchip' + (on ? ' sel' : '')}
+              aria-pressed={on}
+              onClick={() =>
+                setPicked((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(m)) next.delete(m);
+                  else next.add(m);
+                  return next;
+                })
+              }
+            >
+              <span className="nm">
+                <b>
+                  {sv ? <span className="svr">{sv}</span> : null}
+                  {m}
+                </b>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="sheet-actions">
+        <button className="btn ghost" onClick={onClose}>
+          {t('c.cancel')}
+        </button>
+        <button className="btn" disabled={!valid} onClick={() => void submit()}>
+          {t('c.save')}
+        </button>
+      </div>
+    </Sheet>
   );
 }
 

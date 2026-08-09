@@ -26,6 +26,14 @@ function chromiumPath() {
 const MOCK_PORT = 8788;
 const APP_PORT = 3101;
 const APP = `http://127.0.0.1:${APP_PORT}`;
+
+/**
+ * 모의 시트가 내려주는 버전 — 소스에서 읽는다.
+ * 여기에 숫자를 적어두면 버전을 올릴 때마다 검사가 조용히 깨진다.
+ */
+const GS_VER = (readFileSync(new URL('./mock-sheet.mjs', import.meta.url), 'utf8')
+  .match(/const GS_VERSION = '([\d.]+)'/) ?? [])[1];
+if (!GS_VER) throw new Error('모의 시트의 GS_VERSION 을 읽지 못했습니다.');
 const MOCK = `http://127.0.0.1:${MOCK_PORT}/exec`;
 const PIN = '123456';
 const MASTER_PIN = 'master-9876';
@@ -536,15 +544,15 @@ await t('쓰기 직후 조회(?fresh=1)는 캐시를 건너뛴다', async () => 
   const state = async (q = '') => (await (await fetch(`${APP}/api/state${q}`)).json()).data.version;
 
   await reset();
-  eq(await state(), '10.9', '첫 조회 버전');
+  eq(await state(), GS_VER, '첫 조회 버전');
 
   await mock('__setVersion', { version: '9.9' });
-  eq(await state(), '10.9', '캐시된 조회 (시트가 바뀌어도 그대로여야 정상)');
+  eq(await state(), GS_VER, '캐시된 조회 (시트가 바뀌어도 그대로여야 정상)');
   eq(await state('?fresh=1'), '9.9', 'fresh 조회 (캐시를 건너뛴 값)');
   // fresh 조회는 캐시도 새 값으로 갈아둔다 — 다음 사람이 낡은 값을 보지 않는다
   eq(await state(), '9.9', 'fresh 이후의 일반 조회');
 
-  await mock('__setVersion', { version: '10.9' });
+  await mock('__setVersion', { version: GS_VER });
 });
 
 await t('쓰기 응답이 최신 상태를 같이 실어 온다 (조회 왕복 없음)', async () => {
@@ -559,7 +567,7 @@ await t('쓰기 응답이 최신 상태를 같이 실어 온다 (조회 왕복 �
     throw new Error('실어 온 상태에 방금 등록한 아이템이 없습니다.');
   }
   eq(typeof body.state.season, 'number', '실어 온 상태의 시즌');
-  eq(body.state.version, '10.9', '실어 온 상태의 버전');
+  eq(body.state.version, GS_VER, '실어 온 상태의 버전');
 
   // 그 값이 캐시에도 들어가 있어야 한다 — 다른 사람도 시트를 거치지 않고 받는다
   const shared = (await (await fetch(`${APP}/api/state`)).json()).data;
@@ -692,7 +700,11 @@ await t('연합: 조회는 누구나, 등록은 관리자만', async () => {
   eq((await post('/api/alliance', {})).status, 405, '연합 공개 라우트에는 쓰기가 없다');
 
   const add = await (
-    await post('/api/admin/alliance', { op: 'register', server: '05', item: '연합 보스', people: 15 }, { Cookie: cookie })
+    await post(
+      '/api/admin/alliance',
+      { op: 'register', item: '연합 보스', entries: [{ server: '05', people: 15 }] },
+      { Cookie: cookie },
+    )
   ).json();
   eq(add.ok, true, '등록 ok');
 });
@@ -704,12 +716,16 @@ await t('연합: 등록은 금액 없이 되고, 누적에는 들어가지 않�
 
   // ① 등록 — 금액을 몰라도 인증샷과 함께 먼저 남길 수 있어야 한다
   const reg = await (
-    await post('/api/admin/alliance', { op: 'register', server: '05', item: '연합 보스', people: 15 }, { Cookie: cookie })
+    await post(
+      '/api/admin/alliance',
+      { op: 'register', item: '연합 보스', entries: [{ server: '05', people: 15 }] },
+      { Cookie: cookie },
+    )
   ).json();
   eq(reg.ok, true, '금액 없이 등록');
 
   const mid = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
-  const waiting = mid.waiting.find((r) => r.item === '연합 보스');
+  const waiting = mid.waiting.find((g) => g.group === reg.group);
   if (!waiting) throw new Error('등록한 건이 대기 목록에 없습니다.');
   eq(waiting.done, false, '대기 상태');
 
@@ -718,21 +734,21 @@ await t('연합: 등록은 금액 없이 되고, 누적에는 들어가지 않�
   eq(s05mid.credited, s05before.credited, '미정산 건은 누적 금액에 없다');
   eq(s05mid.count, s05before.count, '미정산 건은 건수에도 없다');
 
-  // ② 정산 — 이제 금액을 넣으면 누적된다
+  // ② 정산 — 이제 금액을 넣으면 누적된다. 서버가 하나뿐이니 혈비를 뗀 전액이 간다
   const cr = await (
-    await post('/api/admin/alliance', { op: 'credit', row: waiting.row, amount: 30000, pct: 40 }, { Cookie: cookie })
+    await post('/api/admin/alliance', { op: 'credit', group: reg.group, amount: 30000 }, { Cookie: cookie })
   ).json();
   eq(cr.ok, true, '정산 ok');
-  eq(cr.credited, 12000, '적립액 = 30000 × 40%');
+  eq(cr.fund, 3000, '혈비 = 30000 × 10%');
 
   const after = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
   const s05 = after.totals.find((x) => x.server === '05');
-  eq(s05.credited, s05before.credited + 12000, '05서버 누적');
+  eq(s05.credited, s05before.credited + 27000, '05서버 누적');
   eq(s05.people, s05before.people + 15, '05서버 인원 합계');
-  if (after.waiting.some((r) => r.row === waiting.row)) throw new Error('정산 뒤에도 대기 목록에 남아 있습니다.');
+  if (after.waiting.some((g) => g.group === reg.group)) throw new Error('정산 뒤에도 대기 목록에 남아 있습니다.');
 
   // ★ 같은 건을 두 번 정산하면 서버 총액이 틀어진다 — 반드시 막혀야 한다
-  const twice = await post('/api/admin/alliance', { op: 'credit', row: waiting.row, amount: 30000, pct: 40 }, { Cookie: cookie });
+  const twice = await post('/api/admin/alliance', { op: 'credit', group: reg.group, amount: 30000 }, { Cookie: cookie });
   eq(twice.status, 400, '이미 정산된 건 재정산');
   const final = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
   eq(final.totals.find((x) => x.server === '05').credited, s05.credited, '거부 후 누적이 그대로');
@@ -802,19 +818,24 @@ await t('레이드: 잘못된 요일·시간·보스명은 거부된다', async 
   }
 });
 
-await t('연합: 잘못된 서버·아이템명·금액·비중은 거부된다', async () => {
+await t('연합: 잘못된 서버·아이템명·인원·금액은 거부된다', async () => {
   const badReg = [
-    { op: 'register', server: '13', item: 'x' },
-    { op: 'register', server: '05', item: '' },
+    { op: 'register', item: 'x', entries: [{ server: '13', people: 1 }] },   // 없는 서버
+    { op: 'register', item: '', entries: [{ server: '05', people: 1 }] },    // 아이템명 없음
+    { op: 'register', item: 'x', entries: [] },                              // 서버 0곳
+    { op: 'register', item: 'x', entries: [{ server: '05', people: -1 }] },  // 음수 인원
+    // 같은 서버가 두 줄이면 인원이 갈려 분배 비율이 틀어진다
+    { op: 'register', item: 'x', entries: [{ server: '05', people: 1 }, { server: '05', people: 2 }] },
   ];
   for (const b of badReg) {
     eq((await post('/api/admin/alliance', b, { Cookie: cookie })).status, 400, JSON.stringify(b));
   }
   const badCredit = [
-    { op: 'credit', row: 2, amount: 0, pct: 50 },
-    { op: 'credit', row: 2, amount: 100, pct: 0 },
-    { op: 'credit', row: 2, amount: 100, pct: 101 },
-    { op: 'credit', row: 0, amount: 100, pct: 50 },
+    { op: 'credit', group: 'A1', amount: 0 },
+    { op: 'credit', group: 'A1', amount: -100 },
+    { op: 'credit', group: 'A1', amount: 1.5 },
+    { op: 'credit', group: '', amount: 100 },
+    { op: 'credit', group: '없는묶음', amount: 100 },
   ];
   for (const b of badCredit) {
     eq((await post('/api/admin/alliance', b, { Cookie: cookie })).status, 400, JSON.stringify(b));
@@ -1882,7 +1903,7 @@ await t('서버 일괄 지정: 칩으로 고르고 여러 명을 한 번에 넣�
   eq(roster.data.find((m) => m.name === '가이')?.server, '01', '가이의 서버(그대로)');
 });
 
-await t('연합: 사진 등록 → 나중에 금액 넣기 (화면 흐름)', async () => {
+await t('연합: 등록 → 나중에 금액 넣기 (화면 흐름)', async () => {
   await reset();
   await page.reload({ waitUntil: 'networkidle' });
   await page.locator('.nav button').filter({ hasText: /연합/ }).click();
@@ -1897,9 +1918,11 @@ await t('연합: 사진 등록 → 나중에 금액 넣기 (화면 흐름)', asy
   await page.locator('#cam').fill('50000');
   await page.waitForTimeout(300);
 
-  // 미리보기 계산이 맞아야 한다 — 50,000 × 100% = 50,000
+  // 미리보기: 50,000 → 혈비 5,000 · 05서버(18명)가 45,000 을 전부 가져간다
   const calc = await page.locator('.sheet .calc').innerText();
-  if (!calc.includes('50,000')) throw new Error(`적립액 미리보기가 틀립니다:\n${calc}`);
+  if (!calc.includes('50,000')) throw new Error(`판매금액 미리보기가 틀립니다:\n${calc}`);
+  if (!calc.includes('5,000')) throw new Error(`혈비 미리보기가 없습니다:\n${calc}`);
+  if (!calc.includes('45,000')) throw new Error(`서버 몫 미리보기가 틀립니다:\n${calc}`);
   await shot('18-alliance-credit');
 
   await page.locator('.sheet-actions .btn.warn').click();
@@ -1908,6 +1931,157 @@ await t('연합: 사진 등록 → 나중에 금액 넣기 (화면 흐름)', asy
   // 정산이 끝나면 대기 목록에서 빠지고 서버 누적에 잡힌다
   const body = await page.locator('main').innerText();
   if (!body.includes('50,000')) throw new Error('정산 결과가 화면에 반영되지 않았습니다.');
+});
+
+await t('연합: 아이템 하나에 여러 서버 · 혈비가 혈맹운영비 잔액으로 간다 (v11.0)', async () => {
+  await reset();
+
+  // 지금 혈맹운영비 잔액을 기억해 둔다 — 정산 뒤 정확히 혈비만큼 늘어야 한다
+  const fundOf = async () => {
+    const st = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
+    return st.rows.find((r) => r.name === '혈맹운영비').pending;
+  };
+  const before = await fundOf();
+
+  // ① 등록 — 01서버 10명 · 02서버 5명. 인증샷은 넣지 않는다 (선택이어야 한다)
+  const reg = await post(
+    '/api/admin/alliance',
+    {
+      op: 'register',
+      item: '연합 다중서버',
+      entries: [{ server: '01', people: 10 }, { server: '02', people: 5 }],
+      photoLinks: [],
+    },
+    { Cookie: cookie },
+  );
+  const regBody = await reg.json();
+  eq(regBody.ok, true, '인증샷 없이 등록');
+  const group = regBody.group;
+  if (!group) throw new Error('묶음(group) 값을 돌려주지 않습니다.');
+
+  // ② 같은 서버를 두 번 넣으면 거부해야 한다 — 인원이 갈리면 분배 비율이 틀어진다
+  const dup = await post(
+    '/api/admin/alliance',
+    { op: 'register', item: '중복 서버', entries: [{ server: '01', people: 3 }, { server: '01', people: 4 }] },
+    { Cookie: cookie },
+  );
+  eq(dup.status, 400, '중복 서버 거부');
+
+  // ③ 정산 — 10만: 혈비 1만 · 01서버(10명) 6만 · 02서버(5명) 3만
+  const credit = await post('/api/admin/alliance', { op: 'credit', group, amount: 100000 }, { Cookie: cookie });
+  const creditBody = await credit.json();
+  eq(creditBody.ok, true, '정산');
+  eq(creditBody.fund, 10000, '혈맹운영비로 간 혈비');
+
+  const ali = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
+  const g = ali.records.find((x) => x.group === group);
+  if (!g) throw new Error('정산된 건이 기록 목록에 없습니다.');
+  eq(g.servers.length, 2, '묶음 안의 서버 수');
+  eq(g.servers.find((x) => x.server === '01').credited, 60000, '01서버 몫');
+  eq(g.servers.find((x) => x.server === '02').credited, 30000, '02서버 몫');
+  // ★ 보존 불변식 — 혈비 + 서버 몫 = 판매금액
+  eq(g.fund + g.credited, 100000, '혈비 + 서버 몫');
+
+  // ④ 혈맹운영비 잔액이 실제로 늘었어야 한다
+  eq(await fundOf(), before + 10000, '정산 뒤 혈맹운영비 잔액');
+
+  // ⑤ 이미 정산된 건을 또 정산하면 서버 총액이 두 배가 된다 — 막혀야 한다
+  const again = await post('/api/admin/alliance', { op: 'credit', group, amount: 100000 }, { Cookie: cookie });
+  eq(again.status, 400, '중복 정산 거부');
+
+  // ⑥ 삭제하면 적립했던 혈비를 되돌려야 장부가 맞는다
+  const del = await fetch(`${APP}/api/admin/alliance`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    body: JSON.stringify({ group }),
+  });
+  eq((await del.json()).ok, true, '묶음 삭제');
+  eq(await fundOf(), before, '삭제 뒤 혈맹운영비 잔액 (회수됨)');
+});
+
+await t('연합: 아이템명을 누르면 서버별 참여 인원이 펼쳐진다 (화면)', async () => {
+  await reset();
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.locator('.nav button').filter({ hasText: /연합/ }).click();
+  await page.waitForTimeout(900);
+
+  // 모의 데이터의 '연합 보스' 는 03서버 12명 · 05서버 6명이 나눠 가진 한 건이다
+  await page.locator('.row-name.linkish').filter({ hasText: '연합 보스' }).first().click();
+  await page.waitForTimeout(500);
+  const sheet = await page.locator('.sheet').innerText();
+  if (!sheet.includes('12')) throw new Error(`03서버 인원이 보이지 않습니다:\n${sheet}`);
+  if (!sheet.includes('6')) throw new Error(`05서버 인원이 보이지 않습니다:\n${sheet}`);
+  if (!sheet.includes('24,000')) throw new Error(`03서버 몫이 보이지 않습니다:\n${sheet}`);
+  await shot('18b-alliance-detail');
+  await page.locator('.sheet-actions .btn.ghost').click();
+  await page.waitForTimeout(300);
+});
+
+await t('미분배 아이템 수정은 마스터만, 분배된 것은 거부한다 (v11.0)', async () => {
+  await reset();
+
+  // 등록해두고 그 행을 고친다
+  const reg = await post(
+    '/api/admin/register',
+    { itemName: '수정 대상', participants: ['가이', '팩맨'] },
+    { Cookie: cookie },
+  );
+  eq((await reg.json()).ok, true, '등록');
+  const st = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
+  const row = st.items.find((i) => i.item === '수정 대상').row;
+
+  // ① 관리자 PIN 으로는 막혀야 한다
+  const asAdmin = await post(
+    '/api/master/item',
+    { row, itemName: '바뀐 이름', participants: ['가이'] },
+    { Cookie: cookie },
+  );
+  eq(asAdmin.status, 401, '관리자에게는 막힌다');
+
+  // ② 마스터는 고칠 수 있다. 참여자를 한 명으로 줄인다
+  const asMaster = await post(
+    '/api/master/item',
+    { row, itemName: '바뀐 이름', participants: ['가이'] },
+    { Cookie: masterCookie },
+  );
+  const body = await asMaster.json();
+  eq(body.ok, true, '마스터 수정');
+
+  const after = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
+  const it = after.items.find((i) => i.row === row);
+  eq(it.item, '바뀐 이름', '바뀐 아이템명');
+  eq(it.cnt, 1, '바뀐 참여자 수');
+  if (it.names.includes('팩맨')) throw new Error('명단에서 뺀 사람이 그대로 남아 있습니다.');
+
+  // ★ 참여횟수는 명단을 따라 다시 세어진다 (증감이 아니라 전면 재계산).
+  //   기준값을 등록 직후 상태에서 잡지 않는 이유: 재계산은 등록 이력 전체를
+  //   다시 세므로, 손으로 올려둔 옛 값이 있으면 그 자리에서 한 번 보정된다.
+  const cntOf = (d) => d.rows.find((r) => r.name === '팩맨').cnt;
+  const back = await post(
+    '/api/master/item',
+    { row, itemName: '바뀐 이름', participants: ['가이', '팩맨'] },
+    { Cookie: masterCookie },
+  );
+  eq((await back.json()).ok, true, '참여자 되돌리기');
+  const readded = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
+  eq(cntOf(readded), cntOf(after) + 1, '다시 넣은 사람의 참여횟수');
+
+  // ③ 참여자를 전부 빼는 것은 거부해야 한다
+  const empty = await post(
+    '/api/master/item',
+    { row, itemName: '바뀐 이름', participants: [] },
+    { Cookie: masterCookie },
+  );
+  eq(empty.status, 400, '참여자 0명 거부');
+
+  // ④ 이미 분배된 아이템은 시트가 거부한다 — 그쪽은 [정정]이 담당한다
+  eq((await post('/api/admin/distribute', { row, amount: 10000 }, { Cookie: cookie })).status, 200, '분배');
+  const done = await post(
+    '/api/master/item',
+    { row, itemName: '분배 후 수정', participants: ['가이'] },
+    { Cookie: masterCookie },
+  );
+  eq(done.status, 400, '분배된 아이템 수정 거부');
 });
 
 await t('레이드: 오늘 요일이 먼저 뜨고, 다른 요일로 바꿔 볼 수 있다 (화면)', async () => {
@@ -2054,7 +2228,7 @@ await t('헤더의 새로고침 버튼이 보이고, 눌러서 최신 값을 받
   if (!h1.includes('9.9')) throw new Error(`새로고침을 눌렀는데 최신 값이 아닙니다: ${h1}`);
   await shot('15-refresh');
 
-  await mock('__setVersion', { version: '10.9' });
+  await mock('__setVersion', { version: GS_VER });
   await btn.click();
   await page.waitForTimeout(1200);
 });
@@ -2069,7 +2243,7 @@ await t('제목 옆에 버전이 보이고, 시트가 옛 버전이면 경고가
     .match(/APP_VERSION = '([\d.]+)'/) ?? [])[1];
   if (!appVer) throw new Error('APP_VERSION 을 읽지 못했습니다.');
   if (!same.includes('v' + appVer)) throw new Error(`제목 옆 버전이 없습니다: ${same} (기대 v${appVer})`);
-  // ★ 시트가 10.9 이고 앱이 10.9.0 이어도 경고가 붙으면 안 된다 (세 번째 자리는 앱 전용)
+  // ★ 시트가 11.0 이고 앱이 11.0.0 이어도 경고가 붙으면 안 된다 (세 번째 자리는 앱 전용)
   if (same.includes('⚠️')) throw new Error(`앱 패치 버전인데 시트 경고가 떴습니다: ${same}`);
   await shot('09-version');
 
@@ -2087,7 +2261,7 @@ await t('제목 옆에 버전이 보이고, 시트가 옛 버전이면 경고가
   if (!warned.includes('⚠️')) throw new Error(`경고 표시가 없습니다: ${warned}`);
   await shot('10-version-mismatch');
 
-  await mock('__setVersion', { version: '10.9' });
+  await mock('__setVersion', { version: GS_VER });
 });
 
 await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', async () => {

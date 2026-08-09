@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v10_9.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v11_0.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 const gs = readFileSync(GS_PATH, 'utf8');
@@ -185,7 +185,8 @@ check('API 라우터 — 필요한 액션 노출 / 위험한 액션 차단', () 
     'lastPayout', 'undoPayout', 'tools', 'runTool',
     'seasons', 'season',
     'renameHistory', 'posts', 'addPost', 'deletePost',
-    'alliance', 'addAlliance', 'deleteAlliance', 'countPhoto',
+    'alliance', 'addAlliance', 'creditAlliance', 'deleteAlliance', 'countPhoto',
+    'editItem',
     'updateMember', 'checkPin', 'setAppName', 'setAdminPin', 'setSeasonServer',
   ];
   const missing = required.filter((a) => !routed.includes(a));
@@ -1467,13 +1468,218 @@ check('연합은 등록과 정산이 분리되어 있다', () => {
     throw new Error('미정산 건이 서버별 누적에서 제외되지 않습니다.');
   }
 
-  // 라우터·쓰기목록에 새 액션이 등록됐는지
+  // 라우터·쓰기목록에 새 액션이 등록됐는지. 인자 이름까지 봐야 한다 —
+  // 시그니처만 바꾸고 라우터를 안 고치면 항상 undefined 가 넘어간다.
   if (!/case 'creditAlliance':/.test(gs)) throw new Error('라우터에 creditAlliance 가 없습니다.');
+  if (!/api_addAlliance\(req\.item, req\.entries, req\.photoLinks, req\.email\)/.test(gs)) {
+    throw new Error('라우터가 api_addAlliance 에 옛 인자를 넘깁니다.');
+  }
+  if (!/api_creditAlliance\(req\.group, req\.amount, req\.email\)/.test(gs)) {
+    throw new Error('라우터가 api_creditAlliance 에 옛 인자를 넘깁니다.');
+  }
+  if (!/api_deleteAlliance\(req\.group, req\.email\)/.test(gs)) {
+    throw new Error('라우터가 api_deleteAlliance 에 옛 인자를 넘깁니다.');
+  }
   if (!/'addAlliance', 'creditAlliance'/.test(gs)) throw new Error('creditAlliance 가 쓰기 액션 목록에 없습니다.');
 
   // v10.2 이하 시트에는 '상태' 열이 없다 — 자동 보정 경로가 있어야 한다
   if (!/function _ensureAllianceHeaders/.test(gs)) throw new Error('옛 연합 시트의 헤더 보정이 없습니다.');
-  return '등록(금액 없음) · 정산(락·중복거부) · 미정산 제외 · 옛 시트 보정';
+  return '등록(금액 없음) · 정산(락·중복거부) · 미정산 제외 · 라우터 인자 3종 · 옛 시트 보정';
+});
+
+check('연합 산식: 다이아 보존 + 앱/시트 이중구현 일치 (v11.0)', () => {
+  // 아이템 분배와 같은 이유다 — 확인 화면에서 본 숫자와 실제 결과가 달라지면
+  // 사용자는 "어느 쪽이 맞는지" 알 방법이 없다 (CLAUDE.md 규칙 1).
+  const gsCtx = vm.createContext({ FUND_RATE: 0.1 });
+  vm.runInContext(`${extractFn(gs, '_calcAlliance')}; __a = _calcAlliance;`, gsCtx);
+  const gsCalc = gsCtx.__a;
+
+  const from = clientTs.slice(clientTs.indexOf('export function calcAlliance('));
+  const jsFn = from
+    .slice(0, from.indexOf('\n}') + 2)
+    .replace(/export /g, '')
+    .replace(/: number\[\]/g, '')
+    .replace(/: number/g, '');
+  const appCtx = vm.createContext({});
+  vm.runInContext(`${jsFn}; __a = calcAlliance;`, appCtx);
+  const appCalc = appCtx.__a;
+
+  const cases = [];
+  // ① 서버가 하나뿐인 경우 — 옛 기록과 같은 모양이다
+  for (const amt of [1, 9, 10, 11, 100, 9_999, 1_000_000]) cases.push([amt, [7]]);
+  // ② 인원이 0명 (사진을 못 찍어 아직 못 센 경우) — 지어내지 않고 전액 혈비로 간다
+  cases.push([10_000, [0, 0]]);
+  cases.push([10_000, []]);
+  // ③ 무작위 — 서버 1~12곳, 인원 0~60명
+  for (let i = 0; i < 5000; i++) {
+    const sv = 1 + Math.floor(Math.random() * 12);
+    cases.push([
+      1 + Math.floor(Math.random() * 10_000_000),
+      Array.from({ length: sv }, () => Math.floor(Math.random() * 61)),
+    ]);
+  }
+
+  for (const [amt, counts] of cases) {
+    const a = gsCalc(amt, counts);
+    const b = appCalc(amt, counts, 0.1);
+    const given = a.shares.reduce((x, y) => x + y, 0);
+
+    // ① 보존 불변식 — 다이아는 사라지지도 생겨나지도 않는다
+    if (a.fundTotal + given !== a.amount) {
+      throw new Error(`보존 위반: amount=${amt}, counts=${counts.join('/')} → fund=${a.fundTotal} + shares=${given}`);
+    }
+    // ② 잔여는 음수가 될 수 없고, 서버 몫도 음수가 될 수 없다
+    if (a.remainder < 0) throw new Error(`잔여 음수: amount=${amt}, counts=${counts.join('/')}`);
+    if (a.shares.some((x) => x < 0)) throw new Error(`서버 몫 음수: amount=${amt}`);
+    // ③ 잔여를 특정 서버에 얹으면 안 된다 — 잔여는 서버 수보다 작아야 한다 (규칙 2)
+    if (counts.some((n) => n > 0) && a.remainder >= Math.max(counts.length, 1)) {
+      throw new Error(`잔여가 서버 수 이상입니다: amount=${amt}, counts=${counts.join('/')} → ${a.remainder}`);
+    }
+    // ④ 앱 미리보기와 시트 계산이 한 다이아도 달라선 안 된다
+    if (
+      a.fund !== b.fund ||
+      a.fundTotal !== b.fundTotal ||
+      a.remainder !== b.remainder ||
+      a.people !== b.people ||
+      a.shares.join() !== b.shares.join()
+    ) {
+      throw new Error(
+        `앱/시트 불일치: amount=${amt}, counts=${counts.join('/')}\n     시트=${JSON.stringify(a)}\n     앱  =${JSON.stringify(b)}`,
+      );
+    }
+  }
+
+  // 기준 예시를 숫자로 못박아 둔다: 10만을 01서버 10명 · 02서버 5명이 나눈다
+  const ex = gsCalc(100_000, [10, 5]);
+  if (ex.fund !== 10_000 || ex.shares.join() !== '60000,30000' || ex.fundTotal !== 10_000) {
+    throw new Error(`기준 예시 불일치: ${JSON.stringify(ex)}`);
+  }
+  return `${cases.length.toLocaleString()}건 (보존·잔여 범위·이중구현 일치 · 10만/10명+5명 예시)`;
+});
+
+check('연합 한 건에 여러 서버가 들어가고, 혈비는 실제로 적립·회수된다 (v11.0)', () => {
+  // 같은 서버를 두 줄로 넣으면 인원이 갈려 분배 비율이 틀어진다
+  const add = (gs.match(/function api_addAlliance[\s\S]*?\n\}\n/) ?? [''])[0];
+  if (!/e\.dupServer/.test(add)) throw new Error('같은 서버가 두 번 들어가는 것을 막지 않습니다.');
+  if (!/group/.test(add)) throw new Error('여러 줄을 묶는 값이 없습니다.');
+
+  // 인증샷은 선택이다 — 증거를 못 찍었다고 기록을 통째로 막을 이유가 없다
+  if (/(photoLinks|photos)[^\n]*\.length\s*(===?\s*0|<\s*1)/.test(add)) {
+    throw new Error('인증샷이 없다고 등록을 거부합니다.');
+  }
+  if (!/_photoCell\(photoLinks\)/.test(add)) throw new Error('등록이 사진 여러 장을 저장하지 않습니다.');
+
+  // 정산은 혈맹운영비 잔액을 실제로 늘린다. 삭제하면 되돌려야 장부가 맞는다.
+  const credit = (gs.match(/function api_creditAlliance[\s\S]*?\n\}\n/) ?? [''])[0];
+  if (!/_creditFundBalance\(ss, s\.fundTotal\)/.test(credit)) {
+    throw new Error('정산이 혈맹운영비 잔액에 적립하지 않습니다.');
+  }
+  const del = (gs.match(/function api_deleteAlliance[\s\S]*?\n\}\n/) ?? [''])[0];
+  if (!/_creditFundBalance\(ss, -fund\)/.test(del)) {
+    throw new Error('삭제가 적립했던 혈비를 되돌리지 않습니다.');
+  }
+  // 참여횟수는 다른 사건이다 — 연합은 우리 혈맹원 명단과 무관하므로 절대 건드리면 안 된다
+  const fundFn = extractFn(gs, '_creditFundBalance');
+  if (/BAL_COL\.CNT/.test(fundFn)) throw new Error('연합 적립이 참여횟수를 건드립니다 (규칙 3).');
+
+  // 화면은 언제나 묶음 단위 — 라우트·앱이 row 가 아니라 group 을 보내야 한다
+  const route = readFileSync(resolve(ROOT, 'app/api/admin/alliance/route.ts'), 'utf8');
+  if (!/callGas\('creditAlliance', \{ group, amount, email \}/.test(route)) {
+    throw new Error('정산 라우트가 묶음(group)이 아니라 옛 row 를 보냅니다.');
+  }
+  if (!/callGas\('deleteAlliance', \{ group,/.test(route)) {
+    throw new Error('삭제 라우트가 묶음(group)을 보내지 않습니다.');
+  }
+  if (!/syncStateCache\(res\)/.test(route)) {
+    throw new Error('혈맹운영비 잔액이 바뀌는데 상태 캐시를 맞추지 않습니다 (규칙 6-3).');
+  }
+  const ali = readFileSync(resolve(ROOT, 'components/AllianceTab.tsx'), 'utf8');
+  if (!/op: 'credit',\s*\n\s*group: entry\.group/.test(ali)) {
+    throw new Error('앱이 정산에 묶음(group)을 보내지 않습니다.');
+  }
+
+  // 모의 시트도 같은 모양이어야 E2E 가 의미가 있다
+  const mock = readFileSync(resolve(ROOT, 'scripts/mock-sheet.mjs'), 'utf8');
+  if (!/addAlliance: \(\{ item, entries, photoLinks \}\)/.test(mock)) {
+    throw new Error('모의 시트의 연합 등록이 옛 모양입니다.');
+  }
+  if (!/creditAlliance: \(\{ group, amount \}\)/.test(mock)) {
+    throw new Error('모의 시트의 연합 정산이 옛 모양입니다.');
+  }
+  return '중복 서버 거부 · 인증샷 선택 · 혈비 적립/회수 · 참여횟수 무관 · 라우트/앱/모의 묶음 단위';
+});
+
+check('인증샷은 여러 장 붙고, 이관해도 살아남는다 (v11.0)', () => {
+  // HYPERLINK 은 링크를 한 개만 담는다. 두 장 이상이면 값으로 나열해야 한다.
+  const write = extractFn(gs, '_writeLedgerPhotos');
+  if (!/list\.length === 1/.test(write) || !/setValue\(list\.join/.test(write)) {
+    throw new Error('사진이 두 장 이상일 때의 저장 경로가 없습니다.');
+  }
+  // 읽기는 옛 수식과 새 나열을 하나로 봐야 한다 (옛 기록이 안 보이면 안 된다)
+  const ctx = vm.createContext({});
+  vm.runInContext(`${extractFn(gs, '_photoList')}\n${extractFn(gs, '_readLedgerPhotos')}; __r = _readLedgerPhotos;`, ctx);
+  const read = ctx.__r;
+  const A = 'https://drive.google.com/file/d/A/view';
+  const B = 'https://drive.google.com/file/d/B/view';
+  const cases = [
+    [`=HYPERLINK("${A}","📷 보기")`, '📷 보기', [A]],   // 옛 한 장
+    ['', `${A}\n${B}`, [A, B]],                          // 새 여러 장
+    ['', '', []],                                        // 없음
+    ['', '📷 보기', []],                                 // 링크가 아닌 글자만
+  ];
+  for (const [formula, display, want] of cases) {
+    const got = read(formula, display);
+    if (got.join('|') !== want.join('|')) {
+      throw new Error(`인증샷 읽기 불일치: ${JSON.stringify([formula, display])} → ${JSON.stringify(got)}`);
+    }
+  }
+
+  // 시즌종료·이관은 수식만 복사한다. 값으로 저장한 여러 장은 setValues 로 함께 옮겨가야 한다 —
+  // 옮기는 코드가 사진 칸을 빈 값으로 덮어쓰고 있지 않은지 확인한다.
+  for (const fn of ['_transferData', 'closeSeason']) {
+    const body = gs.indexOf(`function ${fn}`) >= 0 ? extractFn(gs, fn) : '';
+    if (body && /setValue\(''\)[\s\S]{0,40}LG\.PHOTO/.test(body)) {
+      throw new Error(`${fn} 이 인증샷 칸을 지웁니다.`);
+    }
+  }
+
+  // 앱: 여러 장을 고를 수 있고, 장마다 찾은 사람을 더해야 한다 (덮어쓰면 앞 장이 사라진다)
+  const items = readFileSync(resolve(ROOT, 'components/ItemsTab.tsx'), 'utf8');
+  if (!/multiple/.test(items)) throw new Error('아이템 등록이 사진 한 장만 받습니다.');
+  if (!/photoLinks: links/.test(items)) throw new Error('아이템 등록이 사진 목록을 보내지 않습니다.');
+  const ali = readFileSync(resolve(ROOT, 'components/AllianceTab.tsx'), 'utf8');
+  if (!/multiple/.test(ali)) throw new Error('연합 등록이 사진 한 장만 받습니다.');
+  if (!/photoLinks: photos/.test(ali)) throw new Error('연합 등록이 사진 목록을 보내지 않습니다.');
+  return `읽기 ${cases.length}케이스 (옛 수식·새 나열 동시 지원) · 이관 보존 · 앱 2곳 여러 장`;
+});
+
+check('미분배 아이템 수정은 마스터만, 분배된 것은 거부한다 (v11.0)', () => {
+  const fn = (gs.match(/function api_editItem[\s\S]*?\n\}\n/) ?? [''])[0];
+  if (!fn) throw new Error('api_editItem 이 없습니다.');
+  // 이미 분배된 행을 여기서 고치면 준 금액과 명단이 어긋난다 — 그쪽은 [정정]이 담당한다
+  if (!/status !== ST_WAIT/.test(fn)) throw new Error('이미 분배된 아이템을 거부하지 않습니다.');
+  // 참여횟수는 증감이 아니라 전면 재계산이다 (규칙 3)
+  if (!/_recalcAllParticipationCounts\(ss\)/.test(fn)) {
+    throw new Error('참여자를 고친 뒤 참여횟수를 다시 세지 않습니다.');
+  }
+  if (/BAL_COL\.CNT\)\.setValue/.test(fn)) throw new Error('참여횟수를 직접 씁니다 — 재계산에 맡겨야 합니다.');
+  // 같은 사람이 두 번 들어가면 그 사람만 참여횟수가 두 번 올라간다
+  if (!/_normName/.test(fn)) throw new Error('중복 참여자를 이름 정규화로 걸러내지 않습니다.');
+  // 미분배라 다이아는 아직 아무에게도 안 갔다 — 잔액을 건드리면 안 된다
+  if (/잔액현황/.test(fn)) throw new Error('미분배 아이템 수정이 잔액을 건드립니다.');
+
+  if (!/case 'editItem':/.test(gs)) throw new Error('라우터에 editItem 이 없습니다.');
+  if (!/'deleteItem', 'editItem'/.test(gs)) throw new Error('editItem 이 쓰기 액션 목록에 없습니다.');
+
+  // 라우트는 마스터 전용 경로에 있어야 한다 (경로만 봐도 의도가 드러난다)
+  const route = readFileSync(resolve(ROOT, 'app/api/master/item/route.ts'), 'utf8');
+  if (!/requireMaster\(\)/.test(route)) throw new Error('아이템 수정 라우트가 마스터를 요구하지 않습니다.');
+  const items = readFileSync(resolve(ROOT, 'components/ItemsTab.tsx'), 'utf8');
+  if (!/\/api\/master\/item/.test(items)) throw new Error('앱이 마스터 라우트를 부르지 않습니다.');
+  if (!/master \? \(\s*\n\s*<button className="btn ghost" onClick=\{\(\) => setEditing\(it\)\}/.test(items)) {
+    throw new Error('수정 버튼이 마스터에게만 보이지 않습니다.');
+  }
+  return '분배 후 거부 · 참여횟수 재계산 · 중복 제거 · 잔액 무관 · 마스터 라우트 + 마스터 전용 버튼';
 });
 
 check('이름은 두 줄로 나뉘고 글자 수에 맞춰 줄어든다', () => {
