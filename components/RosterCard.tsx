@@ -116,6 +116,10 @@ export default function RosterCard({
                       아래 줄에 작게 두면 아이디에 괄호로 넣은 사람과 모양이 달라져,
                       같은 명단인데 어떤 사람은 한자가 있고 어떤 사람은 없어 보인다. */}
                   <div className="row-name">
+                    {/* 서버 번호는 [잔액]·[아이템]과 같은 배지로 (v10.8.9).
+                        아랫줄에 "01 서버 ·" 라고 글로 적어두면 같은 정보가 화면마다
+                        다르게 보여, 누구인지 가리는 데 쓸 수가 없다. */}
+                    {normServer(m.server) ? <span className="svr">{normServer(m.server)}</span> : null}
                     {mergeName(m.name, m.hanja).main}
                     {mergeName(m.name, m.hanja).sub ? (
                       <span className="hanja">({mergeName(m.name, m.hanja).sub})</span>
@@ -127,7 +131,6 @@ export default function RosterCard({
                     ) : null}
                   </div>
                   <div className="row-sub">
-                    {m.server ? `${t('ali.serverN', { s: m.server })} · ` : ''}
                     {m.weight !== undefined && m.weight !== 100 ? `${t('c.ratio')} ${m.weight}% · ` : ''}
                     {t('c.pending')} {fmt(m.pending)} {unit}
                   </div>
