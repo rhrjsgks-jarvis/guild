@@ -5,7 +5,7 @@ import Sheet from './Sheet';
 import ServerPicker from './ServerPicker';
 import type { RosterEntry } from '@/lib/types';
 import type { ApiResult } from '@/lib/client';
-import { api, getStoredEmail, mergeName } from '@/lib/client';
+import { api, getStoredEmail, mergeName, normServer } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
 /**
@@ -43,14 +43,14 @@ export default function ServerBulkSheet({
   // 혈맹운영비는 사람이 아니라 계정이다 — 서버를 붙일 대상이 아니다
   const people = useMemo(() => roster.filter((m) => !m.isFund), [roster]);
   const inUse = useMemo(
-    () => [...new Set(people.map((m) => String(m.server ?? '').trim()).filter(Boolean))].sort(),
+    () => [...new Set(people.map((m) => normServer(m.server)).filter(Boolean))].sort(),
     [people],
   );
   const list = useMemo(
-    () => (onlyEmpty ? people.filter((m) => !String(m.server ?? '').trim()) : people),
+    () => (onlyEmpty ? people.filter((m) => !normServer(m.server)) : people),
     [people, onlyEmpty],
   );
-  const emptyCount = useMemo(() => people.filter((m) => !String(m.server ?? '').trim()).length, [people]);
+  const emptyCount = useMemo(() => people.filter((m) => !normServer(m.server)).length, [people]);
 
   function toggle(name: string) {
     setPicked((prev) => {
@@ -141,8 +141,9 @@ export default function ServerBulkSheet({
           ) : (
             list.map((m) => {
               const { main, sub } = mergeName(m.name, m.hanja);
-              const cur = String(m.server ?? '').trim();
-              // 형식이 어긋난 값(예: '1')은 눈에 띄게 — 이런 사람은 서버로 걸러도 안 잡힌다
+              // `1` 은 `01` 로 맞춰서 보여준다 — 화면마다 다르게 보이면 안 된다 (v10.8.7)
+              const cur = normServer(m.server);
+              // 그래도 알아볼 수 없는 값은 눈에 띄게. 이런 사람은 서버로 걸러도 안 잡힌다
               const bad = Boolean(cur) && !servers.includes(cur);
               return (
                 <label key={m.name} className={'svrow' + (picked.has(m.name) ? ' sel' : '')}>

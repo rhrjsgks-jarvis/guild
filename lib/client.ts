@@ -215,10 +215,47 @@ export function mergeName(name: string, hanja?: string): { main: string; sub: st
 /** `serverOf` 가 필요로 하는 최소한의 상태 */
 export type ServerSource = { memberInfo?: { name: string; server?: string }[] };
 
+/**
+ * 혈맹운영비 계정을 목록 맨 위로 (v10.8.7).
+ *
+ * 혈비는 사람이 아니라 **길드의 금고**다. 사람들 사이에 섞여 있으면 인원이
+ * 늘수록 아래로 밀려 찾아 내려가야 한다. 매번 보는 값이므로 위에 고정한다.
+ *
+ * ★ 걸러진 목록 안에서만 올린다. 검색·필터에 걸려 빠진 것을 억지로 되살리면,
+ *   "받을 사람만 보기"를 켰는데 혈비가 튀어나오는 식으로 필터가 거짓말을 한다.
+ *
+ * 무엇이 혈비인지는 **화면이 정한다** — [잔액]은 이름으로(`normName` 경유, 규칙 4),
+ * [혈맹원 관리]는 시트가 내려준 `isFund` 로. 판정 방식은 달라도 옮기는 규칙은 한 벌이다.
+ */
+export function fundFirst<T>(items: T[], isFund: (x: T) => boolean): T[] {
+  const fund = items.filter(isFund);
+  if (fund.length === 0) return items;
+  // 나머지 순서는 건드리지 않는다 — 정렬 규칙은 화면이 이미 정해 놓았다
+  return [...fund, ...items.filter((x) => !isFund(x))];
+}
+
+/**
+ * 서버 표기를 하나로 (v10.8.7).
+ *
+ * 시트에 `1` 로 들어간 사람과 `01` 로 들어간 사람이 섞여 있다. 사람이 손으로
+ * 넣는 칸이라 앞의 0 이 빠지는 것은 막을 수 없다. 그래서 **읽는 쪽에서** 맞춘다.
+ *
+ * 예전에는 [잔액]만 `padStart` 를 했고 [아이템]은 안 했다. 그래서 `1` 인 사람이
+ * 잔액에서는 `01` 로 보이는데 아이템의 `01` 칩에는 안 잡혀 "01 서버 0명" 이 나왔다.
+ * 이제 서버 값을 쓰는 모든 화면이 이 함수 하나를 지난다.
+ *
+ * ★ 숫자로 읽히는 것만 맞춘다. 그 외에는 **손대지 않고 그대로** 돌려준다 —
+ *   알아볼 수 없는 값을 그럴듯하게 바꾸면 엉뚱한 서버로 분류된다 (규칙 7).
+ */
+export function normServer(v: string | undefined | null): string {
+  const s = String(v ?? '').trim();
+  return /^\d{1,2}$/.test(s) ? s.padStart(2, '0') : s;
+}
+
 /** 멤버DB F열의 서버. 없으면 빈 문자열 — 지어내지 않는다 */
 export function serverOf(state: ServerSource | null | undefined, name: string): string {
   const hit = (state?.memberInfo ?? []).find((m) => normName(m.name) === normName(name));
-  return String(hit?.server ?? '').trim();
+  return normServer(hit?.server);
 }
 
 /**
