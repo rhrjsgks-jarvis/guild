@@ -156,6 +156,14 @@ export function splitName(name: string): { main: string; sub: string } {
 export const CHIP_NAME_PX = 64;
 
 /**
+ * 참여자 칩 앞에 붙는 서버 배지가 먹는 폭(px) — v10.8.8.
+ *
+ * 배지를 공짜로 얹으면 그만큼 이름이 삐져나간다. 배지가 있는 줄은
+ * 예산에서 이만큼 빼고 크기를 정한다 (없는 사람은 그대로 다 쓴다).
+ */
+export const CHIP_SVR_PX = 21;
+
+/**
  * 정해진 **폭(px)** 안에 들어가는 가장 큰 글씨 크기.
  * `base` 보다 커지지 않고 `min` 보다 작아지지도 않는다.
  */
@@ -281,6 +289,29 @@ export function foldServers(
   if (live.length < 2) return { primary: all, rest: [] };
   const primary = all.filter((s) => live.includes(s) || pinned.includes(s));
   return { primary, rest: all.filter((s) => !primary.includes(s)) };
+}
+
+/**
+ * 사람을 가리키는 한 줄 표기 — `01 잡이K (卡尔K)` (v10.8.8).
+ *
+ * 서버가 갈리면서 **비슷한 이름이 서버마다 생겼다.** 이름만 보고 고르면
+ * 엉뚱한 사람에게 다이아가 간다. [잔액]에는 이미 서버 번호가 붙어 있었는데
+ * 다른 화면에는 없어서, 같은 사람이 화면마다 다르게 보였다.
+ *
+ * "누구인지 확인하는 자리"는 전부 이 함수 하나를 쓴다 —
+ * 지급 창 · 등록 확인 · 분배 확인 · 내 정보 목록.
+ *
+ * ★ 서버가 없으면 **붙이지 않는다.** 빈 자리를 만들거나 `--` 를 넣으면
+ *   지정된 사람과 아닌 사람이 같아 보인다.
+ */
+export function personLabel(
+  state: (HanjaSource & ServerSource) | null | undefined,
+  name: string,
+): string {
+  const { main, sub } = nameParts(state, name);
+  const who = sub ? `${main} (${sub})` : main;
+  const sv = serverOf(state, name);
+  return sv ? `${sv} ${who}` : who;
 }
 
 /** 한 줄로 붙인 표시용 이름 — `잡이K (卡尔K)`. 한자가 없으면 이름만 */

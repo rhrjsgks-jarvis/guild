@@ -2,7 +2,18 @@
 
 import { useMemo, useRef, useState } from 'react';
 import type { GuildState, LedgerItem, PhotoResult } from '@/lib/types';
-import { CHIP_NAME_PX, api, fitIn, fmt, getStoredEmail, nameParts, prepPhoto, serverOf } from '@/lib/client';
+import {
+  CHIP_NAME_PX,
+  CHIP_SVR_PX,
+  api,
+  fitIn,
+  fmt,
+  getStoredEmail,
+  nameParts,
+  personLabel,
+  prepPhoto,
+  serverOf,
+} from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 import LedgerCard from './LedgerCard';
@@ -316,11 +327,19 @@ export default function ItemsTab({
                   //   괄호는 붙이지 않는다 — 폭을 20% 넘게 먹는데, 두 줄로 나뉜
                   //   자리와 색만으로도 한자 표기인 것은 이미 드러난다.
                   const { main, sub } = nameParts(state, m);
+                  // 서버 번호를 이름 앞에 (v10.8.8). [잔액]과 같은 배지다 —
+                  // 서버가 갈리면서 비슷한 이름이 서버마다 생겨, 이름만으로는
+                  // 누구인지 가릴 수 없다. 배지가 먹는 폭은 예산에서 뺀다.
+                  const sv = svOf.get(m) ?? '';
+                  const budget = CHIP_NAME_PX - (sv ? CHIP_SVR_PX : 0);
                   return (
                     <label key={m} className={'mchip' + (picked.has(m) ? ' sel' : '')}>
                       <input type="checkbox" checked={picked.has(m)} onChange={() => toggle(m)} />
                       <span className="nm">
-                        <b style={{ fontSize: fitIn(main, CHIP_NAME_PX, 14, 10) }}>{main}</b>
+                        <b style={{ fontSize: fitIn(main, budget, 14, 10) }}>
+                          {sv ? <span className="svr">{sv}</span> : null}
+                          {main}
+                        </b>
                         {sub ? <i style={{ fontSize: fitIn(sub, CHIP_NAME_PX, 19, 12) }}>{sub}</i> : null}
                       </span>
                     </label>
@@ -393,13 +412,9 @@ function ConfirmRegister({
   onConfirm: () => void;
 }) {
   const { t } = useT();
-  // 여기서 잘못 체크된 사람을 잡아내는 것이 이 창의 목적이다.
-  // 한자만 아는 길드원도 자기 이름을 확인할 수 있어야 하므로 병기해서 보여준다.
-  const label = (n: string) => {
-    const { main, sub } = nameParts(state, n);
-    return sub ? `${main} (${sub})` : main;
-  };
-  const shown = participants.slice(0, 12).map(label);
+  // 여기서 잘못 체크된 사람을 잡아내는 것이 이 창의 목적이다. 그래서 서버까지
+  // 붙인다 — 비슷한 이름이 서버마다 있어 이름만으로는 가릴 수 없다 (v10.8.8).
+  const shown = participants.slice(0, 12).map((n) => personLabel(state, n));
   const rest = participants.length - shown.length;
 
   return (

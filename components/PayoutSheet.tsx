@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Sheet from './Sheet';
 import type { BalanceRow, GuildState } from '@/lib/types';
-import { api, fmt, getStoredEmail, nameParts } from '@/lib/client';
+import { api, fmt, getStoredEmail, personLabel } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
@@ -27,11 +27,9 @@ export default function PayoutSheet({
   const [raw, setRaw] = useState(String(row.pending));
 
   const u = unit(state.unit);
-  // 누구에게 주는지가 이 창의 전부다 — 한자만 아는 사람도 확인할 수 있게 병기한다
-  const who = (() => {
-    const { main, sub } = nameParts(state, row.name);
-    return sub ? `${main} (${sub})` : main;
-  })();
+  // 누구에게 주는지가 이 창의 전부다 — 한자와 서버까지 붙여 보여준다.
+  // 서버가 갈리면서 비슷한 이름이 서버마다 생겼고, 지급은 되돌리기가 번거롭다.
+  const who = personLabel(state, row.name);
   const amount = Number(raw.replace(/[,\s]/g, ''));
   const valid = Number.isInteger(amount) && amount > 0 && amount <= row.pending;
   const partial = valid && amount < row.pending;
