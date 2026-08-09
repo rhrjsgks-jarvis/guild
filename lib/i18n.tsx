@@ -325,10 +325,60 @@ const DICT: Record<string, Entry> = {
     'Screenshots are optional. If you add one, it counts heads for you.',
   ],
   'ali.photoN': ['📷 {n}장', '📷 {n} 张', '📷 {n}'],
+  'ali.photoRead': ['📷{i} {n}명', '📷{i} {n}人', '📷{i} {n}'],
+  'ali.photoManual': [
+    '서버가 여럿이라 자동으로 넣지 않습니다. 위 인원 칸에 직접 넣어주세요.',
+    '有多个服务器，不会自动填入。请在上方人数栏手动输入。',
+    'Several servers — nothing is filled in automatically. Enter the counts above.',
+  ],
   'ali.remove': ['빼기', '移除', 'Remove'],
   'ali.fundShare': ['🏦 {fund} (혈비 + 잔여)', '🏦 {fund}（运营费 + 余数）', '🏦 {fund} (fee + remainder)'],
   'ali.detail': ['참여 서버 보기', '查看参与服务器', 'View servers'],
   'ali.serverLine': ['{s} 서버 · {n}명', '{s} 服 · {n}人', 'Server {s} · {n}'],
+  /* 정정 (v11.1 · 마스터관리자) */
+  'ali.pendingN': ['⏳ 대기 {n}명 ({k}건)', '⏳ 待结算 {n}人（{k}件）', '⏳ {n} pending ({k})'],
+  'ali.addSv': ['참여 서버 추가', '添加参与服务器', 'Add servers'],
+  'ali.addSvSub': [
+    '이미 들어 있는 서버는 그대로 두고, 빠진 서버만 더합니다.',
+    '保留已有的服务器，只添加遗漏的。',
+    'Existing servers stay as they are — this only adds missing ones.',
+  ],
+  'ali.have': ['이미 들어 있는 서버', '已有的服务器', 'Already included'],
+  'ali.allServers': [
+    '모든 서버가 이미 들어 있습니다. 인원을 고치려면 정정을 쓰세요.',
+    '所有服务器都已包含。要修改人数请使用修正。',
+    'Every server is already included — use correction to change head counts.',
+  ],
+  'ali.editWaitSub': [
+    '아직 금액이 안 들어간 건입니다. 아이템명과 서버별 인원을 고칩니다.',
+    '尚未填入金额。可修改物品名和各服务器人数。',
+    'No amount yet — edit the item name and head counts.',
+  ],
+  'ali.editDoneSub': [
+    '이미 정산된 건입니다. 고치면 서버별 몫과 {fund} 가 다시 계산됩니다.',
+    '已结算。修改后各服务器份额和 {fund} 会重新计算。',
+    'Already settled — the shares and {fund} are recalculated.',
+  ],
+  'ali.editDoneHint': [
+    '{fund}는 바뀐 만큼만 더하거나 뺍니다. 아래 숫자를 확인하고 저장하세요.',
+    '{fund} 只按差额增减。请核对下面的数字后保存。',
+    'Only the difference is applied to {fund}. Check the numbers below before saving.',
+  ],
+  /* 인증샷 보기 (v11.1) */
+  'shot.sect': ['📷 인증샷', '📷 截图', '📷 Screenshots'],
+  'shot.alt': ['인증샷 {n}번', '截图 {n}', 'Screenshot {n}'],
+  'shot.failed': [
+    '사진을 못 불러왔습니다 (눌러서 원본 열기)',
+    '无法加载图片（点击打开原图）',
+    'Could not load it (tap for the original)',
+  ],
+  'shot.origin': ['원본 열기', '打开原图', 'Open original'],
+  'shot.none': ['등록된 인증샷이 없습니다.', '没有截图。', 'No screenshots.'],
+  'items.detailSub': [
+    '등록할 때 체크한 참여자와 붙인 인증샷입니다.',
+    '登记时勾选的参与者和附上的截图。',
+    'The participants ticked and the screenshots attached at registration.',
+  ],
   'ali.add': ['연합 정산 등록', '登记联盟结算', 'Add alliance entry'],
   'ali.photoCount': ['인증샷으로 인원 세기', '用截图统计人数', 'Count people from a screenshot'],
   'ali.empty': ['등록된 연합 정산이 없습니다.', '暂无联盟结算记录。', 'No alliance entries yet.'],
@@ -935,6 +985,21 @@ const DICT: Record<string, Entry> = {
     '✅ "{item}" {amount} 정산 완료 — {fund} {fundTotal} · {where}',
     '✅ "{item}" {amount} 结算完成 — {fund} {fundTotal} · {where}',
     '✅ Settled "{item}" {amount} — {fund} {fundTotal} · {where}',
+  ],
+  's.ally.editOk': [
+    '✅ "{item}" 정정 완료 — 서버 {sv}곳 · {n}명',
+    '✅ 已修正 "{item}" — {sv} 个服务器 · {n} 人',
+    '✅ Corrected "{item}" — {sv} servers · {n} people',
+  ],
+  's.ally.editAsk': [
+    '"{item}" 을(를) 정정하면 {fund} 가 {from} → {to} 로 바뀝니다. 확인 후 다시 실행해주세요.',
+    '修正「{item}」后，{fund} 将从 {from} 变为 {to}。确认后请再次执行。',
+    'Correcting "{item}" changes {fund} from {from} to {to}. Confirm and run it again.',
+  ],
+  's.ally.addSv': [
+    '✅ "{item}" 에 서버 {sv}곳 · {n}명을 추가했습니다.',
+    '✅ 已为「{item}」添加 {sv} 个服务器 · {n} 人。',
+    '✅ Added {sv} servers · {n} people to "{item}".',
   ],
   's.ally.delMulti': [
     '✅ 삭제했습니다 — {item} (적립 {credited} 회수 · {fund} 회수)',

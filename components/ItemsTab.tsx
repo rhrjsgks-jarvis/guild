@@ -21,6 +21,7 @@ import LedgerCard from './LedgerCard';
 import ServerFilter, { NO_SERVER } from './ServerFilter';
 import ShareBtn from './ShareBtn';
 import Sheet from './Sheet';
+import PhotoStrip from './PhotoStrip';
 
 type PhotoState = {
   /** 목록 안에서 이 장을 가리키는 값 — 분석이 끝나는 순서가 뒤섞여도 흔들리지 않는다 */
@@ -59,6 +60,7 @@ export default function ItemsTab({
   const [showOcr, setShowOcr] = useState('');
   const [confirming, setConfirming] = useState(false);
   const [editing, setEditing] = useState<LedgerItem | null>(null);
+  const [viewing, setViewing] = useState<LedgerItem | null>(null);
   const [svPick, setSvPick] = useState<string[]>([]);
   const [showRest, setShowRest] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -225,13 +227,16 @@ export default function ItemsTab({
           state.items.map((it) => (
             <div className="row" key={it.row}>
               <div className="row-main">
-                <div className="row-name">{it.item}</div>
-                <div className="row-sub">
+                {/* 아이템명을 누르면 참여자 명단과 인증샷이 열린다 (v11.1) */}
+                <button type="button" className="row-name linkish" onClick={() => setViewing(it)}>
+                  {it.item}
+                </button>
+                <button type="button" className="row-sub linkish" onClick={() => setViewing(it)}>
                   {it.date} · {t('c.joined')} {t('c.persons', { n: it.cnt })}
                   {it.photos && it.photos.length > 0
                     ? ` · ${t('ali.photoN', { n: it.photos.length })}`
                     : ''}
-                </div>
+                </button>
               </div>
               {/* 아직 분배 전이라 되돌릴 것이 없다. 그래도 참여자를 고치면 참여횟수가
                   다시 계산되므로 마스터관리자에게 둔다 (분배 후는 [정정]이 담당). */}
@@ -451,6 +456,10 @@ export default function ItemsTab({
         />
       ) : null}
 
+      {viewing ? (
+        <ItemDetailSheet state={state} entry={viewing} onClose={() => setViewing(null)} />
+      ) : null}
+
       {editing ? (
         <EditItemSheet
           state={state}
@@ -465,6 +474,61 @@ export default function ItemsTab({
         />
       ) : null}
     </div>
+  );
+}
+
+/**
+ * 아이템 상세 (v11.1) — 아이템명을 누르면 열린다.
+ *
+ * 등록할 때 체크한 참여자와 붙인 인증샷을 그대로 보여준다.
+ * 분배 전에 "이 사람이 정말 왔었나" 를 확인하는 자리이므로,
+ * 인증샷은 새 탭으로 내보내지 않고 **앱 안에서** 본다.
+ */
+function ItemDetailSheet({
+  state,
+  entry,
+  onClose,
+}: {
+  state: GuildState;
+  entry: LedgerItem;
+  onClose: () => void;
+}) {
+  const { t } = useT();
+  const names = [...entry.names].sort((a, b) => byName(a, b));
+  return (
+    <Sheet title={`📦 ${entry.item}`} subtitle={t('items.detailSub')} onClose={onClose}>
+      <div className="fl">{t('items.membersLabel', { n: names.length })}</div>
+      <div className="mgrid">
+        {names.map((m) => {
+          const sv = serverOf(state, m);
+          return (
+            <div className="mchip" key={m}>
+              <span className="nm">
+                <b>
+                  {sv ? <span className="svr">{sv}</span> : null}
+                  {m}
+                </b>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="fl" style={{ marginTop: 14 }}>
+        {t('shot.sect')} {entry.photos && entry.photos.length > 0 ? `(${entry.photos.length})` : ''}
+      </div>
+      {entry.photos && entry.photos.length > 0 ? (
+        <PhotoStrip urls={entry.photos} />
+      ) : (
+        <p className="hint">{t('shot.none')}</p>
+      )}
+
+      <div className="sheet-actions">
+        <button className="btn ghost" onClick={onClose}>
+          {t('c.close')}
+        </button>
+      </div>
+    </Sheet>
   );
 }
 

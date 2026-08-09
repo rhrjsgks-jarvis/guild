@@ -1190,6 +1190,21 @@ page.on('pageerror', (e) => consoleErrors.push('PAGEERROR: ' + e.message));
 
 const shot = (name) => (SHOTS ? page.screenshot({ path: `${SHOTS}/${name}.png` }) : Promise.resolve());
 
+/**
+ * 인증샷은 구글 드라이브에서 온다. 검사 환경에서는 밖으로 나갈 수 없으므로
+ * 요청을 가로채 1픽셀 그림을 준다. 확인하려는 것은 "앱이 어떤 주소로 부르는가"
+ * 이지 드라이브가 아니다. 전역에 걸어둬야 다른 검사에서도 콘솔이 조용하다.
+ */
+const drivePng = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+);
+const driveHits = [];
+await page.route('https://drive.google.com/**', async (route) => {
+  driveHits.push(route.request().url());
+  await route.fulfill({ status: 200, contentType: 'image/png', body: drivePng });
+});
+
 await t('길드원 화면: 잔액이 보이고 관리 버튼은 없다', async () => {
   await page.goto(APP, { waitUntil: 'networkidle' });
   await page.waitForSelector('.row-name');
@@ -1999,6 +2014,213 @@ await t('연합: 아이템 하나에 여러 서버 · 혈비가 혈맹운영비 
   eq(await fundOf(), before, '삭제 뒤 혈맹운영비 잔액 (회수됨)');
 });
 
+await t("연합: 서버가 '5' 로 저장된 옛 행도 05 서버 누적에 잡힌다 (v11.1)", async () => {
+  await reset();
+  // 시트에 '05' 를 써넣어도 셀 서식이 자동이면 구글시트가 숫자 5 로 바꿔 저장한다.
+  // 그대로 집계하면 이 건의 금액이 서버별 누적에서 통째로 빠진다 —
+  // 행에는 남아 있어서 "왜 합계가 안 맞지" 만 남고 원인을 찾을 수 없다.
+  const before = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
+  const old = before.waiting.find((g) => g.item === '연합 레이드');
+  if (!old) throw new Error('옛 표기 행이 대기 목록에 없습니다.');
+  eq(old.servers[0].server, '05', "조회에서 '5' 가 '05' 로 맞춰진다");
+
+  // 모의 시트에는 이미 정산된 건이 있으므로 늘어난 만큼으로 본다
+  const s05of = (d) => d.totals.find((x) => x.server === '05').credited;
+  const grandOf = (d) => d.totals.reduce((a, b) => a + b.credited, 0);
+
+  // 정산하면 05 서버 누적에 들어가야 한다 ('5' 라는 유령 칸이 아니라)
+  const cr = await post('/api/admin/alliance', { op: 'credit', group: old.group, amount: 50000 }, { Cookie: cookie });
+  eq((await cr.json()).ok, true, '정산');
+
+  const after = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
+  eq(s05of(after) - s05of(before), 45000, '05 서버 누적 증가분 (혈비 5,000 뗀 나머지)');
+  // 서버별 누적은 01~12 만 돌려준다 — 여기 없는 칸으로 새면 화면에서 사라진다
+  eq(after.totals.length, 12, '서버 칸 수');
+  eq(grandOf(after) - grandOf(before), 45000, '합계에도 그대로 잡힌다');
+
+  // 등록도 '5' 를 받아 '05' 로 저장해야 한다
+  const reg = await (
+    await post(
+      '/api/admin/alliance',
+      { op: 'register', item: '한자리 서버', entries: [{ server: '5', people: 2 }] },
+      { Cookie: cookie },
+    )
+  ).json();
+  eq(reg.ok, true, "'5' 로 등록");
+  const now = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
+  eq(now.waiting.find((g) => g.group === reg.group).servers[0].server, '05', "'5' 가 '05' 로 저장된다");
+});
+
+await t('연합 등록: 사진이 읽은 인원이 손으로 넣은 값을 덮어쓰지 않는다 (v11.1, 화면)', async () => {
+  // 실제 사고 재현: 사진 3장을 붙이고 13·8·8 로 고쳐 넣었는데, 마지막 사진이 읽은
+  // 8 이 첫 줄을 덮어써 8·8·8 이 됐다. 사람이 넣은 숫자가 기계의 추측보다 우선한다.
+  await reset();
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.locator('.nav button').filter({ hasText: /연합/ }).click();
+  await page.waitForTimeout(800);
+  await page.getByRole('button', { name: /연합 등록/ }).click();
+  await page.waitForTimeout(500);
+
+  await page.locator('#ait').fill('사진 세 장');
+  // 서버 세 곳 — 01 · 02 · 03
+  await page.locator('.sheet .ali-entry').first().locator('.svchip', { hasText: '01' }).first().click();
+  await page.getByRole('button', { name: '＋ 서버 추가' }).click();
+  await page.waitForTimeout(200);
+  await page.getByRole('button', { name: '＋ 서버 추가' }).click();
+  await page.waitForTimeout(300);
+  eq(await page.locator('.sheet .ali-entry').count(), 3, '서버 줄 3개');
+
+  // 손으로 13 · 8 · 8 을 넣는다
+  const counts = ['13', '8', '8'];
+  for (let i = 0; i < 3; i++) {
+    await page.locator('.sheet .ali-entry').nth(i).locator('.ali-entry-foot input').fill(counts[i]);
+  }
+  await page.waitForTimeout(200);
+
+  // 그다음 사진 세 장을 붙인다 (모의 시트는 13·8·8 을 차례로 읽어준다)
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  );
+  await page.locator('.sheet input[type=file]').setInputFiles(
+    [1, 2, 3].map((i) => ({ name: `shot${i}.png`, mimeType: 'image/png', buffer: png })),
+  );
+  await page.waitForTimeout(3000);
+
+  // ★ 손으로 넣은 값이 그대로여야 한다
+  for (let i = 0; i < 3; i++) {
+    const v = await page.locator('.sheet .ali-entry').nth(i).locator('.ali-entry-foot input').inputValue();
+    eq(v, counts[i], `${i + 1}번째 줄 인원`);
+  }
+  // 읽은 값은 보여주기만 한다
+  const body = await page.locator('.sheet').innerText();
+  if (!/📷1/.test(body)) throw new Error(`사진이 읽은 인원수를 안 보여줍니다:\n${body}`);
+  await shot('29-photo-no-overwrite');
+
+  // 저장하면 손으로 넣은 값이 그대로 들어가야 한다
+  await page.getByRole('button', { name: '연합 등록' }).last().click();
+  await page.waitForTimeout(1800);
+  const data = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
+  const g = data.waiting.find((x) => x.item === '사진 세 장');
+  if (!g) throw new Error('등록한 건이 없습니다.');
+  eq(g.servers.map((x) => x.people).join(','), '13,8,8', '저장된 인원');
+  eq(g.photos.length, 3, '저장된 사진 장수');
+});
+
+await t('연합 정정: 마스터만, 혈비는 차액만 움직인다 (v11.1)', async () => {
+  await reset();
+  const fundOf = async () => {
+    const st = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
+    return st.rows.find((r) => r.name === '혈맹운영비').pending;
+  };
+
+  // 미분배 건 — 아이템명·인원만 고친다. 돈은 안 움직이므로 확인도 필요 없다
+  const before = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
+  const wait = before.waiting[0];
+  const fund0 = await fundOf();
+
+  // ① 관리자에게는 막혀야 한다
+  const asAdmin = await post(
+    '/api/master/alliance',
+    { group: wait.group, item: 'x', entries: [{ server: '05', people: 1 }] },
+    { Cookie: cookie },
+  );
+  eq(asAdmin.status, 401, '관리자에게는 막힌다');
+
+  // ② 마스터는 고칠 수 있다 — 서버를 하나 늘려본다
+  const edited = await post(
+    '/api/master/alliance',
+    {
+      group: wait.group,
+      item: '이름 바꿈',
+      entries: [{ server: '05', people: 4 }, { server: '07', people: 6 }],
+    },
+    { Cookie: masterCookie },
+  );
+  eq((await edited.json()).ok, true, '미분배 정정');
+  eq(await fundOf(), fund0, '미분배 정정은 혈비를 건드리지 않는다');
+
+  const mid = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
+  const g = mid.waiting.find((x) => x.group === wait.group);
+  eq(g.item, '이름 바꿈', '바뀐 아이템명');
+  eq(g.servers.length, 2, '늘어난 서버 수');
+  eq(g.people, 10, '늘어난 인원');
+
+  // ③ 정산한 뒤 금액을 정정한다 — 혈비는 **차액만** 움직여야 한다
+  eq((await post('/api/admin/alliance', { op: 'credit', group: wait.group, amount: 100000 }, { Cookie: cookie })).status, 200, '정산');
+  const fund1 = await fundOf();
+  eq(fund1, fund0 + 10000, '정산 뒤 혈비');
+
+  // 확인 없이는 실행되지 않는다 (규칙 5-1) — 바뀔 숫자를 보여준 뒤에만
+  const ask = await post(
+    '/api/master/alliance',
+    { group: wait.group, item: '이름 바꿈', entries: [{ server: '05', people: 4 }, { server: '07', people: 6 }], amount: 200000 },
+    { Cookie: masterCookie },
+  );
+  const askBody = await ask.json();
+  eq(askBody.ok, false, '확인 없이는 실행 안 됨');
+  eq(askBody.needsConfirm, true, '되묻는다');
+  eq(askBody.fundDelta, 10000, '바뀔 혈비 차액을 알려준다');
+  eq(await fundOf(), fund1, '되물은 단계에서는 아무것도 안 바뀐다');
+
+  // 확인하면 실행된다 — 혈비는 20,000 (전액을 또 더하면 30,000 이 된다)
+  const ok = await post(
+    '/api/master/alliance',
+    { group: wait.group, item: '이름 바꿈', entries: [{ server: '05', people: 4 }, { server: '07', people: 6 }], amount: 200000, confirm: true },
+    { Cookie: masterCookie },
+  );
+  eq((await ok.json()).ok, true, '정정 실행');
+  eq(await fundOf(), fund0 + 20000, '혈비는 차액만 조정된다');
+
+  const after = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
+  const rec = after.records.find((x) => x.group === wait.group);
+  eq(rec.amount, 200000, '바뀐 판매금액');
+  // ★ 보존 불변식은 정정 뒤에도 성립해야 한다
+  eq(rec.fund + rec.credited, 200000, '혈비 + 서버 몫 = 판매금액');
+});
+
+await t('연합 서버 추가: 관리자도 하되 기존 값은 못 고친다 (v11.1)', async () => {
+  await reset();
+  const before = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
+  const wait = before.waiting[0];
+  const had = wait.servers.length;
+
+  // ① 관리자가 서버를 더한다
+  const add = await post(
+    '/api/admin/alliance',
+    { op: 'addServers', group: wait.group, entries: [{ server: '09', people: 7 }] },
+    { Cookie: cookie },
+  );
+  eq((await add.json()).ok, true, '관리자 서버 추가');
+
+  const mid = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
+  const g = mid.waiting.find((x) => x.group === wait.group);
+  eq(g.servers.length, had + 1, '서버가 늘었다');
+  eq(g.servers.find((s) => s.server === '09').people, 7, '더한 인원');
+  // ★ 기존 줄은 그대로여야 한다 — 이 경로로 값을 고칠 수 있으면 권한 구분이 무의미해진다
+  wait.servers.forEach((s) => {
+    eq(g.servers.find((x) => x.server === s.server).people, s.people, `${s.server}서버 인원 그대로`);
+  });
+  eq(g.item, wait.item, '아이템명 그대로');
+
+  // ② 이미 있는 서버는 또 더할 수 없다 (인원이 갈려 분배 비율이 틀어진다)
+  const dup = await post(
+    '/api/admin/alliance',
+    { op: 'addServers', group: wait.group, entries: [{ server: '09', people: 1 }] },
+    { Cookie: cookie },
+  );
+  eq(dup.status, 400, '중복 서버 거부');
+
+  // ③ 정산된 건에는 더할 수 없다 — 이미 나눠준 몫과 어긋난다
+  eq((await post('/api/admin/alliance', { op: 'credit', group: wait.group, amount: 50000 }, { Cookie: cookie })).status, 200, '정산');
+  const late = await post(
+    '/api/admin/alliance',
+    { op: 'addServers', group: wait.group, entries: [{ server: '10', people: 2 }] },
+    { Cookie: cookie },
+  );
+  eq(late.status, 400, '정산된 건에는 추가 거부');
+});
+
 await t('연합: 아이템명을 누르면 서버별 참여 인원이 펼쳐진다 (화면)', async () => {
   await reset();
   await page.reload({ waitUntil: 'networkidle' });
@@ -2082,6 +2304,76 @@ await t('미분배 아이템 수정은 마스터만, 분배된 것은 거부한�
     { Cookie: masterCookie },
   );
   eq(done.status, 400, '분배된 아이템 수정 거부');
+});
+
+await t('팝업은 바깥을 눌러도 닫히지 않는다 (v11.1, 화면)', async () => {
+  await reset();
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.locator('.nav button').filter({ hasText: /아이템/ }).click();
+  await page.waitForTimeout(700);
+
+  // 아이템 상세를 열고, 입력하던 것이 날아가지 않는지 본다
+  await page.locator('.row-name.linkish').filter({ hasText: '기란 세금' }).first().click();
+  await page.waitForTimeout(500);
+  eq(await page.locator('.sheet').count(), 1, '시트가 열렸다');
+
+  // ★ 배경(시트 바깥)을 눌러도 닫히면 안 된다 — 스크롤하려다 스치는 자리다
+  await page.locator('.backdrop').click({ position: { x: 5, y: 5 } });
+  await page.waitForTimeout(400);
+  eq(await page.locator('.sheet').count(), 1, '배경을 눌러도 열려 있다');
+
+  // 오른쪽 위 [✕] 로 닫힌다
+  if (!(await page.locator('.sheet .sheet-x').isVisible())) throw new Error('닫기 버튼이 안 보입니다.');
+  await page.locator('.sheet .sheet-x').click();
+  await page.waitForTimeout(400);
+  eq(await page.locator('.sheet').count(), 0, '[✕] 로 닫힌다');
+
+  // 아래쪽 버튼으로도 닫힌다 (기존 흐름이 그대로여야 한다)
+  await page.locator('.row-name.linkish').filter({ hasText: '기란 세금' }).first().click();
+  await page.waitForTimeout(500);
+  await page.locator('.sheet-actions .btn.ghost').last().click();
+  await page.waitForTimeout(400);
+  eq(await page.locator('.sheet').count(), 0, '아래 버튼으로 닫힌다');
+});
+
+await t('인증샷: 아이템·연합에서 눌러 앱 안에서 본다 (v11.1, 화면)', async () => {
+  await reset();
+  await page.reload({ waitUntil: 'networkidle' });
+
+  driveHits.length = 0;
+
+  // ① 아이템 — 이름을 누르면 참여자와 인증샷이 열린다
+  await page.locator('.nav button').filter({ hasText: /아이템/ }).click();
+  await page.waitForTimeout(700);
+  await page.locator('.row-name.linkish').filter({ hasText: '기란 세금' }).first().click();
+  await page.waitForTimeout(600);
+  eq(await page.locator('.sheet .shots .shot').count(), 2, '아이템 인증샷 장수');
+  // ★ 드라이브 뷰어 페이지 주소를 그대로 <img> 에 넣으면 아무것도 안 나온다
+  if (!driveHits.some((u) => u.includes('thumbnail?id='))) {
+    throw new Error(`뷰어 주소가 아니라 원본을 그대로 <img> 에 넣었습니다:\n${driveHits.join('\n')}`);
+  }
+
+  // 눌러서 크게 보고, 닫으면 원래 자리로 돌아온다 (새 탭으로 나가지 않는다)
+  await page.locator('.sheet .shots .shot').first().click();
+  await page.waitForTimeout(400);
+  if (!(await page.locator('.lightbox img').isVisible())) throw new Error('크게 보기가 열리지 않습니다.');
+  eq(await page.locator('.lightbox').count(), 1, '앱 안에서 열린다');
+  await shot('28-photo-view');
+  await page.locator('.lightbox-bar .btn').last().click();
+  await page.waitForTimeout(300);
+  eq(await page.locator('.lightbox').count(), 0, '닫힌다');
+  await page.locator('.sheet-actions .btn.ghost').last().click();
+  await page.waitForTimeout(400);
+
+  // ② 연합 — 아이템명을 누르면 같은 방식으로 열린다
+  await page.locator('.nav button').filter({ hasText: /연합/ }).click();
+  await page.waitForTimeout(800);
+  await page.locator('.row-name.linkish').filter({ hasText: '연합 보스' }).first().click();
+  await page.waitForTimeout(600);
+  eq(await page.locator('.sheet .shots .shot').count(), 2, '연합 인증샷 장수');
+  await page.locator('.sheet-actions .btn.ghost').last().click();
+  await page.waitForTimeout(300);
+
 });
 
 await t('레이드: 오늘 요일이 먼저 뜨고, 다른 요일로 바꿔 볼 수 있다 (화면)', async () => {

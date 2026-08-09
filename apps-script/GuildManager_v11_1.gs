@@ -1,8 +1,19 @@
 // ═══════════════════════════════════════════════════════════════
-//  길드 정산 시스템 v11.0  (분배비중 · 연합 · 레이드 · 게시판 · 마스터관리자 · 3개국어)
+//  길드 정산 시스템 v11.1  (분배비중 · 연합 · 레이드 · 게시판 · 마스터관리자 · 3개국어)
 //  시트 구성: [사용안내] [멤버DB] [참여자현황] [분배대기중] [잔액현황]
 //            [지급기록] [연합] [레이드] [게시판] [작업기록] + [시즌1] [시즌2] ...
 //            ← 이 순서로 항상 정렬됨
+// ═══════════════════════════════════════════════════════════════
+//  변경점 v11.0 → v11.1  (연합 서버 표기 '1' 과 '01' 을 같은 서버로)
+//
+//   - ★ 시트에 '01' 을 써넣어도 셀 서식이 자동이면 구글시트가 **숫자 1 로** 바꿔
+//       저장한다. 읽을 때는 '1' 로 돌아오는데, 서버별 누적은 '01'~'12' 로만
+//       집계하므로 **그 건의 금액이 누적에서 통째로 빠진다.** 행에는 그대로
+//       남아 있어서 눈치채기도 어렵다. v11.0 을 붙여넣은 실제 시트에서 나왔다.
+//   - `_normServer` 를 만들어 읽을 때 맞춘다 (앱의 normServer 와 같은 규칙).
+//       옛 행은 고치지 않아도 제대로 집계된다 — 시트를 손댈 필요가 없다.
+//   - 등록도 '1' 을 받아 '01' 로 저장하고, 쓰기 **전에** 서버 칸을 글자 서식으로
+//       바꿔 애초에 숫자가 되지 않게 한다 (쓴 뒤에 바꿔봐야 1 은 안 돌아온다).
 // ═══════════════════════════════════════════════════════════════
 //  변경점 v10.9 → v11.0  (연합: 아이템 하나 = 여러 서버 · 사진 여러 장 · 아이템 수정)
 //
@@ -528,7 +539,7 @@
 //     '누적기록'을 그대로 찾음 (하위 호환, 리네이밍과 무관)
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION = '11.0';
+const VERSION = '11.1';
 const T2S_MAP = {'國':'国','學':'学','這':'这','個':'个','們':'们','說':'说','話':'话','對':'对','時':'时','間':'间','現':'现','場':'场','開':'开','關':'关','內':'内','東':'东','車':'车','馬':'马','龍':'龙','風':'风','陽':'阳','陰':'阴','電':'电','語':'语','讀':'读','寫':'写','書':'书','紙':'纸','筆':'笔','長':'长','門':'门','問':'问','聽':'听','見':'见','覺':'觉','讓':'让','誰':'谁','還':'还','進':'进','運':'运','動':'动','靜':'静','樂':'乐','藥':'药','華':'华','蘭':'兰','葉':'叶','黃':'黄','麗':'丽','寶':'宝','貴':'贵','財':'财','買':'买','賣':'卖','錢':'钱','銀':'银','鐵':'铁','鋼':'钢','陳':'陈','劉':'刘','張':'张','楊':'杨','蔣':'蒋','鄭':'郑','謝':'谢','呂':'吕','蘇':'苏','韓':'韩','馮':'冯','於':'于','鳳':'凤','雲':'云','劍':'剑','斷':'断','亂':'乱','愛':'爱','聲':'声','醫':'医','藝':'艺','頭':'头','臉':'脸','腳':'脚','氣':'气','樓':'楼','橋':'桥','飛':'飞','機':'机','網':'网','線':'线','條':'条','裡':'里','邊':'边','錯':'错','壞':'坏','舊':'旧','寬':'宽','淺':'浅','週':'周','節':'节','業':'业','後':'后','來':'来','終':'终','結':'结','敗':'败','勝':'胜','負':'负','輸':'输','贏':'赢','強':'强','難':'难','簡':'简','單':'单','複':'复','雜':'杂','純':'纯','淨':'净','髒':'脏','齊':'齐','穩':'稳','變':'变','轉':'转','換':'换','顯':'显','樣':'样','種':'种','類':'类','團':'团','體':'体','統':'统','織':'织','組':'组','構':'构','設':'设','計':'计','劃':'划','數':'数','課':'课','題':'题','試':'试','練':'练','習':'习','師':'师','員':'员','職':'职','務':'务','責':'责','權':'权','應':'应','該':'该','須':'须','願':'愿','夢':'梦','憶':'忆','識':'识','認':'认','歡':'欢','醜':'丑','帥':'帅','靈':'灵','獸':'兽','鷹':'鹰','鶴':'鹤','鴻':'鸿','鱷':'鳄','鯨':'鲸','鯊':'鲨','蝦':'虾','殼':'壳','冑':'胄','戰':'战','爭':'争','鬥':'斗','擊':'击','禦':'御','護':'护','衛':'卫','謀':'谋','陣':'阵','營':'营','軍':'军','隊':'队','將':'将','嬪':'嫔','宮':'宫','廟':'庙','觀':'观','閣':'阁','蓮':'莲','楓':'枫','樺':'桦','檜':'桧','樹':'树','實':'实','幹':'干','莖':'茎','穫':'获','採':'采','鮮':'鲜','籠':'笼','傷':'伤','殺':'杀','斬':'斩','豬':'猪','雞':'鸡','鴨':'鸭','鵝':'鹅','龜':'龟','蟬':'蝉','蟻':'蚁','螞':'蚂','鴉':'鸦','鵰':'雕','鴛':'鸳','鴦':'鸯','賽':'赛','廠':'厂','廣':'广','麼':'么','誒':'诶','歲':'岁','歷':'历','歸':'归','殘':'残','蟲':'虫','貓':'猫','氈':'毡','貫':'贯','質':'质','貨':'货','貼':'贴','費':'费','資':'资','賬':'账','賺':'赚','贈':'赠','賀':'贺','賢':'贤','賦':'赋','賤':'贱','賓':'宾','賴':'赖','齲':'龋','齒':'齿','龄':'齡','齡':'龄','齣':'出','岡':'冈','剛':'刚','剮':'剐','創':'创','劇':'剧','勵':'励','勸':'劝','勻':'匀','匯':'汇','醬':'酱','醞':'酝','釀':'酿','釋':'释','釘':'钉','針':'针','釣':'钓','鈍':'钝','鈴':'铃','鈔':'钞','鉛':'铅','鋸':'锯','鋒':'锋','鍵':'键','鎖':'锁','鑄':'铸','鑼':'锣','錶':'表','鐘':'钟','鏡':'镜','鑽':'钻','鑑':'鉴','閉':'闭','閃':'闪','閏':'闰','閱':'阅','闆':'板','闖':'闯','陸':'陆','隱':'隐','雖':'虽','雙':'双','雛':'雏','靂':'雳','韋':'韦','韌':'韧','頁':'页','頂':'顶','項':'项','順':'顺','頌':'颂','預':'预','頑':'顽','頒':'颁','頗':'颇','領':'领','頡':'颉','頜':'颌','頸':'颈','頻':'频','頹':'颓','顆':'颗','額':'额','顏':'颜','顛':'颠','顧':'顾','飄':'飘','饑':'饥','餃':'饺','餅':'饼','館':'馆','饒':'饶','饞':'馋','馳':'驰','駕':'驾','駛':'驶','駐':'驻','駱':'骆','駭':'骇','騎':'骑','騰':'腾','驅':'驱','驚':'惊','驕':'骄','驗':'验','骯':'肮','髮':'发','鬍':'胡','鬧':'闹','鮑':'鲍','鯉':'鲤','鰲':'鳌','鱉':'鳖','鳥':'鸟','鳴':'鸣','鹹':'咸','麥':'麦','麵':'面','黨':'党'};  // 번체→간체 상용한자 (서체 변환 전용, 다른 뜻 글자는 포함하지 않음)
 const UNIT = '다이아';                 // 재화 단위 표기
 const MAX_MEMBERS = 100;              // 최대 멤버 수 (v10.5: 50 → 100)
@@ -4778,6 +4789,9 @@ function _styleAllianceHeader(sheet) {
     .forEach(function (w, i) { sheet.setColumnWidth(i + 1, w); });
   sheet.getRange(1, 1, 1, ALLIANCE_HEADERS.length).setValues([ALLIANCE_HEADERS])
     .setBackground('#4E342E').setFontColor('#FFF').setFontWeight('bold').setHorizontalAlignment('center');
+  // ★ 서버 칸을 글자로 고정한다. 자동 서식이면 '01' 이 숫자 1 로 저장돼
+  //   서버별 누적('01'~'12')에서 그 건이 통째로 빠진다 (v11.1)
+  sheet.getRange(2, ALLY_COL.SERVER, sheet.getMaxRows() - 1, 1).setNumberFormat('@');
   sheet.getRange(1, ALLY_COL.PCT).setNote('v11.0 부터 쓰지 않습니다. 옛 기록을 그대로 읽기 위해 열만 남겨둡니다.');
   sheet.getRange(1, ALLY_COL.PEOPLE).setNote('그 서버에서 참여한 인원수입니다. 누구인지는 판별하지 않습니다.');
   sheet.getRange(1, ALLY_COL.GROUP).setNote('같은 아이템을 여러 서버가 나눠 가진 경우 이 값으로 한 건을 묶습니다.');
@@ -4829,6 +4843,20 @@ function _calcAlliance(amount, counts) {
            fundTotal: fund + remainder, people: people };
 }
 
+/**
+ * 서버 표기를 맞춘다 — '1' 과 '01' 은 같은 서버다 (v11.1).
+ *
+ * ★ 시트에 '01' 을 넣어도 셀 서식이 자동이면 구글시트가 **숫자 1 로 바꿔** 저장한다.
+ *   그러면 읽을 때 '1' 로 돌아오고, 서버별 누적은 '01'~'12' 로만 집계하므로
+ *   그 건의 금액이 누적에서 통째로 빠진다 (행에는 남아 있어 알아채기도 어렵다).
+ *   실제로 v11.0 붙여넣기 직후 시트에 '1' 로 저장된 행이 있었다.
+ * 앱의 `normServer`(lib/client.ts)와 같은 규칙이다.
+ */
+function _normServer(v) {
+  const t = String(v == null ? '' : v).trim();
+  return /^\d{1,2}$/.test(t) ? ('0' + t).slice(-2) : t;
+}
+
 /** 인증샷 여러 장 — 셀에는 줄바꿈으로 넣는다 (HYPERLINK 은 한 개만 되므로 원문 URL 그대로) */
 function _photoCell(links) {
   return (links || []).map(function (u) { return String(u || '').trim(); })
@@ -4877,7 +4905,7 @@ function api_getAlliance() {
   if (sheet && sheet.getLastRow() > 1) {
     const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, ALLIANCE_HEADERS.length).getValues();
     vals.forEach(function (r, i) {
-      const server = String(r[ALLY_COL.SERVER - 1]).trim();
+      const server = _normServer(r[ALLY_COL.SERVER - 1]);
       if (!server) return;
       const amount = Number(String(r[ALLY_COL.AMOUNT - 1]).replace(/,/g, '')) || 0;
       const status = String(r[ALLY_COL.STATUS - 1]).trim() || (amount > 0 ? ST_DONE : ST_WAIT);
@@ -4957,7 +4985,7 @@ function api_addAlliance(item, entries, photoLinks, email) {
   if (!item) return _rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
 
   const list = (entries || []).map(function (e) {
-    return { server: String((e && e.server) || '').trim(),
+    return { server: _normServer(e && e.server),
              people: Math.max(Math.floor(Number(e && e.people) || 0), 0) };
   }).filter(function (e) { return e.server; });
 
@@ -4989,6 +5017,10 @@ function api_addAlliance(item, entries, photoLinks, email) {
     const values = list.map(function (e, i) {
       return [now, e.server, item, '', '', e.people, '', i === 0 ? photos : '', actor, ST_WAIT, group, ''];
     });
+    // ★ 서버 칸은 **쓰기 전에** 글자 서식으로 바꾼다. 자동 서식이면 '01' 이 숫자 1 로
+    //   저장되고, 그러면 서버별 누적('01'~'12')에서 이 건이 통째로 빠진다 (v11.1).
+    //   쓴 뒤에 서식을 바꿔봐야 이미 1 이 된 값은 돌아오지 않는다.
+    sheet.getRange(at, ALLY_COL.SERVER, values.length, 1).setNumberFormat('@');
     sheet.getRange(at, 1, values.length, ALLIANCE_HEADERS.length).setValues(values);
     sheet.getRange(at, ALLY_COL.DATE, values.length, 1).setNumberFormat('yyyy-mm-dd hh:mm');
     sheet.getRange(at, ALLY_COL.AMOUNT, values.length, 1).setNumberFormat('#,##0');
@@ -5034,7 +5066,7 @@ function api_creditAlliance(group, amount, email) {
     vals.forEach(function (r, i) {
       const g = String(r[ALLY_COL.GROUP - 1]).trim() || ('r' + (i + 2));
       if (g !== group) return;
-      targets.push({ row: i + 2, server: String(r[ALLY_COL.SERVER - 1]).trim(),
+      targets.push({ row: i + 2, server: _normServer(r[ALLY_COL.SERVER - 1]),
                      item: String(r[ALLY_COL.ITEM - 1]).trim(),
                      people: Number(r[ALLY_COL.PEOPLE - 1]) || 0,
                      status: String(r[ALLY_COL.STATUS - 1]).trim() ||
@@ -5071,6 +5103,272 @@ function api_creditAlliance(group, amount, email) {
       msg: '✅ "' + item + '" ' + s.amount.toLocaleString() + UNIT + ' 정산 완료 — ' +
            FUND_NAME + ' ' + s.fundTotal.toLocaleString() + ' · ' + where
     }, 'ally.creditMulti', { item: item, amount: s.amount, fund: FUND_NAME, fundTotal: s.fundTotal, n: s.people, where: where });
+  } catch (e) {
+    return { ok: false, msg: '오류: ' + e.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * ✏️ 연합 항목 정정 (v11.1) — 아이템명 · 서버별 인원 · 판매금액.
+ *
+ * 두 경우를 한 함수가 다룬다. 나누면 앱이 "지금 어느 쪽인지"를 판단해야 하고,
+ * 그 판단이 틀리면 엉뚱한 요청이 간다. 상태는 **시트가** 보고 정한다.
+ *
+ *   ⏳미분배 — 아직 아무 돈도 움직이지 않았다. 이름·인원만 고치면 끝이다
+ *   ✅분배완료 — 이미 서버별로 나누고 혈비를 혈맹운영비에 **적립까지** 했다.
+ *               다시 계산해서 서버별 몫을 새로 쓰고, 혈비는 **차액만** 조정한다
+ *
+ * ★ 정산된 건을 고치는 것은 되돌리기와 같은 성격이라 `confirm === true` 가 있어야
+ *   실행된다 (규칙 5, 위험도 2). 없으면 **바뀔 숫자를 담아 되묻는다** —
+ *   "혈비가 얼마에서 얼마로 바뀌는지" 를 보고 누르게 하려는 것이다.
+ * ★ 혈비를 통째로 다시 더하지 않고 **차액만** 더한다. 전액을 다시 더하면
+ *   고칠 때마다 운영비가 불어난다.
+ * ★ 인증샷·등록일은 건드리지 않는다. 고치는 것은 사람이 적어 넣은 값뿐이고,
+ *   언제 등록했는지는 기록이다. 묶음의 첫 줄은 절대 지우지 않는다 (인증샷이 거기 있다).
+ */
+function api_editAlliance(group, item, entries, amount, email, confirm) {
+  group = String(group || '').trim();
+  item = String(item || '').trim();
+  if (!item) return _rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
+
+  const list = (entries || []).map(function (e) {
+    return { server: _normServer(e && e.server),
+             people: Math.max(Math.floor(Number(e && e.people) || 0), 0) };
+  }).filter(function (e) { return e.server; });
+
+  if (list.length === 0) return _rc({ ok: false, msg: '참여한 서버를 하나 이상 넣어주세요.' }, 'e.badServer');
+  const seen = {};
+  for (let i = 0; i < list.length; i++) {
+    if (SERVER_LIST.indexOf(list[i].server) < 0) {
+      return _rc({ ok: false, msg: '서버를 01~12 중에서 선택해주세요.' }, 'e.badServer');
+    }
+    // 같은 서버를 두 줄로 넣으면 인원이 갈려 분배 비율이 틀어진다
+    if (seen[list[i].server]) {
+      return _rc({ ok: false, msg: list[i].server + '서버가 두 번 들어갔습니다. 한 줄로 합쳐주세요.' },
+        'e.dupServer', { s: list[i].server });
+    }
+    seen[list[i].server] = true;
+  }
+
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(15000); } catch (e) { return _rc({ ok: false, msg: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.' }, 'e.busy'); }
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(ALLIANCE_SHEET);
+    if (!sheet || sheet.getLastRow() < 2) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+    _ensureAllianceHeaders(sheet);
+
+    const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, ALLIANCE_HEADERS.length).getValues();
+    const hit = [];
+    let before = '', done = false, actorOld = '', when = '', oldAmount = 0, oldFund = 0;
+    vals.forEach(function (r, i) {
+      const g = String(r[ALLY_COL.GROUP - 1]).trim() || ('r' + (i + 2));
+      if (g !== group) return;
+      const amt = Number(String(r[ALLY_COL.AMOUNT - 1]).replace(/,/g, '')) || 0;
+      hit.push({ row: i + 2, server: _normServer(r[ALLY_COL.SERVER - 1]), people: Number(r[ALLY_COL.PEOPLE - 1]) || 0 });
+      before = String(r[ALLY_COL.ITEM - 1]).trim();
+      when = r[ALLY_COL.DATE - 1];
+      actorOld = String(r[ALLY_COL.BY - 1]).trim();
+      if (amt > oldAmount) oldAmount = amt;   // 판매금액은 묶음 전체의 값이라 줄마다 같다
+      oldFund += Number(String(r[ALLY_COL.FUND - 1]).replace(/,/g, '')) || 0;
+      const st = String(r[ALLY_COL.STATUS - 1]).trim() || (amt > 0 ? ST_DONE : ST_WAIT);
+      if (st === ST_DONE) done = true;
+    });
+    if (hit.length === 0) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+
+    // 정산된 건이면 금액도 함께 고친다. 안 보내면 지금 금액을 그대로 쓴다
+    let newAmount = 0;
+    if (done) {
+      const raw = (amount === '' || amount === null || amount === undefined) ? oldAmount : amount;
+      newAmount = Number(String(raw).replace(/,/g, ''));
+      if (!newAmount || newAmount <= 0 || newAmount !== Math.floor(newAmount)) {
+        return _rc({ ok: false, msg: '금액은 양의 정수여야 합니다.' }, 'e.badAmount');
+      }
+    }
+
+    const s = done ? _calcAlliance(newAmount, list.map(function (e) { return e.people; })) : null;
+
+    // ★ 돈이 움직이는 정정은 바뀔 숫자를 보여준 뒤에만 실행한다 (규칙 5-1)
+    if (done && confirm !== true) {
+      return _rc({
+        ok: false, needsConfirm: true, item: before,
+        before: { amount: oldAmount, fund: oldFund,
+                  servers: hit.map(function (h) { return { server: h.server, people: h.people }; }) },
+        after: { amount: s.amount, fund: s.fundTotal,
+                 servers: list.map(function (e, i) { return { server: e.server, people: e.people, credited: s.shares[i] }; }) },
+        fundDelta: s.fundTotal - oldFund,
+        msg: '"' + before + '" 정정 — ' + FUND_NAME + ' ' + oldFund.toLocaleString() +
+             ' → ' + s.fundTotal.toLocaleString() + '. 확인 후 다시 실행해주세요.'
+      }, 'ally.editAsk', { item: before, fund: FUND_NAME, from: oldFund, to: s.fundTotal });
+    }
+
+    const actor = _getActorEmail(email);
+    const keep = Math.min(hit.length, list.length);
+
+    // ① 겹치는 만큼은 자리에서 고친다 (첫 줄을 지키면 인증샷도 지켜진다)
+    for (let i = 0; i < keep; i++) {
+      sheet.getRange(hit[i].row, ALLY_COL.SERVER).setValue(list[i].server);
+      sheet.getRange(hit[i].row, ALLY_COL.PEOPLE).setValue(list[i].people);
+    }
+    // 아이템명은 묶음의 모든 줄에서 같아야 한다
+    hit.forEach(function (h) { sheet.getRange(h.row, ALLY_COL.ITEM).setValue(item); });
+
+    // ② 서버가 줄었으면 남는 줄을 지운다 — 뒤에서부터 (앞 행 번호가 밀리지 않게)
+    if (hit.length > list.length) {
+      const drop = hit.slice(list.length).map(function (h) { return h.row; });
+      drop.sort(function (a, b) { return b - a; }).forEach(function (r) { sheet.deleteRow(r); });
+    }
+
+    // ③ 서버가 늘었으면 묶음 바로 뒤에 끼워 넣는다 (다른 묶음 사이로 흩어지지 않게)
+    if (list.length > hit.length) {
+      const extra = list.slice(hit.length);
+      const at = hit[hit.length - 1].row + 1;
+      sheet.insertRowsAfter(hit[hit.length - 1].row, extra.length);
+      const rowsOut = extra.map(function (e) {
+        return [when, e.server, item, '', '', e.people, '', '', actorOld || actor, done ? ST_DONE : ST_WAIT, group, ''];
+      });
+      sheet.getRange(at, ALLY_COL.SERVER, extra.length, 1).setNumberFormat('@');
+      sheet.getRange(at, 1, extra.length, ALLIANCE_HEADERS.length).setValues(rowsOut);
+      sheet.getRange(at, ALLY_COL.DATE, extra.length, 1).setNumberFormat('yyyy-mm-dd hh:mm');
+      [ALLY_COL.AMOUNT, ALLY_COL.CREDITED, ALLY_COL.FUND].forEach(function (col) {
+        sheet.getRange(at, col, extra.length, 1).setNumberFormat('#,##0');
+      });
+    }
+
+    // ④ 정산된 건이면 금액·서버별 몫을 다시 쓰고 혈비는 **차액만** 조정한다
+    if (done) {
+      // 줄이 늘거나 줄었을 수 있으니 지금 자리를 다시 읽는다
+      const now = sheet.getRange(2, 1, sheet.getLastRow() - 1, ALLIANCE_HEADERS.length).getValues();
+      const rowsOfGroup = [];
+      now.forEach(function (r, i) {
+        const g = String(r[ALLY_COL.GROUP - 1]).trim() || ('r' + (i + 2));
+        if (g === group) rowsOfGroup.push(i + 2);
+      });
+      rowsOfGroup.forEach(function (r, i) {
+        sheet.getRange(r, ALLY_COL.AMOUNT).setValue(s.amount);
+        sheet.getRange(r, ALLY_COL.CREDITED).setValue(s.shares[i] || 0);
+        sheet.getRange(r, ALLY_COL.STATUS).setValue(ST_DONE);
+        sheet.getRange(r, ALLY_COL.FUND).setValue(i === 0 ? s.fundTotal : '');
+        sheet.getRange(r, ALLY_COL.BY).setValue(actor);
+      });
+      // ★ 전액을 다시 더하면 고칠 때마다 운영비가 불어난다 — 차액만 더한다
+      _creditFundBalance(ss, s.fundTotal - oldFund);
+    }
+
+    const total = list.reduce(function (t, e) { return t + e.people; }, 0);
+    const where = list.map(function (e) { return e.server + '서버 ' + e.people + '명'; }).join(' · ');
+    _logAction(ss, '연합정정', item, actor,
+      '"' + before + '" → "' + item + '" · ' +
+      hit.map(function (h) { return h.server + ' ' + h.people + '명'; }).join(' · ') + ' → ' + where +
+      (done ? ' · ' + oldAmount.toLocaleString() + ' → ' + s.amount.toLocaleString() + UNIT +
+              ' · ' + FUND_NAME + ' ' + oldFund.toLocaleString() + ' → ' + s.fundTotal.toLocaleString() : ''));
+
+    return _rc({
+      ok: true, group: group, servers: list.length, people: total,
+      amount: done ? s.amount : 0, fund: done ? s.fundTotal : 0,
+      msg: '✅ "' + item + '" 정정 완료 — ' + where +
+           (done ? ' · ' + s.amount.toLocaleString() + UNIT + ' · ' + FUND_NAME + ' ' + s.fundTotal.toLocaleString() : '')
+    }, 'ally.editOk', { item: item, sv: list.length, n: total });
+  } catch (e) {
+    return { ok: false, msg: '오류: ' + e.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * ➕ 연합 참여 서버 추가 (v11.1) — **관리자**도 할 수 있다.
+ *
+ * 레이드가 끝난 뒤 "우리 서버도 갔었다" 는 이야기가 늦게 오는 일이 흔하다.
+ * 그때마다 마스터를 불러 정정하게 하면 등록 자체가 미뤄진다.
+ *
+ * ★ 이 함수는 **줄을 더하기만 한다.** 이미 있는 줄의 서버·인원·아이템명은
+ *   손대지 못한다. 그래서 관리자에게 열어도 안전하다 — 값을 고치는 것은
+ *   `api_editAlliance`(마스터 전용)의 몫이다. 라우트를 속여도 여기서는
+ *   기존 값을 바꿀 방법이 없다.
+ * ★ 아직 금액이 안 들어간 건에만 더한다. 이미 정산된 건에 인원을 더하면
+ *   이미 나눠준 서버별 몫과 어긋난다 — 그건 정정으로 다시 계산해야 한다.
+ */
+function api_addAllianceServers(group, entries, email) {
+  group = String(group || '').trim();
+
+  const list = (entries || []).map(function (e) {
+    return { server: _normServer(e && e.server),
+             people: Math.max(Math.floor(Number(e && e.people) || 0), 0) };
+  }).filter(function (e) { return e.server; });
+  if (list.length === 0) return _rc({ ok: false, msg: '추가할 서버를 하나 이상 넣어주세요.' }, 'e.badServer');
+
+  const seen = {};
+  for (let i = 0; i < list.length; i++) {
+    if (SERVER_LIST.indexOf(list[i].server) < 0) {
+      return _rc({ ok: false, msg: '서버를 01~12 중에서 선택해주세요.' }, 'e.badServer');
+    }
+    if (seen[list[i].server]) {
+      return _rc({ ok: false, msg: list[i].server + '서버가 두 번 들어갔습니다. 한 줄로 합쳐주세요.' },
+        'e.dupServer', { s: list[i].server });
+    }
+    seen[list[i].server] = true;
+  }
+
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(15000); } catch (e) { return _rc({ ok: false, msg: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.' }, 'e.busy'); }
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(ALLIANCE_SHEET);
+    if (!sheet || sheet.getLastRow() < 2) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+    _ensureAllianceHeaders(sheet);
+
+    const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, ALLIANCE_HEADERS.length).getValues();
+    const hit = [];
+    let item = '', when = '', actorOld = '', done = false;
+    const have = {};
+    vals.forEach(function (r, i) {
+      const g = String(r[ALLY_COL.GROUP - 1]).trim() || ('r' + (i + 2));
+      if (g !== group) return;
+      const amt = Number(String(r[ALLY_COL.AMOUNT - 1]).replace(/,/g, '')) || 0;
+      hit.push(i + 2);
+      have[_normServer(r[ALLY_COL.SERVER - 1])] = true;
+      item = String(r[ALLY_COL.ITEM - 1]).trim();
+      when = r[ALLY_COL.DATE - 1];
+      actorOld = String(r[ALLY_COL.BY - 1]).trim();
+      const st = String(r[ALLY_COL.STATUS - 1]).trim() || (amt > 0 ? ST_DONE : ST_WAIT);
+      if (st === ST_DONE) done = true;
+    });
+    if (hit.length === 0) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+    if (done) {
+      return _rc({ ok: false, msg: '이미 정산된 건입니다. 정정으로 다시 계산해야 합니다.' }, 'e.allyDone', { item: item });
+    }
+    // 이미 들어 있는 서버를 또 넣으면 인원이 갈려 분배 비율이 틀어진다
+    for (let i = 0; i < list.length; i++) {
+      if (have[list[i].server]) {
+        return _rc({ ok: false, msg: list[i].server + '서버는 이미 들어 있습니다. 인원을 고치려면 정정을 쓰세요.' },
+          'e.dupServer', { s: list[i].server });
+      }
+    }
+
+    const actor = _getActorEmail(email);
+    const last = hit[hit.length - 1];
+    // 묶음 바로 뒤에 끼워 넣는다 — 맨 아래로 보내면 다른 묶음 사이로 흩어진다
+    sheet.insertRowsAfter(last, list.length);
+    const rowsOut = list.map(function (e) {
+      return [when, e.server, item, '', '', e.people, '', '', actorOld || actor, ST_WAIT, group, ''];
+    });
+    sheet.getRange(last + 1, ALLY_COL.SERVER, list.length, 1).setNumberFormat('@');
+    sheet.getRange(last + 1, 1, list.length, ALLIANCE_HEADERS.length).setValues(rowsOut);
+    sheet.getRange(last + 1, ALLY_COL.DATE, list.length, 1).setNumberFormat('yyyy-mm-dd hh:mm');
+    [ALLY_COL.AMOUNT, ALLY_COL.CREDITED, ALLY_COL.FUND].forEach(function (col) {
+      sheet.getRange(last + 1, col, list.length, 1).setNumberFormat('#,##0');
+    });
+
+    const total = list.reduce(function (t, e) { return t + e.people; }, 0);
+    const where = list.map(function (e) { return e.server + '서버 ' + e.people + '명'; }).join(' · ');
+    _logAction(ss, '연합서버추가', item, actor, where + ' 추가');
+    return _rc({
+      ok: true, group: group, servers: list.length, people: total,
+      msg: '✅ "' + item + '" 에 ' + where + ' 을(를) 추가했습니다.'
+    }, 'ally.addSv', { item: item, sv: list.length, n: total });
   } catch (e) {
     return { ok: false, msg: '오류: ' + e.message };
   } finally {
@@ -5865,7 +6163,7 @@ const API_TOKEN_PROP = 'API_TOKEN';
 //     공지 여부(isNotice)만 관리자 라우트에서 넘어온다.
 const API_WRITE_ACTIONS = ['register', 'distribute', 'payout', 'rename', 'addMember', 'removeMember',
                            'correctItem', 'deleteItem', 'editItem', 'undoPayout', 'runTool',
-                           'deletePost', 'addAlliance', 'creditAlliance', 'deleteAlliance', 'updateMember',
+                           'deletePost', 'addAlliance', 'creditAlliance', 'editAlliance', 'addAllianceServers', 'deleteAlliance', 'updateMember',
                            'bulkAddMembers',
                            'addRaid', 'updateRaid', 'deleteRaid',
                            'setAppName', 'setAdminPin', 'setSeasonServer'];
@@ -6105,6 +6403,14 @@ function _apiRoute(action, req) {
 
     case 'creditAlliance':
       return api_creditAlliance(req.group, req.amount, req.email);
+
+    // 연합 등록 항목 수정 (v11.1) — 미분배 건만. 마스터관리자 전용 라우트가 지킨다
+    case 'editAlliance':
+      return api_editAlliance(req.group, req.item, req.entries, req.amount, req.email, req.confirm === true);
+
+    // 참여 서버 추가 (v11.1) — 줄을 더하기만 한다. 관리자도 할 수 있다
+    case 'addAllianceServers':
+      return api_addAllianceServers(req.group, req.entries, req.email);
 
     case 'deleteAlliance':
       return api_deleteAlliance(req.group, req.email);

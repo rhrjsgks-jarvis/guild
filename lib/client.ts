@@ -502,3 +502,24 @@ export function calcAlliance(amount: number, counts: number[], fundRate: number)
   const remainder = pool - given;
   return { amount: a, fund, pool, shares, remainder, fundTotal: fund + remainder, people };
 }
+
+/**
+ * 인증샷을 화면에 바로 띄우기 위한 주소 (v11.1).
+ *
+ * 시트에 저장되는 값은 `https://drive.google.com/file/d/<id>/view` 인데,
+ * 이건 **이미지가 아니라 구글 드라이브 뷰어 페이지**다. `<img>` 에 그대로 넣으면
+ * 아무것도 안 나온다. 드라이브가 내주는 썸네일 주소로 바꿔야 보인다.
+ * (파일은 업로드할 때 "링크가 있는 모든 사용자 · 보기" 로 공유된다 — `.gs` 의 setSharing)
+ *
+ * ★ 드라이브 링크가 아니면 **그대로 돌려준다.** 관리자가 손으로 붙여넣은
+ *   다른 주소일 수 있고, 거기에 드라이브 규칙을 씌우면 멀쩡한 링크가 깨진다 (규칙 7).
+ */
+export function photoView(url: string, width = 1200): string {
+  const u = String(url ?? '').trim();
+  const id =
+    u.match(/\/file\/d\/([A-Za-z0-9_-]{10,})/)?.[1] ??
+    u.match(/[?&]id=([A-Za-z0-9_-]{10,})/)?.[1] ??
+    u.match(/^https:\/\/drive\.google\.com\/open\?id=([A-Za-z0-9_-]{10,})/)?.[1];
+  if (!id) return u;
+  return `https://drive.google.com/thumbnail?id=${id}&sz=w${width}`;
+}

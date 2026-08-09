@@ -56,7 +56,10 @@ export type GasAction =
   | 'setAdminPin'
   | 'setSeasonServer'
   /* v11.0 — 미분배 아이템 수정 (마스터관리자) */
-  | 'editItem';
+  | 'editItem'
+  /* v11.1 — 연합 항목 정정 (마스터관리자) */
+  | 'editAlliance'
+  | 'addAllianceServers';
 
 export type GasResponse = Record<string, unknown> & { ok: boolean; msg?: string };
 

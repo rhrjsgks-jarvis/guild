@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v11_0.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v11_1.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 const gs = readFileSync(GS_PATH, 'utf8');
@@ -1609,6 +1609,61 @@ check('연합 한 건에 여러 서버가 들어가고, 혈비는 실제로 적�
   return '중복 서버 거부 · 인증샷 선택 · 혈비 적립/회수 · 참여횟수 무관 · 라우트/앱/모의 묶음 단위';
 });
 
+check("연합 서버 표기: '1' 과 '01' 이 같은 서버다 (v11.1)", () => {
+  // 시트에 '01' 을 넣어도 셀 서식이 자동이면 구글시트가 숫자 1 로 바꿔 저장한다.
+  // 그러면 읽을 때 '1' 이 되고, 서버별 누적은 '01'~'12' 로만 집계하므로
+  // 그 건의 금액이 누적에서 통째로 빠진다 — 행에는 남아 있어 알아채기도 어렵다.
+  const ctx = vm.createContext({});
+  vm.runInContext(`${extractFn(gs, '_normServer')}; __n = _normServer;`, ctx);
+  const n = ctx.__n;
+  const cases = [
+    ['1', '01'], [1, '01'], ['01', '01'], ['12', '12'], [12, '12'],
+    [' 3 ', '03'], ['', ''], [null, ''], [undefined, ''],
+    ['A1', 'A1'],       // 알아볼 수 없는 값은 지어내지 않고 그대로 둔다 (규칙 7)
+    ['123', '123'],
+  ];
+  for (const [input, want] of cases) {
+    if (n(input) !== want) {
+      throw new Error(`_normServer(${JSON.stringify(input)}) = ${JSON.stringify(n(input))}, 기대 ${JSON.stringify(want)}`);
+    }
+  }
+
+  // 앱의 normServer 와 같은 규칙이어야 한다 — 한쪽만 고치면 화면과 집계가 어긋난다
+  const from = clientTs.slice(clientTs.indexOf('export function normServer('));
+  const appCtx = vm.createContext({});
+  vm.runInContext(
+    from.slice(0, from.indexOf('\n}') + 2).replace(/export /g, '').replace(/: string \| undefined \| null/g, '').replace(/\): string/g, ')') + '; __n = normServer;',
+    appCtx,
+  );
+  for (const [input, want] of cases) {
+    if (typeof input !== 'object' && appCtx.__n(input) !== want) {
+      throw new Error(`앱/시트 불일치: normServer(${JSON.stringify(input)}) 앱=${JSON.stringify(appCtx.__n(input))} 시트=${JSON.stringify(want)}`);
+    }
+  }
+
+  // 읽는 자리가 전부 이 함수를 거쳐야 한다. 한 곳만 빠져도 그 화면에서만 어긋난다
+  const get = (gs.match(/function api_getAlliance[\s\S]*?\n\}\n/) ?? [''])[0];
+  if (!/_normServer\(r\[ALLY_COL\.SERVER - 1\]\)/.test(get)) {
+    throw new Error('api_getAlliance 가 서버 표기를 맞추지 않습니다.');
+  }
+  const credit = (gs.match(/function api_creditAlliance[\s\S]*?\n\}\n/) ?? [''])[0];
+  if (!/_normServer\(r\[ALLY_COL\.SERVER - 1\]\)/.test(credit)) {
+    throw new Error('api_creditAlliance 가 서버 표기를 맞추지 않습니다.');
+  }
+  if (/String\(r\[ALLY_COL\.SERVER - 1\]\)\.trim\(\)/.test(gs)) {
+    throw new Error('서버 칸을 정규화 없이 읽는 자리가 남아 있습니다.');
+  }
+
+  // ★ 쓰기 전에 글자 서식으로 바꿔야 한다 — 쓴 뒤에 바꿔봐야 1 은 돌아오지 않는다
+  const add = (gs.match(/function api_addAlliance[\s\S]*?\n\}\n/) ?? [''])[0];
+  const fmtAt = add.indexOf("ALLY_COL.SERVER, values.length, 1).setNumberFormat('@')");
+  const setAt = add.indexOf('ALLIANCE_HEADERS.length).setValues(values)');
+  if (fmtAt < 0) throw new Error('등록이 서버 칸을 글자 서식으로 고정하지 않습니다.');
+  if (fmtAt > setAt) throw new Error('서식을 값보다 나중에 바꿉니다 — 이미 숫자가 된 값은 안 돌아옵니다.');
+
+  return `표기 맞춤 ${cases.length}케이스 (앱·시트 동일) · 읽기 2곳 · 쓰기 전 서식 고정`;
+});
+
 check('인증샷은 여러 장 붙고, 이관해도 살아남는다 (v11.0)', () => {
   // HYPERLINK 은 링크를 한 개만 담는다. 두 장 이상이면 값으로 나열해야 한다.
   const write = extractFn(gs, '_writeLedgerPhotos');
@@ -1651,6 +1706,168 @@ check('인증샷은 여러 장 붙고, 이관해도 살아남는다 (v11.0)', ()
   if (!/multiple/.test(ali)) throw new Error('연합 등록이 사진 한 장만 받습니다.');
   if (!/photoLinks: photos/.test(ali)) throw new Error('연합 등록이 사진 목록을 보내지 않습니다.');
   return `읽기 ${cases.length}케이스 (옛 수식·새 나열 동시 지원) · 이관 보존 · 앱 2곳 여러 장`;
+});
+
+check('사진이 읽은 인원수가 사람이 넣은 값을 덮어쓰지 않는다 (v11.1)', () => {
+  // 실제 사고: 사진 3장을 붙이고 13·8·8 로 고쳐 넣었는데, 마지막 사진이 읽은 8 이
+  // 첫 줄을 덮어써 8·8·8 이 됐다. 사람이 넣은 숫자가 기계의 추측보다 우선한다.
+  const ali = readFileSync(resolve(ROOT, 'components/AllianceTab.tsx'), 'utf8');
+
+  // 사람이 인원을 고치면 표시가 남아야 한다
+  if (!/people: e\.target\.value\.replace\(\/\[\^0-9\]\/g, ''\), touched: true/.test(ali)) {
+    throw new Error('사람이 고친 인원 칸에 표시를 남기지 않습니다.');
+  }
+  // 옛 경로(무조건 첫 줄 덮어쓰기)가 남아 있으면 안 된다
+  if (/k === 0 \? \{ \.\.\.r, people: String\(n\) \}/.test(ali)) {
+    throw new Error('사진 결과가 첫 줄을 무조건 덮어씁니다.');
+  }
+  // 자동 입력은 "한 줄뿐이고 아직 안 건드린" 경우로 좁혀져 있어야 한다
+  const auto = (ali.match(/if \(n > 0\) \{[\s\S]*?\n    \}/) ?? [''])[0];
+  if (!/cur\.length === 1/.test(auto)) throw new Error('서버가 여럿인데도 자동으로 채웁니다.');
+  if (!/!cur\[0\]\.touched/.test(auto)) throw new Error('사람이 고친 값을 덮어쓸 수 있습니다.');
+  // 대신 읽은 값은 보여줘야 한다 — 안 보여주면 사진을 붙인 뜻이 없다
+  if (!/ali\.photoRead/.test(ali)) throw new Error('사진이 읽은 인원수를 보여주지 않습니다.');
+  if (!/ali\.photoManual/.test(ali)) throw new Error('직접 넣어야 한다는 안내가 없습니다.');
+  return '손댄 값 보호 · 자동 입력은 한 줄·미입력일 때만 · 읽은 값은 표시';
+});
+
+check('연합 정정은 마스터만, 서버 추가는 관리자도 (v11.1)', () => {
+  const edit = (gs.match(/function api_editAlliance[\s\S]*?\n\}\n/) ?? [''])[0];
+  if (!edit) throw new Error('api_editAlliance 가 없습니다.');
+
+  // ★ 정산된 건을 고치는 것은 돈이 움직이는 작업이다 — 숫자를 보여준 뒤에만 실행한다
+  if (!/confirm !== true/.test(edit)) throw new Error('정산된 건을 확인 없이 고칩니다 (규칙 5-1).');
+  if (!/needsConfirm: true/.test(edit)) throw new Error('되물을 때 needsConfirm 을 주지 않습니다.');
+  // 되물을 때 바뀔 숫자가 함께 가야 사용자가 판단할 수 있다
+  if (!/fundDelta/.test(edit)) throw new Error('혈비가 얼마나 바뀌는지 알려주지 않습니다.');
+  // ★ 전액을 다시 더하면 고칠 때마다 운영비가 불어난다
+  if (!/_creditFundBalance\(ss, s\.fundTotal - oldFund\)/.test(edit)) {
+    throw new Error('혈비를 차액이 아니라 전액으로 조정합니다 — 고칠 때마다 운영비가 불어납니다.');
+  }
+  if (!/lock\.waitLock/.test(edit)) throw new Error('정정이 락 없이 실행됩니다.');
+  // 산식은 한 곳에서만 — 여기서 다시 구현하면 정산과 어긋난다
+  if (!/_calcAlliance\(/.test(edit)) throw new Error('정정이 공통 산식을 쓰지 않습니다.');
+
+  // 라우터가 confirm 을 그대로 넘기는지 (임의로 true 를 만들면 안전장치가 무력화된다)
+  if (!/api_editAlliance\(req\.group, req\.item, req\.entries, req\.amount, req\.email, req\.confirm === true\)/.test(gs)) {
+    throw new Error('라우터가 정정 인자를 그대로 넘기지 않습니다.');
+  }
+
+  // 정정은 마스터 라우트에만 있어야 한다
+  const master = readFileSync(resolve(ROOT, 'app/api/master/alliance/route.ts'), 'utf8');
+  if (!/requireMaster\(\)/.test(master)) throw new Error('연합 정정이 마스터를 요구하지 않습니다.');
+  if (!/confirm: body\.confirm === true/.test(master)) {
+    throw new Error('라우트가 confirm 을 그대로 전달하지 않습니다.');
+  }
+  const adminRoute = readFileSync(resolve(ROOT, 'app/api/admin/alliance/route.ts'), 'utf8');
+  if (/'editAlliance'/.test(adminRoute)) throw new Error('관리자 라우트에서 정정을 부릅니다.');
+
+  // ➕ 서버 추가는 관리자도 한다 — 대신 **더하기만** 되어야 안전하다
+  const add = (gs.match(/function api_addAllianceServers[\s\S]*?\n\}\n/) ?? [''])[0];
+  if (!add) throw new Error('api_addAllianceServers 가 없습니다.');
+  if (/ALLY_COL\.PEOPLE\)\.setValue|ALLY_COL\.ITEM\)\.setValue/.test(add)) {
+    throw new Error('서버 추가가 기존 줄의 값을 고칩니다 — 관리자에게 열 수 없습니다.');
+  }
+  if (/deleteRow/.test(add)) throw new Error('서버 추가가 줄을 지웁니다.');
+  // 이미 정산된 건에 인원을 더하면 이미 나눠준 몫과 어긋난다
+  if (!/e\.allyDone/.test(add)) throw new Error('정산된 건에도 서버를 더할 수 있습니다.');
+  // 같은 서버가 두 줄이 되면 인원이 갈려 분배 비율이 틀어진다
+  if (!/have\[list\[i\]\.server\]/.test(add)) throw new Error('이미 있는 서버를 또 더할 수 있습니다.');
+  if (!/'addAllianceServers'/.test(adminRoute)) throw new Error('관리자 라우트에 서버 추가가 없습니다.');
+
+  // 화면: 정정은 마스터에게만, ＋ 는 관리자에게
+  const ali = readFileSync(resolve(ROOT, 'components/AllianceTab.tsx'), 'utf8');
+  if (!/master \? \(\s*\n\s*<button className="btn ghost" onClick=\{\(\) => setEditing\(g\)\}/.test(ali)) {
+    throw new Error('정정 버튼이 마스터에게만 보이지 않습니다.');
+  }
+  if (!/setAddingSv\(g\)/.test(ali)) throw new Error('＋ 버튼이 없습니다.');
+  if (!/\/api\/master\/alliance/.test(ali)) throw new Error('앱이 마스터 라우트를 부르지 않습니다.');
+  // 등록·정정이 같은 편집기를 써야 한쪽만 낡지 않는다
+  if ((ali.match(/<ServerRows /g) ?? []).length < 3) {
+    throw new Error('서버·인원 편집기를 화면마다 따로 만들었습니다.');
+  }
+  return '정정=마스터(확인·차액조정·공통산식) · 추가=관리자(더하기만) · 편집기 1벌';
+});
+
+check('팝업은 바깥을 눌러도 닫히지 않는다 (v11.1)', () => {
+  // 폰에서는 시트가 화면을 거의 다 채운다. 스크롤하려다 가장자리를 스치면
+  // 예전에는 그대로 닫혔고, 입력하던 내용이 통째로 사라졌다.
+  // 참여자를 스무 명 체크한 뒤라면 손해가 크다.
+  const src = readFileSync(resolve(ROOT, 'components/Sheet.tsx'), 'utf8');
+  if (/onClick=\{\(e\)[^}]*currentTarget[^}]*onClose\(\)/s.test(src)) {
+    throw new Error('배경을 누르면 닫히는 경로가 남아 있습니다.');
+  }
+  if (/className="backdrop"[\s\S]{0,120}onClick=/.test(src)) {
+    throw new Error('배경에 닫기 동작이 붙어 있습니다.');
+  }
+  // 대신 오른쪽 위에 닫기 버튼이 반드시 있어야 한다 — 없으면 나갈 길이 사라진다
+  if (!/className="sheet-x"/.test(src)) throw new Error('오른쪽 위 닫기 버튼이 없습니다.');
+  if (!/onClick=\{onClose\}/.test(src)) throw new Error('닫기 버튼이 닫지 않습니다.');
+  if (!/aria-label=\{t\('c\.close'\)\}/.test(src)) throw new Error('닫기 버튼에 이름이 없습니다.');
+  // 키보드만 쓰는 사람을 막지 않는다
+  if (!/e\.key === 'Escape'/.test(src)) throw new Error('Esc 로도 닫히지 않습니다.');
+
+  // 버튼이 스크롤을 따라와야 긴 시트에서도 찾을 수 있다
+  const css = readFileSync(resolve(ROOT, 'app/globals.css'), 'utf8');
+  const rule = (css.match(/\.sheet-x \{[^}]*\}/) ?? [''])[0];
+  if (!/position: sticky/.test(rule)) throw new Error('닫기 버튼이 스크롤하면 사라집니다.');
+  if (!/\.sheet h2 \{[^}]*padding-right/.test(css)) {
+    throw new Error('제목이 닫기 버튼 아래로 파고듭니다.');
+  }
+  return '배경 닫기 없음 · 오른쪽 위 [✕] · Esc 유지 · 제목 자리 확보';
+});
+
+check('인증샷은 앱 안에서 바로 보인다 (v11.1)', () => {
+  // 시트에 저장되는 값은 드라이브 **뷰어 페이지** 주소다. <img> 에 그대로 넣으면
+  // 아무것도 안 나온다 — 썸네일 주소로 바꿔야 보인다.
+  const from = clientTs.slice(clientTs.indexOf('export function photoView('));
+  const jsFn = from
+    .slice(0, from.indexOf('\n}') + 2)
+    .replace(/export /g, '')
+    .replace(/url: string, width = 1200/, 'url, width = 1200')
+    .replace(/\): string/g, ')');
+  const ctx = vm.createContext({});
+  vm.runInContext(`${jsFn}; __v = photoView;`, ctx);
+  const v = ctx.__v;
+
+  const ID = '1AbC_dEfGhIjKlMnOpQ';
+  const cases = [
+    [`https://drive.google.com/file/d/${ID}/view?usp=drivesdk`, `https://drive.google.com/thumbnail?id=${ID}&sz=w400`],
+    [`https://drive.google.com/open?id=${ID}`, `https://drive.google.com/thumbnail?id=${ID}&sz=w400`],
+    // ★ 드라이브가 아니면 손대지 않는다 — 멀쩡한 링크가 깨진다 (규칙 7)
+    ['https://example.com/shot.png', 'https://example.com/shot.png'],
+    ['', ''],
+  ];
+  for (const [input, want] of cases) {
+    if (v(input, 400) !== want) {
+      throw new Error(`photoView(${JSON.stringify(input)}) = ${JSON.stringify(v(input, 400))}, 기대 ${JSON.stringify(want)}`);
+    }
+  }
+
+  const strip = readFileSync(resolve(ROOT, 'components/PhotoStrip.tsx'), 'utf8');
+  if (!/photoView\(/.test(strip)) throw new Error('사진 보기가 썸네일 주소를 쓰지 않습니다.');
+  // ★ 못 불러온 사진을 조용히 숨기면 관리자는 사진을 안 붙인 줄로 안다
+  if (!/onError=/.test(strip)) throw new Error('사진을 못 불러온 경우를 다루지 않습니다.');
+  if (!/shot\.failed/.test(strip)) throw new Error('못 불러온 사진을 알려주지 않습니다.');
+  // 원본으로 나가는 길은 남겨둔다 (썸네일이 흐릴 때 필요하다)
+  if (!/shot\.origin/.test(strip)) throw new Error('원본 링크가 없습니다.');
+
+  // 아이템·연합 두 곳 모두에서 열려야 한다
+  for (const f of ['components/ItemsTab.tsx', 'components/AllianceTab.tsx']) {
+    const src = readFileSync(resolve(ROOT, f), 'utf8');
+    if (!/<PhotoStrip urls=/.test(src)) throw new Error(`${f} 에서 인증샷을 볼 수 없습니다.`);
+    if (!/shot\.none/.test(src)) throw new Error(`${f} 가 인증샷이 없을 때를 알려주지 않습니다.`);
+  }
+  // 아이템은 이름을 눌러 여는 것이 입구다
+  const items = readFileSync(resolve(ROOT, 'components/ItemsTab.tsx'), 'utf8');
+  if (!/onClick=\{\(\) => setViewing\(it\)\}/.test(items)) {
+    throw new Error('아이템명을 눌러도 상세가 열리지 않습니다.');
+  }
+  // 시트가 사진을 실어 보내야 앱이 보여줄 수 있다
+  if (!/photos: _readLedgerPhotos\(pf\[i\]\[0\], pd\[i\]\[0\]\)/.test(gs)) {
+    throw new Error('api_getState 가 아이템 인증샷을 실어 보내지 않습니다.');
+  }
+  return `주소 변환 ${cases.length}케이스 · 실패 표시 · 원본 링크 · 아이템/연합 2곳`;
 });
 
 check('미분배 아이템 수정은 마스터만, 분배된 것은 거부한다 (v11.0)', () => {

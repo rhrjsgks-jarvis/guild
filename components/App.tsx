@@ -311,6 +311,7 @@ export default function App() {
             // 연합 정산은 혈맹운영비 잔액을 실제로 늘리고 줄인다 — 잔액 탭도 같이 맞춰야 한다
             <AllianceTab
               admin={admin}
+              master={master}
               fundName={state.fundName}
               toast={toast}
               setBusy={setBusy}

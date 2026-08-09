@@ -27,7 +27,7 @@ const ST_DONE = '✅분배완료';
 // 앱이 기대하는 버전과 같은 값 — 화면에 "버전 불일치" 경고가 뜨지 않아야 정상이다.
 // ★ 한 곳에만 적는다. 여기저기 흩어 적으면 버전을 올릴 때 한 군데가 남아
 //   "실어 온 상태의 버전이 다르다"는 엉뚱한 실패로 나타난다 (실제로 겪었다).
-const GS_VERSION = '11.0';
+const GS_VERSION = '11.1';
 let MOCK_GS_VERSION = GS_VERSION;
 
 /**
@@ -44,6 +44,7 @@ function rc(res, code, vars) {
 /** .gs 의 API_WRITE_ACTIONS 와 같은 목록 — 상태를 실어 보낼 대상 판정에 쓴다 */
 const WRITE_ACTIONS = ['register', 'distribute', 'payout', 'rename', 'addMember', 'removeMember',
                        'correctItem', 'deleteItem', 'editItem', 'undoPayout', 'runTool',
+                       'editAlliance', 'addAllianceServers',
                        'deletePost', 'addAlliance', 'creditAlliance', 'deleteAlliance', 'updateMember',
                        'bulkAddMembers',
                        'addRaid', 'updateRaid', 'deleteRaid',
@@ -83,7 +84,9 @@ function freshState() {
       { name: '선륙소농포 (鮮肉小籠包)', pending: 0, paid: 0, cnt: 0, weight: 100, server: '06', hanja: '鮮肉小籠包' },
     ],
     items: [
-      { row: 2, item: '기란 세금', date: '08/01', cnt: 3, names: ['가이', 'TC무식', '대서과Z'] },
+      // 인증샷 두 장 — 아이템명을 누르면 앱 안에서 바로 보인다 (v11.1)
+      { row: 2, item: '기란 세금', date: '08/01', cnt: 3, names: ['가이', 'TC무식', '대서과Z'],
+        photos: ['https://drive.google.com/file/d/MOCKFILEID001/view', 'https://drive.google.com/file/d/MOCKFILEID002/view'] },
       { row: 5, item: '용의 심장', date: '08/03', cnt: 2, names: ['가이', 'PlusS'] },
     ],
     // 분배완료된 아이템 — 정정·삭제 대상.
@@ -106,11 +109,14 @@ function freshState() {
     // 연합 — 시트와 같이 **서버마다 한 줄**이고, 같은 묶음(group)이 아이템 하나다 (v11.0)
     alliance: [
       { row: 2, group: 'A1', date: '08/02 14:00', server: '03', item: '연합 보스',
-        amount: 40000, pct: 0, people: 12, credited: 24000, photos: [], fund: 12000, done: true },
+        amount: 40000, pct: 0, people: 12, credited: 24000, fund: 12000, done: true,
+        photos: ['https://drive.google.com/file/d/MOCKFILEIDA01/view', 'https://drive.google.com/file/d/MOCKFILEIDB01/view'] },
       { row: 3, group: 'A1', date: '08/02 14:00', server: '05', item: '연합 보스',
         amount: 40000, pct: 0, people: 6, credited: 12000, photos: [], fund: 0, done: true },
       // 금액을 기다리는 등록 건 — v10.3 의 2단계 흐름을 화면에서 볼 수 있게
-      { row: 4, group: 'A2', date: '08/05 21:00', server: '05', item: '연합 레이드',
+      // ★ 서버가 '5' 로 저장된 옛 행 — 시트 서식이 자동이면 '05' 가 숫자 5 로 바뀐다.
+      //   그대로 집계하면 이 건의 금액이 서버별 누적에서 통째로 빠진다 (v11.1)
+      { row: 4, group: 'A2', date: '08/05 21:00', server: '5', item: '연합 레이드',
         amount: 0, pct: 0, people: 18, credited: 0, photos: [], fund: 0, done: false },
     ],
     nextAllianceRow: 5,
@@ -265,6 +271,15 @@ function recalcCounts() {
     if (r.name === FUND_NAME) continue;
     r.cnt = tally.get(norm(r.name)) ?? 0;
   }
+}
+
+/**
+ * .gs 의 _normServer — '1' 과 '01' 은 같은 서버다.
+ * 시트에 '01' 을 넣어도 서식이 자동이면 구글시트가 숫자 1 로 바꿔 저장한다.
+ */
+function normServer(v) {
+  const t = String(v == null ? '' : v).trim();
+  return /^\d{1,2}$/.test(t) ? ('0' + t).slice(-2) : t;
 }
 
 /** 혈맹운영비 잔액에 더한다 (음수면 뺀다). 참여횟수는 건드리지 않는다 — 다른 사건이다 (규칙 3) */
@@ -759,10 +774,10 @@ const handlers = {
   },
 
   alliance: () => {
-    const shape = (r) => ({ ...r, status: r.done ? ST_DONE : ST_WAIT });
+    const shape = (r) => ({ ...r, server: normServer(r.server), status: r.done ? ST_DONE : ST_WAIT });
     const totals = SERVER_LIST.map((sv) => {
       // ★ 아직 금액이 안 정해진 건은 누적에 넣지 않는다 (0원이 건수만 부풀린다)
-      const rows = S.alliance.filter((r) => r.server === sv && r.done);
+      const rows = S.alliance.filter((r) => normServer(r.server) === sv && r.done);
       return {
         server: sv,
         credited: rows.reduce((a, b) => a + b.credited, 0),
@@ -783,7 +798,7 @@ const handlers = {
         });
       }
       const g = byGroup.get(r.group);
-      g.servers.push({ server: r.server, people: r.people, credited: r.credited });
+      g.servers.push({ server: normServer(r.server), people: r.people, credited: r.credited });
       g.rows.push(r.row);
       g.people += r.people;
       g.credited += r.credited;
@@ -814,7 +829,7 @@ const handlers = {
     if (!nm) return rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
 
     const list = (entries || [])
-      .map((e) => ({ server: String((e && e.server) || '').trim(), people: Math.max(Math.floor(Number(e && e.people) || 0), 0) }))
+      .map((e) => ({ server: normServer(e && e.server), people: Math.max(Math.floor(Number(e && e.people) || 0), 0) }))
       .filter((e) => e.server);
     if (list.length === 0) return rc({ ok: false, msg: '참여한 서버를 하나 이상 넣어주세요.' }, 'e.badServer');
 
@@ -877,6 +892,112 @@ const handlers = {
       'ally.creditMulti', { item: targets[0].item, amount: amt, fund: FUND_NAME, fundTotal, n: people, where });
   },
 
+  // ✏️ 연합 정정 (v11.1, 마스터) — 미분배는 바로, 정산된 건은 되물은 뒤에
+  editAlliance: ({ group, item, entries, amount, confirm }) => {
+    const hit = S.alliance.filter((r) => r.group === String(group));
+    if (hit.length === 0) return rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+    const nm = String(item || '').trim();
+    if (!nm) return rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
+
+    const list = (entries || [])
+      .map((e) => ({ server: normServer(e && e.server), people: Math.max(Math.floor(Number(e && e.people) || 0), 0) }))
+      .filter((e) => e.server);
+    if (list.length === 0) return rc({ ok: false, msg: '참여한 서버를 하나 이상 넣어주세요.' }, 'e.badServer');
+    const seen = new Set();
+    for (const e of list) {
+      if (!SERVER_LIST.includes(e.server)) return rc({ ok: false, msg: '서버를 01~12 중에서 선택해주세요.' }, 'e.badServer');
+      if (seen.has(e.server)) return rc({ ok: false, msg: `${e.server}서버가 두 번 들어갔습니다.` }, 'e.dupServer', { s: e.server });
+      seen.add(e.server);
+    }
+
+    const done = hit.some((r) => r.done);
+    const oldFund = hit.reduce((a, r) => a + r.fund, 0);
+    const oldAmount = hit.reduce((a, r) => Math.max(a, r.amount), 0);
+    const before = hit[0].item;
+
+    let s2 = null;
+    if (done) {
+      const raw = amount === '' || amount === null || amount === undefined ? oldAmount : amount;
+      const amt = Number(String(raw).replace(/,/g, ''));
+      if (!Number.isInteger(amt) || amt <= 0) return rc({ ok: false, msg: '금액은 양의 정수여야 합니다.' }, 'e.badAmount');
+      const fund = Math.floor(amt * FUND_RATE);
+      const pool = amt - fund;
+      const people = list.reduce((a, e) => a + e.people, 0);
+      const shares = list.map((e) => (people > 0 ? Math.floor((pool * e.people) / people) : 0));
+      s2 = { amount: amt, shares, fundTotal: fund + (pool - shares.reduce((a, b) => a + b, 0)) };
+
+      // ★ 돈이 움직이는 정정은 바뀔 숫자를 보여준 뒤에만 실행한다 (규칙 5-1)
+      if (confirm !== true) {
+        return rc({
+          ok: false, needsConfirm: true, item: before,
+          before: { amount: oldAmount, fund: oldFund },
+          after: { amount: s2.amount, fund: s2.fundTotal },
+          fundDelta: s2.fundTotal - oldFund,
+          msg: `"${before}" 정정 — ${FUND_NAME} ${oldFund.toLocaleString()} → ${s2.fundTotal.toLocaleString()}. 확인 후 다시 실행해주세요.`,
+        }, 'ally.editAsk', { item: before, fund: FUND_NAME, from: oldFund, to: s2.fundTotal });
+      }
+    }
+
+    // 묶음을 새 목록으로 바꿔 끼운다 (첫 줄의 인증샷은 지킨다)
+    const photos = hit[0].photos;
+    const date = hit[0].date;
+    const rows = list.map((e, i) => ({
+      row: hit[i] ? hit[i].row : S.nextAllianceRow++,
+      group: String(group), date, server: e.server, item: nm,
+      amount: done ? s2.amount : 0, pct: 0, people: e.people,
+      credited: done ? s2.shares[i] : 0,
+      photos: i === 0 ? photos : [],
+      fund: done && i === 0 ? s2.fundTotal : 0,
+      done,
+    }));
+    const at = S.alliance.findIndex((r) => r.group === String(group));
+    S.alliance = S.alliance.filter((r) => r.group !== String(group));
+    S.alliance.splice(at, 0, ...rows);
+    // ★ 전액을 다시 더하면 고칠 때마다 운영비가 불어난다 — 차액만 더한다
+    if (done) creditFund(s2.fundTotal - oldFund);
+
+    const total = list.reduce((a, e) => a + e.people, 0);
+    return rc({ ok: true, group, servers: list.length, people: total,
+                amount: done ? s2.amount : 0, fund: done ? s2.fundTotal : 0,
+                msg: `✅ "${nm}" 정정 완료` },
+      'ally.editOk', { item: nm, sv: list.length, n: total });
+  },
+
+  // ➕ 참여 서버 추가 (v11.1, 관리자) — 줄을 더하기만 한다
+  addAllianceServers: ({ group, entries }) => {
+    const hit = S.alliance.filter((r) => r.group === String(group));
+    if (hit.length === 0) return rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+    if (hit.some((r) => r.done)) {
+      return rc({ ok: false, msg: '이미 정산된 건입니다.' }, 'e.allyDone', { item: hit[0].item });
+    }
+    const list = (entries || [])
+      .map((e) => ({ server: normServer(e && e.server), people: Math.max(Math.floor(Number(e && e.people) || 0), 0) }))
+      .filter((e) => e.server);
+    if (list.length === 0) return rc({ ok: false, msg: '추가할 서버를 하나 이상 넣어주세요.' }, 'e.badServer');
+
+    const have = new Set(hit.map((r) => normServer(r.server)));
+    const seen = new Set();
+    for (const e of list) {
+      if (!SERVER_LIST.includes(e.server)) return rc({ ok: false, msg: '서버를 01~12 중에서 선택해주세요.' }, 'e.badServer');
+      if (seen.has(e.server) || have.has(e.server)) {
+        return rc({ ok: false, msg: `${e.server}서버가 두 번 들어갔습니다.` }, 'e.dupServer', { s: e.server });
+      }
+      seen.add(e.server);
+    }
+
+    const last = S.alliance.lastIndexOf(hit[hit.length - 1]);
+    const rows = list.map((e) => ({
+      row: S.nextAllianceRow++, group: String(group), date: hit[0].date, server: e.server,
+      item: hit[0].item, amount: 0, pct: 0, people: e.people, credited: 0, photos: [], fund: 0, done: false,
+    }));
+    S.alliance.splice(last + 1, 0, ...rows);
+
+    const total = list.reduce((a, e) => a + e.people, 0);
+    return rc({ ok: true, group, servers: list.length, people: total,
+                msg: `✅ "${hit[0].item}" 에 서버 ${list.length}곳을 추가했습니다.` },
+      'ally.addSv', { item: hit[0].item, sv: list.length, n: total });
+  },
+
   deleteAlliance: ({ group }) => {
     const hit = S.alliance.filter((r) => r.group === String(group));
     if (hit.length === 0) return rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
@@ -929,12 +1050,18 @@ const handlers = {
     return rc({ ok: true, msg: '✅ 삭제했습니다.' }, 'raid.delOk');
   },
 
-  countPhoto: () => ({
-    ok: true,
-    people: 2,
-    photoUrl: 'https://drive.google.com/file/d/MOCK/view',
-    msg: '📷 사진에서 2명으로 읽었습니다. 실제 인원과 다르면 숫자를 직접 고쳐주세요.',
-  }),
+  // 사진마다 다른 인원수를 내준다 — 실제로도 장마다 다르고, 그래서 마지막 값이
+  // 앞의 값을 덮어쓰는 사고가 났다 (v11.0). 부를 때마다 바뀌어야 그 사고를 재현할 수 있다.
+  countPhoto: () => {
+    S.photoReads = (S.photoReads ?? 0) + 1;
+    const people = [13, 8, 8][(S.photoReads - 1) % 3];
+    return rc({
+      ok: true,
+      people,
+      photoUrl: `https://drive.google.com/file/d/MOCKSHOT${S.photoReads}/view`,
+      msg: `📷 사진에서 ${people}명으로 읽었습니다. 실제 인원과 다르면 숫자를 직접 고쳐주세요.`,
+    }, 'photo.count', { n: people });
+  },
 
   updateMember: ({ name, patch }) => {
     const r = findRow(name);

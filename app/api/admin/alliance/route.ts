@@ -80,6 +80,41 @@ export async function POST(req: Request) {
     return Response.json(res, { status: res.ok ? 200 : 400 });
   }
 
+  // ➕ 참여 서버 추가 — 줄을 더하기만 한다. 기존 값은 시트가 못 바꾸게 막는다
+  // (값을 고치는 것은 /api/master/alliance 의 몫이다)
+  if (op === 'addServers') {
+    const group = String(body.group ?? '').trim();
+    if (!group) {
+      return Response.json({ ok: false, msg: '기록을 찾을 수 없습니다.' }, { status: 400 });
+    }
+    const raw = Array.isArray(body.entries) ? body.entries : [];
+    const entries: { server: string; people: number }[] = [];
+    for (const e of raw) {
+      const o = (e ?? {}) as { server?: unknown; people?: unknown };
+      const server = String(o.server ?? '').trim();
+      if (!server) continue;
+      const people = Number(o.people);
+      if (!Number.isInteger(people) || people < 0) {
+        return Response.json({ ok: false, msg: '인원수는 0 이상의 정수여야 합니다.' }, { status: 400 });
+      }
+      entries.push({ server, people });
+    }
+    if (entries.length === 0) {
+      return Response.json({ ok: false, msg: '추가할 서버를 하나 이상 넣어주세요.' }, { status: 400 });
+    }
+    const dup = new Set<string>();
+    for (const e of entries) {
+      if (dup.has(e.server)) {
+        return Response.json({ ok: false, msg: `${e.server}서버가 두 번 들어갔습니다.` }, { status: 400 });
+      }
+      dup.add(e.server);
+    }
+
+    const res = await callGas('addAllianceServers', { group, entries, email }, { timeoutMs: 45_000 });
+    if (res.ok) invalidate('alliance');
+    return Response.json(res, { status: res.ok ? 200 : 400 });
+  }
+
   if (op === 'credit') {
     const group = String(body.group ?? '').trim();
     const amount = Number(String(body.amount ?? '').replace(/,/g, ''));
