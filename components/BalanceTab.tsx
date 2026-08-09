@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { BalanceRow, GuildState } from '@/lib/types';
-import { fmt, fundFirst, nameParts, normName, normServer } from '@/lib/client';
+import { byName, fmt, fundFirst, nameParts, normName, normServer } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 import ShareBtn from './ShareBtn';
 
@@ -48,8 +48,9 @@ export default function BalanceTab({
     const filtered = state.rows
       .filter((r) => (onlyOwed ? r.pending > 0 : true))
       .filter((r) => (needle ? r.name.toLowerCase().includes(needle) : true))
-      // 받을 게 남은 사람이 위로 오는 편이 지급할 때 편하다
-      .sort((a, b) => b.pending - a.pending);
+      // 이름순(ㄱ~ㅎ) — 금액순으로 두면 분배할 때마다 자리가 바뀌어 눈으로 찾을 수가 없다.
+      // "받을 사람만 보기"와 이름 검색이 있으므로 지급할 때도 불편하지 않다 (v10.9.2)
+      .sort((a, b) => byName(a.name, b.name));
 
     // 혈비는 사람이 아니라 길드의 금고다 — 사람들 사이에 섞이지 않게 맨 위로 (v10.8.7)
     const fundKey = normName(state.fundName);

@@ -224,6 +224,22 @@ export function mergeName(name: string, hanja?: string): { main: string; sub: st
 export type ServerSource = { memberInfo?: { name: string; server?: string }[] };
 
 /**
+ * 이름 정렬 — 한국어 ㄱ~ㅎ (v10.9.2).
+ *
+ * `Intl.Collator('ko')` 를 쓰는 이유: `<` 로 비교하면 유니코드 코드포인트 순이라
+ * 라틴·한자·한글이 뒤섞이고, `ㄱ~ㅎ` 도 자모 분리된 이름에서 어긋난다.
+ *
+ * ★ `normName` 을 거친다 — `'잠단 (斬斷)'` 과 `'잠단(斬斷)'` 이 다른 자리에 가면
+ *   같은 사람이 목록에서 멀어져 보인다 (CLAUDE.md 규칙 4).
+ * ★ `numeric` — `유저2` 가 `유저10` 보다 앞에 온다. 글자로만 비교하면 뒤집힌다.
+ */
+const NAME_COLLATOR = new Intl.Collator('ko', { numeric: true, sensitivity: 'base' });
+
+export function byName(a: string, b: string): number {
+  return NAME_COLLATOR.compare(normName(a), normName(b));
+}
+
+/**
  * 혈맹운영비 계정을 목록 맨 위로 (v10.8.7).
  *
  * 혈비는 사람이 아니라 **길드의 금고**다. 사람들 사이에 섞여 있으면 인원이

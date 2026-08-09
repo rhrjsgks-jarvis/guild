@@ -1705,11 +1705,14 @@ await t('혈맹운영비가 잔액·혈맹원 관리 맨 위에 온다 (화면)'
   }
   // 아무 표시가 없으면 "잔액이 제일 많은 사람" 으로 읽힌다
   eq(await first.locator('.badge').innerText(), '운영비', '맨 윗줄의 배지');
-  // 나머지 순서(잔액 많은 순)는 흐트러지지 않아야 한다
-  const rest = await page.locator('.card .row .row-amt .amt-pending').allInnerTexts();
-  const nums = rest.slice(1).map((s) => Number(s.replace(/[^0-9]/g, '')));
-  for (let i = 1; i < nums.length; i++) {
-    if (nums[i] > nums[i - 1]) throw new Error(`혈비 아래 정렬이 깨졌습니다: ${nums.join(' > ')}`);
+  // 혈비 아래는 이름순(ㄱ~ㅎ)이어야 한다 (v10.9.2).
+  // 금액순으로 두면 분배할 때마다 자리가 바뀌어 눈으로 찾을 수가 없다.
+  const listed = (await page.locator('.card .row .row-name').allInnerTexts())
+    .slice(1)
+    .map((s) => s.replace(/^\d{2}\s*/, '').split('(')[0].trim());
+  const wanted = [...listed].sort((a, b) => a.localeCompare(b, 'ko', { numeric: true }));
+  if (listed.join(',') !== wanted.join(',')) {
+    throw new Error(`잔액이 이름순이 아닙니다:\n  실제 ${listed.join(' · ')}\n  기대 ${wanted.join(' · ')}`);
   }
 
   // ★ 검색·필터에 걸려 빠진 것을 억지로 되살리면 안 된다 — 필터가 거짓말을 하게 된다
@@ -1730,6 +1733,63 @@ await t('혈맹운영비가 잔액·혈맹원 관리 맨 위에 온다 (화면)'
     throw new Error(`혈맹원 관리 맨 윗줄이 혈비가 아닙니다: ${(await rosterFirst.innerText()).split('\n')[0]}`);
   }
   await shot('25-fund-first');
+});
+
+await t('사람 목록이 잔액·아이템·관리 모두 이름순(ㄱ~ㅎ)이다 (화면)', async () => {
+  await reset();
+  await page.reload({ waitUntil: 'networkidle' });
+
+  // 표기 차이·괄호를 걷어낸 뒤 한국어 순서와 대조한다
+  const clean = (s) => s.replace(/^\d{2}\s*/, '').split('(')[0].trim();
+  const inOrder = (names, where) => {
+    const want = [...names].sort((a, b) => a.localeCompare(b, 'ko', { numeric: true }));
+    if (names.join(',') !== want.join(','))
+      throw new Error(`${where} 가 이름순이 아닙니다:\n  실제 ${names.join(' · ')}\n  기대 ${want.join(' · ')}`);
+  };
+
+  // ① 잔액 — 맨 위 혈비만 빼고
+  await page.locator('.nav button').filter({ hasText: /잔액/ }).click();
+  await page.waitForTimeout(700);
+  inOrder((await page.locator('.card .row .row-name').allInnerTexts()).slice(1).map(clean), '잔액');
+
+  // ② 아이템 참여자 칩
+  await page.locator('.nav button').filter({ hasText: /아이템/ }).click();
+  await page.waitForTimeout(800);
+  inOrder(
+    await page.locator('.mgrid .mchip .nm b').evaluateAll((els) =>
+      els.map((el) => {
+        const c = el.cloneNode(true);
+        c.querySelectorAll('.svr').forEach((x) => x.remove());
+        return c.textContent.trim();
+      }),
+    ),
+    '아이템 참여자',
+  );
+
+  // ③ 관리 혈맹원 명단 — 혈비는 맨 위에 고정, 그 아래가 이름순
+  await page.locator('.nav button').last().click();
+  await page.waitForTimeout(900);
+  // 바로 다음 카드만 본다 — 부모째로 잡으면 아래의 도구 목록까지 딸려 온다
+  const rows = await page
+    .locator('.sect', { hasText: '혈맹원 관리' })
+    .locator('xpath=following-sibling::div[1]')
+    .locator('.row .row-name')
+    .allInnerTexts();
+  if (!rows[0].includes('혈맹운영비')) throw new Error(`관리 맨 윗줄이 혈비가 아닙니다: ${rows[0]}`);
+  inOrder(rows.slice(1).map(clean), '관리 명단');
+
+  // ④ [이전 아이디에서 불러오기] 후보도 같은 순서다
+  await page.locator('.row').filter({ hasText: '팩맨' }).first().getByRole('button', { name: '관리' }).click();
+  await page.waitForTimeout(600);
+  await page.getByRole('button', { name: /이전 아이디에서 불러오기/ }).click();
+  await page.waitForTimeout(500);
+  inOrder((await page.locator('.sheet .svrow .nm').allInnerTexts()).map(clean), '가져오기 후보');
+
+  // 열어둔 시트를 닫는다 — 그대로 두면 다음 검사가 탭을 누르지 못한다
+  await page.getByRole('button', { name: '뒤로' }).click();
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: '취소' }).click();
+  await page.waitForTimeout(400);
 });
 
 await t('지급 창에 서버·한자까지 나온다 (누구에게 주는지가 이 창의 전부다)', async () => {

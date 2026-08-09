@@ -6,6 +6,7 @@ import {
   CHIP_NAME_PX,
   CHIP_SVR_PX,
   api,
+  byName,
   fitIn,
   fmt,
   getStoredEmail,
@@ -56,7 +57,8 @@ export default function ItemsTab({
 
   // 혈맹운영비 계정은 참여자가 될 수 없다
   const selectable = useMemo(
-    () => state.members.filter((m) => m !== state.fundName),
+    // 이름순(ㄱ~ㅎ) — 시트 순서대로 두면 40개 칩에서 한 사람을 찾을 수가 없다 (v10.9.2)
+    () => state.members.filter((m) => m !== state.fundName).sort((a, b) => byName(a, b)),
     [state.members, state.fundName],
   );
 

@@ -1984,6 +1984,71 @@ check('누구인지 확인하는 자리에는 어디서나 서버가 붙는다',
   return `규칙 1벌 · 화면 ${Object.keys(need).length}곳 + 참여자 칩 + 관리 2곳 · 폭 예산 4케이스`;
 });
 
+check('사람 목록은 어디서나 이름순(ㄱ~ㅎ)이다', () => {
+  const src = readFileSync(resolve(ROOT, 'lib/client.ts'), 'utf8');
+  const m = src.match(/export function byName[\s\S]*?\n\}/);
+  if (!m) throw new Error('byName 이 없습니다.');
+  // ★ 코드포인트 비교(`<`)로는 ㄱ~ㅎ 이 안 맞는다 — 반드시 한국어 collator 를 써야 한다
+  if (!/Intl\.Collator\('ko'/.test(src)) throw new Error("Intl.Collator('ko') 를 쓰지 않습니다.");
+  if (!/numeric: true/.test(src)) throw new Error('숫자를 글자로 비교합니다 — 유저10 이 유저2 앞에 옵니다.');
+  // 같은 사람이 표기 차이로 멀어지면 안 된다 (규칙 4)
+  if (!/NAME_COLLATOR\.compare\(normName\(a\), normName\(b\)\)/.test(m[0])) {
+    throw new Error('이름을 _normName 없이 비교합니다.');
+  }
+
+  // 실제로 실행해 본다 — 소스를 그대로 돌리되 시그니처의 타입만 벗긴다
+  const ctx = vm.createContext({});
+  const norm = (src.match(/export function normName[\s\S]*?\n\}/) ?? [''])[0];
+  const nl = norm.indexOf('\n');
+  vm.runInContext('function normName(s) {' + norm.slice(nl), ctx);
+  vm.runInContext(
+    (src.match(/const NAME_COLLATOR = [^;]+;/) ?? [''])[0] +
+      '\nfunction byName(a, b) {' + m[0].slice(m[0].indexOf('\n')),
+    ctx,
+  );
+  const sort = (names) => { ctx.__n = names; return vm.runInContext('__n.slice().sort(byName)', ctx); };
+
+  let r = sort(['하늘', '가이', '바람', '나무']);
+  if (r.join(',') !== '가이,나무,바람,하늘') throw new Error(`ㄱ~ㅎ 순이 아닙니다: ${r.join(',')}`);
+  // 표기가 달라도 같은 자리 — `잠단 (斬斷)` 과 `잠단(斬斷)` 이 떨어지면 안 된다
+  r = sort(['잠단(斬斷)', '자유', '잠단 (斬斷)']);
+  if (r[0] !== '자유') throw new Error(`괄호 표기가 정렬을 흔듭니다: ${r.join(',')}`);
+  // 숫자는 숫자로
+  r = sort(['유저10', '유저2', '유저1']);
+  if (r.join(',') !== '유저1,유저2,유저10') throw new Error(`숫자 정렬이 틀립니다: ${r.join(',')}`);
+  // 라틴·한자가 섞여도 터지지 않고 항상 같은 순서를 낸다
+  const mixed = ['PlusS', '가이', '詹阿呆', 'TC무식'];
+  if (sort(mixed).join(',') !== sort(mixed.slice().reverse()).join(',')) {
+    throw new Error('입력 순서에 따라 결과가 달라집니다.');
+  }
+
+  // 세 화면이 모두 이 함수를 쓴다 — 한 곳만 빠지면 화면마다 순서가 달라진다
+  const screens = {
+    'components/BalanceTab.tsx': '잔액',
+    'components/ItemsTab.tsx': '아이템',
+    'components/RosterCard.tsx': '관리',
+  };
+  for (const [f, what] of Object.entries(screens)) {
+    const body = readFileSync(resolve(ROOT, f), 'utf8');
+    if (!/byName\(/.test(body)) throw new Error(`${what}(${f}) 목록이 이름순이 아닙니다.`);
+    // 예전의 금액순 정렬이 남아 있으면 안 된다
+    if (/sort\(\(a, b\) => b\.pending - a\.pending\)/.test(body)) {
+      throw new Error(`${what} 가 아직 금액순으로 정렬합니다.`);
+    }
+  }
+  // ★ 정렬 **뒤**에 혈비를 올려야 한다. 앞에서 올리면 정렬이 다시 내려버린다.
+  const bal = readFileSync(resolve(ROOT, 'components/BalanceTab.tsx'), 'utf8');
+  if (bal.indexOf('fundFirst(') < bal.indexOf('byName(a.name, b.name)')) {
+    throw new Error('잔액: 정렬 전에 혈비를 올려서 다시 내려갑니다.');
+  }
+  const ros = readFileSync(resolve(ROOT, 'components/RosterCard.tsx'), 'utf8');
+  if (ros.indexOf('fundFirst(sorted') < ros.indexOf('sort((a, b) => byName')) {
+    throw new Error('관리: 정렬 전에 혈비를 올려서 다시 내려갑니다.');
+  }
+
+  return '정렬 4케이스 · 화면 3곳 · 혈비는 정렬 뒤에 고정';
+});
+
 check('혈맹운영비는 목록 맨 위에 온다', () => {
   const src = readFileSync(resolve(ROOT, 'lib/client.ts'), 'utf8');
   const m = src.match(/export function fundFirst[\s\S]*?\n\}/);
@@ -2022,7 +2087,7 @@ check('혈맹운영비는 목록 맨 위에 온다', () => {
   if (!/ros\.fundBadge/.test(bal)) throw new Error('잔액 목록의 혈비에 운영비 배지가 없습니다.');
 
   const ros = readFileSync(resolve(ROOT, 'components/RosterCard.tsx'), 'utf8');
-  if (!/fundFirst\(res\.data as RosterEntry\[\], \(m\) => m\.isFund\)/.test(ros)) {
+  if (!/fundFirst\(sorted, \(m\) => m\.isFund\)/.test(ros)) {
     throw new Error('혈맹원 관리에서 혈비를 올리지 않습니다.');
   }
   return '순서 보존 4케이스 · 잔액(정렬 뒤·배지) · 혈맹원 관리';
