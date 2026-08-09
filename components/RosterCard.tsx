@@ -6,7 +6,7 @@ import ServerBulkSheet from './ServerBulkSheet';
 import ServerPicker from './ServerPicker';
 import Sheet from './Sheet';
 import type { RenameRecord, RosterEntry } from '@/lib/types';
-import { api, fmt, fullName, fundFirst, getStoredEmail, mergeName, normName, normServer } from '@/lib/client';
+import { api, byName, fmt, fullName, fundFirst, getStoredEmail, mergeName, normName, normServer } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
@@ -43,8 +43,11 @@ export default function RosterCard({
       return;
     }
     setError('');
+    // 이름순(ㄱ~ㅎ)으로 세우고, 혈비만 맨 위로 (v10.9.2).
+    // 시트에 들어간 순서대로 두면 40명 중에서 한 사람을 눈으로 찾을 수가 없다.
+    const sorted = (res.data as RosterEntry[]).slice().sort((a, b) => byName(a.name, b.name));
     // 혈비는 사람이 아니라 길드의 금고다 — 사람들 사이에 섞이지 않게 맨 위로 (v10.8.7)
-    setRoster(fundFirst(res.data as RosterEntry[], (m) => m.isFund));
+    setRoster(fundFirst(sorted, (m) => m.isFund));
   }, [srv]);
 
   useEffect(() => {
@@ -304,13 +307,14 @@ function MemberSheet({
    *
    * 자기 자신과 혈비 계정은 뺀다 — 자신을 고르는 것은 뜻이 없고, 혈비는
    * 사람이 아니라 길드의 금고라 누구에게도 합쳐지면 안 된다.
-   * 잔액이 남은 사람을 위로 올린다 — 합쳤을 때 실제로 옮겨오는 것이 그 값이다.
+   * 순서는 다른 목록과 같은 이름순(ㄱ~ㅎ)이다 — 찾는 사람의 이름은 이미 알고
+   * 있고, 따라올 금액은 각 줄에 크게 붙어 있다 (v10.9.2).
    */
   const candidates = useMemo(
     () =>
       roster
         .filter((m) => !m.isFund && normName(m.name) !== normName(member.name))
-        .sort((a, b) => b.pending - a.pending),
+        .sort((a, b) => byName(a.name, b.name)),
     [roster, member.name],
   );
 
