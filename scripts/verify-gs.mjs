@@ -1687,6 +1687,88 @@ check('아이템 등록: 서버로 좁혀도 체크한 사람은 절대 숨지 �
   return `체크 유지 · 미선택시 전원 · 접어두기 · 전체선택 범위 · 미지정 칩 · 접기규칙 5케이스 · 문구 ${used.size}개`;
 });
 
+check('서버 표기는 한 곳에서 맞춘다 (01 과 1 이 같은 서버다)', () => {
+  // 시트는 사람이 손으로 넣는 칸이라 `1` 과 `01` 이 섞인다. 예전에는 [잔액]만
+  // padStart 를 해서, `1` 인 사람이 잔액에서는 01 로 보이는데 아이템의 01 칩에는
+  // 안 잡혀 "01 서버 0명" 이 나왔다. 실제로 사용자가 발견한 버그다.
+  const src = readFileSync(resolve(ROOT, 'lib/client.ts'), 'utf8');
+  const m = src.match(/export function normServer[\s\S]*?\n\}/);
+  if (!m) throw new Error('normServer 가 없습니다.');
+  const ctx = vm.createContext({});
+  const nl = m[0].indexOf('\n');
+  vm.runInContext('function normServer(v) {' + m[0].slice(nl), ctx);
+  const norm = (v) => { ctx.__v = v; return vm.runInContext('normServer(__v)', ctx); };
+
+  for (const [input, want] of [
+    ['1', '01'], ['01', '01'], ['9', '09'], ['12', '12'],
+    ['', ''], [' 3 ', '03'], [undefined, ''], [null, ''],
+    // ★ 알아볼 수 없는 값은 손대지 않는다. 그럴듯하게 바꾸면 엉뚱한 서버로 분류된다 (규칙 7)
+    ['1서버', '1서버'], ['123', '123'], ['A1', 'A1'],
+  ]) {
+    const got = norm(input);
+    if (got !== want) throw new Error(`normServer(${JSON.stringify(input)}) = ${JSON.stringify(got)} (기대 ${JSON.stringify(want)})`);
+  }
+
+  // 서버 값을 읽는 화면은 전부 이 함수를 지나야 한다. 한 곳이라도 빠지면 또 어긋난다.
+  const files = ['components/BalanceTab.tsx', 'components/RosterCard.tsx', 'components/ServerBulkSheet.tsx'];
+  for (const f of files) {
+    const s = readFileSync(resolve(ROOT, f), 'utf8');
+    if (!/normServer\(/.test(s)) throw new Error(`${f} 가 normServer 를 쓰지 않습니다.`);
+    // 각자 padStart 를 부르면 규칙이 두 벌이 된다
+    if (/padStart\(2/.test(s)) throw new Error(`${f} 가 직접 padStart 를 합니다 — normServer 로 모으세요.`);
+  }
+  // [아이템]은 serverOf 를 거쳐 읽는다 — serverOf 자체가 맞춰줘야 한다
+  if (!/return normServer\(hit\?\.server\)/.test(src)) {
+    throw new Error('serverOf 가 서버 표기를 맞추지 않습니다 — 아이템 칩의 인원이 0으로 나옵니다.');
+  }
+
+  return `표기 맞춤 11케이스 · 화면 ${files.length}곳 + serverOf · 개별 padStart 0곳`;
+});
+
+check('혈맹운영비는 목록 맨 위에 온다', () => {
+  const src = readFileSync(resolve(ROOT, 'lib/client.ts'), 'utf8');
+  const m = src.match(/export function fundFirst[\s\S]*?\n\}/);
+  if (!m) throw new Error('fundFirst 가 없습니다.');
+  const ctx = vm.createContext({});
+  const nl = m[0].indexOf('\n');
+  vm.runInContext('function fundFirst(items, isFund) {' + m[0].slice(nl), ctx);
+  const run = (items, key) => {
+    ctx.__i = items; ctx.__k = key;
+    return vm.runInContext('fundFirst(__i, (x) => x === __k)', ctx);
+  };
+
+  // 맨 위로 올라오되, **나머지 순서는 그대로**여야 한다.
+  // 화면이 정해 놓은 정렬(잔액 많은 순)을 여기서 흐트러뜨리면 안 된다.
+  let r = run(['가', '혈비', '나', '다'], '혈비');
+  if (r.join(',') !== '혈비,가,나,다') throw new Error(`순서가 다릅니다: ${r.join(',')}`);
+  // ★ 걸러져 없으면 억지로 되살리지 않는다. "받을 사람만 보기"를 켰는데 혈비가
+  //   튀어나오면 필터가 거짓말을 하는 것이다.
+  r = run(['가', '나'], '혈비');
+  if (r.join(',') !== '가,나') throw new Error('목록에 없는 혈비를 만들어 냅니다.');
+  r = run([], '혈비');
+  if (r.length !== 0) throw new Error('빈 목록에 무언가를 넣습니다.');
+  // 개수가 변하면 안 된다
+  r = run(['혈비', '가'], '혈비');
+  if (r.length !== 2 || r[0] !== '혈비') throw new Error('이미 맨 위일 때 어긋납니다.');
+
+  // 두 화면 모두 적용 — [잔액]은 이름으로(정규화 경유, 규칙 4), [혈맹원 관리]는 시트의 isFund 로
+  const bal = readFileSync(resolve(ROOT, 'components/BalanceTab.tsx'), 'utf8');
+  if (!/fundFirst\(filtered,/.test(bal)) throw new Error('잔액 목록에서 혈비를 올리지 않습니다.');
+  if (!/normName\(r\.name\) === fundKey/.test(bal)) throw new Error('혈비 판정에 _normName 을 안 씁니다 (규칙 4).');
+  // 정렬 **뒤**에 올려야 한다. 앞에서 올리면 정렬이 다시 내려버린다.
+  if (bal.indexOf('fundFirst(') < bal.indexOf('.sort((a, b) => b.pending')) {
+    throw new Error('정렬 전에 올려서 다시 내려갑니다.');
+  }
+  // 맨 위에 아무 표시가 없으면 "잔액이 제일 많은 사람" 으로 읽힌다
+  if (!/ros\.fundBadge/.test(bal)) throw new Error('잔액 목록의 혈비에 운영비 배지가 없습니다.');
+
+  const ros = readFileSync(resolve(ROOT, 'components/RosterCard.tsx'), 'utf8');
+  if (!/fundFirst\(res\.data as RosterEntry\[\], \(m\) => m\.isFund\)/.test(ros)) {
+    throw new Error('혈맹원 관리에서 혈비를 올리지 않습니다.');
+  }
+  return '순서 보존 4케이스 · 잔액(정렬 뒤·배지) · 혈맹원 관리';
+});
+
 check('새로고침 버튼이 화면에 있다', () => {
   const app = readFileSync(resolve(ROOT, 'components/App.tsx'), 'utf8');
   if (!/className=\{'sync'/.test(app)) throw new Error('헤더에 새로고침 버튼이 없습니다.');

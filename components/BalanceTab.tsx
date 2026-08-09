@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { BalanceRow, GuildState } from '@/lib/types';
-import { fmt, nameParts, normName } from '@/lib/client';
+import { fmt, fundFirst, nameParts, normName, normServer } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 import ShareBtn from './ShareBtn';
 
@@ -27,8 +27,9 @@ export default function BalanceTab({
   const serverOf = useMemo(() => {
     const map = new Map<string, string>();
     (state.memberInfo ?? []).forEach((m) => {
-      const sv = String(m.server ?? '').trim();
-      if (sv) map.set(normName(m.name), sv.padStart(2, '0'));
+      // `1` 로 넣은 사람과 `01` 로 넣은 사람을 한 곳에서 맞춘다 (v10.8.7)
+      const sv = normServer(m.server);
+      if (sv) map.set(normName(m.name), sv);
     });
     return map;
   }, [state.memberInfo]);
@@ -50,8 +51,12 @@ export default function BalanceTab({
       // 받을 게 남은 사람이 위로 오는 편이 지급할 때 편하다
       .sort((a, b) => b.pending - a.pending);
 
-    return { list: filtered, totalPending: tp, totalPaid: td, owedCount: owed };
-  }, [state.rows, q, onlyOwed]);
+    // 혈비는 사람이 아니라 길드의 금고다 — 사람들 사이에 섞이지 않게 맨 위로 (v10.8.7)
+    const fundKey = normName(state.fundName);
+    const pinned = fundFirst(filtered, (r) => normName(r.name) === fundKey);
+
+    return { list: pinned, totalPending: tp, totalPaid: td, owedCount: owed };
+  }, [state.rows, state.fundName, q, onlyOwed]);
 
   /**
    * 공유용 글 — 지금 화면에 보이는 목록 그대로 내보낸다.
@@ -130,8 +135,10 @@ export default function BalanceTab({
           list.map((r) => {
             // 한자는 멤버DB G열이 먼저, 없으면 이름 괄호 (lib/client 의 nameParts 한 곳에서만 정한다)
             const { main, sub } = nameParts(state, r.name);
+            // 맨 위에 아무 표시 없이 있으면 "잔액이 제일 많은 사람"으로 읽힌다
+            const isFund = normName(r.name) === normName(state.fundName);
             return (
-              <div className="row" key={r.name}>
+              <div className={'row' + (isFund ? ' fundrow' : '')} key={r.name}>
                 <div className="row-main">
                   <div className="row-name">
                     {serverOf.get(normName(r.name)) ? (
@@ -139,6 +146,11 @@ export default function BalanceTab({
                     ) : null}
                     {main}
                     {sub ? <span className="hanja">({sub})</span> : null}
+                    {isFund ? (
+                      <span className="badge" style={{ marginLeft: 6 }}>
+                        {t('ros.fundBadge')}
+                      </span>
+                    ) : null}
                   </div>
                   <div className="row-sub">
                     {t('c.joined')} {t('c.times', { n: r.cnt })}

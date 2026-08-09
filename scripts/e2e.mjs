@@ -1208,6 +1208,8 @@ await t('아이템 등록: 서버로 좁혀도 체크한 사람은 사라지지 
 
   // ① 인원이 있는 서버만 앞에 두고 사람 수를 같이 보여준다.
   //    몇 명짜리 서버인지 모르면 무엇을 고를지 판단할 수가 없다.
+  //    ★ 02 가 2명인 것이 중요하다 — 詹阿呆 는 시트에 '2' 로(앞의 0 이 빠진 채) 저장돼
+  //      있다. 표기를 안 맞추면 이 칩이 "02 1명" 이 되고 그 사람은 어디에서도 안 잡힌다.
   const faces = await chips.allInnerTexts();
   const front = faces.filter((x) => !x.startsWith('+') && !x.includes('미지정'));
   eq(front.join(' ').replace(/\s+/g, ''), '012022031041061', '서버 칩(번호+인원)');
@@ -1478,7 +1480,50 @@ await t('잔액 목록에 서버 번호가 붙는다', async () => {
   // 서버가 지정되지 않은 멤버에는 배지가 붙지 않아야 한다 (빈 배지는 오해를 만든다)
   const noSvr = page.locator('.row').filter({ hasText: '향로셔틀' }).first();
   eq(await noSvr.locator('.row-name .svr').count(), 0, '서버 미지정 멤버');
+
+  // ★ 시트에 '2' 로 (앞의 0 이 빠진 채) 저장된 사람도 '02' 로 보인다.
+  //   화면마다 다르게 읽으면 아이템 탭에서 "02 서버 0명" 이 나온다 (v10.8.7)
+  const pad = page.locator('.row').filter({ hasText: '詹阿呆' }).first();
+  eq(await pad.locator('.row-name .svr').innerText(), '02', "'2' 로 저장된 사람의 서버");
   await shot('17-balance-server');
+});
+
+await t('혈맹운영비가 잔액·혈맹원 관리 맨 위에 온다 (화면)', async () => {
+  await page.locator('.nav button').filter({ hasText: /잔액/ }).click();
+  await page.waitForTimeout(600);
+
+  // 혈비는 사람이 아니라 길드의 금고다 — 사람들 사이에 섞이면 인원이 늘수록 밀린다
+  const first = page.locator('.card .row').first();
+  if (!(await first.innerText()).includes('혈맹운영비')) {
+    throw new Error(`잔액 맨 윗줄이 혈비가 아닙니다: ${(await first.innerText()).split('\n')[0]}`);
+  }
+  // 아무 표시가 없으면 "잔액이 제일 많은 사람" 으로 읽힌다
+  eq(await first.locator('.badge').innerText(), '운영비', '맨 윗줄의 배지');
+  // 나머지 순서(잔액 많은 순)는 흐트러지지 않아야 한다
+  const rest = await page.locator('.card .row .row-amt .amt-pending').allInnerTexts();
+  const nums = rest.slice(1).map((s) => Number(s.replace(/[^0-9]/g, '')));
+  for (let i = 1; i < nums.length; i++) {
+    if (nums[i] > nums[i - 1]) throw new Error(`혈비 아래 정렬이 깨졌습니다: ${nums.join(' > ')}`);
+  }
+
+  // ★ 검색·필터에 걸려 빠진 것을 억지로 되살리면 안 된다 — 필터가 거짓말을 하게 된다
+  await page.locator('input[type="text"][inputmode="search"]').first().fill('가이');
+  await page.waitForTimeout(400);
+  const shown = await page.locator('.card .row').allInnerTexts();
+  if (shown.some((x) => x.includes('혈맹운영비'))) {
+    throw new Error('검색어에 안 맞는데도 혈비가 나옵니다.');
+  }
+  await page.locator('input[type="text"][inputmode="search"]').first().fill('');
+  await page.waitForTimeout(400);
+
+  // [혈맹원 관리] 도 같다 — 시트가 내려준 isFund 로 판정한다
+  await page.locator('.nav button').last().click();
+  await page.waitForTimeout(900);
+  const rosterFirst = page.locator('.sect', { hasText: '혈맹원 관리' }).locator('..').locator('.row').first();
+  if (!(await rosterFirst.innerText()).includes('혈맹운영비')) {
+    throw new Error(`혈맹원 관리 맨 윗줄이 혈비가 아닙니다: ${(await rosterFirst.innerText()).split('\n')[0]}`);
+  }
+  await shot('25-fund-first');
 });
 
 await t('서버 일괄 지정: 칩으로 고르고 여러 명을 한 번에 넣는다 (화면)', async () => {
@@ -1521,6 +1566,10 @@ await t('서버 일괄 지정: 칩으로 고르고 여러 명을 한 번에 넣�
   const all = await rows.locator('.nm').allInnerTexts();
   eq(all.length, 9, '혈비 제외 전체 인원');
   if (all.some((n) => n.includes('혈맹운영비'))) throw new Error('혈비 계정이 목록에 있습니다.');
+  // '2' 로 저장된 사람도 '02' 로 보이고, 경고(⚠️)가 붙지 않아야 한다 — 앱이 알아서 맞춘다
+  const padRow = rows.filter({ hasText: '詹阿呆' }).first();
+  eq((await padRow.locator('.cur').innerText()).trim(), '02', "'2' 로 저장된 사람의 표기");
+  eq(await padRow.locator('.cur.bad').count(), 0, "'2' 를 형식 오류로 표시하는지");
   await page.locator('.sheet .chkline input').check();
   await page.waitForTimeout(200);
 

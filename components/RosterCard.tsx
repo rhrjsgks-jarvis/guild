@@ -6,7 +6,7 @@ import ServerBulkSheet from './ServerBulkSheet';
 import ServerPicker from './ServerPicker';
 import Sheet from './Sheet';
 import type { RenameRecord, RosterEntry } from '@/lib/types';
-import { api, fmt, fullName, getStoredEmail, mergeName } from '@/lib/client';
+import { api, fmt, fullName, fundFirst, getStoredEmail, mergeName, normServer } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
@@ -44,7 +44,8 @@ export default function RosterCard({
       return;
     }
     setError('');
-    setRoster(res.data as RosterEntry[]);
+    // 혈비는 사람이 아니라 길드의 금고다 — 사람들 사이에 섞이지 않게 맨 위로 (v10.8.7)
+    setRoster(fundFirst(res.data as RosterEntry[], (m) => m.isFund));
   }, [srv]);
 
   useEffect(() => {
@@ -52,11 +53,10 @@ export default function RosterCard({
   }, [load]);
 
   // 혈맹운영비는 계정이라 서버를 붙일 대상이 아니다
-  const noServer = (roster ?? []).filter((m) => !m.isFund && !String(m.server ?? '').trim()).length;
-  // 실제로 인원이 있는 서버 — 안 쓰는 서버는 칩에서 접어 둔다
-  const inUse = [
-    ...new Set((roster ?? []).map((m) => String(m.server ?? '').trim()).filter(Boolean)),
-  ].sort();
+  const noServer = (roster ?? []).filter((m) => !m.isFund && !normServer(m.server)).length;
+  // 실제로 인원이 있는 서버 — 안 쓰는 서버는 칩에서 접어 둔다.
+  // `1` 도 `01` 로 맞춰서 센다. 안 맞추면 같은 서버가 두 개로 갈린다 (v10.8.7)
+  const inUse = [...new Set((roster ?? []).map((m) => normServer(m.server)).filter(Boolean))].sort();
 
   const done = (res?: ApiResult) => {
     setTarget(null);
@@ -321,7 +321,8 @@ function MemberSheet({
   const [warning, setWarning] = useState('');
 
   const [weight, setWeight] = useState(member.weight ?? 100);
-  const [server, setServer] = useState(member.server ?? '');
+  // `1` 로 저장된 사람도 `01` 칩이 켜져 보여야 한다 — 안 그러면 아무것도 안 고른 것처럼 보인다
+  const [server, setServer] = useState(normServer(member.server));
   const [hanja, setHanja] = useState(member.hanja ?? '');
 
   const trimmed = newName.trim();
@@ -330,7 +331,7 @@ function MemberSheet({
   // 잔액·아이템에 실제로 나갈 모양을 그대로 보여준다 — 화면과 같은 함수를 쓴다
   const preview = fullName(trimmed || member.name, hanja);
   const settingsChanged =
-    hanjaChanged || weight !== (member.weight ?? 100) || server !== (member.server ?? '');
+    hanjaChanged || weight !== (member.weight ?? 100) || server !== normServer(member.server);
   const dirty = changed || settingsChanged;
 
   /**
