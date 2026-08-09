@@ -1,6 +1,5 @@
 import { callGas, gasConfigured } from '@/lib/gas';
 import { adminConfigured, masterConfigured, masterDiagnosis } from '@/lib/auth';
-import { toAuthRecord } from '@/lib/pin';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -17,8 +16,6 @@ export async function GET() {
     SESSION_SECRET: Boolean(process.env.SESSION_SECRET),
     // 선택 항목 — 없으면 마스터관리자 기능만 잠기고 나머지는 그대로 동작한다
     MASTER_PIN: masterConfigured(),
-    // v10.9 최초 설정용 1회 코드. 설정을 마친 뒤에는 없어도 된다
-    SETUP_CODE: Boolean(String(process.env.SETUP_CODE ?? '').trim()),
   };
 
   /**
@@ -52,51 +49,21 @@ export async function GET() {
     });
   }
 
-  const [ping, rawAuth] = await Promise.all([
-    callGas('ping', {}, { timeoutMs: 15_000 }),
-    callGas('getAuth', {}, { timeoutMs: 15_000 }),
-  ]);
-
-  /**
-   * 최초 설정 상태 (v10.9). PIN 은 물론이고 해시도 내보내지 않는다 —
-   * "정했는지"와 "지금 정할 수 있는지"만 알려준다.
-   */
-  const rec = rawAuth.ok === true ? toAuthRecord(rawAuth) : null;
-  const setup = {
-    done: rec?.configured === true,
-    resetOpen: rec?.resetOpen === true,
-    codeReady: env.SETUP_CODE,
-    msg:
-      rec === null
-        ? '시트에서 설정 상태를 읽지 못했습니다. .gs 가 v10.9 이상인지 확인해주세요.'
-        : rec.configured
-          ? rec.resetOpen
-            ? '⚠️ 재설정 창이 열려 있습니다 — 지금 앱의 [최초 설정] 화면에서 누구나 PIN 을 다시 정할 수 있습니다. 10분 뒤 자동으로 닫힙니다.'
-            : 'PIN 이 앱에서 설정돼 있습니다. 환경변수 ADMIN_PIN·MASTER_PIN 은 더 이상 로그인에 쓰이지 않습니다.'
-          : env.SETUP_CODE
-            ? '아직 PIN 을 정하지 않았습니다. 앱 [⚙️ 관리] 탭의 [최초 설정] 에서 설치 코드를 넣고 PIN 을 정해주세요.'
-            : '아직 PIN 을 정하지 않았고 SETUP_CODE 도 비어 있습니다. 지금은 환경변수 PIN 으로 동작합니다.',
-  };
-
-  // 설정을 마쳤으면 환경변수 PIN 은 쓰이지 않으므로, 그쪽 경고는 의미가 없다
-  const envPinsInUse = !setup.done;
+  const ping = await callGas('ping', {}, { timeoutMs: 15_000 });
 
   return Response.json({
-    ok: ping.ok && (setup.done || adminConfigured()),
+    ok: ping.ok && adminConfigured(),
     env,
     master,
-    setup,
     sheet: ping.ok ? { connected: true, version: ping.version, unit: ping.unit } : { connected: false, msg: ping.msg },
     msg: !ping.ok
       ? '구글시트 연결 실패 — ' + ping.msg
-      : setup.done
-        ? setup.msg
-        : !adminConfigured()
-          ? '시트 연결은 정상입니다. ADMIN_PIN / SESSION_SECRET 을 마저 채워주세요.'
-          : envPinsInUse && md.sameAsAdmin
-            ? '⚠️ MASTER_PIN 이 ADMIN_PIN 과 같습니다 — 마스터관리자로 로그인되지 않습니다. 서로 다른 값으로 바꿔주세요.'
-            : masterConfigured()
-              ? '모든 설정이 정상입니다. 🎉 ' + setup.msg
-              : '모든 설정이 정상입니다. 🎉 (MASTER_PIN 을 넣으면 앱 이름·관리자 PIN 을 앱에서 바꿀 수 있습니다)',
+      : !adminConfigured()
+        ? '시트 연결은 정상입니다. ADMIN_PIN / SESSION_SECRET 을 마저 채워주세요.'
+        : md.sameAsAdmin
+          ? '⚠️ MASTER_PIN 이 ADMIN_PIN 과 같습니다 — 마스터관리자로 로그인되지 않습니다. 서로 다른 값으로 바꿔주세요.'
+          : masterConfigured()
+            ? '모든 설정이 정상입니다. 🎉'
+            : '모든 설정이 정상입니다. 🎉 (MASTER_PIN 을 넣으면 앱 이름·관리자 PIN 을 앱에서 바꿀 수 있습니다)',
   });
 }

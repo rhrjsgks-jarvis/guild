@@ -590,67 +590,6 @@ const DICT: Record<string, Entry> = {
   ],
   'tool.phraseAria': ['확인 문구', '确认文字', 'Confirmation phrase'],
 
-  /* ── 최초 설정 (v10.9) ── */
-  'stp.sect': ['🔐 최초 설정 — PIN 정하기', '🔐 初始设置 — 设定 PIN', '🔐 First-run setup — choose your PINs'],
-  'stp.sectReset': ['🔐 PIN 재설정 (시트에서 연 창)', '🔐 重设 PIN（从表格打开的窗口）', '🔐 Reset PINs (window opened from the Sheet)'],
-  'stp.intro': [
-    '이 앱의 비밀번호를 지금 직접 정합니다. 마스터 PIN은 최고 권한, 관리자 PIN은 등록·분배·지급용입니다.',
-    '现在由你亲自设定本应用的密码。主管理员 PIN 拥有最高权限，管理员 PIN 用于登记·分配·发放。',
-    'Choose this app’s passwords yourself, right now. The master PIN is the highest authority; the admin PIN covers registering, distributing and paying out.',
-  ],
-  'stp.introReset': [
-    '구글시트에서 재설정 창을 열었습니다. 지금 마스터 PIN과 관리자 PIN을 새로 정할 수 있습니다. 10분이 지나면 창은 자동으로 닫힙니다.',
-    '已从 Google 表格打开重设窗口。现在可以重新设定主管理员 PIN 和管理员 PIN。10 分钟后窗口自动关闭。',
-    'A reset window was opened from the Google Sheet. You can set the master and admin PINs again now. The window closes automatically after 10 minutes.',
-  ],
-  'stp.privacy': [
-    '정한 PIN은 어디에도 그대로 저장되지 않습니다. 앱을 설치해 준 사람도, 구글시트를 여는 사람도 값을 알 수 없습니다.',
-    '设定的 PIN 不会以原文保存在任何地方。为你部署应用的人、能打开 Google 表格的人都无法得知具体数值。',
-    'Your PINs are never stored as-is. Neither whoever deployed the app nor anyone opening the Google Sheet can read them.',
-  ],
-  'stp.noCode': [
-    '⚠️ 서버에 설치 코드가 등록되어 있지 않습니다. 앱을 설치해 준 분에게 Vercel 환경변수 SETUP_CODE 를 넣어달라고 요청해주세요.',
-    '⚠️ 服务器上尚未登记安装码。请让为你部署应用的人在 Vercel 环境变量中添加 SETUP_CODE。',
-    '⚠️ No install code is registered on the server. Ask whoever deployed the app to add the Vercel env var SETUP_CODE.',
-  ],
-  'stp.code': ['설치 코드', '安装码', 'Install code'],
-  'stp.codePh': ['설치해 준 분에게 받은 코드', '从部署者处获得的码', 'The code you were given'],
-  'stp.codeHint': [
-    '앱을 설치해 준 분에게 한 번만 받는 코드입니다. PIN이 아니며, 설정이 끝나면 그 즉시 영구히 무효가 됩니다.',
-    '这是向部署者索取一次的码。它不是 PIN，设置完成后立即永久失效。',
-    'A one-time code from whoever deployed the app. It is not a PIN, and it dies permanently the moment setup finishes.',
-  ],
-  'stp.master': ['마스터 PIN (최고 권한)', '主管理员 PIN（最高权限）', 'Master PIN (highest authority)'],
-  'stp.masterHint': [
-    '정정·삭제·지급취소처럼 되돌릴 수 없는 작업과 PIN 변경에 쓰입니다. 길드장 한 사람만 아는 값으로 정하세요.',
-    '用于订正·删除·撤销发放等无法撤销的操作以及修改 PIN。请设定为只有会长一人知道的值。',
-    'Used for irreversible work — corrections, deletions, payout undo — and for changing PINs. Pick something only the guild leader knows.',
-  ],
-  'stp.admin': ['관리자 PIN (정산 담당)', '管理员 PIN（结算负责人）', 'Admin PIN (settlement staff)'],
-  'stp.adminHint': [
-    '아이템 등록·분배·지급을 맡은 사람에게 알려주는 값입니다. 마스터 PIN과 반드시 다르게 정하세요.',
-    '这是告诉负责登记·分配·发放的人的值。必须与主管理员 PIN 不同。',
-    'Share this with whoever registers items, distributes and pays out. It must differ from the master PIN.',
-  ],
-  'stp.pinPh': ['6~32자 (영문·숫자·기호)', '6~32 位（字母·数字·符号）', '6–32 chars (letters, digits, symbols)'],
-  'stp.again': ['한 번 더 입력', '再输入一次', 'Type it again'],
-  'stp.show': ['👁 입력한 값 보기', '👁 显示已输入的值', '👁 Show what I typed'],
-  'stp.hide': ['🙈 가리기', '🙈 隐藏', '🙈 Hide'],
-  'stp.submit': ['이 PIN으로 시작하기', '使用该 PIN 开始', 'Start with these PINs'],
-  'stp.mismatch': ['두 번 입력한 PIN이 서로 다릅니다.', '两次输入的 PIN 不一致。', 'The two PINs do not match.'],
-  'stp.same': [
-    '마스터 PIN과 관리자 PIN은 서로 다른 값이어야 합니다.',
-    '主管理员 PIN 与管理员 PIN 必须不同。',
-    'The master PIN and the admin PIN must be different.',
-  ],
-  'stp.warnLost': [
-    '⚠️ 정한 PIN은 되찾을 수 없습니다. 잊었을 때는 구글시트 메뉴 [🔐 앱 PIN 재설정 창 열기]로만 다시 정할 수 있으니, 시트를 열 수 있는 사람이 누구인지 확인해두세요.',
-    '⚠️ 设定的 PIN 无法找回。忘记时只能通过 Google 表格公会菜单中的 🔐 项重新设定，请先确认谁能打开该表格。',
-    '⚠️ These PINs cannot be recovered. If you forget them, the only way back is the 🔐 item in the Google Sheet’s guild menu — so make sure you know who can open that sheet.',
-  ],
-  'stp.done': ['설정을 마쳤습니다.', '设置已完成。', 'Setup is complete.'],
-  'stp.failed': ['설정하지 못했습니다.', '设置失败。', 'Setup did not go through.'],
-
   /* ── 마스터 ── */
   'mst.sect': ['👑 마스터관리자 전용', '👑 主管理员专用', '👑 Master admin only'],
   'mst.appName': ['앱 이름', '应用名称', 'App name'],
@@ -661,21 +600,18 @@ const DICT: Record<string, Entry> = {
     'The name shown at the top of the app. Everyone sees it immediately. For long names press Enter to split it into two lines (24 chars, 2 lines max).',
   ],
   'mst.newPin': ['새 관리자 PIN', '新的管理员 PIN', 'New admin PIN'],
-  'mst.newPinPh': ['6~32자 (영문·숫자·기호)', '6~32 位（字母·数字·符号）', '6–32 chars (letters, digits, symbols)'],
+  'mst.newPinPh': [
+    '6~32자 (비우면 환경변수 PIN으로 복귀)',
+    '6~32 位（留空则恢复为环境变量 PIN）',
+    '6–32 chars (blank restores the env-var PIN)',
+  ],
   'mst.newPinAgain': ['한 번 더 입력', '再输入一次', 'Type it again'],
   'mst.pinBtn': ['관리자 PIN 바꾸기', '修改管理员 PIN', 'Change admin PIN'],
   'mst.pinMismatch': ['두 번 입력한 PIN이 서로 다릅니다.', '两次输入的 PIN 不一致。', 'The two PINs do not match.'],
   'mst.pinHint': [
-    '관리자가 바뀔 때 쓰세요. 바꾸는 즉시 기존 관리자는 다음 로그인부터 새 PIN이 필요합니다 (이미 잠금 해제된 기기는 30일 세션이 끝날 때까지 유지되므로, 급하면 그 사람에게 [관리] 탭에서 잠그도록 알려주세요).',
-    '换管理员时使用。修改后原管理员下次登录起需要新 PIN（已解锁的设备会保持到 30 天会话结束，着急的话请让对方在[管理]标签锁定）。',
-    'Use this when the admin changes. From then on the old admin needs the new PIN at next sign-in (already-unlocked devices keep their 30-day session — ask them to lock it from [Admin] if it is urgent).',
-  ],
-  'mst.newMasterPin': ['새 마스터 PIN', '新的主管理员 PIN', 'New master PIN'],
-  'mst.masterPinBtn': ['마스터 PIN 바꾸기', '修改主管理员 PIN', 'Change master PIN'],
-  'mst.masterPinHint': [
-    '최고 권한 비밀번호입니다. 바꾸면 이 기기도 다음 로그인부터 새 PIN이 필요하니, 반드시 기억할 수 있는 값으로 정하세요. 잊으면 구글시트 메뉴 [🔐 앱 PIN 재설정 창 열기] 외에는 되찾을 방법이 없습니다. (아직 최초 설정을 하지 않은 설치에서는 Vercel 환경변수 MASTER_PIN 을 쓰므로 여기서 바꿀 수 없습니다.)',
-    '这是最高权限密码。修改后本设备下次登录也需要新 PIN，请务必设定为记得住的值。忘记后只能通过 Google 表格公会菜单中的 🔐 项找回。（尚未完成初始设置的部署使用 Vercel 环境变量 MASTER_PIN，无法在此修改。）',
-    'This is the highest-authority password. After changing it this device needs the new PIN at next sign-in, so pick something you will remember — the only way back is the 🔐 item in the Google Sheet’s guild menu. (Installs that have not run the first-run setup still use the Vercel env var MASTER_PIN and cannot change it here.)',
+    '관리자가 바뀔 때 쓰세요. 바꾸는 즉시 기존 관리자는 다음 로그인부터 새 PIN이 필요합니다 (이미 잠금 해제된 기기는 30일 세션이 끝날 때까지 유지되므로, 급하면 그 사람에게 [관리] 탭에서 잠그도록 알려주세요). 마스터 PIN 자체는 Vercel 환경변수 MASTER_PIN 에서만 바꿉니다.',
+    '换管理员时使用。修改后原管理员下次登录起需要新 PIN（已解锁的设备会保持到 30 天会话结束，着急的话请让对方在[管理]标签锁定）。主管理员 PIN 本身只能在 Vercel 环境变量 MASTER_PIN 中修改。',
+    'Use this when the admin changes. From then on the old admin needs the new PIN at next sign-in (already-unlocked devices keep their 30-day session — ask them to lock it from [Admin] if it is urgent). The master PIN itself changes only via the Vercel env var MASTER_PIN.',
   ],
 
   /* ── 혈맹원 일괄 추가 (v10.4) ── */
@@ -1012,50 +948,6 @@ const DICT: Record<string, Entry> = {
   ],
   's.auth.admin': ['🔓 관리자 모드가 켜졌습니다.', '🔓 已进入管理员模式。', '🔓 Admin mode is on.'],
   's.auth.badPin': ['PIN이 올바르지 않습니다.', 'PIN 不正确。', 'That PIN is not correct.'],
-
-  /* ── 최초 설정 (v10.9) ── */
-  's.auth.setupOk': [
-    '✅ PIN을 설정했습니다. 이제부터 이 PIN으로만 들어올 수 있습니다.',
-    '✅ PIN 已设置完成。今后只能使用该 PIN 登录。',
-    '✅ Your PINs are set. From now on only these PINs work.',
-  ],
-  's.auth.pinChanged': [
-    '✅ {role} PIN을 바꿨습니다. 해당 기기는 다음 로그인부터 새 PIN이 필요합니다.',
-    '✅ 已修改{role} PIN。相关设备下次登录起需要新 PIN。',
-    '✅ The {role} PIN was changed. Those devices need the new PIN at next sign-in.',
-  ],
-  's.e.pinSame': [
-    '마스터 PIN과 관리자 PIN은 서로 다른 값이어야 합니다.',
-    '主管理员 PIN 与管理员 PIN 必须不同。',
-    'The master PIN and the admin PIN must be different.',
-  ],
-  's.e.setupDone': [
-    '이미 설정이 끝났습니다. PIN을 잊었다면 구글시트 메뉴 [🔐 앱 PIN 재설정 창 열기]를 눌러주세요.',
-    '设置已完成。忘记 PIN 时，请打开 Google 表格，在公会菜单中点击 🔐 项重新打开重设窗口。',
-    'Setup is already done. If you forgot the PIN, open the Google Sheet and use the 🔐 item in the guild menu to reopen the reset window.',
-  ],
-  's.e.setupNone': [
-    '아직 최초 설정이 끝나지 않았습니다.',
-    '尚未完成初始设置。',
-    'The first-run setup is not finished yet.',
-  ],
-  's.e.setupNoSheet': [
-    '구글시트에 연결하지 못해 설정을 진행할 수 없습니다. 잠시 후 다시 시도해주세요.',
-    '无法连接 Google 表格，暂时无法设置。请稍后重试。',
-    'Could not reach the Google Sheet, so setup cannot continue. Try again shortly.',
-  ],
-  's.e.setupNoCode': [
-    '서버에 설치 코드(SETUP_CODE)가 없습니다. 앱을 설치해 준 분에게 문의해주세요.',
-    '服务器上没有安装码（SETUP_CODE）。请联系为你部署应用的人。',
-    'The server has no install code (SETUP_CODE). Ask whoever deployed the app.',
-  ],
-  's.e.badSetupCode': ['설치 코드가 올바르지 않습니다.', '安装码不正确。', 'That install code is not correct.'],
-  's.e.authBadHash': ['설정 값의 형식이 올바르지 않습니다.', '设置值的格式不正确。', 'The setup value has the wrong format.'],
-  's.e.tooMany': [
-    '시도가 너무 많습니다. 잠시 후에 다시 시도해주세요.',
-    '尝试次数过多，请稍后再试。',
-    'Too many attempts. Try again in a little while.',
-  ],
   's.bulk.ocrSetup': [
     '📷 사진은 저장했지만 글자 인식 기능이 준비되지 않았습니다.\n\nApps Script 편집기 왼쪽 [서비스] → [+] → "Drive API" 를 추가한 뒤 저장하면 됩니다.\n지금 당장은 명단을 텍스트로 붙여넣어 주세요.',
     '📷 照片已保存，但文字识别功能尚未启用。\n\n请在 Apps Script 编辑器左侧[服务] → [+] 添加 "Drive API" 并保存。\n目前请先把名单粘贴为文本。',

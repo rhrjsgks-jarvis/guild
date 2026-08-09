@@ -54,11 +54,7 @@ export type GasAction =
   | 'deleteRaid'
   | 'setAppName'
   | 'setAdminPin'
-  | 'setSeasonServer'
-  /* v10.9 — 최초 설정 (길드가 직접 정하는 PIN) */
-  | 'getAuth'
-  | 'setupAuth'
-  | 'setAuthPin';
+  | 'setSeasonServer';
 
 export type GasResponse = Record<string, unknown> & { ok: boolean; msg?: string };
 

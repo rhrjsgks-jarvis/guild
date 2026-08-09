@@ -29,8 +29,6 @@ const APP = `http://127.0.0.1:${APP_PORT}`;
 const MOCK = `http://127.0.0.1:${MOCK_PORT}/exec`;
 const PIN = '123456';
 const MASTER_PIN = 'master-9876';
-// v10.9 최초 설정용 1회 코드. PIN 이 아니라 "설정 화면을 열 자격"일 뿐이다.
-const SETUP_CODE = 'setup-code-e2e-1';
 const SHOTS = process.env.E2E_SHOTS;
 
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
@@ -150,7 +148,6 @@ spawnBg('npx', ['next', 'start', '-p', String(APP_PORT)], {
   GAS_TOKEN: 'TESTTOKEN',
   ADMIN_PIN: PIN,
   MASTER_PIN,
-  SETUP_CODE,
   SESSION_SECRET: 'e2e-secret-not-used-in-production',
 });
 
@@ -494,15 +491,15 @@ await t('쓰기 직후 조회(?fresh=1)는 캐시를 건너뛴다', async () => 
   const state = async (q = '') => (await (await fetch(`${APP}/api/state${q}`)).json()).data.version;
 
   await reset();
-  eq(await state(), '10.9', '첫 조회 버전');
+  eq(await state(), '10.8', '첫 조회 버전');
 
   await mock('__setVersion', { version: '9.9' });
-  eq(await state(), '10.9', '캐시된 조회 (시트가 바뀌어도 그대로여야 정상)');
+  eq(await state(), '10.8', '캐시된 조회 (시트가 바뀌어도 그대로여야 정상)');
   eq(await state('?fresh=1'), '9.9', 'fresh 조회 (캐시를 건너뛴 값)');
   // fresh 조회는 캐시도 새 값으로 갈아둔다 — 다음 사람이 낡은 값을 보지 않는다
   eq(await state(), '9.9', 'fresh 이후의 일반 조회');
 
-  await mock('__setVersion', { version: '10.9' });
+  await mock('__setVersion', { version: '10.8' });
 });
 
 await t('쓰기 응답이 최신 상태를 같이 실어 온다 (조회 왕복 없음)', async () => {
@@ -517,7 +514,7 @@ await t('쓰기 응답이 최신 상태를 같이 실어 온다 (조회 왕복 �
     throw new Error('실어 온 상태에 방금 등록한 아이템이 없습니다.');
   }
   eq(typeof body.state.season, 'number', '실어 온 상태의 시즌');
-  eq(body.state.version, '10.9', '실어 온 상태의 버전');
+  eq(body.state.version, '10.8', '실어 온 상태의 버전');
 
   // 그 값이 캐시에도 들어가 있어야 한다 — 다른 사람도 시트를 거치지 않고 받는다
   const shared = (await (await fetch(`${APP}/api/state`)).json()).data;
@@ -1071,147 +1068,6 @@ await t('마스터가 바꾼 PIN 이 환경변수 PIN 보다 우선한다', asyn
   eq((await post('/api/admin/login', { pin: PIN })).status, 200, '환경변수 PIN 복귀');
 });
 
-/* ── ①-b 최초 설정: 길드가 직접 정하는 PIN (v10.9) ── */
-
-/*
- * 여기서부터는 시트의 인증 레코드를 실제로 채운다. 그 순간부터 환경변수 PIN 은
- * 죽어야 하고, 그것이 이 기능의 존재 이유다. 앞쪽 검사들이 환경변수 PIN 을
- * 쓰므로 이 묶음은 서버 검사의 맨 뒤에 두고, 끝나면 reset() 으로 되돌린다.
- */
-/*
- * 이 묶음의 요청은 전부 별개의 기기에서 온 것으로 둔다.
- * 시도 제한은 기기(IP)별이라, 같은 키를 쓰면 앞뒤 검사들의 로그인 횟수를
- * 갉아먹어 엉뚱한 곳이 429 로 깨진다 (실제로 그렇게 깨졌다).
- */
-const DEV = { 'x-forwarded-for': '10.9.0.1' };
-
-const SETUP_MASTER = 'guild-master-1';
-const SETUP_ADMIN = 'guild-admin-1';
-
-await t('설정 전에는 최초 설정 화면이 열려 있다', async () => {
-  await reset();
-  const r = await (await fetch(`${APP}/api/setup`)).json();
-  eq(r.needsSetup, true, 'needsSetup');
-  eq(r.codeRequired, true, '설치 코드 필요');
-  eq(r.resetOpen, false, '재설정 창은 닫혀 있다');
-});
-
-await t('설치 코드가 틀리면 PIN 을 정할 수 없다', async () => {
-  const res = await post('/api/setup', { code: 'wrong-code', masterPin: SETUP_MASTER, adminPin: SETUP_ADMIN }, DEV);
-  eq(res.status, 401, 'HTTP 상태');
-  eq((await res.json()).code, 'e.badSetupCode', '결과 코드');
-  // 아무것도 저장되지 않아야 한다
-  eq((await (await fetch(`${APP}/api/setup`)).json()).needsSetup, true, '여전히 미설정');
-});
-
-await t('마스터와 관리자 PIN 이 같으면 거부한다', async () => {
-  const res = await post('/api/setup', { code: SETUP_CODE, masterPin: SETUP_MASTER, adminPin: SETUP_MASTER }, DEV);
-  eq(res.status, 400, 'HTTP 상태');
-  eq((await res.json()).code, 'e.pinSame', '결과 코드');
-});
-
-await t('짧거나 공백이 섞인 PIN 은 거부한다', async () => {
-  for (const bad of ['abc', 'has space', '']) {
-    const res = await post('/api/setup', { code: SETUP_CODE, masterPin: bad, adminPin: SETUP_ADMIN }, DEV);
-    if (res.status === 200) throw new Error(`"${bad}" 가 통과했습니다.`);
-  }
-});
-
-await t('길드가 정한 PIN 으로 설정이 끝나고, 그 자리에서 마스터가 된다', async () => {
-  const res = await post('/api/setup', { code: SETUP_CODE, masterPin: SETUP_MASTER, adminPin: SETUP_ADMIN }, DEV);
-  eq(res.status, 200, 'HTTP 상태');
-  const body = await res.json();
-  eq(body.ok, true, '설정 결과');
-  eq(body.role, 'master', '설정한 사람이 곧 마스터');
-  eq(body.code, 'auth.setupOk', '결과 코드 (화면 언어로 번역되려면 필요)');
-  // 설정 직후 다시 PIN 을 물어보지 않도록 세션이 바로 열린다
-  const setCookie = (res.headers.get('set-cookie') ?? '').split(';')[0];
-  if (!setCookie.startsWith('gm_admin=')) throw new Error('설정 직후 세션 쿠키가 없습니다.');
-
-  eq((await (await fetch(`${APP}/api/setup`)).json()).needsSetup, false, '설정 화면이 닫혔다');
-});
-
-await t('평문 PIN 은 시트에 저장되지 않는다', async () => {
-  // 시트가 들고 있는 값을 통째로 훑어, PIN 이 그대로 들어 있으면 실패다.
-  // 이것이 무너지면 "설치해 준 사람은 PIN 을 모른다"가 거짓이 된다.
-  const auth = await (await mock('getAuth')).json();
-  eq(auth.configured, true, '레코드가 채워졌다');
-  const dump = JSON.stringify(auth);
-  for (const pin of [SETUP_MASTER, SETUP_ADMIN]) {
-    if (dump.includes(pin)) throw new Error('시트에 평문 PIN 이 저장돼 있습니다.');
-  }
-  if (!(auth.rounds >= 100_000)) throw new Error(`해시 반복 횟수가 너무 적습니다 (${auth.rounds}).`);
-});
-
-await t('설정을 마치면 환경변수 PIN 으로는 못 들어온다', async () => {
-  // v10.9 의 핵심. 이게 통과하지 않으면 길드가 PIN 을 새로 정한 의미가 없다.
-  for (const [label, pin] of [['ADMIN_PIN', PIN], ['MASTER_PIN', MASTER_PIN]]) {
-    const res = await post('/api/admin/login', { pin }, DEV);
-    eq(res.status, 401, `환경변수 ${label}`);
-  }
-});
-
-let setupMasterCookie = '';
-await t('길드가 정한 PIN 으로 각 등급에 로그인된다', async () => {
-  const m = await post('/api/admin/login', { pin: SETUP_MASTER }, DEV);
-  eq(m.status, 200, '마스터 HTTP 상태');
-  eq((await m.json()).role, 'master', '마스터 등급');
-  setupMasterCookie = (m.headers.get('set-cookie') ?? '').split(';')[0];
-
-  const a = await post('/api/admin/login', { pin: `  ${SETUP_ADMIN}  ` }, DEV);   // 폰 키보드가 붙이는 공백
-  eq(a.status, 200, '관리자 HTTP 상태');
-  eq((await a.json()).role, 'admin', '관리자 등급');
-});
-
-await t('설정이 끝난 뒤에는 아무도 다시 설정할 수 없다', async () => {
-  const res = await post('/api/setup', { code: SETUP_CODE, masterPin: 'another-pin-1', adminPin: 'another-pin-2' }, DEV);
-  eq(res.status, 409, 'HTTP 상태');
-  eq((await res.json()).code, 'e.setupDone', '결과 코드');
-  // 원래 PIN 이 그대로 통해야 한다 (거부됐다면 아무것도 안 바뀐 것)
-  eq((await post('/api/admin/login', { pin: SETUP_MASTER }, DEV)).status, 200, '기존 마스터 PIN');
-});
-
-await t('마스터가 마스터 PIN 을 앱에서 바꿀 수 있다', async () => {
-  const set = await (await post('/api/master', { action: 'masterPin', value: 'master-pin-2' }, { Cookie: setupMasterCookie, ...DEV })).json();
-  eq(set.ok, true, 'PIN 교체');
-  eq((await post('/api/admin/login', { pin: SETUP_MASTER }, DEV)).status, 401, '옛 마스터 PIN');
-  const res = await post('/api/admin/login', { pin: 'master-pin-2' }, DEV);
-  eq(res.status, 200, '새 마스터 PIN');
-  eq((await res.json()).role, 'master', '등급');
-
-  // 관리자 PIN 과 같은 값으로는 바꿀 수 없다 — 등급을 구분할 수 없게 된다
-  const same = await post('/api/master', { action: 'masterPin', value: SETUP_ADMIN }, { Cookie: setupMasterCookie, ...DEV });
-  eq((await same.json()).code, 'e.pinSame', '같은 값 거부');
-});
-
-await t('PIN 을 잊으면 시트에서 연 창으로만 다시 정할 수 있다', async () => {
-  // 앱으로는 열 수 없는 문이다. 모의 시트가 구글시트 메뉴를 대신 흉내낸다.
-  await mock('__openReset');
-  const info = await (await fetch(`${APP}/api/setup`)).json();
-  eq(info.needsSetup, true, '설정 화면이 다시 열렸다');
-  eq(info.resetOpen, true, '재설정 창');
-  eq(info.codeRequired, false, '이때는 설치 코드를 묻지 않는다');
-
-  const res = await post('/api/setup', { masterPin: 'recovered-m-1', adminPin: 'recovered-a-1' }, DEV);
-  eq(res.status, 200, '재설정 결과');
-  eq((await post('/api/admin/login', { pin: 'recovered-m-1' }, DEV)).status, 200, '새 마스터 PIN');
-
-  // ★ 창은 즉시 닫혀야 한다. 열어둔 채면 10분 동안 누구든 한 번 더 바꿀 수 있다
-  const after = await (await fetch(`${APP}/api/setup`)).json();
-  eq(after.resetOpen, false, '창이 닫혔다');
-  eq(after.needsSetup, false, '설정 화면도 닫혔다');
-});
-
-await t('health 가 설정 상태를 값 없이 알려준다', async () => {
-  const h = await (await fetch(`${APP}/api/health`)).json();
-  eq(h.setup.done, true, 'setup.done');
-  eq(h.setup.resetOpen, false, 'setup.resetOpen');
-  const dump = JSON.stringify(h);
-  for (const pin of ['recovered-m-1', 'recovered-a-1', SETUP_CODE]) {
-    if (dump.includes(pin)) throw new Error('health 응답에 비밀값이 들어 있습니다.');
-  }
-});
-
 /* ── ② 화면 흐름 (브라우저) ── */
 
 // 앞의 API 테스트가 데이터를 많이 바꿔놨다. 화면 테스트가 그 결과에 얽매이지
@@ -1709,7 +1565,7 @@ await t('헤더의 새로고침 버튼이 보이고, 눌러서 최신 값을 받
   if (!h1.includes('9.9')) throw new Error(`새로고침을 눌렀는데 최신 값이 아닙니다: ${h1}`);
   await shot('15-refresh');
 
-  await mock('__setVersion', { version: '10.9' });
+  await mock('__setVersion', { version: '10.8' });
   await btn.click();
   await page.waitForTimeout(1200);
 });
@@ -1719,8 +1575,8 @@ await t('제목 옆에 버전이 보이고, 시트가 옛 버전이면 경고가
   await page.reload({ waitUntil: 'networkidle' });
   const h1 = page.locator('.header h1');
   const same = await h1.innerText();
-  if (!same.includes('v10.9')) throw new Error(`제목 옆 버전이 없습니다: ${same}`);
-  // ★ 시트가 10.9 이고 앱이 10.9.0 이어도 경고가 붙으면 안 된다 (앱 전용 패치)
+  if (!same.includes('v10.8')) throw new Error(`제목 옆 버전이 없습니다: ${same}`);
+  // ★ 시트가 10.8 이고 앱이 10.8.1 이어도 경고가 붙으면 안 된다 (앱 전용 패치)
   if (same.includes('⚠️')) throw new Error(`앱 패치 버전인데 시트 경고가 떴습니다: ${same}`);
   if (same.includes('⚠️')) throw new Error(`버전이 같은데 경고가 떴습니다: ${same}`);
   await shot('09-version');
@@ -1739,7 +1595,7 @@ await t('제목 옆에 버전이 보이고, 시트가 옛 버전이면 경고가
   if (!warned.includes('⚠️')) throw new Error(`경고 표시가 없습니다: ${warned}`);
   await shot('10-version-mismatch');
 
-  await mock('__setVersion', { version: '10.9' });
+  await mock('__setVersion', { version: '10.8' });
 });
 
 await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', async () => {

@@ -12,10 +12,8 @@ import { useT } from '@/lib/i18n';
  *  · 관리자 — 정산 업무 (등록·분배·지급·정정·혈맹원 관리)
  *  · 마스터 — 위 전부 + 앱 이름 변경 + 관리자 PIN 교체
  *
- * PIN 을 바꾸면 구글시트에 저장된다. 최초 설정(v10.9)을 마친 설치에서는
- * 되돌릴 수 없는 해시로만 저장되고, **마스터 본인의 PIN 도 여기서 바꾼다.**
- * 아직 설정 전인 설치에서는 관리자 PIN 만 바뀌고(구 방식), 마스터 PIN 은
- * 환경변수뿐이라 서버가 거절한다 — 그 사정을 그대로 알려준다.
+ * PIN 을 바꾸면 구글시트에 저장되고, 그때부터 Vercel 의 ADMIN_PIN 환경변수보다
+ * 우선한다. 마스터 본인의 PIN(MASTER_PIN)은 여기서 바꿀 수 없다 — 환경변수에서만.
  */
 /** 앱 이름 길이 상한 — .gs 의 api_setAppName 과 같은 값이어야 한다 */
 const APP_NAME_MAX = 24;
@@ -40,8 +38,6 @@ export default function MasterCard({
   const [name, setName] = useState(appName);
   const [pin, setPin] = useState('');
   const [pin2, setPin2] = useState('');
-  const [mpin, setMpin] = useState('');
-  const [mpin2, setMpin2] = useState('');
   const [busy, setBusy] = useState(false);
 
   async function saveName() {
@@ -64,26 +60,6 @@ export default function MasterCard({
     if (res.ok) {
       setPin('');
       setPin2('');
-    }
-  }
-
-  /**
-   * 마스터 PIN 교체 (v10.9).
-   * 최초 설정을 마친 설치에서만 통한다 — 아직 환경변수를 쓰는 설치에서는
-   * 서버가 이유를 붙여 거절하고, 그 문장을 그대로 보여준다.
-   */
-  async function saveMasterPin() {
-    if (mpin !== mpin2) {
-      toast(t('mst.pinMismatch'), true);
-      return;
-    }
-    setBusy(true);
-    const res = await api('/api/master', { action: 'masterPin', value: mpin, email: getStoredEmail() });
-    setBusy(false);
-    toast(srv(res, res.ok ? 'r.changed' : 'r.changeFailed'), !res.ok);
-    if (res.ok) {
-      setMpin('');
-      setMpin2('');
     }
   }
 
@@ -142,43 +118,6 @@ export default function MasterCard({
             {busy ? t('c.processing') : t('mst.pinBtn')}
           </button>
           <p className="hint">{t('mst.pinHint')}</p>
-        </div>
-
-        <div className="field" style={{ borderTop: '1px solid var(--line)' }}>
-          <label className="fl" htmlFor="newMasterPin">
-            {t('mst.newMasterPin')}
-          </label>
-          <input
-            id="newMasterPin"
-            type="password"
-            autoComplete="new-password"
-            autoCapitalize="off"
-            autoCorrect="off"
-            spellCheck={false}
-            placeholder={t('mst.newPinPh')}
-            value={mpin}
-            onChange={(e) => setMpin(e.target.value)}
-          />
-          <input
-            type="password"
-            autoComplete="new-password"
-            autoCapitalize="off"
-            autoCorrect="off"
-            spellCheck={false}
-            placeholder={t('mst.newPinAgain')}
-            style={{ marginTop: 8 }}
-            value={mpin2}
-            onChange={(e) => setMpin2(e.target.value)}
-          />
-          <button
-            className="btn danger block"
-            style={{ marginTop: 10 }}
-            disabled={busy || !mpin || !mpin2}
-            onClick={saveMasterPin}
-          >
-            {busy ? t('c.processing') : t('mst.masterPinBtn')}
-          </button>
-          <p className="hint">{t('mst.masterPinHint')}</p>
         </div>
       </div>
     </>
