@@ -1445,10 +1445,10 @@ check('개명 병합이 멤버DB에 같은 이름을 두 줄 남기지 않는다
 check('연합은 등록과 정산이 분리되어 있다', () => {
   // 레이드 직후엔 아직 안 팔려서 금액을 모르는 것이 정상이다.
   // 등록 단계에서 금액을 요구하면 등록 자체가 미뤄져 인증샷을 잃어버린다.
-  if (!/function api_addAlliance\(server, item, people, photoLink, email\)/.test(gs)) {
+  if (!/function api_addAlliance\(item, entries, photoLinks, email\)/.test(gs)) {
     throw new Error('api_addAlliance 가 아직 금액을 받습니다 — 등록/정산이 분리되지 않았습니다.');
   }
-  if (!/function api_creditAlliance\(row, amount, pct, email\)/.test(gs)) {
+  if (!/function api_creditAlliance\(group, amount, email\)/.test(gs)) {
     throw new Error('api_creditAlliance 가 없습니다.');
   }
 
