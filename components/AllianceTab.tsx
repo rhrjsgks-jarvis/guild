@@ -478,32 +478,34 @@ function toEntries(rows: Entry[]) {
 }
 
 /** ① 등록 — 아이템명 · 서버별 인원 · 인증샷(선택, 여러 장). 금액은 받지 않는다. */
-function RegisterSheet({
-  servers,
-  inUse,
-  onClose,
-  onDone,
+/**
+ * 인증샷 고르기 — **등록과 [＋] 가 같은 규칙을 쓴다** (v11.1).
+ *
+ * ★ 읽어낸 인원수는 **제안**이지 정답이 아니다. 어느 서버의 사진인지 시스템은
+ *   알 수 없고 사진마다 인원도 다르다. 그래서 자동으로 넣는 것은
+ *   "서버가 한 줄뿐이고 아직 아무도 손대지 않은" 경우뿐이고,
+ *   그 밖에는 읽은 값을 **보여주기만** 한다.
+ *   (사진 3장을 붙이고 13·8·8 로 고쳐 넣었는데 마지막 사진의 8 이 첫 줄을
+ *    덮어써 8·8·8 이 된 사고가 있었다 — v11.0)
+ */
+function usePhotoPick({
+  rows,
+  setRows,
   toast,
   setBusy,
 }: {
-  servers: string[];
-  inUse: string[];
-  onClose: () => void;
-  onDone: (res?: ApiResult) => void;
+  rows: Entry[];
+  setRows: (fn: (cur: Entry[]) => Entry[]) => void;
   toast: (msg: string, isError?: boolean) => void;
   setBusy: (on: boolean) => void;
 }) {
   const { t, srv } = useT();
-  const [item, setItem] = useState('');
-  const [rows, setRows] = useState<Entry[]>([{ server: servers[0] ?? '01', people: '0' }]);
   const [photos, setPhotos] = useState<string[]>([]);
   const [reads, setReads] = useState<number[]>([]);
   const [photoMsg, setPhotoMsg] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const valid = Boolean(item.trim()) && rowsValid(rows);
-
-  async function pickPhoto(file: File) {
+  async function pick(file: File) {
     setBusy(true);
     setPhotoMsg('');
     // 원본을 그대로 보내면 요청이 비대해지고 OCR 도 더 못 읽는다
@@ -523,12 +525,6 @@ function RegisterSheet({
     const url = String(res.photoUrl ?? '');
     if (url) setPhotos((cur) => (cur.includes(url) ? cur : [...cur, url]));
 
-    // ★ 읽어낸 인원수는 **제안**이지 정답이 아니다.
-    //   어느 서버의 사진인지 시스템은 알 수 없고, 사진마다 인원도 다르다.
-    //   그래서 자동으로 넣는 것은 "서버가 한 줄뿐이고 아직 아무도 손대지 않은"
-    //   경우뿐이다. 그 밖에는 읽은 값을 **보여주기만** 하고 사람이 넣는다.
-    //   (사진 3장을 붙이고 13·8·8 로 고쳐 넣었는데 마지막 사진의 8 이 첫 줄을
-    //    덮어써 8·8·8 이 된 사고가 있었다 — v11.0)
     const n = Number(res.people ?? 0);
     if (n > 0) {
       setReads((cur) => [...cur, n]);
@@ -540,6 +536,68 @@ function RegisterSheet({
     }
     setPhotoMsg(srv(res));
   }
+
+  const view = (
+    <>
+      <label className="fl" style={{ marginTop: 12 }}>
+        {t('ali.photosLabel')}
+      </label>
+      <button className="btn ghost block" onClick={() => fileRef.current?.click()}>
+        {t('ali.photoAdd')}
+      </button>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        multiple
+        hidden
+        onChange={(e) => {
+          const list = Array.from(e.target.files ?? []);
+          e.target.value = '';
+          setReads([]);
+          void (async () => {
+            for (const f of list) await pick(f);
+          })();
+        }}
+      />
+      {photos.length > 0 ? <PhotoStrip urls={photos} /> : null}
+      {/* 사진마다 몇 명으로 읽었는지 보여준다 — 넣는 것은 사람이 한다 */}
+      {reads.length > 0 ? (
+        <p className="hint">
+          {reads.map((n, i) => t('ali.photoRead', { i: i + 1, n })).join(' · ')}
+          {rows.length > 1 ? ` — ${t('ali.photoManual')}` : ''}
+        </p>
+      ) : null}
+      {photoMsg ? <p className="hint">{photoMsg}</p> : null}
+      <p className="hint">{t('ali.photoOptional')}</p>
+    </>
+  );
+
+  return { photos, view };
+}
+
+/** ① 등록 — 아이템명 · 서버별 인원 · 인증샷(선택, 여러 장). 금액은 받지 않는다. */
+function RegisterSheet({
+  servers,
+  inUse,
+  onClose,
+  onDone,
+  toast,
+  setBusy,
+}: {
+  servers: string[];
+  inUse: string[];
+  onClose: () => void;
+  onDone: (res?: ApiResult) => void;
+  toast: (msg: string, isError?: boolean) => void;
+  setBusy: (on: boolean) => void;
+}) {
+  const { t, srv } = useT();
+  const [item, setItem] = useState('');
+  const [rows, setRows] = useState<Entry[]>([{ server: servers[0] ?? '01', people: '0' }]);
+  const { photos, view: photoView } = usePhotoPick({ rows, setRows, toast, setBusy });
+
+  const valid = Boolean(item.trim()) && rowsValid(rows);
 
   async function submit() {
     if (!valid) return;
@@ -565,37 +623,7 @@ function RegisterSheet({
 
       <ServerRows servers={servers} inUse={inUse} rows={rows} setRows={setRows} />
 
-      <label className="fl" style={{ marginTop: 12 }}>
-        {t('ali.photosLabel')}
-      </label>
-      <button className="btn ghost block" onClick={() => fileRef.current?.click()}>
-        {t('ali.photoAdd')}
-      </button>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        multiple
-        hidden
-        onChange={(e) => {
-          const list = Array.from(e.target.files ?? []);
-          e.target.value = '';
-          setReads([]);
-          void (async () => {
-            for (const f of list) await pickPhoto(f);
-          })();
-        }}
-      />
-      {photos.length > 0 ? <PhotoStrip urls={photos} /> : null}
-      {/* 사진마다 몇 명으로 읽었는지 보여준다 — 넣는 것은 사람이 한다 */}
-      {reads.length > 0 ? (
-        <p className="hint">
-          {reads.map((n, i) => t('ali.photoRead', { i: i + 1, n })).join(' · ')}
-          {rows.length > 1 ? ` — ${t('ali.photoManual')}` : ''}
-        </p>
-      ) : null}
-      {photoMsg ? <p className="hint">{photoMsg}</p> : null}
-      <p className="hint">{t('ali.photoOptional')}</p>
+      {photoView}
 
       <p className="hint" style={{ marginTop: 10 }}>
         {t('ali.registerHint')}
@@ -613,12 +641,6 @@ function RegisterSheet({
   );
 }
 
-/**
- * ② 정산 — 등록해둔 묶음에 판매금액을 넣는다.
- *
- * 미리보기 숫자는 `calcAlliance` 로 만든다. 시트의 `_calcAlliance` 와 같은 산식이며,
- * `npm run verify:gs` 가 무작위 대조로 한 다이아도 어긋나지 않는지 확인한다 (규칙 1).
- */
 function CreditSheet({
   entry,
   unit,
@@ -741,6 +763,8 @@ function AddServersSheet({
   // 이미 들어 있는 서버는 고를 수 없다 — 두 줄이 되면 인원이 갈려 분배 비율이 틀어진다
   const free = servers.filter((sv) => !have.includes(sv));
   const [rows, setRows] = useState<Entry[]>([{ server: free[0] ?? '', people: '0' }]);
+  // 등록 화면과 **같은 사진 규칙**을 쓴다 — 읽은 값이 손댄 값을 덮어쓰지 않는다
+  const { photos, view: photoView } = usePhotoPick({ rows, setRows, toast, setBusy });
 
   const picked = rows.map((r) => r.server).filter(Boolean);
   const valid =
@@ -753,6 +777,7 @@ function AddServersSheet({
       op: 'addServers',
       group: entry.group,
       entries: toEntries(rows),
+      photoLinks: photos,
       email: getStoredEmail(),
     });
     setBusy(false);
@@ -776,6 +801,9 @@ function AddServersSheet({
       ) : (
         <ServerRows servers={free} inUse={inUse.filter((sv) => free.includes(sv))} rows={rows} setRows={setRows} />
       )}
+
+      {/* 사진은 여기서도 붙일 수 있다 — 묶음의 인증샷에 이어 붙는다 */}
+      {photoView}
 
       <div className="sheet-actions">
         <button className="btn ghost" onClick={onClose}>

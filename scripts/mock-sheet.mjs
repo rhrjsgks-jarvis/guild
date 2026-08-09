@@ -27,7 +27,7 @@ const ST_DONE = '✅분배완료';
 // 앱이 기대하는 버전과 같은 값 — 화면에 "버전 불일치" 경고가 뜨지 않아야 정상이다.
 // ★ 한 곳에만 적는다. 여기저기 흩어 적으면 버전을 올릴 때 한 군데가 남아
 //   "실어 온 상태의 버전이 다르다"는 엉뚱한 실패로 나타난다 (실제로 겪었다).
-const GS_VERSION = '11.1';
+const GS_VERSION = '11.2';
 let MOCK_GS_VERSION = GS_VERSION;
 
 /**
@@ -393,10 +393,58 @@ const handlers = {
   },
 
   // ✏️ 미분배 아이템 수정 (v11.0, 마스터 전용) — 참여횟수는 전면 재계산한다
-  editItem: ({ row, itemName, participants }) => {
+  editItem: ({ row, itemName, participants, amount, confirm }) => {
+    const nm0 = String(itemName || '').trim();
+
+    // ── 분배완료 아이템 (v11.1) — 참여자·분배금액을 고친다 ──
+    const di = S.done.findIndex((x) => x.row === Number(row));
+    if (di >= 0) {
+      const cur = S.done[di];
+      if (!nm0) return rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
+      const seen0 = new Set();
+      const parts0 = [];
+      for (const p of participants || []) {
+        const v = String(p || '').trim();
+        if (!v || seen0.has(norm(v))) continue;
+        seen0.add(norm(v));
+        parts0.push(v);
+      }
+      if (parts0.length === 0) return rc({ ok: false, msg: '참여자를 한 명 이상 골라주세요.' }, 'e.noParts');
+      const amt = amount === '' || amount === null || amount === undefined ? cur.amount : Number(String(amount).replace(/,/g, ''));
+      if (!Number.isInteger(amt) || amt <= 0) return rc({ ok: false, msg: '금액은 양의 정수여야 합니다.' }, 'e.badAmount');
+
+      // ★ 돈이 움직인다 — 바뀔 숫자를 보여준 뒤에만 실행한다 (규칙 5-1)
+      if (confirm !== true) {
+        const prev = calcSplit(amt, weightsFor(parts0));
+        return rc({
+          ok: false, needsConfirm: true, item: cur.item,
+          before: { amount: cur.amount, n: participantsOf(cur).length },
+          after: { amount: amt, n: parts0.length, fundTotal: prev.fundTotal, perPerson: prev.perPerson },
+          msg: `"${cur.item}" 정정 — ${cur.amount} → ${amt}. 확인 후 다시 실행해주세요.`,
+        }, 'item.editAsk', { item: cur.item, from: cur.amount, to: amt, fromN: participantsOf(cur).length, toN: parts0.length });
+      }
+
+      // ★ 회수는 분배 시점 금액으로 (규칙 2-1). 그 뒤에 명단을 갈아끼운다
+      const plan = reversalPlan(cur);
+      const short = plan.filter((e) => (findRow(e.name)?.pending ?? 0) < e.amount).map((e) => e.name);
+      if (short.length) {
+        return { ok: false, reason: 'insufficient', msg: '정정할 수 없습니다. 이미 지급✓ 처리된 대상이 있습니다: ' + short.join(', ') };
+      }
+      plan.forEach((e) => add(e.name, -e.amount));
+
+      const ns = calcSplit(amt, weightsFor(parts0));
+      parts0.forEach((p, i) => add(p, ns.shares[i]));
+      add(FUND_NAME, ns.fundTotal);
+      S.done[di] = { ...cur, item: nm0, amount: amt, cnt: parts0.length, names: parts0,
+                     splits: parts0.map((p, i) => ({ name: p, amount: ns.shares[i] })) };
+      recalcCounts();
+      return rc({ ok: true, item: nm0, n: parts0.length, msg: `✅ "${nm0}" 정정 완료 — 참여 ${parts0.length}명` },
+        'item.editOk', { item: nm0, n: parts0.length });
+    }
+
     const it = S.items.find((i) => i.row === Number(row));
-    if (!it) return rc({ ok: false, msg: '이미 분배된 아이템입니다. [정정]을 사용해주세요.' }, 'e.alreadyDone');
-    const nm = String(itemName || '').trim();
+    if (!it) return rc({ ok: false, msg: '고칠 수 없는 상태입니다. 새로고침해주세요.' }, 'e.alreadyDone');
+    const nm = nm0;
     if (!nm) return rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
 
     const seen = new Set();
@@ -964,7 +1012,7 @@ const handlers = {
   },
 
   // ➕ 참여 서버 추가 (v11.1, 관리자) — 줄을 더하기만 한다
-  addAllianceServers: ({ group, entries }) => {
+  addAllianceServers: ({ group, entries, photoLinks }) => {
     const hit = S.alliance.filter((r) => r.group === String(group));
     if (hit.length === 0) return rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
     if (hit.some((r) => r.done)) {
@@ -984,6 +1032,10 @@ const handlers = {
       }
       seen.add(e.server);
     }
+
+    // ★ 인증샷은 묶음의 첫 줄에 모아 둔다. 새로 넣은 것을 뒤에 잇는다 (덮어쓰지 않는다)
+    const added = (photoLinks || []).map((u) => String(u || '').trim()).filter(Boolean);
+    for (const u of added) if (!hit[0].photos.includes(u)) hit[0].photos.push(u);
 
     const last = S.alliance.lastIndexOf(hit[hit.length - 1]);
     const rows = list.map((e) => ({

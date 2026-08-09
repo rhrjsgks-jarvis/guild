@@ -110,7 +110,12 @@ export async function POST(req: Request) {
       dup.add(e.server);
     }
 
-    const res = await callGas('addAllianceServers', { group, entries, email }, { timeoutMs: 45_000 });
+    // 인증샷은 선택이다. 여기서도 여러 장 받는다 (묶음의 사진에 이어 붙는다)
+    const photoLinks = (Array.isArray(body.photoLinks) ? body.photoLinks : [])
+      .map((u) => String(u ?? '').trim())
+      .filter((u) => /^https?:\/\//.test(u));
+
+    const res = await callGas('addAllianceServers', { group, entries, email, photoLinks }, { timeoutMs: 45_000 });
     if (res.ok) invalidate('alliance');
     return Response.json(res, { status: res.ok ? 200 : 400 });
   }

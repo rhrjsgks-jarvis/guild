@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v11_1.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v11_2.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 const gs = readFileSync(GS_PATH, 'utf8');
@@ -1870,11 +1870,10 @@ check('인증샷은 앱 안에서 바로 보인다 (v11.1)', () => {
   return `주소 변환 ${cases.length}케이스 · 실패 표시 · 원본 링크 · 아이템/연합 2곳`;
 });
 
-check('미분배 아이템 수정은 마스터만, 분배된 것은 거부한다 (v11.0)', () => {
+check('아이템 수정은 마스터만 — 분배 전은 이름·참여자, 분배 후는 금액까지 (v11.1)', () => {
   const fn = (gs.match(/function api_editItem[\s\S]*?\n\}\n/) ?? [''])[0];
   if (!fn) throw new Error('api_editItem 이 없습니다.');
-  // 이미 분배된 행을 여기서 고치면 준 금액과 명단이 어긋난다 — 그쪽은 [정정]이 담당한다
-  if (!/status !== ST_WAIT/.test(fn)) throw new Error('이미 분배된 아이템을 거부하지 않습니다.');
+  if (!/status !== ST_WAIT/.test(fn)) throw new Error('알 수 없는 상태를 거부하지 않습니다.');
   // 참여횟수는 증감이 아니라 전면 재계산이다 (규칙 3)
   if (!/_recalcAllParticipationCounts\(ss\)/.test(fn)) {
     throw new Error('참여자를 고친 뒤 참여횟수를 다시 세지 않습니다.');
@@ -1884,6 +1883,36 @@ check('미분배 아이템 수정은 마스터만, 분배된 것은 거부한다
   if (!/_normName/.test(fn)) throw new Error('중복 참여자를 이름 정규화로 걸러내지 않습니다.');
   // 미분배라 다이아는 아직 아무에게도 안 갔다 — 잔액을 건드리면 안 된다
   if (/잔액현황/.test(fn)) throw new Error('미분배 아이템 수정이 잔액을 건드립니다.');
+
+  // ── 분배완료 아이템도 고친다 (v11.1) — 참여자 · 분배금액 ──
+  // 이미 나눠준 다이아를 **분배 시점 금액 그대로** 회수해야 한다.
+  // 새 명단으로 회수하면 실제로 준 사람에게서 못 빼고 안 받은 사람에게서 빼게 된다.
+  if (!/function _correctCore\(ss, row, newAmount, email, newParts\)/.test(gs)) {
+    throw new Error('정정 코어가 새 참여자 명단을 받지 않습니다.');
+  }
+  const core = extractFn(gs, '_correctCore');
+  const revAt = core.indexOf('_reverseAmounts(balance, chk)');
+  const swapAt = core.indexOf('ledger.getRange(row, LG.NAMES).setValue(newParts.join');
+  if (swapAt < 0) throw new Error('참여자 명단을 갈아끼우지 않습니다.');
+  // ★ 회수가 끝난 뒤에 명단을 바꿔야 한다 (규칙 2-1)
+  if (swapAt < revAt) throw new Error('명단을 회수보다 먼저 바꿉니다 — 실제로 준 사람에게서 못 빼게 됩니다.');
+  if (!/_recalcAllParticipationCounts\(ss\)/.test(core)) {
+    throw new Error('명단을 바꾼 뒤 참여횟수를 다시 세지 않습니다.');
+  }
+  // 분배완료 건도 확인 절차를 거쳐야 한다 (돈이 움직인다)
+  if (!/status === ST_DONE/.test(fn)) throw new Error('분배완료 아이템을 다루지 않습니다.');
+  if (!/confirm !== true/.test(fn)) throw new Error('분배완료 건을 확인 없이 고칩니다 (규칙 5-1).');
+  if (!/item\.editAsk/.test(fn)) throw new Error('바뀔 숫자를 담아 되묻지 않습니다.');
+  if (!/_correctCore\(ss, row, amt, email, parts\)/.test(fn)) {
+    throw new Error('분배완료 정정이 공통 되돌리기 코어를 쓰지 않습니다.');
+  }
+  const mroute = readFileSync(resolve(ROOT, 'app/api/master/item/route.ts'), 'utf8');
+  if (!/confirm: body\.confirm === true/.test(mroute)) {
+    throw new Error('라우트가 confirm 을 그대로 전달하지 않습니다.');
+  }
+  const led = readFileSync(resolve(ROOT, 'components/LedgerCard.tsx'), 'utf8');
+  if (!/\/api\/master\/item/.test(led)) throw new Error('분배완료 화면에서 수정할 수 없습니다.');
+  if (!/led\.editMembers/.test(led)) throw new Error('참여 인원 수정 입구가 없습니다.');
 
   if (!/case 'editItem':/.test(gs)) throw new Error('라우터에 editItem 이 없습니다.');
   if (!/'deleteItem', 'editItem'/.test(gs)) throw new Error('editItem 이 쓰기 액션 목록에 없습니다.');
@@ -1896,7 +1925,7 @@ check('미분배 아이템 수정은 마스터만, 분배된 것은 거부한다
   if (!/master \? \(\s*\n\s*<button className="btn ghost" onClick=\{\(\) => setEditing\(it\)\}/.test(items)) {
     throw new Error('수정 버튼이 마스터에게만 보이지 않습니다.');
   }
-  return '분배 후 거부 · 참여횟수 재계산 · 중복 제거 · 잔액 무관 · 마스터 라우트 + 마스터 전용 버튼';
+  return '미분배(이름·참여자) · 분배완료(참여자·금액, 스냅샷 회수 후 명단 교체·확인 필수) · 참여횟수 재계산 · 마스터 전용';
 });
 
 check('이름은 두 줄로 나뉘고 글자 수에 맞춰 줄어든다', () => {

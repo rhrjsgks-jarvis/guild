@@ -1,8 +1,22 @@
 // ═══════════════════════════════════════════════════════════════
-//  길드 정산 시스템 v11.1  (분배비중 · 연합 · 레이드 · 게시판 · 마스터관리자 · 3개국어)
+//  길드 정산 시스템 v11.2  (분배비중 · 연합 · 레이드 · 게시판 · 마스터관리자 · 3개국어)
 //  시트 구성: [사용안내] [멤버DB] [참여자현황] [분배대기중] [잔액현황]
 //            [지급기록] [연합] [레이드] [게시판] [작업기록] + [시즌1] [시즌2] ...
 //            ← 이 순서로 항상 정렬됨
+// ═══════════════════════════════════════════════════════════════
+//  변경점 v11.1 → v11.2  (마스터가 분배완료 아이템도 고친다 · 서버 추가에 인증샷)
+//
+//   - ★ `api_editItem` 이 **분배완료** 아이템도 다룬다 — 참여자 · 분배금액.
+//       이미 나눠준 다이아를 **분배 시점 스냅샷(O열) 그대로** 회수한 뒤
+//       새 명단·새 금액으로 다시 나눈다. 새 명단으로 회수하면 실제로 준 사람에게서
+//       못 빼고 안 받은 사람에게서 빼게 된다 (규칙 2-1) — 그래서 명단 교체는
+//       회수가 **전부 끝난 뒤**에만 일어난다.
+//   - ★ 돈이 움직이므로 `confirm === true` 가 있어야 실행된다. 없으면 바뀔 숫자
+//       (금액·인원·혈비·1인당)를 담아 되묻는다 (규칙 5-1).
+//   - ★ 명단이 바뀌면 참여횟수는 등록 이력 전체를 **다시 센다** (규칙 3).
+//   - ★ `api_addAllianceServers` 가 인증샷을 함께 받는다. 묶음의 **첫 줄에 이어**
+//       붙인다 — 덮어쓰면 처음 등록할 때 붙인 사진이 사라진다.
+//   - `api_getItemsAll` 이 참여자 명단을 함께 내려준다 (앱이 고칠 때 필요).
 // ═══════════════════════════════════════════════════════════════
 //  변경점 v11.0 → v11.1  (연합 서버 표기 '1' 과 '01' 을 같은 서버로)
 //
@@ -539,7 +553,7 @@
 //     '누적기록'을 그대로 찾음 (하위 호환, 리네이밍과 무관)
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION = '11.1';
+const VERSION = '11.2';
 const T2S_MAP = {'國':'国','學':'学','這':'这','個':'个','們':'们','說':'说','話':'话','對':'对','時':'时','間':'间','現':'现','場':'场','開':'开','關':'关','內':'内','東':'东','車':'车','馬':'马','龍':'龙','風':'风','陽':'阳','陰':'阴','電':'电','語':'语','讀':'读','寫':'写','書':'书','紙':'纸','筆':'笔','長':'长','門':'门','問':'问','聽':'听','見':'见','覺':'觉','讓':'让','誰':'谁','還':'还','進':'进','運':'运','動':'动','靜':'静','樂':'乐','藥':'药','華':'华','蘭':'兰','葉':'叶','黃':'黄','麗':'丽','寶':'宝','貴':'贵','財':'财','買':'买','賣':'卖','錢':'钱','銀':'银','鐵':'铁','鋼':'钢','陳':'陈','劉':'刘','張':'张','楊':'杨','蔣':'蒋','鄭':'郑','謝':'谢','呂':'吕','蘇':'苏','韓':'韩','馮':'冯','於':'于','鳳':'凤','雲':'云','劍':'剑','斷':'断','亂':'乱','愛':'爱','聲':'声','醫':'医','藝':'艺','頭':'头','臉':'脸','腳':'脚','氣':'气','樓':'楼','橋':'桥','飛':'飞','機':'机','網':'网','線':'线','條':'条','裡':'里','邊':'边','錯':'错','壞':'坏','舊':'旧','寬':'宽','淺':'浅','週':'周','節':'节','業':'业','後':'后','來':'来','終':'终','結':'结','敗':'败','勝':'胜','負':'负','輸':'输','贏':'赢','強':'强','難':'难','簡':'简','單':'单','複':'复','雜':'杂','純':'纯','淨':'净','髒':'脏','齊':'齐','穩':'稳','變':'变','轉':'转','換':'换','顯':'显','樣':'样','種':'种','類':'类','團':'团','體':'体','統':'统','織':'织','組':'组','構':'构','設':'设','計':'计','劃':'划','數':'数','課':'课','題':'题','試':'试','練':'练','習':'习','師':'师','員':'员','職':'职','務':'务','責':'责','權':'权','應':'应','該':'该','須':'须','願':'愿','夢':'梦','憶':'忆','識':'识','認':'认','歡':'欢','醜':'丑','帥':'帅','靈':'灵','獸':'兽','鷹':'鹰','鶴':'鹤','鴻':'鸿','鱷':'鳄','鯨':'鲸','鯊':'鲨','蝦':'虾','殼':'壳','冑':'胄','戰':'战','爭':'争','鬥':'斗','擊':'击','禦':'御','護':'护','衛':'卫','謀':'谋','陣':'阵','營':'营','軍':'军','隊':'队','將':'将','嬪':'嫔','宮':'宫','廟':'庙','觀':'观','閣':'阁','蓮':'莲','楓':'枫','樺':'桦','檜':'桧','樹':'树','實':'实','幹':'干','莖':'茎','穫':'获','採':'采','鮮':'鲜','籠':'笼','傷':'伤','殺':'杀','斬':'斩','豬':'猪','雞':'鸡','鴨':'鸭','鵝':'鹅','龜':'龟','蟬':'蝉','蟻':'蚁','螞':'蚂','鴉':'鸦','鵰':'雕','鴛':'鸳','鴦':'鸯','賽':'赛','廠':'厂','廣':'广','麼':'么','誒':'诶','歲':'岁','歷':'历','歸':'归','殘':'残','蟲':'虫','貓':'猫','氈':'毡','貫':'贯','質':'质','貨':'货','貼':'贴','費':'费','資':'资','賬':'账','賺':'赚','贈':'赠','賀':'贺','賢':'贤','賦':'赋','賤':'贱','賓':'宾','賴':'赖','齲':'龋','齒':'齿','龄':'齡','齡':'龄','齣':'出','岡':'冈','剛':'刚','剮':'剐','創':'创','劇':'剧','勵':'励','勸':'劝','勻':'匀','匯':'汇','醬':'酱','醞':'酝','釀':'酿','釋':'释','釘':'钉','針':'针','釣':'钓','鈍':'钝','鈴':'铃','鈔':'钞','鉛':'铅','鋸':'锯','鋒':'锋','鍵':'键','鎖':'锁','鑄':'铸','鑼':'锣','錶':'表','鐘':'钟','鏡':'镜','鑽':'钻','鑑':'鉴','閉':'闭','閃':'闪','閏':'闰','閱':'阅','闆':'板','闖':'闯','陸':'陆','隱':'隐','雖':'虽','雙':'双','雛':'雏','靂':'雳','韋':'韦','韌':'韧','頁':'页','頂':'顶','項':'项','順':'顺','頌':'颂','預':'预','頑':'顽','頒':'颁','頗':'颇','領':'领','頡':'颉','頜':'颌','頸':'颈','頻':'频','頹':'颓','顆':'颗','額':'额','顏':'颜','顛':'颠','顧':'顾','飄':'飘','饑':'饥','餃':'饺','餅':'饼','館':'馆','饒':'饶','饞':'馋','馳':'驰','駕':'驾','駛':'驶','駐':'驻','駱':'骆','駭':'骇','騎':'骑','騰':'腾','驅':'驱','驚':'惊','驕':'骄','驗':'验','骯':'肮','髮':'发','鬍':'胡','鬧':'闹','鮑':'鲍','鯉':'鲤','鰲':'鳌','鱉':'鳖','鳥':'鸟','鳴':'鸣','鹹':'咸','麥':'麦','麵':'面','黨':'党'};  // 번체→간체 상용한자 (서체 변환 전용, 다른 뜻 글자는 포함하지 않음)
 const UNIT = '다이아';                 // 재화 단위 표기
 const MAX_MEMBERS = 100;              // 최대 멤버 수 (v10.5: 50 → 100)
@@ -889,8 +903,13 @@ function _readLedgerRow(ledger, row) {
 // ─────────────────────────────────────────
 // 🔄 분배 정정 코어 (PC 메뉴 + 앱 공용, UI 없음)
 //   newAmount 가 null 이면 되돌리기만 하고 ⏳미분배로 복귀한다.
+//
+//   newParts 를 주면 **되돌린 뒤 참여자 명단을 갈아끼우고** 재분배한다 (v11.1).
+//   되돌리기는 반드시 **분배 시점 스냅샷(O열)** 으로 한다 — 새 명단으로 회수하면
+//   실제로 준 사람에게서 못 빼고 안 받은 사람에게서 빼게 된다 (규칙 2-1).
+//   그래서 명단 교체는 회수가 **전부 끝난 뒤**에만 일어난다.
 // ─────────────────────────────────────────
-function _correctCore(ss, row, newAmount, email) {
+function _correctCore(ss, row, newAmount, email, newParts) {
   const ledger = ss.getSheetByName(LEDGER_SHEET);
   const balance = ss.getSheetByName('잔액현황');
   if (!ledger || !balance) {
@@ -940,6 +959,18 @@ function _correctCore(ss, row, newAmount, email) {
   ledger.getRange(row, LG.CHECK).insertCheckboxes().setValue(false);
   ledger.getRange(row, LG.EDITBY).setValue(actor);
   _logAction(ss, '정정-되돌리기', info.item, actor, info.amount.toLocaleString() + UNIT + ' 분배를 되돌림');
+
+  // ★ 회수가 전부 끝난 **뒤**에 명단을 갈아끼운다 (v11.1).
+  //   먼저 바꾸면 회수 대상이 달라져 실제로 준 사람에게서 못 빼게 된다.
+  if (newParts && newParts.length > 0) {
+    const before = info.participants.join(', ');
+    ledger.getRange(row, LG.NAMES).setValue(newParts.join(', '));
+    ledger.getRange(row, LG.CNT).setValue(newParts.length);
+    // 명단이 바뀌었으니 참여횟수는 등록 이력 전체를 다시 센다 (규칙 3)
+    _recalcAllParticipationCounts(ss);
+    _logAction(ss, '정정-참여자', info.item, actor,
+      before + ' (' + info.n + '명) → ' + newParts.join(', ') + ' (' + newParts.length + '명)');
+  }
 
   if (newAmount === null || newAmount === undefined || newAmount === '') {
     return _rc({
@@ -3105,7 +3136,7 @@ function _registerCore(ss, itemName, participants, photoLink, clientEmail) {
  *   증감으로 맞추면 한 번만 어긋나도 영원히 틀어진 채로 남는다 (규칙 3).
  * ★ 미분배 상태라 다이아(분배전)는 아직 아무에게도 안 갔다 — 잔액은 건드리지 않는다.
  */
-function api_editItem(row, itemName, participants, email) {
+function api_editItem(row, itemName, participants, email, amount, confirm) {
   row = Number(row);
   itemName = String(itemName || '').trim();
   if (!itemName) return _rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
@@ -3132,8 +3163,42 @@ function api_editItem(row, itemName, participants, email) {
       return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
     }
     const status = String(ledger.getRange(row, LG.STATUS).getValue()).trim();
+
+    // ── 분배완료 아이템 (v11.1) — 참여자·분배금액을 고친다 ──
+    //   이미 나눠준 다이아를 **분배 시점 스냅샷 그대로** 회수한 뒤 새 명단·새 금액으로
+    //   다시 나눈다. 되돌리기와 같은 성격이라 마스터관리자·확인 절차를 함께 요구한다.
+    if (status === ST_DONE) {
+      const cur = _readLedgerRow(ledger, row);
+      const amt = (amount === '' || amount === null || amount === undefined) ? cur.amount : Number(String(amount).replace(/,/g, ''));
+      if (!amt || amt <= 0 || amt !== Math.floor(amt)) {
+        return _rc({ ok: false, msg: '금액은 양의 정수여야 합니다.' }, 'e.badAmount');
+      }
+
+      // ★ 돈이 움직인다 — 바뀔 숫자를 보여준 뒤에만 실행한다 (규칙 5-1)
+      if (confirm !== true) {
+        const preview = _calcSplit(amt, _weightsFor(ss, parts));
+        return _rc({
+          ok: false, needsConfirm: true, item: cur.item,
+          before: { amount: cur.amount, n: cur.n, participants: cur.participants },
+          after: { amount: amt, n: parts.length, participants: parts,
+                   fundTotal: preview.fundTotal, perPerson: preview.perPerson },
+          msg: '"' + cur.item + '" 정정 — ' + cur.amount.toLocaleString() + ' → ' + amt.toLocaleString() + UNIT +
+               ' · 참여 ' + cur.n + '명 → ' + parts.length + '명. 확인 후 다시 실행해주세요.'
+        }, 'item.editAsk', { item: cur.item, from: cur.amount, to: amt, fromN: cur.n, toN: parts.length });
+      }
+
+      // 되돌리기 → 명단 교체 → 재분배. 회수는 반드시 분배 시점 금액으로 한다 (규칙 2-1)
+      const res = _correctCore(ss, row, amt, email, parts);
+      if (!res.ok) return res;
+      if (itemName !== cur.item) {
+        ledger.getRange(row, LG.ITEM).setValue(itemName);
+        _logAction(ss, '아이템수정', itemName, _getActorEmail(email), '"' + cur.item + '" → "' + itemName + '"');
+      }
+      return res;
+    }
+
     if (status !== ST_WAIT) {
-      return _rc({ ok: false, msg: '이미 분배된 아이템입니다. [정정]을 사용해주세요.' }, 'e.alreadyDone');
+      return _rc({ ok: false, msg: '고칠 수 없는 상태입니다. 새로고침해주세요.' }, 'e.alreadyDone');
     }
     const before = String(ledger.getRange(row, LG.ITEM).getValue()).trim();
     const beforeN = Number(ledger.getRange(row, LG.CNT).getValue()) || 0;
@@ -4555,7 +4620,9 @@ function api_getItemsAll() {
       cnt: Number(r[LG.CNT - 1]) || 0,
       amount: Number(r[LG.AMOUNT - 1]) || 0,
       perPerson: Number(r[LG.PER - 1]) || 0,
-      fund: Number(r[LG.FUND - 1]) || 0
+      fund: Number(r[LG.FUND - 1]) || 0,
+      // 마스터가 분배완료 건의 참여자를 고치려면 지금 명단이 필요하다 (v11.1)
+      names: String(r[LG.NAMES - 1]).split(',').map(function (x) { return x.trim(); }).filter(Boolean)
     });
   });
   // 최근 것이 위로
@@ -5291,7 +5358,7 @@ function api_editAlliance(group, item, entries, amount, email, confirm) {
  * ★ 아직 금액이 안 들어간 건에만 더한다. 이미 정산된 건에 인원을 더하면
  *   이미 나눠준 서버별 몫과 어긋난다 — 그건 정정으로 다시 계산해야 한다.
  */
-function api_addAllianceServers(group, entries, email) {
+function api_addAllianceServers(group, entries, email, photoLinks) {
   group = String(group || '').trim();
 
   const list = (entries || []).map(function (e) {
@@ -5350,6 +5417,7 @@ function api_addAllianceServers(group, entries, email) {
 
     const actor = _getActorEmail(email);
     const last = hit[hit.length - 1];
+    const first = hit[0];
     // 묶음 바로 뒤에 끼워 넣는다 — 맨 아래로 보내면 다른 묶음 사이로 흩어진다
     sheet.insertRowsAfter(last, list.length);
     const rowsOut = list.map(function (e) {
@@ -5362,9 +5430,25 @@ function api_addAllianceServers(group, entries, email) {
       sheet.getRange(last + 1, col, list.length, 1).setNumberFormat('#,##0');
     });
 
+    // ★ 인증샷은 묶음의 **첫 줄에 모아 둔다** (v11.1). 새로 넣은 것을 뒤에 잇는다 —
+    //   덮어쓰면 처음 등록할 때 붙인 사진이 사라진다.
+    const added = _photoList(_photoCell(photoLinks));
+    let shots = 0;
+    if (added.length > 0) {
+      const cell = sheet.getRange(first, ALLY_COL.PHOTO);
+      const have = _readLedgerPhotos(cell.getFormula(), cell.getDisplayValue());
+      const merged = have.slice();
+      added.forEach(function (u) { if (merged.indexOf(u) < 0) merged.push(u); });
+      // HYPERLINK 은 한 개만 담는다 — 두 장 이상이면 줄바꿈으로 나열한다
+      if (merged.length === 1) cell.setFormula('=HYPERLINK("' + merged[0] + '","📷 보기")');
+      else cell.setValue(merged.join('\n'));
+      shots = merged.length;
+    }
+
     const total = list.reduce(function (t, e) { return t + e.people; }, 0);
     const where = list.map(function (e) { return e.server + '서버 ' + e.people + '명'; }).join(' · ');
-    _logAction(ss, '연합서버추가', item, actor, where + ' 추가');
+    _logAction(ss, '연합서버추가', item, actor,
+      where + ' 추가' + (added.length > 0 ? ' · 인증샷 ' + added.length + '장 추가' : ''));
     return _rc({
       ok: true, group: group, servers: list.length, people: total,
       msg: '✅ "' + item + '" 에 ' + where + ' 을(를) 추가했습니다.'
@@ -6353,7 +6437,7 @@ function _apiRoute(action, req) {
 
     // 미분배 아이템의 아이템명·참여자 고치기 (v11.0) — 이미 분배된 행은 [정정]이 담당한다
     case 'editItem':
-      return api_editItem(req.row, req.itemName, req.participants, req.email);
+      return api_editItem(req.row, req.itemName, req.participants, req.email, req.amount, req.confirm === true);
 
     case 'lastPayout':
       return api_getLastPayout();
@@ -6410,7 +6494,7 @@ function _apiRoute(action, req) {
 
     // 참여 서버 추가 (v11.1) — 줄을 더하기만 한다. 관리자도 할 수 있다
     case 'addAllianceServers':
-      return api_addAllianceServers(req.group, req.entries, req.email);
+      return api_addAllianceServers(req.group, req.entries, req.email, req.photoLinks);
 
     case 'deleteAlliance':
       return api_deleteAlliance(req.group, req.email);

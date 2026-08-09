@@ -168,6 +168,8 @@ export type LedgerEntry = {
   cnt: number;
   amount: number;
   perPerson: number;
+  /** 지금 참여자 명단 — 마스터가 분배완료 건을 고칠 때 쓴다 (v11.1) */
+  names?: string[];
   fund: number;
 };
 

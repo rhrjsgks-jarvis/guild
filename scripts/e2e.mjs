@@ -2107,6 +2107,71 @@ await t('연합 등록: 사진이 읽은 인원이 손으로 넣은 값을 덮�
   eq(g.photos.length, 3, '저장된 사진 장수');
 });
 
+await t('분배완료 아이템도 마스터가 고친다 — 참여자·금액 (v11.1)', async () => {
+  await reset();
+  const bal = async (name) => {
+    const st = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
+    return st.rows.find((r) => r.name === name).pending;
+  };
+
+  // 등록 → 분배. 3만을 가이·TC무식 둘이 나눈다 (혈비 3,000 · 각 13,500)
+  const reg = await post('/api/admin/register', { itemName: '정정 대상', participants: ['가이', 'TC무식'] }, { Cookie: cookie });
+  eq((await reg.json()).ok, true, '등록');
+  const st0 = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
+  const row = st0.items.find((i) => i.item === '정정 대상').row;
+  const before = { 가이: await bal('가이'), TC무식: await bal('TC무식'), 팩맨: await bal('팩맨'), 혈비: await bal('혈맹운영비') };
+
+  eq((await post('/api/admin/distribute', { row, amount: 30000 }, { Cookie: cookie })).status, 200, '분배');
+  eq(await bal('가이'), before['가이'] + 13500, '분배 뒤 가이');
+  eq(await bal('혈맹운영비'), before['혈비'] + 3000, '분배 뒤 혈비');
+
+  // ① 관리자에게는 막힌다
+  const asAdmin = await post(
+    '/api/master/item',
+    { row, itemName: '정정 대상', participants: ['가이'], amount: 30000, confirm: true },
+    { Cookie: cookie },
+  );
+  eq(asAdmin.status, 401, '관리자에게는 막힌다');
+
+  // ② 확인 없이는 실행되지 않는다 — 바뀔 숫자를 먼저 돌려준다 (규칙 5-1)
+  const ask = await post(
+    '/api/master/item',
+    { row, itemName: '정정 대상', participants: ['가이', 'TC무식', '팩맨'], amount: 60000 },
+    { Cookie: masterCookie },
+  );
+  const askBody = await ask.json();
+  eq(askBody.ok, false, '확인 없이는 실행 안 됨');
+  eq(askBody.needsConfirm, true, '되묻는다');
+  eq(askBody.before.amount, 30000, '지금 금액');
+  eq(askBody.after.amount, 60000, '바뀔 금액');
+  eq(await bal('가이'), before['가이'] + 13500, '되물은 단계에서는 아무것도 안 바뀐다');
+
+  // ③ 확인하면 실행된다 — 6만을 셋이서 (혈비 6,000 · 각 18,000)
+  const ok = await post(
+    '/api/master/item',
+    { row, itemName: '정정 대상', participants: ['가이', 'TC무식', '팩맨'], amount: 60000, confirm: true },
+    { Cookie: masterCookie },
+  );
+  eq((await ok.json()).ok, true, '정정 실행');
+
+  // ★ 회수는 분배 시점 금액(13,500)으로, 재분배는 새 명단·새 금액으로
+  eq(await bal('가이'), before['가이'] + 18000, '정정 뒤 가이');
+  eq(await bal('TC무식'), before['TC무식'] + 18000, '정정 뒤 TC무식');
+  eq(await bal('팩맨'), before['팩맨'] + 18000, '새로 들어온 팩맨');
+  eq(await bal('혈맹운영비'), before['혈비'] + 6000, '정정 뒤 혈비 (겹쳐 쌓이지 않는다)');
+
+  // ★ 보존 불변식 — 혈비 + 나눠준 몫 = 판매금액
+  eq(18000 * 3 + 6000, 60000, '혈비 + 각자 몫 = 판매금액');
+
+  // 참여횟수도 명단을 따라 다시 세어진다
+  const after = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
+  const items = await (await fetch(`${APP}/api/admin/items`, { headers: { Cookie: cookie } })).json();
+  const rec = items.data.find((x) => x.row === row);
+  eq(rec.cnt, 3, '참여자 수');
+  eq(rec.amount, 60000, '바뀐 금액');
+  if (!after.rows.find((r) => r.name === '팩맨')) throw new Error('팩맨이 잔액현황에 없습니다.');
+});
+
 await t('연합 정정: 마스터만, 혈비는 차액만 움직인다 (v11.1)', async () => {
   await reset();
   const fundOf = async () => {
@@ -2239,7 +2304,7 @@ await t('연합: 아이템명을 누르면 서버별 참여 인원이 펼쳐진�
   await page.waitForTimeout(300);
 });
 
-await t('미분배 아이템 수정은 마스터만, 분배된 것은 거부한다 (v11.0)', async () => {
+await t('아이템 수정은 마스터만 — 분배 후에는 확인을 거친다 (v11.1)', async () => {
   await reset();
 
   // 등록해두고 그 행을 고친다
@@ -2296,14 +2361,22 @@ await t('미분배 아이템 수정은 마스터만, 분배된 것은 거부한�
   );
   eq(empty.status, 400, '참여자 0명 거부');
 
-  // ④ 이미 분배된 아이템은 시트가 거부한다 — 그쪽은 [정정]이 담당한다
+  // ④ 분배된 뒤에는 확인을 거쳐야 고쳐진다 (v11.1 — 돈이 움직인다, 규칙 5-1)
   eq((await post('/api/admin/distribute', { row, amount: 10000 }, { Cookie: cookie })).status, 200, '분배');
-  const done = await post(
+  const askAfter = await post(
     '/api/master/item',
-    { row, itemName: '분배 후 수정', participants: ['가이'] },
+    { row, itemName: '분배 후 수정', participants: ['가이'], amount: 10000 },
     { Cookie: masterCookie },
   );
-  eq(done.status, 400, '분배된 아이템 수정 거부');
+  const askBody = await askAfter.json();
+  eq(askBody.needsConfirm, true, '분배된 아이템은 되묻는다');
+
+  const doneEdit = await post(
+    '/api/master/item',
+    { row, itemName: '분배 후 수정', participants: ['가이'], amount: 10000, confirm: true },
+    { Cookie: masterCookie },
+  );
+  eq((await doneEdit.json()).ok, true, '확인하면 고쳐진다');
 });
 
 await t('팝업은 바깥을 눌러도 닫히지 않는다 (v11.1, 화면)', async () => {

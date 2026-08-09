@@ -153,6 +153,12 @@ const DICT: Record<string, Entry> = {
     'You can pick several at once — matches from each add up.',
   ],
   'items.edit': ['수정', '修改', 'Edit'],
+  'led.editMembers': ['👥 참여 인원·금액 고치기', '👥 修改参与人员·金额', '👥 Edit people & amount'],
+  'led.editNote': [
+    '이미 나눠준 다이아를 분배 시점 금액 그대로 회수한 뒤, 새 명단·새 금액으로 다시 나눕니다. {fund}도 함께 맞춰집니다.',
+    '按分配时的金额收回已发放的钻石，再按新名单和新金额重新分配。{fund} 也会同步调整。',
+    'The original amounts are reclaimed exactly as distributed, then split again with the new list and amount. {fund} follows.',
+  ],
   'items.editSub': [
     '아직 분배하지 않은 아이템만 고칠 수 있습니다. 참여자를 바꾸면 참여횟수도 다시 계산됩니다.',
     '仅可修改尚未分配的物品。改动参与者后参与次数会重新统计。',
@@ -1109,6 +1115,11 @@ const DICT: Record<string, Entry> = {
     '참여자를 한 명 이상 골라주세요.',
     '请至少选择一名参与者。',
     'Pick at least one participant.',
+  ],
+  's.item.editAsk': [
+    '"{item}" 정정 — {from} → {to} · 참여 {fromN}명 → {toN}명. 확인 후 다시 실행해주세요.',
+    '修正「{item}」— {from} → {to} · 参与 {fromN}人 → {toN}人。确认后请再次执行。',
+    'Correcting "{item}" — {from} → {to} · {fromN} → {toN} people. Confirm and run it again.',
   ],
   's.item.editOk': [
     '✅ "{item}" 수정 완료 — 참여 {n}명',

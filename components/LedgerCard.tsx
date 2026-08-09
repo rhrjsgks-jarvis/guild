@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Sheet from './Sheet';
-import type { LedgerEntry, ReversePreview } from '@/lib/types';
-import { api, calcSplit, fmt, getStoredEmail } from '@/lib/client';
+import type { GuildState, LedgerEntry, ReversePreview } from '@/lib/types';
+import { api, byName, calcSplit, fmt, getStoredEmail, serverOf, weightsOf } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
@@ -17,12 +17,15 @@ import { useT } from '@/lib/i18n';
  *   이미 끝난 분배를 되돌리는 자리라, 관리자에게는 존재 자체를 보이지 않는다.
  */
 export default function LedgerCard({
+  state,
   unit,
   fundRate,
   fundName,
   onChanged,
   toast,
 }: {
+  /** 참여자를 고르려면 명단이 필요하다 (v11.1) */
+  state: GuildState;
   unit: string;
   fundRate: number;
   fundName: string;
@@ -75,6 +78,7 @@ export default function LedgerCard({
       {target ? (
         <ItemSheet
           entry={target}
+          state={state}
           unit={unit}
           fundRate={fundRate}
           fundName={fundName}
@@ -91,10 +95,11 @@ export default function LedgerCard({
   );
 }
 
-type Mode = 'menu' | 'correct' | 'delete';
+type Mode = 'menu' | 'correct' | 'delete' | 'edit';
 
 function ItemSheet({
   entry,
+  state,
   unit,
   fundRate,
   fundName,
@@ -103,6 +108,7 @@ function ItemSheet({
   toast,
 }: {
   entry: LedgerEntry;
+  state: GuildState;
   unit: string;
   fundRate: number;
   fundName: string;
@@ -115,6 +121,9 @@ function ItemSheet({
   const [mode, setMode] = useState<Mode>('menu');
   const [raw, setRaw] = useState('');
   const [busy, setBusy] = useState(false);
+  // ── 참여자·금액 함께 고치기 (v11.1, 마스터) ──
+  const [picked, setPicked] = useState<Set<string>>(new Set(entry.names ?? []));
+  const [editAmt, setEditAmt] = useState(String(entry.amount || ''));
 
   useEffect(() => {
     void (async () => {
@@ -142,6 +151,49 @@ function ItemSheet({
   }
 
   const blocked = preview?.blocked === true;
+
+  // 이미 참여로 잡혀 있는 사람은 명단에서 빠졌더라도 계속 보여야 한다 —
+  // 안 보이면 체크를 풀 수도, 그대로 둘 수도 없어 저장 자체가 막힌다
+  const selectable = (() => {
+    const all = new Set(state.members.filter((m) => m !== state.fundName));
+    (entry.names ?? []).forEach((n) => all.add(n));
+    return [...all].sort((a, b) => byName(a, b));
+  })();
+
+  const editAmount = Number(editAmt.replace(/[,\s]/g, ''));
+  const editValid =
+    picked.size > 0 && Number.isInteger(editAmount) && editAmount > 0;
+  // 확인 화면 숫자는 시트와 같은 산식으로 만든다 (규칙 1)
+  const editSplit = editValid
+    ? calcSplit(editAmount, weightsOf(state, [...picked]), fundRate)
+    : null;
+
+  /**
+   * 참여자·금액을 함께 고친다 (v11.1).
+   *
+   * 시트는 **분배 시점 스냅샷(O열)으로 먼저 회수**한 뒤 새 명단·새 금액으로 다시
+   * 나눈다 (규칙 2-1). 돈이 움직이므로 `confirm` 없이 한 번 불러 바뀔 숫자를 받고,
+   * 사용자가 그 숫자를 본 뒤에 다시 부른다 — 앱이 임의로 채우지 않는다 (규칙 5-1).
+   */
+  async function saveEdit(confirm: boolean) {
+    if (!editValid) return;
+    setBusy(true);
+    const res = await api('/api/master/item', {
+      row: entry.row,
+      itemName: entry.item,
+      participants: [...picked],
+      amount: editAmount,
+      email: getStoredEmail(),
+      confirm,
+    });
+    setBusy(false);
+    if (!res.ok && res.needsConfirm) {
+      toast(srv(res), false);
+      return;
+    }
+    toast(srv(res, res.ok ? 'r.done' : 'r.failed'), !res.ok);
+    if (res.ok) onDone(res);
+  }
 
   return (
     <Sheet
@@ -183,9 +235,20 @@ function ItemSheet({
       {mode === 'menu' ? (
         <div style={{ marginTop: 16 }}>
           {preview?.needsReverse ? (
-            <button className="btn block" disabled={blocked} onClick={() => setMode('correct')}>
-              {t('led.correct')}
-            </button>
+            <>
+              {/* 참여 인원과 분배금액을 한 화면에서 고친다 (v11.1) */}
+              <button className="btn block" disabled={blocked} onClick={() => setMode('edit')}>
+                {t('led.editMembers')}
+              </button>
+              <button
+                className="btn block"
+                style={{ marginTop: 8 }}
+                disabled={blocked}
+                onClick={() => setMode('correct')}
+              >
+                {t('led.correct')}
+              </button>
+            </>
           ) : null}
           <button
             className="btn danger block"
@@ -198,6 +261,81 @@ function ItemSheet({
           <button className="btn ghost block" style={{ marginTop: 8 }} onClick={onClose}>
             {t('c.close')}
           </button>
+        </div>
+      ) : mode === 'edit' ? (
+        <div style={{ marginTop: 16 }}>
+          <label className="fl">{t('items.membersLabel', { n: picked.size })}</label>
+          <div className="mgrid">
+            {selectable.map((m) => {
+              const sv = serverOf(state, m);
+              const on = picked.has(m);
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  className={'mchip' + (on ? ' sel' : '')}
+                  aria-pressed={on}
+                  onClick={() =>
+                    setPicked((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(m)) next.delete(m);
+                      else next.add(m);
+                      return next;
+                    })
+                  }
+                >
+                  <span className="nm">
+                    <b>
+                      {sv ? <span className="svr">{sv}</span> : null}
+                      {m}
+                    </b>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <label className="fl" htmlFor="edAmt" style={{ marginTop: 12 }}>
+            {t('led.newAmount', { unit })}
+          </label>
+          <input
+            id="edAmt"
+            type="text"
+            inputMode="numeric"
+            value={editAmt}
+            onChange={(e) => setEditAmt(e.target.value)}
+          />
+
+          {editSplit ? (
+            <div className="calc">
+              <div className="calc-line">
+                <span>{t('led.currentAmount')}</span>
+                <strong>
+                  {fmt(entry.amount)} → {fmt(editAmount)} {unit}
+                </strong>
+              </div>
+              <div className="calc-line">
+                <span>{t('led.newFund', { fund: fundName })}</span>
+                <strong>{fmt(editSplit.fundTotal)}</strong>
+              </div>
+              <div className="calc-line">
+                <span>{t('led.newBase', { n: picked.size })}</span>
+                <strong>{fmt(editSplit.perPerson)}</strong>
+              </div>
+            </div>
+          ) : (
+            <p className="hint">{t('dist.needInt')}</p>
+          )}
+          <p className="hint">{t('led.editNote', { fund: fundName })}</p>
+
+          <div className="sheet-actions">
+            <button className="btn ghost" onClick={() => setMode('menu')}>
+              {t('c.back')}
+            </button>
+            <button className="btn warn" disabled={!editValid || busy} onClick={() => void saveEdit(true)}>
+              {busy ? t('c.processing') : t('c.save')}
+            </button>
+          </div>
         </div>
       ) : mode === 'correct' ? (
         <div style={{ marginTop: 16 }}>

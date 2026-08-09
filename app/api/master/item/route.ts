@@ -6,20 +6,27 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 /**
- * 미분배 아이템의 아이템명·참여자 수정 (v11.0) — 마스터관리자 전용.
+ * 아이템 수정 (v11.0 → v11.1) — 마스터관리자 전용.
  *
- * 이미 분배된 아이템은 여기서 못 고친다. 그쪽은 [정정]이 담당한다 —
- * 금액을 회수했다가 다시 나눠줘야 해서 절차가 완전히 다르고, 시트도 거부한다.
+ *   ⏳미분배 — 아이템명·참여자. 아직 아무 돈도 움직이지 않았다
+ *   ✅분배완료 — 참여자·**분배금액**까지. 시트가 분배 시점 금액 그대로 회수한 뒤
+ *               새 명단·새 금액으로 다시 나누고, 혈맹운영비도 함께 맞춘다
  *
- * 마스터에게 두는 이유: 참여자를 고치면 그 사람들의 **참여횟수**가 함께 다시 계산된다.
- * 등록을 잘못한 관리자가 스스로 지우고 다시 만드는 대신 조용히 고칠 수 있으면
- * "누가 언제 무엇을 바꿨는지"가 흐려진다 (작업기록에는 남지만, 권한은 나눠 둔다).
+ * 마스터에게 두는 이유: 참여자를 고치면 그 사람들의 **참여횟수**가 함께 다시 계산되고,
+ * 분배완료 건이면 실제 잔액이 움직인다 (CLAUDE.md 권한 경계 — 정정은 마스터).
  */
 export async function POST(req: Request) {
   const denied = await requireMaster();
   if (denied) return denied;
 
-  let body: { row?: unknown; itemName?: unknown; participants?: unknown; email?: unknown };
+  let body: {
+    row?: unknown;
+    itemName?: unknown;
+    participants?: unknown;
+    amount?: unknown;
+    email?: unknown;
+    confirm?: unknown;
+  };
   try {
     body = await req.json();
   } catch {
@@ -41,12 +48,30 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, msg: '참여자를 한 명 이상 골라주세요.' }, { status: 400 });
   }
 
+  // 분배완료 건에서만 쓴다. 안 보내면 시트가 지금 금액을 그대로 쓴다
+  let amount: number | null = null;
+  if (body.amount !== undefined && body.amount !== null && body.amount !== '') {
+    amount = Number(String(body.amount).replace(/,/g, ''));
+    if (!Number.isInteger(amount) || amount <= 0) {
+      return Response.json({ ok: false, msg: '금액은 양의 정수여야 합니다.' }, { status: 400 });
+    }
+  }
+
   const res = await callGas(
     'editItem',
-    { row, itemName, participants, email: String(body.email ?? '').trim() },
-    { timeoutMs: 45_000, withState: true },
+    {
+      row,
+      itemName,
+      participants,
+      amount,
+      email: String(body.email ?? '').trim(),
+      // ★ 앱이 바뀔 숫자를 보여준 뒤에만 true 가 된다 — 여기서 채우면 안전장치가 무력화된다
+      confirm: body.confirm === true,
+    },
+    { timeoutMs: 55_000, withState: true },
   );
 
   if (res.ok) syncStateCache(res);
-  return Response.json(res, { status: res.ok ? 200 : 400 });
+  // 되묻는 응답(needsConfirm)은 실패가 아니다
+  return Response.json(res, { status: res.ok || res.needsConfirm ? 200 : 400 });
 }

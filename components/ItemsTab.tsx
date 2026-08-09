@@ -436,6 +436,7 @@ export default function ItemsTab({
           {/* 정정·삭제는 마스터관리자 몫이라 관리자에게는 카드째로 보이지 않는다 */}
           {master ? (
             <LedgerCard
+              state={state}
               unit={unit(state.unit)}
               fundRate={state.fundRate}
               fundName={state.fundName}
