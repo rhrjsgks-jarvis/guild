@@ -515,23 +515,45 @@ const DICT: Record<string, Entry> = {
   /* ── 혈맹원 관리 ── */
   'ros.sect': ['👥 혈맹원 관리', '👥 血盟成员管理', '👥 Members'],
   'ros.add': ['➕ 혈맹원 추가', '➕ 添加成员', '➕ Add member'],
-  'ros.addSub': ['새로 가입한 혈맹원을 명단에 넣습니다', '把新加入的成员加进名单', 'Add a newly joined member to the roster'],
   'ros.addHint': [
-    '게임에서 아이디를 바꾼 사람은 눌러서 수정하세요. 잔액과 참여횟수는 새 이름으로 그대로 따라갑니다.',
-    '游戏里改过 ID 的人，点进去修改即可。余额和参与次数会跟着新名称转移。',
-    'Tap a member to rename them after an in-game change. Balance and join count follow the new name.',
+    '한 명이든 여럿이든 [혈맹원 추가]에서 넣습니다 (직접 입력·사진 모두). 게임에서 아이디를 바꾼 사람은 아래에서 눌러 수정하세요 — 잔액과 참여횟수는 새 이름으로 그대로 따라갑니다.',
+    '一个人或多个人都用[添加成员]（可手输，也可拍照）。游戏里改过 ID 的人，点下方修改即可 — 余额和参与次数会跟着新名称转移。',
+    'Add one member or many from [Add member] (type or photo). To rename someone after an in-game change, tap them below — balance and join count follow.',
   ],
   'ros.loadFailed': ['명단을 불러오지 못했습니다.', '名单加载失败。', 'Could not load the roster.'],
   'ros.fundBadge': ['운영비', '运营费', 'Fund'],
+
+  /* ── 이전 아이디에서 기록 가져오기 (v10.9.1) ── */
+  'ros.idTaken': [
+    '⚠️ "{name}" 은(는) 이미 명단에 있는 아이디입니다. 그 사람의 기록을 이 아이디로 가져오시려면 아래 [⏪ 이전 아이디에서 불러오기]를 쓰세요.',
+    '⚠️ "{name}" 已在名单中。若要把该成员的记录转到这个 ID，请使用下方的[⏪ 从旧 ID 转入]。',
+    '⚠️ "{name}" is already on the roster. To bring their records into this ID, use [⏪ Pull from an old ID] below.',
+  ],
+  'ros.pullOpen': ['이전 아이디에서 불러오기', '从旧 ID 转入', 'Pull from an old ID'],
+  'ros.pullOpenHint': [
+    '게임에서 아이디를 바꾼 사람을 먼저 새 아이디로 넣어두셨다면, 여기서 옛 아이디를 골라 분배전·분배완료·참여횟수를 가져올 수 있습니다.',
+    '如果该成员改名后先以新 ID 添加，可在此选择旧 ID，把待分配·已发放·参与次数一并转入。',
+    'If you added the new ID first, pick the old one here to bring over the balance, payout total and participation count.',
+  ],
+  'ros.pullTitle': ['⏪ 이전 아이디에서 불러오기', '⏪ 从旧 ID 转入', '⏪ Pull from an old ID'],
+  'ros.pullSub': ['기록을 "{v}" 로 가져옵니다.', '把记录转入 "{v}"。', 'Records will move into "{v}".'],
+  'ros.pullNote': [
+    '누구의 기록을 가져올지 고르세요. 옆의 금액이 이 아이디로 따라옵니다.',
+    '请选择要转入谁的记录。右侧金额会一并转过来。',
+    'Pick whose records to bring over. The amount shown will follow.',
+  ],
+  'ros.pullNone': ['가져올 수 있는 다른 아이디가 없습니다.', '没有可转入的其他 ID。', 'No other ID to pull from.'],
+  'ros.pullHint': [
+    '고른 아이디는 사라지고 기록만 이 아이디로 넘어옵니다. 실행 전에 금액을 한 번 더 보여드립니다. (지난 시즌 기록은 그때의 이름 그대로 남습니다)',
+    '所选 ID 会消失，记录转入本 ID。执行前会再确认一次金额。（历史赛季记录仍保留当时的名字）',
+    'The picked ID disappears and its records move here. The amounts are shown once more before applying. (Past-season records keep the old name.)',
+  ],
   'ros.id': ['아이디', 'ID', 'ID'],
-  'ros.idPh': ['게임 아이디', '游戏 ID', 'In-game ID'],
   'ros.idHint': [
     '게임에서 보이는 이름과 정확히 같게 입력하세요. 띄어쓰기·괄호·한자까지 그대로여야 인증샷에서 자동으로 찾아냅니다.',
     '请输入与游戏中显示完全一致的名称。空格、括号、汉字都要一样，截图才能自动识别。',
     'Type it exactly as the game shows it — spaces, brackets and hanja included — so screenshots match.',
   ],
-  'ros.adding': ['추가 중…', '添加中…', 'Adding…'],
-  'ros.addDo': ['추가하기', '确认添加', 'Add'],
   'ros.memberTitle': ['👤 혈맹원 관리', '👤 成员管理', '👤 Member'],
   'ros.current': ['현재: {v}', '当前：{v}', 'Currently: {v}'],
   'ros.carried': ['따라오는 분배전', '跟随转移的待发放', 'Unpaid carried over'],
@@ -674,18 +696,18 @@ const DICT: Record<string, Entry> = {
   ],
 
   /* ── 혈맹원 일괄 추가 (v10.4) ── */
-  'bulk.title': ['명단 일괄 추가', '批量添加名单', 'Bulk add members'],
+  'bulk.title': ['혈맹원 추가', '添加成员', 'Add members'],
   'bulk.sub': [
-    '넣기 전에 한 줄씩 확인합니다. 잘못 넣으면 되돌리기가 번거롭습니다.',
-    '添加前逐行确认。加错了很难还原。',
-    'Every line is checked before anything is written — mistakes are painful to undo.',
+    '한 명이든 여럿이든 여기서 넣습니다. 넣기 전에 한 줄씩 확인합니다.',
+    '一个人或多个人都在这里添加。写入前会逐行确认。',
+    'One member or many — all added here, and every line is checked first.',
   ],
-  'bulk.pasteLabel': ['명단 붙여넣기', '粘贴名单', 'Paste the roster'],
-  'bulk.pastePh': ['한 줄에 한 명씩', '每行一个人', 'One name per line'],
+  'bulk.pasteLabel': ['이름 입력 · 명단 붙여넣기', '输入姓名 · 粘贴名单', 'Type a name or paste a roster'],
+  'bulk.pastePh': ['한 줄에 한 명씩 (한 명만 넣어도 됩니다)', '每行一个人（也可以只加一个）', 'One name per line (a single name is fine)'],
   'bulk.pasteHint': [
-    '쉼표·줄바꿈 어느 쪽으로 구분해도 됩니다. 앞의 번호(1. 2.)는 알아서 떼어냅니다.',
-    '用逗号或换行分隔都可以，前面的编号（1. 2.）会自动去掉。',
-    'Commas or line breaks both work. Leading numbers (1. 2.) are stripped.',
+    '한 명만 넣으실 때도 여기에 이름 하나만 적으시면 됩니다. 쉼표·줄바꿈 어느 쪽으로 구분해도 되고, 앞의 번호(1. 2.)와 [혈맹·서버] 표시는 알아서 떼어냅니다.',
+    '只加一个人时，写一个名字即可。用逗号或换行分隔都可以；前面的编号（1. 2.）和[血盟·服务器]标记会自动去掉。',
+    'For a single member just type one name. Commas or line breaks both work; leading numbers (1. 2.) and [clan/server] tags are stripped.',
   ],
   'bulk.fromPhoto': ['사진에서 읽기', '从照片识别', 'Read from a photo'],
   'bulk.photoHint': [
