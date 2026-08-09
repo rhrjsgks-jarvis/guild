@@ -1197,6 +1197,94 @@ await t('아이템을 등록하면 목록에 나타난다', async () => {
   await shot('05-registered');
 });
 
+await t('아이템 등록: 서버로 좁혀도 체크한 사람은 사라지지 않는다 (화면)', async () => {
+  await reset();
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.locator('.nav button').filter({ hasText: /아이템/ }).click();
+  await page.waitForTimeout(900);
+
+  const chips = page.locator('#itemServers .svchip');
+  const grid = page.locator('.mgrid .mchip');
+
+  // ① 인원이 있는 서버만 앞에 두고 사람 수를 같이 보여준다.
+  //    몇 명짜리 서버인지 모르면 무엇을 고를지 판단할 수가 없다.
+  const faces = await chips.allInnerTexts();
+  const front = faces.filter((x) => !x.startsWith('+') && !x.includes('미지정'));
+  eq(front.join(' ').replace(/\s+/g, ''), '012022031041061', '서버 칩(번호+인원)');
+  if (!faces.some((x) => x.includes('7'))) throw new Error(`안 쓰는 7개가 접히지 않았습니다: ${faces.join(' / ')}`);
+  // 서버 칸이 비어 있는 사람도 고를 길이 있어야 한다 — 없으면 등록 자체가 막힌다
+  if (!faces.some((x) => x.includes('미지정') && x.includes('2'))) {
+    throw new Error(`미지정 칩이 없습니다: ${faces.join(' / ')}`);
+  }
+
+  // ② 아무것도 안 고르면 예전처럼 전원 (혈비 계정 제외 9명)
+  eq(await grid.count(), 9, '서버를 안 골랐을 때 보이는 인원');
+
+  // ③ 01 서버 → 가이·TC무식만
+  await chips.filter({ hasText: /^01/ }).click();
+  await page.waitForTimeout(300);
+  eq(await grid.count(), 2, '01 서버 인원');
+  // ④ 02 도 함께 (복수 선택 — "더 추가하실 서버는 없나요?")
+  await chips.filter({ hasText: /^02/ }).click();
+  await page.waitForTimeout(300);
+  eq(await grid.count(), 4, '01+02 서버 인원');
+  await shot('24-item-server-filter');
+
+  await page.getByRole('button', { name: '전체 선택' }).click();
+  await page.waitForTimeout(300);
+  const picked = await page.locator('.mgrid .mchip.sel').count();
+  eq(picked, 4, '전체 선택으로 체크된 인원');
+
+  // ★ 핵심 — 체크한 4명을 두고 03 서버로 갈아탄다. 그 4명이 화면에서 사라지면
+  //   관리자는 빠진 줄 알고 등록하지만 실제로는 들어간다. 반드시 계속 보여야 한다.
+  await chips.filter({ hasText: /^01/ }).click();
+  await chips.filter({ hasText: /^02/ }).click();
+  await chips.filter({ hasText: /^03/ }).click();
+  await page.waitForTimeout(300);
+  eq(await grid.count(), 5, '03 서버 + 이미 체크한 4명');
+  eq(await page.locator('.mgrid .mchip.sel').count(), 4, '갈아탄 뒤에도 남아 있는 체크');
+  for (const nm of ['가이', 'TC무식', '詹阿呆']) {
+    if ((await page.locator('.mgrid .mchip').filter({ hasText: nm }).count()) === 0) {
+      throw new Error(`체크한 "${nm}" 이(가) 서버 필터에 걸려 사라졌습니다.`);
+    }
+  }
+
+  // ⑤ 나머지는 감추는 것이 아니라 접어두는 것 — 펼치면 전원이 다시 나온다
+  await page.getByRole('button', { name: /나머지 4명도 보기/ }).click();
+  await page.waitForTimeout(300);
+  eq(await grid.count(), 9, '접힌 나머지를 펼친 뒤');
+  await page.getByRole('button', { name: /나머지 접기/ }).click();
+  await page.waitForTimeout(300);
+  eq(await grid.count(), 5, '다시 접은 뒤');
+
+  // ⑥ 전체 해제도 보이는 사람에게만 — 03 의 PlusS 는 원래 체크가 없었다
+  await page.getByRole('button', { name: '전체 해제' }).click();
+  await page.waitForTimeout(300);
+  eq(await page.locator('.mgrid .mchip.sel').count(), 0, '전체 해제 뒤');
+
+  // ⑦ 좁힌 채로 등록하면 그 인원 그대로 시트까지 간다
+  await chips.filter({ hasText: /^03/ }).click();
+  await chips.filter({ hasText: /미지정/ }).click();
+  await page.waitForTimeout(300);
+  eq(await grid.count(), 2, '미지정 2명');
+  await page.locator('#fItem').fill('서버필터 테스트');
+  await page.getByRole('button', { name: '전체 선택' }).click();
+  await page.getByRole('button', { name: /아이템 등록/ }).last().click();
+  await page.waitForTimeout(400);
+  const sheet = await page.locator('.sheet').innerText();
+  if (!/2\s*명/.test(sheet)) throw new Error(`확인 화면의 인원이 다릅니다: ${sheet.replace(/\n/g, ' ')}`);
+  await page.getByRole('button', { name: '등록하기' }).click();
+  await page.waitForTimeout(1800);
+
+  const items = await (await fetch(`${APP}/api/state?fresh=1`)).json();
+  const rec = items.data.items.find((i) => i.item === '서버필터 테스트');
+  if (!rec) throw new Error('좁혀서 등록한 아이템이 시트에 없습니다.');
+  eq(rec.cnt, 2, '등록된 참여 인원');
+
+  // 등록이 끝나면 서버 선택도 초기화된다 — 다음 아이템이 옛 필터를 물려받으면 안 된다
+  eq(await page.locator('.mgrid .mchip').count(), 9, '등록 뒤 다시 전원');
+});
+
 await t('상단 시즌 칩으로 지난 시즌을 연다', async () => {
   await page.locator('.nav button', { hasText: /잔액/ }).click();
   await page.waitForTimeout(400);

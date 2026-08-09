@@ -1536,13 +1536,10 @@ check('서버 지정: 칩으로 고르고, 여러 명을 한 번에 넣는다', 
     throw new Error('혈맹원 관리가 ServerPicker 를 쓰지 않습니다.');
   }
 
-  // ② 접어도 "지금 고른 값"은 반드시 보인다. 안 보이면 뭘 골랐는지 알 수 없다.
-  if (!/used\.includes\(s\)\s*\|\|\s*s === value/.test(picker)) {
-    throw new Error('접힌 목록에 현재 선택값이 숨을 수 있습니다.');
-  }
-  // ③ 아직 아무도 배정되지 않았으면 접지 않는다 — 접으면 고를 것이 없어진다
-  if (!/used\.length < 2/.test(picker)) {
-    throw new Error('쓰는 서버가 없을 때도 접어버립니다 — 고를 칩이 사라집니다.');
+  // ② 접는 규칙은 공용(foldServers)을 쓰고, 지금 고른 값을 pinned 로 넘겨
+  //    접힌 쪽에 있어도 항상 보이게 한다. 규칙 자체의 동작은 아래 검사에서 실행해 본다.
+  if (!/foldServers\(servers,\s*inUse\s*\?\?\s*\[\],\s*\[value\]\)/.test(picker)) {
+    throw new Error('현재 선택값을 접기 예외(pinned)로 넘기지 않습니다 — 고른 칩이 숨을 수 있습니다.');
   }
 
   // ④ 혈맹운영비는 사람이 아니라 계정이다. 서버를 붙일 대상이 아니다.
@@ -1588,6 +1585,106 @@ check('서버 지정: 칩으로 고르고, 여러 명을 한 번에 넣는다', 
     }
   }
   return `드롭다운 제거 · 접기 안전 · 혈비 제외 · 개별 try/catch · 실패 이름 보고 · 문구 ${used.size}개`;
+});
+
+check('아이템 등록: 서버로 좁혀도 체크한 사람은 절대 숨지 않는다', () => {
+  const items = readFileSync(resolve(ROOT, 'components/ItemsTab.tsx'), 'utf8');
+  const filter = readFileSync(resolve(ROOT, 'components/ServerFilter.tsx'), 'utf8');
+  const clientSrc = readFileSync(resolve(ROOT, 'lib/client.ts'), 'utf8');
+
+  // ① 가장 위험한 것부터 — 사진에서 자동으로 찾아낸 참여자가 다른 서버라는 이유로
+  //    화면에서 사라지면, 관리자는 빠진 줄 알고 등록한다. 실제로는 들어가 있으므로
+  //    확인 화면과 결과가 어긋난다. 체크된 사람은 서버와 무관하게 언제나 보인다.
+  const vis = (items.match(/const visible = useMemo\(\(\) => \{[\s\S]*?\}, \[[^\]]*\]\);/) ?? [''])[0];
+  if (!vis) throw new Error('참여자 목록을 좁히는 코드를 찾지 못했습니다.');
+  if (!/\|\|\s*picked\.has\(m\)/.test(vis)) {
+    throw new Error('체크한 사람이 서버 필터에 걸려 사라질 수 있습니다 — 등록 결과가 화면과 달라집니다.');
+  }
+  // ② 아무 서버도 안 골랐으면 예전처럼 전원이 나와야 한다. 서버 칸이 비어 있는
+  //    상태에서 목록이 텅 비면 등록 자체가 막힌다.
+  if (!/svPick\.length === 0\) return selectable/.test(vis)) {
+    throw new Error('서버를 고르지 않았을 때 전원을 보여주지 않습니다.');
+  }
+  // ③ 나머지는 **감추는 것이 아니라 접어두는 것**이다 (사용자가 명시적으로 요청)
+  if (!/items\.svUnfold/.test(items) || !/folded\.length > 0/.test(items)) {
+    throw new Error('좁혀둔 나머지를 다시 펼칠 방법이 없습니다 — 예외 상황에서 고를 수가 없습니다.');
+  }
+  // ④ 전체 선택·해제는 보이는 사람에게만. 안 보이는 사람까지 딸려 들어가면 좁힌 의미가 없다
+  const all = (items.match(/function selectAll\(on[\s\S]*?\n  \}/) ?? [''])[0];
+  if (!/shown\.forEach/.test(all)) throw new Error('전체 선택이 보이지 않는 사람까지 건드립니다.');
+  // ⑤ 서버 칸이 비어 있는 사람을 고를 길 (미지정 칩)
+  if (!/noneCount > 0/.test(filter) || !/sv\.noneChip/.test(filter)) {
+    throw new Error('서버 미지정 인원을 고를 칩이 없습니다.');
+  }
+  // ⑥ 혈비 계정은 참여자가 될 수 없다 — 세는 대상에서도 빠져야 한다
+  if (!/svOf = useMemo[\s\S]{0,200}?selectable\.forEach/.test(items)) {
+    throw new Error('서버별 인원을 셀 때 혈비 계정을 제외하지 않습니다.');
+  }
+
+  // ⑦ 접는 규칙은 한 벌이다. 두 벌이 되면 화면마다 다르게 접힌다.
+  for (const [f, src] of [
+    ['ServerPicker', readFileSync(resolve(ROOT, 'components/ServerPicker.tsx'), 'utf8')],
+    ['ServerFilter', filter],
+  ]) {
+    if (!/foldServers\(/.test(src)) throw new Error(`${f} 가 공용 접기 규칙(foldServers)을 쓰지 않습니다.`);
+  }
+
+  // ⑧ 그 규칙을 실제로 실행해 본다 — 소스를 그대로 돌리되 시그니처의 타입만 벗긴다
+  const m = clientSrc.match(/export function foldServers[\s\S]*?\n\}/);
+  if (!m) throw new Error('foldServers 가 없습니다.');
+  // 시그니처는 여러 줄이고 반환형에도 중괄호가 있다 — 괄호를 세어 정확히 끊는다
+  const block = m[0];
+  const open = block.indexOf('(');
+  let depth = 0;
+  let close = -1;
+  for (let i = open; i < block.length; i++) {
+    if (block[i] === '(') depth += 1;
+    else if (block[i] === ')') { depth -= 1; if (depth === 0) { close = i; break; } }
+  }
+  if (close < 0) throw new Error('foldServers 시그니처를 읽지 못했습니다.');
+  const params = block
+    .slice(open + 1, close)
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean)
+    // `all: string[]` → `all`,  `pinned: string[] = []` → `pinned = []` (기본값은 살린다)
+    .map((x) => (x.includes('=') ? x.replace(/:\s*[^=]+(?==)/, '') : x.replace(/:.*$/, '')).trim());
+  // 반환형에도 중괄호가 있다(`): { primary: ... } {`). 본문 여는 괄호는 그 줄의 마지막 것이다.
+  const nl = block.indexOf('\n', close);
+  const bodyStart = block.lastIndexOf('{', nl);
+  if (bodyStart < close) throw new Error('foldServers 본문을 찾지 못했습니다.');
+  // 본문은 손대지 않는다 — 손대는 순간 "검사한 코드"가 진짜 코드가 아니게 된다
+  const body = `function foldServers(${params.join(', ')}) {` + block.slice(bodyStart + 1);
+  const ctx = vm.createContext({});
+  vm.runInContext(body, ctx);
+  const fold = (all2, inUse, pinned) => {
+    ctx.__a = all2; ctx.__b = inUse; ctx.__c = pinned;
+    return vm.runInContext('foldServers(__a, __b, __c)', ctx);
+  };
+  const ALL = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+
+  // 아무도 배정되지 않았으면 접지 않는다 — 접으면 고를 것이 없어진다
+  let r = fold(ALL, [], []);
+  if (r.primary.length !== 12 || r.rest.length !== 0) throw new Error('배정 전에 이미 접습니다.');
+  // ★ 하나만 쓰는데 다른 하나를 고른 순간 나머지 열이 접혀버리면, 다음 사람을
+  //   또 다른 서버로 지정할 수가 없다. pinned 는 접을지 말지의 판단에 못 낀다.
+  r = fold(ALL, ['01'], ['05']);
+  if (r.rest.length !== 0) throw new Error('쓰는 서버가 하나뿐인데 접습니다 (고른 값이 판정에 끼어듦).');
+  // 둘 이상 쓰면 접되, 고른 값은 접힌 쪽에 있어도 항상 보인다
+  r = fold(ALL, ['01', '02'], ['09']);
+  if (r.rest.includes('09') || !r.primary.includes('09')) throw new Error('고른 값이 접힌 쪽에 숨습니다.');
+  if (r.primary.join(',') !== '01,02,09') throw new Error(`접힌 결과가 다릅니다: ${r.primary.join(',')}`);
+  if (r.primary.length + r.rest.length !== ALL.length) throw new Error('접는 과정에서 서버가 사라집니다.');
+  // 목록에 없는 값은 조용히 무시한다 ('1' 처럼 형식이 어긋난 값이 칩을 만들면 안 된다)
+  r = fold(ALL, ['1', '01', '02'], []);
+  if (r.primary.includes('1')) throw new Error("목록에 없는 값('1')으로 칩을 만듭니다.");
+
+  const dict = readFileSync(resolve(ROOT, 'lib/i18n.tsx'), 'utf8');
+  const used = new Set([...(items + filter).matchAll(/t\('(items\.sv[\w.]+|sv\.[\w.]+)'/g)].map((x) => x[1]));
+  const missing = [...used].filter((k) => !dict.includes(`'${k}':`));
+  if (missing.length) throw new Error(`사전에 없는 문구: ${missing.join(', ')}`);
+
+  return `체크 유지 · 미선택시 전원 · 접어두기 · 전체선택 범위 · 미지정 칩 · 접기규칙 5케이스 · 문구 ${used.size}개`;
 });
 
 check('새로고침 버튼이 화면에 있다', () => {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { foldServers } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
 /**
@@ -35,14 +36,11 @@ export default function ServerPicker({
   const { t } = useT();
   const [showAll, setShowAll] = useState(false);
 
-  const { primary, rest } = useMemo(() => {
-    const used = (inUse ?? []).filter((s) => servers.includes(s));
-    // 쓰는 서버가 하나뿐이거나 아예 없으면 접을 이유가 없다 — 고를 것이 없어진다
-    if (used.length < 2) return { primary: servers, rest: [] as string[] };
-    // 지금 고른 값은 접힌 쪽에 있어도 항상 보여야 한다. 안 보이면 뭘 골랐는지 알 수 없다
-    const front = servers.filter((s) => used.includes(s) || s === value);
-    return { primary: front, rest: servers.filter((s) => !front.includes(s)) };
-  }, [servers, inUse, value]);
+  // 지금 고른 값은 접힌 쪽에 있어도 항상 보여야 한다. 안 보이면 뭘 골랐는지 알 수 없다
+  const { primary, rest } = useMemo(
+    () => foldServers(servers, inUse ?? [], [value]),
+    [servers, inUse, value],
+  );
 
   const chip = (s: string) => (
     <button
