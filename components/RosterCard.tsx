@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import BulkMemberSheet from './BulkMemberSheet';
+import ServerBulkSheet from './ServerBulkSheet';
+import ServerPicker from './ServerPicker';
 import Sheet from './Sheet';
 import type { RenameRecord, RosterEntry } from '@/lib/types';
 import { api, fmt, fullName, getStoredEmail, mergeName } from '@/lib/client';
@@ -32,6 +34,7 @@ export default function RosterCard({
   const [target, setTarget] = useState<RosterEntry | null>(null);
   const [adding, setAdding] = useState(false);
   const [bulk, setBulk] = useState(false);
+  const [svBulk, setSvBulk] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -47,6 +50,13 @@ export default function RosterCard({
   useEffect(() => {
     void load();
   }, [load]);
+
+  // 혈맹운영비는 계정이라 서버를 붙일 대상이 아니다
+  const noServer = (roster ?? []).filter((m) => !m.isFund && !String(m.server ?? '').trim()).length;
+  // 실제로 인원이 있는 서버 — 안 쓰는 서버는 칩에서 접어 둔다
+  const inUse = [
+    ...new Set((roster ?? []).map((m) => String(m.server ?? '').trim()).filter(Boolean)),
+  ].sort();
 
   const done = (res?: ApiResult) => {
     setTarget(null);
@@ -87,7 +97,17 @@ export default function RosterCard({
               <button className="btn ghost block" style={{ marginTop: 8 }} onClick={() => setBulk(true)}>
                 📋 {t('bulk.title')}
               </button>
+              {/* 서버를 한 명씩 넣으려면 40번 열었다 닫아야 한다 — 한 화면에서 끝내는 길 */}
+              <button className="btn ghost block" style={{ marginTop: 8 }} onClick={() => setSvBulk(true)}>
+                🗂️ {t('sv.title')}
+              </button>
               <p className="hint">{t('ros.addHint')}</p>
+              {/* 서버가 비어 있으면 나중에 아이템 등록을 서버로 좁힐 수 없다 — 미리 알려준다 */}
+              {noServer > 0 ? (
+                <div className="note" style={{ marginTop: 10 }}>
+                  {t('sv.needAssign', { n: noServer })}
+                </div>
+              ) : null}
             </div>
             {roster.map((m) => (
               <div className="row" key={m.name}>
@@ -123,6 +143,15 @@ export default function RosterCard({
 
       <RenameHistoryCard />
 
+      {svBulk && roster ? (
+        <ServerBulkSheet
+          roster={roster}
+          servers={servers}
+          onClose={() => setSvBulk(false)}
+          onDone={done}
+          toast={toast}
+        />
+      ) : null}
       {adding ? <AddSheet onClose={() => setAdding(false)} onDone={done} toast={toast} /> : null}
       {bulk ? (
         <BulkMemberSheet
@@ -143,6 +172,7 @@ export default function RosterCard({
           member={target}
           unit={unit}
           servers={servers}
+          inUse={inUse}
           onClose={() => setTarget(null)}
           onDone={done}
           toast={toast}
@@ -270,6 +300,7 @@ function MemberSheet({
   member,
   unit,
   servers,
+  inUse,
   onClose,
   onDone,
   toast,
@@ -277,6 +308,8 @@ function MemberSheet({
   member: RosterEntry;
   unit: string;
   servers: string[];
+  /** 실제로 인원이 있는 서버 — 안 쓰는 서버는 접어 둔다 */
+  inUse: string[];
   onClose: () => void;
   onDone: (res?: ApiResult) => void;
   toast: (msg: string, isError?: boolean) => void;
@@ -466,17 +499,11 @@ function MemberSheet({
       </select>
       <p className="hint">{t('ros.weightHint')}</p>
 
-      <label className="fl" htmlFor="ms" style={{ marginTop: 10 }}>
+      <label className="fl" style={{ marginTop: 10 }}>
         {t('c.server')}
       </label>
-      <select id="ms" value={server} onChange={(e) => setServer(e.target.value)}>
-        <option value="">{t('ali.none')}</option>
-        {servers.map((s) => (
-          <option key={s} value={s}>
-            {t('ali.serverN', { s })}
-          </option>
-        ))}
-      </select>
+      {/* 드롭다운은 열고·굴리고·누르는 세 동작이다. 칩은 한 번 누르면 끝이다 (v10.8.5) */}
+      <ServerPicker id="ms" servers={servers} value={server} onChange={setServer} inUse={inUse} />
 
       {/* 저장 버튼은 하나다 (v10.8.2).
           아이디는 개명 API, 나머지는 설정 API 로 가지만 관리자에게는 한 가지 일이다.

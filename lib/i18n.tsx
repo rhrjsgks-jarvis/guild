@@ -453,6 +453,46 @@ const DICT: Record<string, Entry> = {
     'Anyone with this link can only view. Registering, distributing and paying out need the admin PIN, so it is safe to share.',
   ],
 
+  /* ── 서버 고르기 · 일괄 지정 (v10.8.5) ── */
+  'sv.more': ['다른 서버 {n}개', '其他 {n} 个服务器', '{n} more servers'],
+  'sv.title': ['서버 일괄 지정', '批量设置服务器', 'Assign servers in bulk'],
+  'sv.sub': [
+    '서버를 고르고 사람을 체크하면 한 번에 지정됩니다.',
+    '先选服务器，再勾选成员，一次性设置。',
+    'Pick a server, tick the members, apply once.',
+  ],
+  'sv.pickServer': ['① 어느 서버로 지정할까요?', '① 设置到哪个服务器？', '① Which server?'],
+  'sv.pickPeople': ['② 지정할 사람 — {n}명 선택됨', '② 选择成员 — 已选 {n} 人', '② Pick members — {n} selected'],
+  'sv.onlyEmpty': [
+    '서버가 비어 있는 사람만 보기 ({n}명)',
+    '只显示未设置服务器的人（{n} 人）',
+    'Only those without a server ({n})',
+  ],
+  'sv.none': ['미지정', '未设置', 'none'],
+  'sv.allDone': [
+    '서버가 비어 있는 사람이 없습니다.',
+    '没有未设置服务器的成员。',
+    'Everyone already has a server.',
+  ],
+  'sv.apply': ['{n}명을 {s} 서버로 지정', '将 {n} 人设为 {s} 服', 'Assign {n} to server {s}'],
+  'sv.applying': ['지정 중… ({done}/{total})', '设置中…（{done}/{total}）', 'Applying… ({done}/{total})'],
+  'sv.applied': ['✅ {n}명을 {s} 서버로 지정했습니다.', '✅ 已将 {n} 人设为 {s} 服。', '✅ Assigned {n} to server {s}.'],
+  'sv.partial': [
+    '⚠️ {n}명은 {s} 서버로 지정했지만 {failN}명은 실패했습니다: {failList}',
+    '⚠️ 已将 {n} 人设为 {s} 服，但 {failN} 人失败：{failList}',
+    '⚠️ Assigned {n} to server {s}, but {failN} failed: {failList}',
+  ],
+  'sv.hint': [
+    '한 명씩 차례로 저장하므로 인원이 많으면 조금 걸립니다. 중간에 실패한 사람이 있으면 이름을 알려드립니다.',
+    '会逐个保存，人多时需要一点时间。若中途有失败，会列出姓名。',
+    'Saved one by one, so a large batch takes a moment. Any failures are listed by name.',
+  ],
+  'sv.needAssign': [
+    '⚠️ 서버가 비어 있는 혈맹원이 {n}명입니다. [🗂️ 서버 일괄 지정]으로 채워두면 아이템 등록에서 서버로 걸러낼 수 있습니다.',
+    '⚠️ 有 {n} 名成员未设置服务器。用[🗂️ 批量设置服务器]填好后，登记物品时就能按服务器筛选。',
+    '⚠️ {n} members have no server yet. Fill them in with [🗂️ Assign servers in bulk] so item registration can filter by server.',
+  ],
+
   /* ── 혈맹원 관리 ── */
   'ros.sect': ['👥 혈맹원 관리', '👥 血盟成员管理', '👥 Members'],
   'ros.add': ['➕ 혈맹원 추가', '➕ 添加成员', '➕ Add member'],

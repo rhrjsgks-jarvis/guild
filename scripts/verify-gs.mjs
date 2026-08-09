@@ -1522,6 +1522,74 @@ check('잔액 목록에 서버 번호가 보인다', () => {
   return '멤버DB 서버 · 정규화 비교 · 배지 스타일';
 });
 
+check('서버 지정: 칩으로 고르고, 여러 명을 한 번에 넣는다', () => {
+  const picker = readFileSync(resolve(ROOT, 'components/ServerPicker.tsx'), 'utf8');
+  const bulk = readFileSync(resolve(ROOT, 'components/ServerBulkSheet.tsx'), 'utf8');
+  const roster = readFileSync(resolve(ROOT, 'components/RosterCard.tsx'), 'utf8');
+
+  // ① 드롭다운은 사라졌어야 한다. 12개를 고르는데 열고·굴리고·누르는 세 동작은
+  //    40명이면 120번이다. 남아 있으면 칩을 만든 의미가 없다.
+  if (/<select[^>]*id="ms"/.test(roster)) {
+    throw new Error('혈맹원 관리에 서버 드롭다운이 남아 있습니다 — ServerPicker 로 바꿔야 합니다.');
+  }
+  if (!/<ServerPicker[\s\S]{0,200}?id="ms"/.test(roster)) {
+    throw new Error('혈맹원 관리가 ServerPicker 를 쓰지 않습니다.');
+  }
+
+  // ② 접어도 "지금 고른 값"은 반드시 보인다. 안 보이면 뭘 골랐는지 알 수 없다.
+  if (!/used\.includes\(s\)\s*\|\|\s*s === value/.test(picker)) {
+    throw new Error('접힌 목록에 현재 선택값이 숨을 수 있습니다.');
+  }
+  // ③ 아직 아무도 배정되지 않았으면 접지 않는다 — 접으면 고를 것이 없어진다
+  if (!/used\.length < 2/.test(picker)) {
+    throw new Error('쓰는 서버가 없을 때도 접어버립니다 — 고를 칩이 사라집니다.');
+  }
+
+  // ④ 혈맹운영비는 사람이 아니라 계정이다. 서버를 붙일 대상이 아니다.
+  if (!/filter\(\(m\) => !m\.isFund\)/.test(bulk)) {
+    throw new Error('일괄 지정 목록에서 혈비 계정을 빼지 않습니다.');
+  }
+
+  // ⑤ 한 명이 실패해도 나머지는 계속 간다 + 실패자를 이름까지 알린다 (CLAUDE.md 규칙 6).
+  //    Apps Script 에는 트랜잭션이 없어서 중간에 끊기면 절반만 반영된 채로 끝난다.
+  const loop = bulk.slice(bulk.indexOf('for (const name of names)'), bulk.indexOf('setBusy(false)'));
+  if (!loop || !/try\s*\{/.test(loop) || !/\}\s*catch/.test(loop)) {
+    throw new Error('일괄 지정 반복문에 대상별 try/catch 가 없습니다 (규칙 6).');
+  }
+  if (!/failList:\s*failed\.join/.test(bulk)) {
+    throw new Error('실패한 사람의 이름을 알려주지 않습니다 — 누구를 다시 해야 하는지 모릅니다.');
+  }
+  // 실패가 있으면 오류 색으로 띄운다 (toast 두 번째 인자 true)
+  if (!/toast\(t\('sv\.partial'[\s\S]{0,160}?\),\s*true\)/.test(bulk)) {
+    throw new Error('일부 실패를 성공처럼 알립니다.');
+  }
+
+  // ⑥ 쓰기는 관리자 경계를 지나야 한다 (마스터 전용이 아니다 — 잘못 넣어도 다시 넣으면 끝)
+  if (!/'\/api\/admin\/member-settings'/.test(bulk)) {
+    throw new Error('일괄 지정이 관리자 라우트를 쓰지 않습니다.');
+  }
+
+  // ⑦ 형식이 어긋난 값('1' 처럼)은 눈에 띄어야 한다. 그대로 두면 서버로 걸러도 안 잡힌다.
+  if (!/!servers\.includes\(cur\)/.test(bulk)) {
+    throw new Error('서버 목록에 없는 값을 표시하지 않습니다.');
+  }
+
+  // ⑧ 사전에 세 언어가 다 있는지 (없으면 언어를 바꿔도 한국어가 남는다)
+  const dict = readFileSync(resolve(ROOT, 'lib/i18n.tsx'), 'utf8');
+  const used = new Set([...(picker + bulk + roster).matchAll(/t\('(sv\.[\w.]+)'/g)].map((m) => m[1]));
+  if (used.size < 8) throw new Error(`서버 관련 문구가 ${used.size}개뿐입니다 — 하드코딩이 의심됩니다.`);
+  const missing = [...used].filter((k) => !dict.includes(`'${k}':`));
+  if (missing.length) throw new Error(`사전에 없는 문구: ${missing.join(', ')}`);
+
+  const css = readFileSync(resolve(ROOT, 'app/globals.css'), 'utf8');
+  for (const cls of ['.svpick', '.svchip', '.svlist', '.svrow', '.chkline']) {
+    if (!css.includes(cls + ' ') && !css.includes(cls + '\n') && !css.includes(cls + ',') && !css.includes(cls + '.')) {
+      throw new Error(`${cls} 스타일이 없습니다.`);
+    }
+  }
+  return `드롭다운 제거 · 접기 안전 · 혈비 제외 · 개별 try/catch · 실패 이름 보고 · 문구 ${used.size}개`;
+});
+
 check('새로고침 버튼이 화면에 있다', () => {
   const app = readFileSync(resolve(ROOT, 'components/App.tsx'), 'utf8');
   if (!/className=\{'sync'/.test(app)) throw new Error('헤더에 새로고침 버튼이 없습니다.');
