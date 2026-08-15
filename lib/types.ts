@@ -79,6 +79,8 @@ export type RosterEntry = {
   weight?: number;
   server?: string;
   hanja?: string;
+  /** 리니지W 클래스 (v11.5) — 공식 13종 중 하나이거나 빈칸. 한 사람에 하나다 */
+  cls?: string;
 };
 
 /** 아이디 변경 이력 — 변경 전/후를 나란히 보여준다 */

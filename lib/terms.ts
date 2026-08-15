@@ -27,10 +27,16 @@ export type Term = {
   /** 아이콘 그림 주소 — **관리자가 직접 넣은 것만** 쓴다 (우리가 긁어오지 않는다) */
   img: string;
   note: string;
+  /**
+   * '0티어'~'3티어' 또는 빈칸 (v11.5).
+   * ★ 빈칸과 '0티어'는 다르다 — 빈칸은 "티어라는 개념이 없다"(마법서·정수),
+   *   '0티어'는 "장비인데 티어 표기가 없다"(드래곤 슬레이어). 뭉개지 않는다.
+   */
+  tier?: string;
 };
 
 /** 화면을 옮겨 다닐 때마다 시트를 읽지 않게 한다 (용어는 자주 바뀌지 않는다) */
-let memo: { at: number; terms: Term[]; cats: string[] } | null = null;
+let memo: { at: number; terms: Term[]; cats: string[]; tiers: string[] } | null = null;
 const MEMO_MS = 60_000;
 
 /** 비교용 정규화 — 공백·대소문자를 지운다 (규칙 4 와 같은 이유) */
@@ -78,24 +84,51 @@ export function findTerm(terms: Term[], name: string): Term | null {
   return terms.find((t) => normTerm(t.ko) === key) ?? null;
 }
 
+/**
+ * 등급 테두리 색 (v11.5) — 사전의 `cat` 으로만 정한다.
+ *
+ * ★ 이름을 보고 짐작하지 않는다. '전설 제작 비법서'(전설)와 '전설의 도전자'(보스)는
+ *   둘 다 '전설'로 시작하지만 다른 것이다 (규칙 7).
+ * ★ 사전에 없으면 검정이다 — "모른다"는 상태를 색으로 드러낸다.
+ */
+export const GRADE_COLORS: Record<string, string> = {
+  전설: '#A855F7', // 보라
+  신화: '#F5C542', // 황금
+};
+export const GRADE_UNKNOWN = '#111111'; // 검정 — 사전에 없는 이름
+
+/** 이름 하나의 테두리 색. 사전에 없거나 등급이 없는 분류(보스 등)는 검정이다. */
+export function gradeColor(terms: Term[], name: string): string {
+  const t = findTerm(terms, name);
+  return (t && GRADE_COLORS[t.cat]) || GRADE_UNKNOWN;
+}
+
+/** 이름 하나의 티어. 사전에 없거나 티어 개념이 없으면 빈 문자열이다. */
+export function tierOf(terms: Term[], name: string): string {
+  return findTerm(terms, name)?.tier?.trim() ?? '';
+}
+
 /** 용어 목록 — 화면 여러 곳에서 쓰므로 훅 하나로 모은다 */
-export function useTerms(): { terms: Term[]; cats: string[]; reload: () => void } {
+export function useTerms(): { terms: Term[]; cats: string[]; tiers: string[]; reload: () => void } {
   const fresh0 = memo && Date.now() - memo.at < MEMO_MS ? memo : null;
   const [terms, setTerms] = useState<Term[]>(fresh0?.terms ?? []);
-  // ★ 분류 목록도 **시트가** 준다. 앱에 적어두면 시트에서 분류를 하나 늘렸을 때
+  // ★ 분류·티어 목록도 **시트가** 준다. 앱에 적어두면 시트에서 하나 늘렸을 때
   //   화면에서는 고를 수가 없어진다 (그리고 화면 코드에 한국어가 박힌다).
   const [cats, setCats] = useState<string[]>(fresh0?.cats ?? []);
+  const [tiers, setTiers] = useState<string[]>(fresh0?.tiers ?? []);
 
   const load = (isFresh = false) => {
     void (async () => {
       const res = await api(isFresh ? '/api/terms?fresh=1' : '/api/terms');
       if (!res.ok) return; // 못 읽으면 자동완성만 안 될 뿐, 입력은 그대로 된다
-      const data = (res.data ?? {}) as { terms?: Term[]; cats?: string[] };
+      const data = (res.data ?? {}) as { terms?: Term[]; cats?: string[]; tiers?: string[] };
       const list = data.terms ?? [];
       const cs = data.cats ?? [];
-      memo = { at: Date.now(), terms: list, cats: cs };
+      const ts = data.tiers ?? [];
+      memo = { at: Date.now(), terms: list, cats: cs, tiers: ts };
       setTerms(list);
       setCats(cs);
+      setTiers(ts);
     })();
   };
 
@@ -104,5 +137,5 @@ export function useTerms(): { terms: Term[]; cats: string[]; reload: () => void 
     load();
   }, []);
 
-  return { terms, cats, reload: () => load(true) };
+  return { terms, cats, tiers, reload: () => load(true) };
 }

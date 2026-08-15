@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v11_4.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v11_5.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 /**
@@ -3157,6 +3157,56 @@ check('아이콘을 바꾸면 폰에서도 실제로 바뀐다', () => {
   }
 
   return `네트워크 우선 5종 · 아이콘 ${need.length}개 · manifest ${mf.icons.length}개 · maskable 분리`;
+});
+
+check('클래스 목록은 앱과 시트가 같다 (v11.5)', () => {
+  // 한쪽만 고치면 앱에서 고른 클래스를 시트가 거부해, 저장 버튼이 아무 일도
+  // 안 하는 것처럼 보인다. 분배 산식을 두 곳에서 맞추는 것과 같은 이유다 (규칙 1).
+  const grab = (src, re) => (src.match(re) ?? [])[1] ?? '';
+  const gsList = grab(gs, /const CLASS_LIST = \[([\s\S]*?)\]/);
+  const appSrc = readFileSync(resolve(ROOT, 'lib/client.ts'), 'utf8');
+  const appList = grab(appSrc, /export const CLASS_LIST = \[([\s\S]*?)\]/);
+  if (!gsList) throw new Error('.gs 에 CLASS_LIST 가 없습니다.');
+  if (!appList) throw new Error('lib/client.ts 에 CLASS_LIST 가 없습니다.');
+
+  const pick = (v) => [...v.matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  const a = pick(gsList);
+  const b = pick(appList);
+  if (a.length !== b.length || a.some((x, i) => x !== b[i])) {
+    throw new Error(`클래스 목록이 어긋납니다.\n     .gs : ${a.join(',')}\n     앱  : ${b.join(',')}`);
+  }
+  if (a.length !== 13) throw new Error(`공식 클래스는 13종입니다 (현재 ${a.length}종).`);
+  return `${a.length}종 · 순서까지 일치`;
+});
+
+check('티어는 빈칸과 0티어를 구분한다 (v11.5)', () => {
+  // 빈칸 = 티어라는 개념이 없는 것(마법서·정수) / 0티어 = 장비인데 표기가 없는 것.
+  // 뭉개면 마법서에 없는 등급이 생기거나, 진짜 0티어 장비가 묻힌다.
+  // ★ 0 은 유효한 값이다 — `Number(v) || ''` 로 짜면 0티어가 통째로 사라진다.
+  const run = new vm.Script(`${extractFn(gs, '_normTier')}\n_normTier(__v)`);
+  const call = (v) => {
+    const ctx = { __v: v };
+    vm.createContext(ctx);
+    return run.runInContext(ctx);
+  };
+  const cases = [
+    ['', ''], ['0', '0티어'], [0, '0티어'], ['3티어', '3티어'], ['T2', '2티어'],
+    ['4', ''], ['4티어', ''], ['전설', ''], [null, ''],
+  ];
+  for (const [inp, want] of cases) {
+    const got = call(inp);
+    if (got !== want) {
+      throw new Error(`_normTier(${JSON.stringify(inp)}) = ${JSON.stringify(got)} — 기대 ${JSON.stringify(want)}`);
+    }
+  }
+
+  // 티어 열은 **맨 뒤**여야 한다 — 중간에 끼우면 옛 시트의 이미지·비고가 한 칸씩 밀린다
+  const cols = [...((gs.match(/TERM_HEADERS = \[([^\]]*)\]/) ?? [])[1] ?? '').matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  if (!cols.includes('티어')) throw new Error('[용어] 시트에 티어 열이 없습니다.');
+  if (cols[cols.length - 1] !== '티어') {
+    throw new Error(`티어 열은 맨 뒤여야 합니다 (현재: ${cols.join(',')}).`);
+  }
+  return `${cases.length}케이스 · 티어 열 맨 뒤 · 빈칸≠0티어`;
 });
 
 check('화면에 한국어가 직접 박혀 있지 않다', () => {

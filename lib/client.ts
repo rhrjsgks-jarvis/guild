@@ -276,6 +276,19 @@ export function normServer(v: string | undefined | null): string {
   return /^\d{1,2}$/.test(s) ? s.padStart(2, '0') : s;
 }
 
+/**
+ * 리니지W 공식 클래스 13종 (v11.5) — 공식 게임정보의 표기 그대로.
+ *
+ * ★ .gs 의 CLASS_LIST 와 **같은 목록이어야 한다.** 한쪽만 고치면 앱에서 고른
+ *   클래스를 시트가 거부해, 저장 버튼이 아무 일도 안 하는 것처럼 보인다.
+ *   npm run verify:gs 가 두 벌을 대조한다 (분배 산식을 다루는 방식과 같다).
+ * ★ 클래스는 아이템명·보스명과 같은 고유명사라 번역하지 않고 그대로 보여준다.
+ */
+export const CLASS_LIST = [
+  '기사', '요정', '마법사', '다크엘프', '전사', '군주', '수라',
+  '총사', '마격사', '성기사', '나찰', '귀검사', '혈법사',
+];
+
 /** 멤버DB F열의 서버. 없으면 빈 문자열 — 지어내지 않는다 */
 export function serverOf(state: ServerSource | null | undefined, name: string): string {
   const hit = (state?.memberInfo ?? []).find((m) => normName(m.name) === normName(name));

@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import BulkMemberSheet from './BulkMemberSheet';
 import ServerBulkSheet from './ServerBulkSheet';
 import ServerPicker from './ServerPicker';
+import ServerFilter from './ServerFilter';
 import Sheet from './Sheet';
 import type { RenameRecord, RosterEntry } from '@/lib/types';
-import { api, byName, fmt, fullName, fundFirst, getStoredEmail, mergeName, normName, normServer } from '@/lib/client';
+import { CLASS_LIST, api, byName, fmt, fullName, fundFirst, getStoredEmail, mergeName, normName, normServer } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
@@ -35,6 +36,8 @@ export default function RosterCard({
   const [bulk, setBulk] = useState(false);
   const [svBulk, setSvBulk] = useState(false);
   const [busy, setBusy] = useState(false);
+  /** 서버로 좁혀 보기 (v11.5) */
+  const [svPick, setSvPick] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     const res = await api('/api/admin/roster');
@@ -59,6 +62,25 @@ export default function RosterCard({
   // 실제로 인원이 있는 서버 — 안 쓰는 서버는 칩에서 접어 둔다.
   // `1` 도 `01` 로 맞춰서 센다. 안 맞추면 같은 서버가 두 개로 갈린다 (v10.8.7)
   const inUse = [...new Set((roster ?? []).map((m) => normServer(m.server)).filter(Boolean))].sort();
+
+  /**
+   * 서버로 좁혀 보기 (v11.5) — 잔액·아이템·연합과 **같은 칩 한 벌**이다.
+   *
+   * ★ 혈맹운영비는 어느 서버를 골라도 남는다. 계정이라 서버가 없는데,
+   *   걸러 없애면 금고가 화면에서 사라져 합계를 볼 수 없다 (잔액 화면과 같은 규칙).
+   * ★ 숫자는 **거르기 전** 명단으로 센다 — 걸러진 것으로 세면 고르는 순간 1이 된다.
+   */
+  const svCounts: Record<string, number> = {};
+  let svNone = 0;
+  (roster ?? []).forEach((m) => {
+    if (m.isFund) return;
+    const sv = normServer(m.server);
+    if (sv) svCounts[sv] = (svCounts[sv] ?? 0) + 1;
+    else svNone += 1;
+  });
+  const shownRoster = (roster ?? []).filter(
+    (m) => m.isFund || svPick.length === 0 || svPick.includes(normServer(m.server)),
+  );
 
   const done = (res?: ApiResult) => {
     setTarget(null);
@@ -105,8 +127,19 @@ export default function RosterCard({
                   {t('sv.needAssign', { n: noServer })}
                 </div>
               ) : null}
+              {/* 서버로 좁혀 보기 — 잔액·아이템·연합과 같은 칩 한 벌 (v11.5) */}
+              <label className="fl" style={{ marginTop: 12 }}>
+                {t('ros.byServer')}
+              </label>
+              <ServerFilter
+                servers={servers}
+                counts={svCounts}
+                noneCount={svNone}
+                value={svPick}
+                onChange={setSvPick}
+              />
             </div>
-            {roster.map((m) => (
+            {shownRoster.map((m) => (
               <div className="row" key={m.name}>
                 <div className="row-main">
                   {/* 한자표기는 이름 옆에 붙는다 (v10.8.1).
@@ -128,6 +161,9 @@ export default function RosterCard({
                     ) : null}
                   </div>
                   <div className="row-sub">
+                    {/* 클래스는 아랫줄에 둔다 (v11.5) — 이름 옆은 서버·한자가 이미 차지했고,
+                        거기에 하나 더 붙이면 긴 이름이 잘려 다른 사람으로 오인된다 */}
+                    {m.cls ? `${m.cls} · ` : ''}
                     {m.weight !== undefined && m.weight !== 100 ? `${t('c.ratio')} ${m.weight}% · ` : ''}
                     {t('c.pending')} {fmt(m.pending)} {unit}
                   </div>
@@ -279,6 +315,8 @@ function MemberSheet({
   // `1` 로 저장된 사람도 `01` 칩이 켜져 보여야 한다 — 안 그러면 아무것도 안 고른 것처럼 보인다
   const [server, setServer] = useState(normServer(member.server));
   const [hanja, setHanja] = useState(member.hanja ?? '');
+  /** 클래스 (v11.5) — 한 사람에 하나. 빈 문자열은 '고르지 않음'이다 */
+  const [cls, setCls] = useState(member.cls ?? '');
 
   const trimmed = newName.trim();
   const changed = trimmed.length > 0 && trimmed !== member.name;
@@ -299,7 +337,10 @@ function MemberSheet({
   // 잔액·아이템에 실제로 나갈 모양을 그대로 보여준다 — 화면과 같은 함수를 쓴다
   const preview = fullName(trimmed || member.name, hanja);
   const settingsChanged =
-    hanjaChanged || weight !== (member.weight ?? 100) || server !== normServer(member.server);
+    hanjaChanged ||
+    weight !== (member.weight ?? 100) ||
+    server !== normServer(member.server) ||
+    cls !== (member.cls ?? '');
   const dirty = (changed && !taken) || settingsChanged;
 
   /**
@@ -388,6 +429,7 @@ function MemberSheet({
         weight,
         server,
         hanja,
+        cls,
         email: getStoredEmail(),
       });
       if (!res.ok) {
@@ -588,6 +630,21 @@ function MemberSheet({
       </label>
       {/* 드롭다운은 열고·굴리고·누르는 세 동작이다. 칩은 한 번 누르면 끝이다 (v10.8.5) */}
       <ServerPicker id="ms" servers={servers} value={server} onChange={setServer} inUse={inUse} />
+
+      {/* 클래스 (v11.5) — 공식 13종. 목록에 없는 값은 시트가 거부하므로 드롭다운으로 받는다.
+          자유 입력으로 두면 '마법사'와 '법사'가 갈려 클래스로 걸러 볼 때 그 사람만 빠진다.
+          "고르지 않음"을 남겨둔다 — 아직 안 물어본 사람과 클래스가 없는 사람은 다르다. */}
+      <label className="fl" htmlFor="mc" style={{ marginTop: 10 }}>
+        {t('ros.cls')}
+      </label>
+      <select id="mc" value={cls} onChange={(e) => setCls(e.target.value)}>
+        <option value="">{t('ros.clsNone')}</option>
+        {CLASS_LIST.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </select>
 
       {/* 저장 버튼은 하나다 (v10.8.2).
           아이디는 개명 API, 나머지는 설정 API 로 가지만 관리자에게는 한 가지 일이다.

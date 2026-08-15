@@ -1,6 +1,6 @@
 {
   "name": "guild-settlement-app",
-  "version": "11.4.0",
+  "version": "11.5.0",
   "private": true,
   "scripts": {
     "dev": "next dev",

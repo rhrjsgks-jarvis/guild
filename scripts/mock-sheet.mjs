@@ -21,13 +21,16 @@ const FUND_RATE = 0.1;
 const DEFAULT_WEIGHT = 100;
 const UNIT = '다이아';
 const SERVER_LIST = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+// .gs · lib/client.ts 와 같은 목록이어야 한다 (verify:gs 가 대조한다)
+const CLASS_LIST = ['기사', '요정', '마법사', '다크엘프', '전사', '군주', '수라',
+                    '총사', '마격사', '성기사', '나찰', '귀검사', '혈법사'];
 const MAX_MEMBERS = 100;   // .gs 의 MAX_MEMBERS 와 반드시 같아야 한다
 const ST_WAIT = '⏳미분배';
 const ST_DONE = '✅분배완료';
 // 앱이 기대하는 버전과 같은 값 — 화면에 "버전 불일치" 경고가 뜨지 않아야 정상이다.
 // ★ 한 곳에만 적는다. 여기저기 흩어 적으면 버전을 올릴 때 한 군데가 남아
 //   "실어 온 상태의 버전이 다르다"는 엉뚱한 실패로 나타난다 (실제로 겪었다).
-const GS_VERSION = '11.4';
+const GS_VERSION = '11.5';
 let MOCK_GS_VERSION = GS_VERSION;
 
 /**
@@ -140,11 +143,13 @@ function freshState() {
     terms: [
       { row: 2, cat: '보스', ko: '안타라스', zh: '安塔瑞斯', en: 'Antharas', img: '', note: '' },
       { row: 3, cat: '보스', ko: '발라카스', zh: '巴拉卡斯', en: 'Valakas', img: '', note: '' },
-      { row: 4, cat: '전설', ko: '용의 심장', zh: '龙之心', en: 'Dragon Heart', img: '', note: '' },
+      { row: 4, cat: '전설', ko: '용의 심장', zh: '龙之心', en: 'Dragon Heart', img: '', note: '', tier: '3티어' },
       // 中文·English 를 아직 못 채운 줄 — 앱이 지어내지 않고 그대로 둔다
-      { row: 5, cat: '스킬북', ko: '기란 마법서', zh: '', en: '', img: '', note: '확인 필요' },
+      { row: 5, cat: '스킬북', ko: '기란 마법서', zh: '', en: '', img: '', note: '확인 필요', tier: '' },
+      // 장비인데 티어 표기가 없는 것 — 빈칸이 아니라 0티어다
+      { row: 6, cat: '신화', ko: '드래곤 슬레이어', zh: '屠龍劍', en: 'Dragon Slayer', img: '', note: '', tier: '0티어' },
     ],
-    nextTermRow: 6,
+    nextTermRow: 7,
     adminPinOverride: '',
     renames: [
       { at: '07/12 09:30', before: '옛닉네임', after: '가이', by: 'admin@example.com', merged: false, detail: '"옛닉네임" → "가이"' },
@@ -845,7 +850,7 @@ const handlers = {
   /* ── 📚 용어 사전 (v11.4) ── */
   terms: () => ({
     ok: true,
-    data: { terms: S.terms, cats: ['전설', '신화', '스킬북', '보스', '서버', '기타'] },
+    data: { terms: S.terms, cats: ['전설', '신화', '스킬북', '보스', '서버', '기타'], tiers: ['0티어', '1티어', '2티어', '3티어'] },
   }),
 
   saveTerm: ({ row, cat, ko, zh, en, img, note }) => {
@@ -1217,6 +1222,11 @@ const handlers = {
       const hj = String(patch.hanja).trim();
       if (hj.length > 30) return { ok: false, msg: '한자표기가 너무 깁니다 (30자 이내).' };
       if (hj !== r.hanja) { changes.push(`한자 ${r.hanja || '-'} → ${hj || '-'}`); r.hanja = hj; }
+    }
+    if (patch?.cls !== undefined && patch.cls !== null) {
+      const cl = String(patch.cls).trim();
+      if (cl && !CLASS_LIST.includes(cl)) return { ok: false, msg: '클래스는 목록에서 선택해주세요.' };
+      if (cl !== (r.cls || '')) { changes.push(`클래스 ${r.cls || '-'} → ${cl || '-'}`); r.cls = cl; }
     }
     if (!changes.length) return { ok: true, msg: '바뀐 내용이 없습니다.' };
     return { ok: true, msg: `✅ ${name} — ${changes.join(' · ')}` };

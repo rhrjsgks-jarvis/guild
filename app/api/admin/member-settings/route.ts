@@ -23,6 +23,7 @@ export async function POST(req: Request) {
     weight?: unknown;
     server?: unknown;
     hanja?: unknown;
+    cls?: unknown;
     email?: unknown;
   };
   try {
@@ -45,6 +46,8 @@ export async function POST(req: Request) {
   }
   if (body.server !== undefined && body.server !== null) patch.server = String(body.server).trim();
   if (body.hanja !== undefined && body.hanja !== null) patch.hanja = String(body.hanja).trim();
+  // 클래스는 시트가 목록 대조로 막는다 — 라우트는 그대로 전달만 한다 (규칙 5-3)
+  if (body.cls !== undefined && body.cls !== null) patch.cls = String(body.cls).trim();
 
   if (Object.keys(patch).length === 0) {
     return Response.json({ ok: false, msg: '바꿀 항목이 없습니다.' }, { status: 400 });

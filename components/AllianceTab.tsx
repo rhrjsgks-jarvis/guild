@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Sheet from './Sheet';
 import ServerPicker from './ServerPicker';
+import ServerFilter from './ServerFilter';
 import PhotoStrip from './PhotoStrip';
+import ItemName from './ItemName';
 import ItemNameInput from './ItemNameInput';
 import type { AllianceGroup, AllianceState } from '@/lib/types';
 import { api, calcAlliance, fmt, getStoredEmail, prepPhoto } from '@/lib/client';
@@ -58,6 +60,8 @@ export default function AllianceTab({
   const [editing, setEditing] = useState<AllianceGroup | null>(null);
   const [addingSv, setAddingSv] = useState<AllianceGroup | null>(null);
   const [detail, setDetail] = useState<AllianceGroup | null>(null);
+  /** 서버로 좁혀 보기 (v11.5) — 잔액·아이템 화면과 같은 칩 */
+  const [svPick, setSvPick] = useState<string[]>([]);
 
   // fresh=true 는 내가 방금 쓴 직후에만 — 서버 캐시를 건너뛴다 (lib/fresh.ts)
   const load = useCallback(async (fresh = false) => {
@@ -88,14 +92,41 @@ export default function AllianceTab({
 
   const u = unit(data?.unit ?? '다이아');
   const grand = (data?.totals ?? []).reduce((a, b) => a + b.credited, 0);
-  const waiting = data?.waiting ?? [];
-  const done = data?.records ?? [];
+  const allWaiting = data?.waiting ?? [];
+  const allDone = data?.records ?? [];
+
+  /**
+   * 서버로 좁혀 보기 (v11.5) — 잔액·아이템 화면과 **같은 칩 한 벌**을 쓴다.
+   *
+   * ★ 한 건이 여러 서버에 걸쳐 있으므로, 고른 서버가 **하나라도** 들어 있으면 남긴다.
+   *   교집합으로 하면 3서버 건은 세 칩을 모두 골라야 보여 아무도 못 찾는다.
+   * ★ 아무것도 안 고르면 전원이다 (다른 화면과 같은 규칙).
+   */
+  const inPick = (g: AllianceGroup) =>
+    svPick.length === 0 || g.servers.some((s) => svPick.includes(s.server));
+  const waiting = allWaiting.filter(inPick);
+  const done = allDone.filter(inPick);
+
+  /**
+   * 칩에 붙는 숫자 = 그 서버가 낀 **건수** (사람 수가 아니다).
+   * 이 화면의 단위는 사람이 아니라 연합 건이므로, 인원을 세면 칩의 숫자와
+   * 걸러진 목록의 길이가 어긋나 보인다.
+   * ★ 거르기 전 목록으로 센다 — 걸러진 것으로 세면 고르는 순간 1이 된다.
+   */
+  const svCounts: Record<string, number> = {};
+  [...allWaiting, ...allDone].forEach((g) => {
+    new Set(g.servers.map((s) => s.server)).forEach((sv) => {
+      svCounts[sv] = (svCounts[sv] ?? 0) + 1;
+    });
+  });
   // 인원이 실제로 있는 서버 — 서버 칩을 접는 기준 (12개를 매번 다 보여줄 필요는 없다).
   // 아직 정산 안 된 건도 "쓰는 서버" 다 — 누적이 0이라고 접어버리면 방금 넣은 서버가 숨는다
+  // ★ 칩 목록은 **거르기 전** 자료로 만든다. 걸러진 목록으로 만들면
+  //   서버 하나를 고르는 순간 나머지 칩이 사라져 되돌릴 길이 없어진다.
   const inUse = [
     ...new Set([
       ...(data?.totals ?? []).filter((s) => s.people > 0).map((s) => s.server),
-      ...waiting.flatMap((g) => g.servers.map((s) => s.server)),
+      ...allWaiting.flatMap((g) => g.servers.map((s) => s.server)),
     ]),
   ];
 
@@ -107,7 +138,7 @@ export default function AllianceTab({
    * 그래서 대기 인원을 따로 보여준다. 누적 금액에는 섞지 않는다.
    */
   const pending = new Map<string, { people: number; count: number }>();
-  waiting.forEach((g) =>
+  allWaiting.forEach((g) =>
     g.servers.forEach((s) => {
       const cur = pending.get(s.server) ?? { people: 0, count: 0 };
       pending.set(s.server, { people: cur.people + s.people, count: cur.count + 1 });
@@ -142,7 +173,7 @@ export default function AllianceTab({
           {s.server}
         </span>
       ))}
-      {g.item}
+      <ItemName name={g.item} />
     </button>
   );
 
@@ -169,6 +200,20 @@ export default function AllianceTab({
           🤝 {t('ali.register')}
         </button>
       ) : null}
+
+      {/* 서버로 좁혀 보기 — 잔액·아이템 화면과 같은 칩 한 벌 (v11.5) */}
+      <div className="card" style={{ marginTop: 12 }}>
+        <div className="field" style={{ paddingBottom: 0 }}>
+          <label className="fl">{t('ali.filterServer')}</label>
+          <ServerFilter
+            servers={data?.serverList ?? []}
+            counts={svCounts}
+            noneCount={0}
+            value={svPick}
+            onChange={setSvPick}
+          />
+        </div>
+      </div>
 
       {/* ① 등록만 된 건 — 금액을 넣으면 서버에 나뉜다 */}
       <div className="sect" style={{ marginTop: 14 }}>

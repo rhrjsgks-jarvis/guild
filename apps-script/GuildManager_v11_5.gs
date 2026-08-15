@@ -1,8 +1,31 @@
 // ═══════════════════════════════════════════════════════════════
-//  길드 정산 시스템 v11.4  (분배비중 · 연합 · 레이드 · 용어사전 · 게시판 · 3개국어)
+//  길드 정산 시스템 v11.5  (분배비중 · 연합 · 레이드 · 용어사전 · 게시판 · 3개국어)
 //  시트 구성: [사용안내] [멤버DB] [참여자현황] [분배대기중] [잔액현황]
 //            [지급기록] [연합] [레이드] [용어] [게시판] [작업기록] + [시즌1] [시즌2] ...
 //            ← 이 순서로 항상 정렬됨
+// ═══════════════════════════════════════════════════════════════
+//  변경점 v11.4 → v11.5  (아이템 티어 · 혈맹원 클래스 · 서버 필터 통일)
+//
+//   - ★ [용어] 시트 **맨 뒤에 '티어' 열**. 0티어~3티어이거나 빈칸이다.
+//       빈칸과 0티어는 **다른 뜻**이다:
+//         빈칸  = 티어라는 개념이 없는 것 (마법서·정수·비법서)
+//         0티어 = 장비인데 티어 표기가 없는 것 (드래곤 슬레이어·지룡의 비늘 갑옷)
+//       뭉개면 마법서에 없는 등급이 생기거나, 진짜 0티어 장비가 묻힌다 (규칙 7).
+//   - ★ 티어 열을 **맨 뒤에** 붙인 이유: 중간에 끼우면 이미 배포된 v11.4 시트의
+//       이미지·비고 값이 한 칸씩 밀려 읽힌다. 연합 시트를 늘릴 때와 같은 규칙이다.
+//       `_getOrCreateTerms` 가 옛 6열 시트를 만나면 머리글만 더해 준다 (값은 안 건드림).
+//   - ★ `api_bulkTerms` 가 티어를 함께 받는다. `_normTier` 가 '0'·'3티어'·'T2' 를
+//       모두 'N티어' 로 맞추고, **알아볼 수 없으면 빈칸**을 돌려준다 —
+//       틀린 티어가 박히는 것보다 비어 있는 편이 낫다.
+//   - ★ [멤버DB] **H열 '클래스'** (공식 13종). 한 사람에 하나다.
+//       목록 밖의 값은 거부한다 — '마법사'와 '법사'가 갈리면 클래스로 걸러 볼 때
+//       그 사람만 조용히 빠진다 (규칙 4와 같은 이유).
+//       `_getMemberRows` 는 **시트에 있는 만큼만** 읽는다. 8열을 달라고 하면
+//       G열까지인 옛 시트에서 예외가 나 명단 읽기가 통째로 죽는다.
+//   - 앱: 서버 필터를 [연합]·[관리]에도 붙여 잔액·아이템과 같은 칩 한 벌이 됐다.
+//     아이템 이름은 등급 테두리(전설=보라·신화=황금·사전에 없으면 검정)와 티어 배지로
+//     보여준다. 등급은 **사전의 분류로만** 정한다 — 이름을 보고 짐작하지 않는다.
+//
 // ═══════════════════════════════════════════════════════════════
 //  변경점 v11.3 → v11.4  (리니지W 용어 사전 — 국문 · 中文 · English)
 //
@@ -582,7 +605,7 @@
 //     '누적기록'을 그대로 찾음 (하위 호환, 리네이밍과 무관)
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION = '11.4';
+const VERSION = '11.5';
 const T2S_MAP = {'國':'国','學':'学','這':'这','個':'个','們':'们','說':'说','話':'话','對':'对','時':'时','間':'间','現':'现','場':'场','開':'开','關':'关','內':'内','東':'东','車':'车','馬':'马','龍':'龙','風':'风','陽':'阳','陰':'阴','電':'电','語':'语','讀':'读','寫':'写','書':'书','紙':'纸','筆':'笔','長':'长','門':'门','問':'问','聽':'听','見':'见','覺':'觉','讓':'让','誰':'谁','還':'还','進':'进','運':'运','動':'动','靜':'静','樂':'乐','藥':'药','華':'华','蘭':'兰','葉':'叶','黃':'黄','麗':'丽','寶':'宝','貴':'贵','財':'财','買':'买','賣':'卖','錢':'钱','銀':'银','鐵':'铁','鋼':'钢','陳':'陈','劉':'刘','張':'张','楊':'杨','蔣':'蒋','鄭':'郑','謝':'谢','呂':'吕','蘇':'苏','韓':'韩','馮':'冯','於':'于','鳳':'凤','雲':'云','劍':'剑','斷':'断','亂':'乱','愛':'爱','聲':'声','醫':'医','藝':'艺','頭':'头','臉':'脸','腳':'脚','氣':'气','樓':'楼','橋':'桥','飛':'飞','機':'机','網':'网','線':'线','條':'条','裡':'里','邊':'边','錯':'错','壞':'坏','舊':'旧','寬':'宽','淺':'浅','週':'周','節':'节','業':'业','後':'后','來':'来','終':'终','結':'结','敗':'败','勝':'胜','負':'负','輸':'输','贏':'赢','強':'强','難':'难','簡':'简','單':'单','複':'复','雜':'杂','純':'纯','淨':'净','髒':'脏','齊':'齐','穩':'稳','變':'变','轉':'转','換':'换','顯':'显','樣':'样','種':'种','類':'类','團':'团','體':'体','統':'统','織':'织','組':'组','構':'构','設':'设','計':'计','劃':'划','數':'数','課':'课','題':'题','試':'试','練':'练','習':'习','師':'师','員':'员','職':'职','務':'务','責':'责','權':'权','應':'应','該':'该','須':'须','願':'愿','夢':'梦','憶':'忆','識':'识','認':'认','歡':'欢','醜':'丑','帥':'帅','靈':'灵','獸':'兽','鷹':'鹰','鶴':'鹤','鴻':'鸿','鱷':'鳄','鯨':'鲸','鯊':'鲨','蝦':'虾','殼':'壳','冑':'胄','戰':'战','爭':'争','鬥':'斗','擊':'击','禦':'御','護':'护','衛':'卫','謀':'谋','陣':'阵','營':'营','軍':'军','隊':'队','將':'将','嬪':'嫔','宮':'宫','廟':'庙','觀':'观','閣':'阁','蓮':'莲','楓':'枫','樺':'桦','檜':'桧','樹':'树','實':'实','幹':'干','莖':'茎','穫':'获','採':'采','鮮':'鲜','籠':'笼','傷':'伤','殺':'杀','斬':'斩','豬':'猪','雞':'鸡','鴨':'鸭','鵝':'鹅','龜':'龟','蟬':'蝉','蟻':'蚁','螞':'蚂','鴉':'鸦','鵰':'雕','鴛':'鸳','鴦':'鸯','賽':'赛','廠':'厂','廣':'广','麼':'么','誒':'诶','歲':'岁','歷':'历','歸':'归','殘':'残','蟲':'虫','貓':'猫','氈':'毡','貫':'贯','質':'质','貨':'货','貼':'贴','費':'费','資':'资','賬':'账','賺':'赚','贈':'赠','賀':'贺','賢':'贤','賦':'赋','賤':'贱','賓':'宾','賴':'赖','齲':'龋','齒':'齿','龄':'齡','齡':'龄','齣':'出','岡':'冈','剛':'刚','剮':'剐','創':'创','劇':'剧','勵':'励','勸':'劝','勻':'匀','匯':'汇','醬':'酱','醞':'酝','釀':'酿','釋':'释','釘':'钉','針':'针','釣':'钓','鈍':'钝','鈴':'铃','鈔':'钞','鉛':'铅','鋸':'锯','鋒':'锋','鍵':'键','鎖':'锁','鑄':'铸','鑼':'锣','錶':'表','鐘':'钟','鏡':'镜','鑽':'钻','鑑':'鉴','閉':'闭','閃':'闪','閏':'闰','閱':'阅','闆':'板','闖':'闯','陸':'陆','隱':'隐','雖':'虽','雙':'双','雛':'雏','靂':'雳','韋':'韦','韌':'韧','頁':'页','頂':'顶','項':'项','順':'顺','頌':'颂','預':'预','頑':'顽','頒':'颁','頗':'颇','領':'领','頡':'颉','頜':'颌','頸':'颈','頻':'频','頹':'颓','顆':'颗','額':'额','顏':'颜','顛':'颠','顧':'顾','飄':'飘','饑':'饥','餃':'饺','餅':'饼','館':'馆','饒':'饶','饞':'馋','馳':'驰','駕':'驾','駛':'驶','駐':'驻','駱':'骆','駭':'骇','騎':'骑','騰':'腾','驅':'驱','驚':'惊','驕':'骄','驗':'验','骯':'肮','髮':'发','鬍':'胡','鬧':'闹','鮑':'鲍','鯉':'鲤','鰲':'鳌','鱉':'鳖','鳥':'鸟','鳴':'鸣','鹹':'咸','麥':'麦','麵':'面','黨':'党'};  // 번체→간체 상용한자 (서체 변환 전용, 다른 뜻 글자는 포함하지 않음)
 const UNIT = '다이아';                 // 재화 단위 표기
 const MAX_MEMBERS = 100;              // 최대 멤버 수 (v10.5: 50 → 100)
@@ -647,8 +670,18 @@ const DEFAULT_WEIGHT = 100;           // 멤버 기본 분배비중 (%)
 const LEDGER_HEADERS = ['등록일','아이템명','상태','참여인원','참여자명단','인증샷','분배✓','판매금액','혈맹운영비','1인당(기본)','분배일','입력자','분배자','수정자','분배내역'];
 const LG = { DATE:1, ITEM:2, STATUS:3, CNT:4, NAMES:5, PHOTO:6, CHECK:7, AMOUNT:8, FUND:9, PER:10, DIST:11, INPUTBY:12, DISTBY:13, EDITBY:14, SPLIT:15 };
 // 멤버DB 컬럼 (v10.0에서 E·F·G 추가)
-const MEM_COL = { NO:1, NAME:2, STATUS:3, DISPLAY:4, WEIGHT:5, SERVER:6, HANJA:7 };
+const MEM_COL = { NO:1, NAME:2, STATUS:3, DISPLAY:4, WEIGHT:5, SERVER:6, HANJA:7, CLASS:8 };
 const SERVER_LIST = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+
+/**
+ * 리니지W 공식 클래스 13종 (v11.5) — 공식 게임정보의 표기를 그대로 쓴다.
+ * 한 사람에 하나다. 부캐를 따로 관리하려면 멤버DB 구조부터 바뀌어야 한다.
+ *
+ * ★ 목록에 없는 값은 저장하지 않는다. 오타로 '마법사'가 '마법사 '나 '법사'로
+ *   들어가면 서버·클래스로 걸러 볼 때 그 사람만 조용히 빠진다 (규칙 4와 같은 이유).
+ */
+const CLASS_LIST = ['기사', '요정', '마법사', '다크엘프', '전사', '군주', '수라',
+                    '총사', '마격사', '성기사', '나찰', '귀검사', '혈법사'];
 const BOARD_SHEET = '게시판';           // 자유 게시판 + 공지사항
 const ALLIANCE_SHEET = '연합';          // 연합 정산 누적
 const RAID_SHEET = '레이드';            // 보스 등장 시간표 (요일 × 시간)
@@ -2177,12 +2210,32 @@ function _getMembers(ss) {
 // 멤버DB 전체 읽기 (v10.0) — 이름 · 게임표시명 · 분배비중 · 서버 · 한자표기
 //   비중은 비어 있으면 100%. 1 미만/100 초과는 잘라낸다.
 // ─────────────────────────────────────────
+/**
+ * 옛 멤버DB(G열까지)에 클래스 열을 만들어 준다 (v11.5).
+ * 시트의 최대 열이 7이면 8열에 쓰는 순간 예외가 난다 — 먼저 늘려야 한다.
+ * 값은 건드리지 않고 자리와 머리글만 마련한다.
+ */
+function _ensureMemberClassCol(db) {
+  if (db.getMaxColumns() < MEM_COL.CLASS) {
+    db.insertColumnsAfter(db.getMaxColumns(), MEM_COL.CLASS - db.getMaxColumns());
+  }
+  if (!String(db.getRange(1, MEM_COL.CLASS).getValue()).trim()) {
+    db.getRange(1, MEM_COL.CLASS).setValue('클래스')
+      .setBackground('#1A237E').setFontColor('#FFF').setFontWeight('bold').setHorizontalAlignment('center');
+    db.setColumnWidth(MEM_COL.CLASS, 90);
+  }
+}
+
 function _getMemberRows(ss) {
   const db = ss.getSheetByName('멤버DB');
   if (!db) return [];
   const rows = Math.min(MAX_MEMBERS, Math.max(db.getMaxRows() - 1, 0));
   if (rows <= 0) return [];
-  const vals = db.getRange(2, MEM_COL.NAME, rows, MEM_COL.HANJA - MEM_COL.NAME + 1).getValues();
+  // 클래스(H)까지 읽되, **시트에 있는 만큼만** 요청한다.
+  // 옛 시트는 G열까지라 8열을 달라고 하면 getRange 가 예외를 던진다 —
+  // 그러면 명단 읽기가 통째로 죽어 앱 전체가 멈춘다.
+  const width = Math.min(db.getMaxColumns(), MEM_COL.CLASS) - MEM_COL.NAME + 1;
+  const vals = db.getRange(2, MEM_COL.NAME, rows, width).getValues();
   const out = [];
   vals.forEach(function (r, i) {
     const name = String(r[0]).trim();
@@ -2197,7 +2250,9 @@ function _getMemberRows(ss) {
       display: String(r[MEM_COL.DISPLAY - MEM_COL.NAME]).trim(),
       weight: w,
       server: String(r[MEM_COL.SERVER - MEM_COL.NAME]).trim(),
-      hanja: String(r[MEM_COL.HANJA - MEM_COL.NAME]).trim()
+      hanja: String(r[MEM_COL.HANJA - MEM_COL.NAME]).trim(),
+      // 옛 시트(v11.4 이하)는 H열이 없다 — 없으면 빈칸이다
+      cls: String(r[MEM_COL.CLASS - MEM_COL.NAME] == null ? '' : r[MEM_COL.CLASS - MEM_COL.NAME]).trim()
     });
   });
   return out;
@@ -2639,6 +2694,10 @@ function _rebuildGuide(ss) {
     ['· 사람 이름·아이템명·게시글은 번역하지 않습니다 — 데이터이기 때문입니다', 'b'],
     ['· 중국어권 혈맹원은 멤버DB G열 "한자표기"에 이름을 넣어주면', 'b'],
     ['  앱에서 "한글 (漢字)" 형태로 함께 보입니다', 'b'],
+    ['· 멤버DB H열 "클래스" (v11.5) — 앱 [⚙️ 관리] → 혈맹원 [관리] 에서 고릅니다', 'b'],
+    ['  ' + CLASS_LIST.join(' · '), 'b'],
+    ['  한 사람에 하나입니다. 목록 밖의 값은 저장되지 않습니다 —', 'b'],
+    ['  표기가 갈리면 클래스로 걸러 볼 때 그 사람만 빠집니다', 'b'],
     ['', 'sp'],
 
     ['📋 명단 사진으로 혈맹원 한 번에 추가 (v10.9)', 'sec'],
@@ -2722,7 +2781,7 @@ function _rebuildGuide(ss) {
     ['  분배 자체에는 전혀 영향이 없습니다', 'b'],
     ['· [📤 디스코드로 전송]은 특정 건을 수동으로 다시 보낼 때 사용', 'b'],
     [''  , 'sp'],
-    ['📚 리니지W 용어 — [' + TERM_SHEET + '] 시트 (v11.4)', 'sec'],
+    ['📚 리니지W 용어 — [' + TERM_SHEET + '] 시트 (v11.5)', 'sec'],
     ['· 아이템·보스·서버 이름을 한국어 / 中文 / English 로 적어두는 표입니다', 'b'],
     ['· 앱의 아이템명 칸에서 **어느 언어로 쳐도** 이 표를 찾아 자동완성합니다', 'b'],
     ['  (중국 혈맹원이 "龙之" 만 쳐도 그 아이템이 나옵니다)', 'b'],
@@ -2731,6 +2790,12 @@ function _rebuildGuide(ss) {
     ['· 中文·English 는 **비워도 됩니다.** 빈칸은 "아직 확인 못 했다"는 뜻이고,', 'b'],
     ['  앱은 그 항목을 한국어 그대로 보여줍니다 (지어내지 않습니다)', 'b'],
     ['· 이미지 열에 구글 드라이브 그림 주소를 넣으면 앱 목록에 함께 보입니다', 'b'],
+    ['· ⭐ 티어 열(맨 뒤) — 0티어~3티어. **빈칸과 0티어는 다릅니다**', 'b'],
+    ['    빈칸  = 티어라는 개념이 없는 것 (마법서·정수·비법서)', 'b'],
+    ['    0티어 = 장비인데 티어 표기가 없는 것 (드래곤 슬레이어 등)', 'b'],
+    ['  뭉개면 마법서에 없는 등급이 생기거나 진짜 0티어 장비가 묻힙니다', 'b'],
+    ['· 앱 목록에서 전설은 보라, 신화는 황금 테두리로 보입니다', 'b'],
+    ['  (사전에 없는 이름은 검정입니다 — 등급을 짐작하지 않습니다)', 'b'],
     ['· 추가·수정·삭제는 앱 [📚 용어] 화면에서 관리자도 할 수 있습니다', 'b'],
     ['💡 처음이라면 앱 [⚙️ 관리] → 관리 도구 → [📚 용어 목록 채우기] 를 실행하세요', 'b'],
     ['   지금까지 등록한 아이템명·보스·서버가 한국어로 채워집니다', 'b'],
@@ -2872,9 +2937,12 @@ function _buildMemberDB(ss, existingMembers) {
   sheet.setColumnWidth(MEM_COL.WEIGHT, 90);
   sheet.setColumnWidth(MEM_COL.SERVER, 70);
   sheet.setColumnWidth(MEM_COL.HANJA, 140);
-  sheet.getRange(1, 1, 1, MEM_COL.HANJA)
-    .setValues([['번호','멤버 이름','상태','게임표시명(선택, OCR용)','분배비중(%)','서버','한자표기(중국어)']])
+  sheet.setColumnWidth(MEM_COL.CLASS, 90);
+  sheet.getRange(1, 1, 1, MEM_COL.CLASS)
+    .setValues([['번호','멤버 이름','상태','게임표시명(선택, OCR용)','분배비중(%)','서버','한자표기(중국어)','클래스']])
     .setBackground('#1A237E').setFontColor('#FFF').setFontWeight('bold').setHorizontalAlignment('center');
+  sheet.getRange(1, MEM_COL.CLASS).setNote('리니지W 클래스 (선택). 앱의 [혈맹원 관리]에서 고르면 여기 들어옵니다.\n' +
+    CLASS_LIST.join(' · '));
   sheet.getRange('D1').setNote('인증샷 자동 인식(OCR)이 이 멤버를 못 찾을 때 사용합니다.\n게임 화면에 실제로 표시되는 이름을 그대로 입력해두면\n이후 사진 속에서 정확히 매칭됩니다. 비워두면 기존처럼\n멤버 이름(코어) 및 괄호 안 표기로만 매칭을 시도합니다.');
   sheet.getRange(1, MEM_COL.WEIGHT).setNote('분배비중 1~100 (%). 비워두면 100%입니다.\n예) 50 → 기본 1인당 금액의 50%만 받고,\n남는 금액은 전액 ' + FUND_NAME + '로 귀속됩니다.\n앱 [⚙️ 관리] → 혈맹원 관리에서 바꾸는 편이 안전합니다.');
   sheet.getRange(1, MEM_COL.SERVER).setNote('이 캐릭터가 속한 서버 (01~12). 정산에는 영향을 주지 않는 표시용 정보입니다.');
@@ -3909,7 +3977,8 @@ function api_getRoster() {
       isFund: m.name === FUND_NAME,
       weight: m.weight,
       server: m.server,
-      hanja: m.hanja
+      hanja: m.hanja,
+      cls: m.cls
     };
   });
 }
@@ -5712,6 +5781,21 @@ function api_updateMember(name, patch, email) {
     }
   }
 
+  // 클래스는 공식 13종 중 하나이거나 빈칸이다 (v11.5).
+  // 목록 밖의 값을 받아주면 '마법사'와 '법사'가 다른 클래스로 갈려,
+  // 클래스로 걸러 볼 때 그 사람만 조용히 빠진다.
+  if (patch.cls !== undefined && patch.cls !== null) {
+    const cl = String(patch.cls).trim();
+    if (cl && CLASS_LIST.indexOf(cl) < 0) {
+      return _rc({ ok: false, msg: '클래스는 목록에서 선택해주세요.' }, 'e.badClass');
+    }
+    if (cl !== target.cls) {
+      _ensureMemberClassCol(db);
+      db.getRange(target.row, MEM_COL.CLASS).setValue(cl);
+      changes.push('클래스 ' + (target.cls || '-') + ' → ' + (cl || '-'));
+    }
+  }
+
   // ★ 한자표기는 관리자가 눈으로 확인하고 저장한 값만 들어온다.
   //   시스템이 추측해서 채우지 않는다 (엉뚱한 사람에게 다이아가 가는 사고를 막기 위한 규칙).
   if (patch.hanja !== undefined && patch.hanja !== null) {
@@ -5743,13 +5827,27 @@ function api_updateMember(name, patch, email) {
 //  ★ 中文·English 칸은 **비어 있어도 된다.** 빈칸은 "아직 확인 못 했다"는 뜻이고,
 //    앱은 그런 항목을 국문 그대로 보여준다.
 // ═══════════════════════════════════════════════════════════════
-const TERM_HEADERS = ['분류', '한국어', '中文', 'English', '이미지', '비고'];
+const TERM_HEADERS = ['분류', '한국어', '中文', 'English', '이미지', '비고', '티어'];
 /** 분류는 자유 문자열이지만, 화면에서 묶어 보여주려고 기본값을 정해둔다 */
 const TERM_CATS = ['전설', '신화', '스킬북', '보스', '서버', '기타'];
 
+/**
+ * 티어 (v11.5) — 등급과 **직교하는 축**이라 분류에 섞지 않고 따로 둔다.
+ * '전설 1티어'처럼 합치면 분류가 여덟 갈래로 늘어 칩이 화면을 덮고,
+ * "전설이면서 3티어" 같은 조합을 고를 수 없다.
+ *
+ * ★ 빈칸과 '0티어'는 다르다.
+ *   빈칸  = 티어라는 개념이 없는 것 (마법서·정수·비법서)
+ *   0티어 = 장비인데 티어 표기가 없는 것 (드래곤 슬레이어·지룡의 비늘 갑옷)
+ *   둘을 뭉개면 마법서에 없는 등급이 생기거나, 진짜 0티어 장비가 묻힌다.
+ * ★ 티어 열은 **맨 뒤**에 붙였다. 중간에 끼우면 이미 배포된 v11.4 시트의
+ *   이미지·비고 값이 한 칸씩 밀려 읽힌다 (연합 시트를 늘릴 때와 같은 규칙).
+ */
+const TERM_TIERS = ['0티어', '1티어', '2티어', '3티어'];
+
 function _buildTerms(ss) {
   const sheet = ss.insertSheet(TERM_SHEET);
-  [90, 220, 200, 220, 260, 180].forEach(function (w, i) { sheet.setColumnWidth(i + 1, w); });
+  [90, 220, 200, 220, 260, 180, 80].forEach(function (w, i) { sheet.setColumnWidth(i + 1, w); });
   sheet.getRange(1, 1, 1, TERM_HEADERS.length).setValues([TERM_HEADERS])
     .setBackground('#4E342E').setFontColor('#FFF').setFontWeight('bold').setHorizontalAlignment('center');
   sheet.getRange(1, 1).setNote('전설 · 신화 · 스킬북 · 보스 · 기타');
@@ -5757,13 +5855,29 @@ function _buildTerms(ss) {
   sheet.getRange(1, 3).setNote('모르면 비워두세요. 빈칸이면 앱이 국문 그대로 보여줍니다.');
   sheet.getRange(1, 5).setNote('아이콘 그림 주소 (선택). 구글 드라이브에 올린 이미지 링크를 넣으세요.\n' +
     '없으면 앱은 그림 없이 이름만 보여줍니다.');
+  sheet.getRange(1, 7).setNote('0티어 ~ 3티어 (선택).\n' +
+    '비워두면 티어라는 개념이 없는 것입니다 (마법서·정수·비법서).\n' +
+    '장비인데 티어 표기가 없으면 0티어로 적으세요.');
   sheet.setFrozenRows(1);
   sheet.setTabColor('#6D4C41');
   return sheet;
 }
 
+/**
+ * 이미 만들어져 있는 시트라면 **열이 모자란지 보고 채운다** (v11.5).
+ * v11.4 로 만든 시트는 6열뿐이라 그대로 티어를 쓰면 범위를 벗어난다.
+ * 값은 건드리지 않고 머리글만 더한다 — 기존 504줄의 티어는 빈칸으로 남고,
+ * 빈칸은 "티어 개념 없음"이라는 뜻이라 그 자체로 말이 된다.
+ */
 function _getOrCreateTerms(ss) {
-  return ss.getSheetByName(TERM_SHEET) || _buildTerms(ss);
+  const sheet = ss.getSheetByName(TERM_SHEET);
+  if (!sheet) return _buildTerms(ss);
+  if (sheet.getLastColumn() < TERM_HEADERS.length) {
+    sheet.getRange(1, 1, 1, TERM_HEADERS.length).setValues([TERM_HEADERS])
+      .setBackground('#4E342E').setFontColor('#FFF').setFontWeight('bold').setHorizontalAlignment('center');
+    sheet.setColumnWidth(TERM_HEADERS.length, 80);
+  }
+  return sheet;
 }
 
 /** 자동완성 비교용 — 공백·대소문자를 지운다 (이름 비교는 언제나 정규화를 거친다, 규칙 4) */
@@ -5771,12 +5885,28 @@ function _normTerm(v) {
   return String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
 }
 
+/**
+ * 티어 표기를 하나로 맞춘다 (v11.5) — '3', '3티어', 'T3', '3 티어' 를 모두 '3티어' 로.
+ *
+ * ★ 알아볼 수 없으면 **빈칸을 돌려준다.** 틀린 티어가 박히는 것보다 비어 있는 편이
+ *   낫다 — 빈칸은 "모른다"로 읽히지만 틀린 값은 아무도 의심하지 않는다 (규칙 7).
+ * ★ 0 은 유효한 값이다. `Number(v) || ''` 로 쓰면 0 이 사라진다.
+ */
+function _normTier(v) {
+  const s = String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
+  if (!s) return '';
+  const m = s.match(/^t?([0-3])(티어|tier)?$/);
+  return m ? m[1] + '티어' : '';
+}
+
 function api_getTerms() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(TERM_SHEET);
   const terms = [];
   if (sheet && sheet.getLastRow() > 1) {
-    const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, TERM_HEADERS.length).getValues();
+    // 옛 시트(v11.4)는 6열뿐이다 — 있는 만큼만 읽는다. 더 달라고 하면 예외가 난다.
+    const width = Math.min(sheet.getLastColumn(), TERM_HEADERS.length);
+    const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, width).getValues();
     vals.forEach(function (r, i) {
       const ko = String(r[1]).trim();
       // 국문이 없는 줄은 앱이 쓸 수 없다 — 저장되는 이름이 국문이기 때문이다
@@ -5789,11 +5919,13 @@ function api_getTerms() {
         en: String(r[3]).trim(),
         // 그림은 **관리자가 직접 넣은 주소**만 쓴다 — 우리가 어디선가 긁어오지 않는다
         img: String(r[4]).trim(),
-        note: String(r[5]).trim()
+        note: String(r[5]).trim(),
+        // 빈칸은 "티어 개념 없음"이다. 0티어로 바꿔 채우지 않는다 (규칙 7)
+        tier: String(r[6] == null ? '' : r[6]).trim()
       });
     });
   }
-  return { terms: terms, cats: TERM_CATS };
+  return { terms: terms, cats: TERM_CATS, tiers: TERM_TIERS };
 }
 
 /**
@@ -5803,7 +5935,7 @@ function api_getTerms() {
  * 오히려 중국 혈맹원이 실제로 쓰는 표기를 아는 사람이 바로 고칠 수 있어야 한다.
  * row 를 주면 그 줄을 고치고, 없으면 새로 넣는다.
  */
-function api_saveTerm(row, cat, ko, zh, en, img, note, email) {
+function api_saveTerm(row, cat, ko, zh, en, img, note, tier, email) {
   ko = String(ko || '').trim();
   if (!ko) return _rc({ ok: false, msg: '한국어 표기를 넣어주세요.' }, 'e.termKo');
 
@@ -5815,7 +5947,8 @@ function api_saveTerm(row, cat, ko, zh, en, img, note, email) {
     const actor = _getActorEmail(email);
     const at = Number(row) || 0;
     const values = [String(cat || '기타').trim(), ko, String(zh || '').trim(),
-                    String(en || '').trim(), String(img || '').trim(), String(note || '').trim()];
+                    String(en || '').trim(), String(img || '').trim(), String(note || '').trim(),
+                    _normTier(tier)];
 
     // 같은 국문이 두 줄이면 어느 것을 보여줄지 알 수 없다
     const last = sheet.getLastRow();
@@ -5859,7 +5992,8 @@ function api_bulkTerms(rows, email) {
       cat: String((r && r.cat) || '기타').trim(),
       ko: String((r && r.ko) || '').trim(),
       zh: String((r && r.zh) || '').trim(),
-      en: String((r && r.en) || '').trim()
+      en: String((r && r.en) || '').trim(),
+      tier: _normTier(r && r.tier)
     };
   }).filter(function (r) { return r.ko; });
 
@@ -5884,7 +6018,7 @@ function api_bulkTerms(rows, email) {
       const k = _normTerm(r.ko);
       if (have[k]) { skipped.push(r.ko); return; }   // 이미 있는 것은 손대지 않는다
       have[k] = true;
-      add.push([r.cat, r.ko, r.zh, r.en, '', r.zh && r.en ? '' : '확인 필요']);
+      add.push([r.cat, r.ko, r.zh, r.en, '', r.zh && r.en ? '' : '확인 필요', r.tier]);
     });
 
     if (add.length > 0) {
@@ -6866,7 +7000,7 @@ function _apiRoute(action, req) {
 
     // 표기를 잘못 넣어도 다이아는 움직이지 않는다 — 관리자에게 연다
     case 'saveTerm':
-      return api_saveTerm(req.row, req.cat, req.ko, req.zh, req.en, req.img, req.note, req.email);
+      return api_saveTerm(req.row, req.cat, req.ko, req.zh, req.en, req.img, req.note, req.tier, req.email);
 
     case 'deleteTerm':
       return api_deleteTerm(req.row, req.email);
@@ -7034,7 +7168,7 @@ function api_getState() {
     items: items,
     members: memberRows.map(function (m) { return m.name; }),
     memberInfo: memberRows.map(function (m) {
-      return { name: m.name, weight: m.weight, server: m.server, hanja: m.hanja };
+      return { name: m.name, weight: m.weight, server: m.server, hanja: m.hanja, cls: m.cls };
     }),
     fundName: FUND_NAME,
     fundRate: FUND_RATE,

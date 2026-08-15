@@ -393,6 +393,7 @@ const DICT: Record<string, Entry> = {
   /* ── 연합 ── */
   'ali.title': ['연합 정산', '联盟结算', 'Alliance ledger'],
   'ali.byServer': ['서버별 누적', '各服务器累计', 'Totals by server'],
+  'ali.filterServer': ['서버로 좁혀 보기', '按服务器筛选', 'Filter by server'],
   'ali.records': ['🧾 정산 완료', '🧾 已结算', '🧾 Settled'],
   'ali.register': ['연합 등록', '登记联盟', 'Register'],
   'ali.registerSub': [
@@ -751,6 +752,12 @@ const DICT: Record<string, Entry> = {
     '只领取基础每人金额的这个比例。剩余金额全部归入血盟运营费。对已分配的物品没有影响（当时的金额已原样记录）。',
     'They receive this share of the base per-head amount; the rest goes entirely to the guild fund. Already-distributed items are unaffected — those amounts are recorded as paid.',
   ],
+  'ros.byServer': ['서버로 좁혀 보기', '按服务器筛选', 'Filter by server'],
+  /* 티어는 시트에 '3티어' 로 저장되지만 화면에는 언어별로 그린다 —
+     아이템 이름과 달리 '티어'는 고유명사가 아니라 일반 명사다 */
+  'item.tierN': ['{n}티어', '{n}階', 'Tier {n}'],
+  'ros.cls': ['클래스', '职业', 'Class'],
+  'ros.clsNone': ['고르지 않음', '未选择', 'Not set'],
   'ros.hanja': ['한자표기 (중문)', '汉字标注（中文）', 'Hanja spelling (Chinese)'],
   'ros.hanjaPh': ['예: 车武植', '例：车武植', 'e.g. 车武植'],
   'ros.hanjaHint': [
@@ -1230,6 +1237,7 @@ const DICT: Record<string, Entry> = {
   's.e.titleLong': ['제목이 너무 깁니다 ({max}자 이내).', '标题太长（{max} 字以内）。', 'The title is too long ({max} characters max).'],
   's.e.bodyLong': ['내용이 너무 깁니다 ({max}자 이내).', '内容太长（{max} 字以内）。', 'The body is too long ({max} characters max).'],
   's.e.badServer': ['서버를 01~12 중에서 선택해주세요.', '请从 01~12 中选择服务器。', 'Pick a server from 01–12.'],
+  's.e.badClass': ['클래스는 목록에서 선택해주세요.', '请从列表中选择职业。', 'Pick a class from the list.'],
   's.e.dupServer': [
     '{s}서버가 두 번 들어갔습니다. 한 줄로 합쳐주세요.',
     '{s} 服重复了，请合并成一行。',

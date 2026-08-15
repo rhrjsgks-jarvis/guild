@@ -17,6 +17,7 @@ import {
 } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
+import ItemName from './ItemName';
 import ItemNameInput from './ItemNameInput';
 import LedgerCard from './LedgerCard';
 import ServerFilter, { NO_SERVER } from './ServerFilter';
@@ -230,7 +231,7 @@ export default function ItemsTab({
               <div className="row-main">
                 {/* 아이템명을 누르면 참여자 명단과 인증샷이 열린다 (v11.1) */}
                 <button type="button" className="row-name linkish" onClick={() => setViewing(it)}>
-                  {it.item}
+                  <ItemName name={it.item} />
                 </button>
                 <button type="button" className="row-sub linkish" onClick={() => setViewing(it)}>
                   {it.date} · {t('c.joined')} {t('c.persons', { n: it.cnt })}
