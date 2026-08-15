@@ -5843,6 +5843,67 @@ function api_saveTerm(row, cat, ko, zh, en, img, note, email) {
   }
 }
 
+/**
+ * 용어 여러 개를 한 번에 넣는다 (v11.4) — 홈페이지 표를 복사해 붙여넣는 길.
+ *
+ * 공식 홈페이지에서 표를 긁어오는 것은 앱이 할 수 없다(그리고 해서도 안 된다).
+ * 사람이 보고 복사한 것을 그대로 받는 것이 가장 정확하다.
+ *
+ * ★ 이미 있는 국문은 **건드리지 않는다.** 덮어쓰면 사람이 고쳐둔 표기가
+ *   붙여넣기 한 번에 날아간다. 무엇이 새로 들어갔고 무엇을 건너뛰었는지 돌려준다.
+ * ★ 줄마다 개별 처리 — 한 줄이 이상해도 나머지는 들어간다 (규칙 6).
+ */
+function api_bulkTerms(rows, email) {
+  const list = (rows || []).map(function (r) {
+    return {
+      cat: String((r && r.cat) || '기타').trim(),
+      ko: String((r && r.ko) || '').trim(),
+      zh: String((r && r.zh) || '').trim(),
+      en: String((r && r.en) || '').trim()
+    };
+  }).filter(function (r) { return r.ko; });
+
+  if (list.length === 0) return _rc({ ok: false, msg: '넣을 용어가 없습니다.' }, 'e.termEmpty');
+
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(25000); } catch (e) { return _rc({ ok: false, msg: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.' }, 'e.busy'); }
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = _getOrCreateTerms(ss);
+    const have = {};
+    if (sheet.getLastRow() > 1) {
+      sheet.getRange(2, 2, sheet.getLastRow() - 1, 1).getValues().forEach(function (r) {
+        const k = _normTerm(r[0]);
+        if (k) have[k] = true;
+      });
+    }
+
+    const add = [];
+    const skipped = [];
+    list.forEach(function (r) {
+      const k = _normTerm(r.ko);
+      if (have[k]) { skipped.push(r.ko); return; }   // 이미 있는 것은 손대지 않는다
+      have[k] = true;
+      add.push([r.cat, r.ko, r.zh, r.en, '', r.zh && r.en ? '' : '확인 필요']);
+    });
+
+    if (add.length > 0) {
+      sheet.getRange(sheet.getLastRow() + 1, 1, add.length, TERM_HEADERS.length).setValues(add);
+    }
+    _logAction(ss, '용어일괄추가', add.length + '개', _getActorEmail(email),
+      '건너뜀 ' + skipped.length + '개');
+    return _rc({
+      ok: true, added: add.length, skipped: skipped.length, skippedNames: skipped.slice(0, 20),
+      msg: '✅ 용어 ' + add.length + '개를 넣었습니다.' +
+           (skipped.length ? ' (이미 있어 건너뜀 ' + skipped.length + '개)' : '')
+    }, 'term.bulkOk', { n: add.length, k: skipped.length });
+  } catch (e) {
+    return { ok: false, msg: '오류: ' + e.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function api_deleteTerm(row, email) {
   const at = Number(row) || 0;
   if (at < 2) return _rc({ ok: false, msg: '지울 용어를 찾을 수 없습니다.' }, 'e.noRecord');
@@ -6536,7 +6597,7 @@ const API_TOKEN_PROP = 'API_TOKEN';
 const API_WRITE_ACTIONS = ['register', 'distribute', 'payout', 'rename', 'addMember', 'removeMember',
                            'correctItem', 'deleteItem', 'editItem', 'undoPayout', 'runTool',
                            'deletePost', 'addAlliance', 'creditAlliance', 'editAlliance', 'addAllianceServers', 'deleteAlliance', 'updateMember',
-                           'saveTerm', 'deleteTerm',
+                           'saveTerm', 'deleteTerm', 'bulkTerms',
                            'bulkAddMembers',
                            'addRaid', 'updateRaid', 'deleteRaid',
                            'setAppName', 'setAdminPin', 'setSeasonServer'];
@@ -6809,6 +6870,10 @@ function _apiRoute(action, req) {
 
     case 'deleteTerm':
       return api_deleteTerm(req.row, req.email);
+
+    // 홈페이지 표를 복사해 붙여넣는 길 — 이미 있는 국문은 건드리지 않는다
+    case 'bulkTerms':
+      return api_bulkTerms(req.rows, req.email);
 
     case 'addRaid':
       return api_addRaid(req.day, req.time, req.boss, req.note, req.email);

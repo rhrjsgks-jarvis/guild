@@ -29,7 +29,13 @@ import { todayDay } from './RaidTab';
  *   거짓말이 된다 (규칙 7).
  */
 
-/** 홈에서 갈 수 있는 화면 — App.tsx 의 Screen 과 같은 목록이다 */
+/**
+ * 홈에서 갈 수 있는 화면 — App.tsx 의 Screen 과 같은 목록이다.
+ *
+ * ★ 'terms'(용어 사전)는 **홈 격자에 두지 않는다** (v11.4). 사전은 평소에 들여다보는
+ *   화면이 아니라 아이템명·보스명을 칠 때 **뒤에서 붙는 기능**이다. 아이콘을 하나
+ *   더 두면 매일 쓰는 것들이 그만큼 밀린다. 관리 화면에서 열어 관리한다.
+ */
 export type Dest = 'balance' | 'items' | 'alliance' | 'raid' | 'me' | 'board' | 'terms' | 'admin';
 
 type Extra = { ally: number; raid: number };
@@ -140,8 +146,6 @@ export default function HomeTab({
     },
     { key: 'me', em: '🙋', label: t('tab.me'), sub: t('home.meSub'), go: () => onGo('me') },
     { key: 'board', em: '📋', label: t('tab.board'), sub: t('home.boardSub'), go: () => onGo('board') },
-    // 리니지W 용어를 세 언어로 찾아보는 곳 (v11.4) — 중국 혈맹원과 말이 통하게
-    { key: 'terms', em: '📚', label: t('term.title'), sub: t('home.termSub'), go: () => onGo('terms') },
     { key: 'lang', em: '🌏', label: t('home.lang'), sub: t('home.langSub'), go: onLang },
     // ★ 관리는 언제나 맨 마지막이다 — 엄지가 닿기 쉬운 자리에 두면 잘못 눌린다
     { key: 'admin', em: '⚙️', label: t('tab.admin'), sub: t('home.adminSub'), go: () => onGo('admin') },

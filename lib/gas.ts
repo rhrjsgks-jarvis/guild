@@ -32,6 +32,7 @@ export type GasAction =
   | 'terms'
   | 'saveTerm'
   | 'deleteTerm'
+  | 'bulkTerms'
   | 'tools'
   | 'runTool'
   | 'seasons'

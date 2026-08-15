@@ -42,7 +42,7 @@ function rc(res, code, vars) {
 }
 
 /** .gs 의 API_WRITE_ACTIONS 와 같은 목록 — 상태를 실어 보낼 대상 판정에 쓴다 */
-const WRITE_ACTIONS = ['saveTerm', 'deleteTerm',
+const WRITE_ACTIONS = ['saveTerm', 'deleteTerm', 'bulkTerms',
                        'register', 'distribute', 'payout', 'rename', 'addMember', 'removeMember',
                        'correctItem', 'deleteItem', 'editItem', 'undoPayout', 'runTool',
                        'editAlliance', 'addAllianceServers',
@@ -869,6 +869,30 @@ const handlers = {
     if (hit) Object.assign(hit, next);
     else S.terms.push({ row: S.nextTermRow++, ...next });
     return rc({ ok: true, msg: `✅ "${name}" 을(를) 저장했습니다.` }, 'term.saveOk', { item: name });
+  },
+
+  bulkTerms: ({ rows }) => {
+    const list = (rows || []).map((r) => ({
+      cat: String((r && r.cat) || '기타').trim(),
+      ko: String((r && r.ko) || '').trim(),
+      zh: String((r && r.zh) || '').trim(),
+      en: String((r && r.en) || '').trim(),
+    })).filter((r) => r.ko);
+    if (list.length === 0) return rc({ ok: false, msg: '넣을 용어가 없습니다.' }, 'e.termEmpty');
+
+    const key = (v) => String(v ?? '').replace(/\s+/g, '').toLowerCase();
+    const have = new Set(S.terms.map((t) => key(t.ko)));
+    let added = 0;
+    let skipped = 0;
+    for (const r of list) {
+      // ★ 이미 있는 것은 손대지 않는다 — 사람이 고쳐둔 표기를 지킨다
+      if (have.has(key(r.ko))) { skipped += 1; continue; }
+      have.add(key(r.ko));
+      S.terms.push({ row: S.nextTermRow++, ...r, img: '', note: r.zh && r.en ? '' : '확인 필요' });
+      added += 1;
+    }
+    return rc({ ok: true, added, skipped,
+                msg: `✅ 용어 ${added}개를 넣었습니다.` }, 'term.bulkOk', { n: added, k: skipped });
   },
 
   deleteTerm: ({ row }) => {

@@ -146,6 +146,13 @@ const DICT: Record<string, Entry> = {
   'bal.sect': ['💰 멤버별 잔액 · 분배완료 누적 {v}', '💰 成员余额 · 已发放累计 {v}', '💰 Balances · paid to date {v}'],
   'bal.search': ['이름 검색', '搜索名称', 'Search by name'],
   /* ── 📚 용어 사전 (v11.4) ── */
+  'adm.termSect': ['📚 용어 사전', '📚 词汇表', '📚 Glossary'],
+  'adm.termDesc': [
+    '아이템명·보스명을 칠 때 자동완성에 쓰는 표입니다. 한국어 · 中文 · English 를 모아두면 어느 언어로 쳐도 찾아집니다.',
+    '用于物品名·首领名自动完成的词汇表。填好韩/中/英后，用任意语言都能搜到。',
+    'Used for item and boss name autocomplete. Fill KO · ZH · EN and any language finds it.',
+  ],
+  'adm.termOpen': ['용어 사전 열기', '打开词汇表', 'Open glossary'],
   'term.title': ['용어', '词汇', 'Glossary'],
   'term.sect': ['리니지W 용어 {n}개', '天堂W 词汇 {n} 条', '{n} Lineage W terms'],
   'term.search': ['한국어 · 中文 · English 로 검색', '用韩/中/英搜索', 'Search in KO · ZH · EN'],
@@ -174,6 +181,31 @@ const DICT: Record<string, Entry> = {
     '中文·English 는 비워도 됩니다. 비어 있으면 앱이 한국어 그대로 보여줍니다.',
     '中文·English 可留空，留空时按韩语原样显示。',
     'ZH·EN may stay empty; the Korean name is shown as is.',
+  ],
+  'term.bulk': ['붙여넣기로 여러 개', '批量粘贴', 'Paste many'],
+  'term.bulkSub': [
+    '홈페이지 표를 복사해 그대로 붙여넣으세요.',
+    '把官网表格复制后直接粘贴即可。',
+    'Copy a table from a site and paste it here.',
+  ],
+  'term.bulkLabel': ['한 줄에 하나씩', '每行一条', 'One per line'],
+  /* 자리표시자 — 순서(국문 → 中文 → English)를 보여주는 예시다.
+     영문 화면에는 한글 예시를 두지 않는다 (화면 문구 검사가 이것도 잡는다) */
+  'term.bulkPh': [
+    '용의 심장\t龙之心\tDragon Heart',
+    '용의 심장\t龙之心\tDragon Heart',
+    'KO name\tZH name\tEN name',
+  ],
+  'term.bulkHint': [
+    '탭·쉼표·슬래시로 나뉜 줄을 모두 받습니다. 한국어만 있어도 됩니다 — 나머지는 나중에 채우면 됩니다.',
+    '支持用制表符·逗号·斜杠分隔。只有韩语也可以，其余以后再补。',
+    'Tabs, commas or slashes all work. Korean alone is fine — fill the rest later.',
+  ],
+  'term.bulkCount': ['{n}줄을 넣습니다.', '将添加 {n} 行。', 'Will add {n} rows.'],
+  'term.bulkDone': [
+    '✅ {n}개를 넣었습니다. (이미 있어 건너뜀 {k}개)',
+    '✅ 已添加 {n} 条（跳过 {k} 条）。',
+    '✅ Added {n} ({k} skipped).',
   ],
   'term.img': ['아이콘 그림 주소 (선택)', '图标地址（可选）', 'Icon image URL (optional)'],
   'term.imgHint': [
@@ -1052,6 +1084,12 @@ const DICT: Record<string, Entry> = {
     '"{item}" 은(는) 이미 용어 목록에 있습니다.',
     '「{item}」已在词汇表中。',
     '"{item}" is already in the glossary.',
+  ],
+  's.e.termEmpty': ['넣을 용어가 없습니다.', '没有可添加的词汇。', 'Nothing to add.'],
+  's.term.bulkOk': [
+    '✅ 용어 {n}개를 넣었습니다. (이미 있어 건너뜀 {k}개)',
+    '✅ 已添加 {n} 条词汇（跳过已存在 {k} 条）。',
+    '✅ Added {n} terms ({k} already existed).',
   ],
   's.term.saveOk': ['✅ "{item}" 을(를) 저장했습니다.', '✅ 已保存「{item}」。', '✅ Saved "{item}".'],
   's.term.delOk': ['✅ "{item}" 을(를) 지웠습니다.', '✅ 已删除「{item}」。', '✅ Deleted "{item}".'],

@@ -50,6 +50,50 @@ export async function POST(req: Request) {
   return Response.json(res, { status: res.ok ? 200 : 400 });
 }
 
+/**
+ * 붙여넣기로 여러 개 등록 (v11.4).
+ *
+ * 공식 홈페이지 표를 복사해 오는 길이다. 앱이 남의 사이트를 긁어오지 않는다 —
+ * 사람이 보고 복사한 것이 가장 정확하고, 남의 서버를 두드릴 이유도 없다.
+ * ★ 이미 있는 국문은 시트가 건드리지 않는다 (사람이 고쳐둔 표기를 지키기 위해).
+ */
+export async function PATCH(req: Request) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
+  let body: { rows?: unknown; email?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json({ ok: false, msg: '요청 형식이 올바르지 않습니다.' }, { status: 400 });
+  }
+
+  const raw = Array.isArray(body.rows) ? body.rows : [];
+  const rows: { cat: string; ko: string; zh: string; en: string }[] = [];
+  for (const r of raw) {
+    const o = (r ?? {}) as { cat?: unknown; ko?: unknown; zh?: unknown; en?: unknown };
+    const ko = String(o.ko ?? '').trim();
+    if (!ko) continue;
+    rows.push({
+      cat: String(o.cat ?? '기타').trim(),
+      ko,
+      zh: String(o.zh ?? '').trim(),
+      en: String(o.en ?? '').trim(),
+    });
+  }
+  if (rows.length === 0) {
+    return Response.json({ ok: false, msg: '넣을 용어가 없습니다.' }, { status: 400 });
+  }
+  // 한 번에 너무 많이 보내면 Apps Script 실행 시간이 넘는다 — 앱이 나눠 보낸다
+  if (rows.length > 300) {
+    return Response.json({ ok: false, msg: '한 번에 300개까지 넣을 수 있습니다.' }, { status: 400 });
+  }
+
+  const res = await callGas('bulkTerms', { rows, email: String(body.email ?? '').trim() }, { timeoutMs: 55_000 });
+  if (res.ok) invalidate('terms');
+  return Response.json(res, { status: res.ok ? 200 : 400 });
+}
+
 export async function DELETE(req: Request) {
   const denied = await requireAdmin();
   if (denied) return denied;

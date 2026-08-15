@@ -32,6 +32,7 @@ export default function TermsTab({
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('');
   const [editing, setEditing] = useState<Term | 'new' | null>(null);
+  const [bulk, setBulk] = useState(false);
 
   // 실제로 쓰이는 분류를 먼저, 시트가 정해둔 분류를 뒤에 (둘 다 시트에서 온다)
   const cats = Array.from(new Set([...terms.map((x) => x.cat), ...sheetCats])).filter(Boolean);
@@ -102,9 +103,15 @@ export default function TermsTab({
       </div>
 
       {admin ? (
-        <button className="btn block" style={{ marginTop: 12 }} onClick={() => setEditing('new')}>
-          ➕ {t('term.add')}
-        </button>
+        <div className="row-acts" style={{ marginTop: 12 }}>
+          <button className="btn" style={{ flex: 1 }} onClick={() => setEditing('new')}>
+            ➕ {t('term.add')}
+          </button>
+          {/* 홈페이지 표를 복사해 한 번에 넣는 길 — 수백 개를 손으로 칠 수는 없다 */}
+          <button className="btn ghost" style={{ flex: 1 }} onClick={() => setBulk(true)}>
+            📋 {t('term.bulk')}
+          </button>
+        </div>
       ) : null}
 
       <div className="card" style={{ marginTop: 12 }}>
@@ -151,6 +158,18 @@ export default function TermsTab({
           ))
         )}
       </div>
+
+      {bulk ? (
+        <BulkSheet
+          onClose={() => setBulk(false)}
+          onDone={() => {
+            setBulk(false);
+            reload();
+          }}
+          toast={toast}
+          setBusy={setBusy}
+        />
+      ) : null}
 
       {editing ? (
         <TermSheet
@@ -256,6 +275,108 @@ function TermSheet({
           {t('c.cancel')}
         </button>
         <button className="btn" disabled={!ko.trim()} onClick={() => void submit()}>
+          {t('c.save')}
+        </button>
+      </div>
+    </Sheet>
+  );
+}
+
+/**
+ * 📋 붙여넣기로 여러 개 등록 (v11.4).
+ *
+ * 공식 홈페이지의 표를 드래그해 복사하면 대개 **탭으로 나뉜 줄**이 된다.
+ * 그래서 탭·쉼표·슬래시를 모두 구분자로 받는다 — 사람이 형식을 맞추게 하면
+ * 그 단계에서 대부분 포기한다.
+ *
+ * 한 줄에 이름 하나만 있어도 된다 (국문만 넣고 中文·English 는 나중에).
+ */
+function BulkSheet({
+  onClose,
+  onDone,
+  toast,
+  setBusy,
+}: {
+  onClose: () => void;
+  onDone: () => void;
+  toast: (msg: string, isError?: boolean) => void;
+  setBusy: (on: boolean) => void;
+}) {
+  const { t, srv } = useT();
+  const [text, setText] = useState('');
+  const [cat, setCat] = useState('');
+  const { cats } = useTerms();
+
+  /** 한 줄 → { ko, zh, en } — 구분자는 탭·쉼표·슬래시 아무거나 */
+  const rows = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const parts = line.split(/\t|\s*[|/,]\s*/).map((x) => x.trim()).filter(Boolean);
+      return { cat: cat || (cats[cats.length - 1] ?? ''), ko: parts[0] ?? '', zh: parts[1] ?? '', en: parts[2] ?? '' };
+    })
+    .filter((r) => r.ko);
+
+  async function submit() {
+    if (rows.length === 0) return;
+    setBusy(true);
+    // 한 번에 너무 많으면 시트 실행 시간이 넘는다 — 200개씩 나눠 보낸다
+    let added = 0;
+    let skipped = 0;
+    let failed = '';
+    for (let i = 0; i < rows.length; i += 200) {
+      const res = await api('/api/admin/terms', { rows: rows.slice(i, i + 200), email: getStoredEmail() }, 'PATCH');
+      if (!res.ok) {
+        failed = srv(res, 'r.failed');
+        break;
+      }
+      added += Number(res.added ?? 0);
+      skipped += Number(res.skipped ?? 0);
+    }
+    setBusy(false);
+    if (failed) {
+      toast(failed, true);
+      return;
+    }
+    toast(t('term.bulkDone', { n: added, k: skipped }));
+    onDone();
+  }
+
+  return (
+    <Sheet title={`📋 ${t('term.bulk')}`} subtitle={t('term.bulkSub')} onClose={onClose}>
+      <label className="fl">{t('term.cat')}</label>
+      <div className="svpick">
+        {cats.map((c) => (
+          <button
+            key={c}
+            type="button"
+            className={'svchip' + (cat === c ? ' on' : '')}
+            onClick={() => setCat(cat === c ? '' : c)}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
+
+      <label className="fl" htmlFor="tbulk" style={{ marginTop: 12 }}>
+        {t('term.bulkLabel')}
+      </label>
+      <textarea
+        id="tbulk"
+        rows={9}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder={t('term.bulkPh')}
+      />
+      <p className="hint">{t('term.bulkHint')}</p>
+      {rows.length > 0 ? <p className="hint">{t('term.bulkCount', { n: rows.length })}</p> : null}
+
+      <div className="sheet-actions">
+        <button className="btn ghost" onClick={onClose}>
+          {t('c.cancel')}
+        </button>
+        <button className="btn" disabled={rows.length === 0} onClick={() => void submit()}>
           {t('c.save')}
         </button>
       </div>

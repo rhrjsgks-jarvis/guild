@@ -1767,6 +1767,22 @@ check('용어 사전: 세 언어로 찾고, 저장은 언제나 국문 (v11.4)',
   if ((ali.match(/<ItemNameInput/g) ?? []).length < 2) {
     throw new Error('연합 등록·정정 중 한 곳에 자동완성이 없습니다.');
   }
+  // 보스 이름도 같은 입력칸을 쓴다 (v11.4) — 中文으로 쳐도 찾아져야 한다
+  const raidTab = readFileSync(resolve(ROOT, 'components/RaidTab.tsx'), 'utf8');
+  if (!/<ItemNameInput id="raid-boss"/.test(raidTab)) throw new Error('보스 이름에 자동완성이 없습니다.');
+
+  /*
+   * 📋 붙여넣기 일괄 등록 — 수백 개를 손으로 칠 수는 없다.
+   * ★ 이미 있는 국문은 **건드리지 않는다.** 덮어쓰면 사람이 고쳐둔 표기가 한 번에 날아간다.
+   */
+  const bulk = extractFn(gs, 'api_bulkTerms');
+  if (!/if \(have\[k\]\) \{ skipped\.push/.test(bulk)) {
+    throw new Error('일괄 등록이 이미 있는 용어를 덮어씁니다.');
+  }
+  if (!/skipped/.test(bulk)) throw new Error('건너뛴 것을 알려주지 않습니다.');
+  if (!/case 'bulkTerms':/.test(gs)) throw new Error('라우터에 bulkTerms 가 없습니다.');
+  if (!/export async function PATCH/.test(admin)) throw new Error('일괄 등록 라우트가 없습니다.');
+  if (!/rows\.length > 300/.test(admin)) throw new Error('한 번에 보내는 양을 제한하지 않습니다.');
   // 비어 있는 표기를 감추지 않는다 — 감추면 채워진 줄과 구별이 안 된다
   const tab = readFileSync(resolve(ROOT, 'components/TermsTab.tsx'), 'utf8');
   if (!/term\.needCheck/.test(tab)) throw new Error('中文·English 가 빈 항목을 표시하지 않습니다.');
@@ -1778,7 +1794,7 @@ check('용어 사전: 세 언어로 찾고, 저장은 언제나 국문 (v11.4)',
   if (!/terms: \(\) => \(\{/.test(mock)) throw new Error('모의 시트에 용어 조회가 없습니다.');
   if (!/e\.termDup/.test(mock)) throw new Error('모의 시트가 중복 국문을 막지 않습니다.');
 
-  return '시트 4함수 · 라우터 3종 · 조회 공개/쓰기 관리자 · 3언어 검색 · 국문 저장 · 입력칸 3곳';
+  return '시트 5함수 · 라우터 4종 · 조회 공개/쓰기 관리자 · 3언어 검색 · 국문 저장 · 입력칸 4곳 · 일괄 등록';
 });
 
 check('잔액도 서버로 좁혀 볼 수 있다 (v11.3)', () => {
@@ -2152,14 +2168,19 @@ check('하단 탭이 없고 모든 화면은 홈 아이콘에서 연다 (v11.2.1
   // ★ 'return (' 은 앞쪽 useEffect 의 정리 함수에도 있다 — 반드시 tiles 뒤에서 찾는다
   const tilesSrc = home.slice(tilesAt, home.indexOf('];', tilesAt));
   const order = [...tilesSrc.matchAll(/key: '(\w+)'/g)].map((m) => m[1]);
-  const expected = ['balance', 'items', 'alliance', 'raid', 'me', 'board', 'terms', 'lang', 'admin'];
+  /*
+   * ★ 'terms'(용어 사전)는 **홈 격자에 없다** (v11.4). 사전은 평소 들여다보는 화면이
+   *   아니라 이름을 칠 때 뒤에서 붙는 기능이다 — 아이콘을 두면 매일 쓰는 것이 밀린다.
+   *   관리 화면에서 연다 (아래에서 그 길이 있는지 확인한다).
+   */
+  const expected = ['balance', 'items', 'alliance', 'raid', 'me', 'board', 'lang', 'admin'];
   if (order.join(',') !== expected.join(',')) {
     throw new Error(`아이콘 순서가 다릅니다: ${order.join(' ')} (기대 ${expected.join(' ')})`);
   }
   if (order[order.length - 1] !== 'admin') throw new Error('관리가 맨 마지막이 아닙니다.');
 
   // 모든 화면이 홈에서 열려야 한다 — 하나라도 빠지면 영영 못 연다
-  for (const to of ['balance', 'items', 'alliance', 'raid', 'me', 'board', 'terms', 'admin']) {
+  for (const to of ['balance', 'items', 'alliance', 'raid', 'me', 'board', 'admin']) {
     if (!new RegExp(`onGo\\('${to}'\\)`).test(home)) throw new Error(`홈에서 ${to} 화면으로 갈 수 없습니다.`);
     // 제목 키는 tab.* 또는 그 화면 고유 키를 쓴다 (용어는 term.title)
     if (!new RegExp(`${to}: '(tab\\.${to}|\\w+\\.title)'`).test(app)) {

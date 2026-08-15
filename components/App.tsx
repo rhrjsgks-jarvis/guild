@@ -343,6 +343,7 @@ export default function App() {
                   servers={state.serverList ?? []}
                   appName={title}
                   onAuthChange={refreshNow}
+                  onTerms={() => setScreen('terms')}
                   toast={toast}
                 />
               ) : null}
