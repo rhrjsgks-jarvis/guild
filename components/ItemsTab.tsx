@@ -22,7 +22,7 @@ import { useT } from '@/lib/i18n';
 import ItemName from './ItemName';
 import ItemNameInput from './ItemNameInput';
 import LootEditSheet from './LootEditSheet';
-import LootFields, { EMPTY_LOOT, lootLine, type Loot } from './LootFields';
+import LootFields, { EMPTY_LOOT, type Loot } from './LootFields';
 import LedgerCard from './LedgerCard';
 import ServerFilter, { NO_SERVER } from './ServerFilter';
 import ShareBtn from './ShareBtn';
@@ -240,11 +240,22 @@ export default function ItemsTab({
             <div className="row" key={it.row}>
               <div className="row-main">
                 {/* 아이템명을 누르면 참여자 명단과 인증샷이 열린다 (v11.1) */}
+                {/* 연합 탭과 **같은 순서**로 (v11.6): 날짜 · 보스 · 아이템 · 루팅서버 · 루팅캐릭터.
+                    두 화면이 다르게 보이면 같은 기록을 두 가지로 기억하게 된다 */}
                 <button type="button" className="row-name linkish" onClick={() => setViewing(it)}>
+                  {[it.raid, it.boss].map((x) => String(x ?? '').trim()).filter(Boolean).map((v) => (
+                    <span className="lootpart" key={v}>
+                      {v}
+                    </span>
+                  ))}
                   <ItemName name={it.item} />
+                  {[it.lootSv, it.lootCh].map((x) => String(x ?? '').trim()).filter(Boolean).map((v) => (
+                    <span className="lootpart" key={v}>
+                      {v}
+                    </span>
+                  ))}
                 </button>
                 <button type="button" className="row-sub linkish" onClick={() => setViewing(it)}>
-                  {lootLine(it) ? `${lootLine(it)} · ` : ''}
                   {it.date} · {t('c.joined')} {t('c.persons', { n: it.cnt })}
                   {it.photos && it.photos.length > 0
                     ? ` · ${t('ali.photoN', { n: it.photos.length })}`

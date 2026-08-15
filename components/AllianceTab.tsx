@@ -7,7 +7,7 @@ import ServerFilter from './ServerFilter';
 import PhotoStrip from './PhotoStrip';
 import ItemName from './ItemName';
 import ItemNameInput from './ItemNameInput';
-import LootFields, { EMPTY_LOOT, lootLine, type Loot } from './LootFields';
+import LootFields, { EMPTY_LOOT, type Loot } from './LootFields';
 import LootEditSheet from './LootEditSheet';
 import type { AllianceGroup, AllianceState } from '@/lib/types';
 import { api, calcAlliance, fmt, getStoredEmail, prepPhoto } from '@/lib/client';
@@ -172,17 +172,37 @@ export default function AllianceTab({
     );
   }
 
-  /** 묶음 한 건을 한 줄로 — 서버 배지를 참여 순서대로 늘어놓는다 */
-  const groupLine = (g: AllianceGroup) => (
-    <button type="button" className="row-name linkish" onClick={() => setDetail(g)}>
-      {g.servers.map((s) => (
-        <span className="svr" key={s.server}>
-          {s.server}
-        </span>
-      ))}
-      <ItemName name={g.item} />
-    </button>
-  );
+  /**
+   * 묶음 한 건의 **윗줄** — 지금까지 아이템명 한 칸에 몰아 적던 그 순서 그대로다 (v11.6).
+   *
+   *   8/14 · 파푸리온 · [불변의 목걸이] · 01 · 차무식
+   *   날짜   보스        아이템            루팅서버 루팅캐릭터
+   *
+   * ★ 순서는 **이 배열 하나**로 정한다. 화면 여기저기에 흩어 놓으면 순서를 바꿀 때
+   *   한 곳만 고쳐져 목록마다 다른 순서로 보인다.
+   * ★ 빈 칸은 건너뛴다 — 옛 기록은 아이템명만 나오고, 지금과 똑같이 보인다.
+   * ★ 아이템명만 ItemName 으로 그린다 (등급 테두리·티어·아이콘이 붙는 자리다).
+   *   나머지는 글자다 — 배지를 더 붙이면 한 줄이 배지로 뒤덮인다.
+   */
+  const groupLine = (g: AllianceGroup) => {
+    const before = [g.raid, g.boss].map((x) => String(x ?? '').trim()).filter(Boolean);
+    const after = [g.lootSv, g.lootCh].map((x) => String(x ?? '').trim()).filter(Boolean);
+    return (
+      <button type="button" className="row-name linkish" onClick={() => setDetail(g)}>
+        {before.map((v) => (
+          <span className="lootpart" key={v}>
+            {v}
+          </span>
+        ))}
+        <ItemName name={g.item} />
+        {after.map((v) => (
+          <span className="lootpart" key={v}>
+            {v}
+          </span>
+        ))}
+      </button>
+    );
+  };
 
   return (
     <div className="page">
@@ -242,7 +262,13 @@ export default function AllianceTab({
                 <div className="row-main">
                   {groupLine(g)}
                   <button type="button" className="row-sub linkish" onClick={() => setDetail(g)}>
-                    {lootLine(g) ? `${lootLine(g)} · ` : ''}
+                    {/* 참여 서버는 아랫줄로 (v11.6) — 윗줄은 루팅 정보가 쓴다.
+                        루팅서버와 참여서버가 같은 줄에 있으면 어느 쪽인지 알 수 없다 */}
+                    {g.servers.map((sv) => (
+                      <span className="svr" key={sv.server}>
+                        {sv.server}
+                      </span>
+                    ))}
                     {g.date} · {t('c.people')} {g.people}
                     {g.photos.length > 0 ? ` · ${t('ali.photoN', { n: g.photos.length })}` : ''}
                   </button>
@@ -338,7 +364,11 @@ export default function AllianceTab({
                 <div className="row-main">
                   {groupLine(g)}
                   <button type="button" className="row-sub linkish" onClick={() => setDetail(g)}>
-                    {lootLine(g) ? `${lootLine(g)} · ` : ''}
+                    {g.servers.map((sv) => (
+                      <span className="svr" key={sv.server}>
+                        {sv.server}
+                      </span>
+                    ))}
                     {g.date} · {fmt(g.amount)} · {t('c.people')} {g.people}
                     {g.photos.length > 0 ? ` · ${t('ali.photoN', { n: g.photos.length })}` : ''}
                   </button>

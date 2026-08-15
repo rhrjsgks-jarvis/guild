@@ -1861,3 +1861,17 @@ select:focus {
   border: 1px solid var(--gold-line);
   background: transparent;
 }
+
+/* 레이드일·보스·루팅 조각 (v11.6) — 아이템명 앞뒤에 붙는 글자.
+   배지로 만들지 않는다: 서버 배지(.svr)와 헷갈리고, 한 줄이 배지로 뒤덮인다. */
+.lootpart {
+  color: var(--text-dim);
+  font-weight: 500;
+  margin-right: 6px;
+}
+.lootpart + .iname {
+  margin-left: 0;
+}
+.iname + .lootpart {
+  margin-left: 6px;
+}
