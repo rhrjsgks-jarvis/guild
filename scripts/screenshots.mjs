@@ -92,22 +92,24 @@ async function snap(group, label) {
 }
 
 /*
- * 화면 전환 (v11.2.1) — 하단 탭 4개 + [🏠 홈] 격자.
+ * 화면 전환 (v11.2.1) — 하단 탭이 없다. 모든 화면은 [🏠 홈]의 아이콘에서 연다.
  *
- * 레이드·내 정보·게시판·관리는 탭이 아니라 홈의 아이콘이다.
  * 이름이 아니라 자리로 누른다 — 목록 안에도 '관리' 버튼이 있어서
  * 이름으로 찾으면 엉뚱한 것이 눌린다.
  */
-const NAV = { 잔액: 0, 아이템: 1, 연합: 2, 홈: 3 };
-const TILE = { 레이드: 0, '내 정보': 1, 게시판: 2, 관리: 3, 언어: 4 };
-const tab = async (name) => {
-  if (name in NAV) {
-    await page.locator('.nav button').nth(NAV[name]).click();
-  } else {
-    await page.locator('.nav button').nth(NAV.홈).click();
-    await page.waitForTimeout(300);
-    await page.locator('.tile').nth(TILE[name]).click();
+const TILE = { 잔액: 0, 아이템: 1, 연합: 2, 레이드: 3, '내 정보': 4, 게시판: 5, 언어: 6, 관리: 7 };
+
+const home = async () => {
+  const x = page.locator('.screen-x');
+  if (await x.count()) {
+    await x.click();
+    await page.waitForTimeout(350);
   }
+};
+
+const tab = async (name) => {
+  await home();
+  await page.locator('.tile').nth(TILE[name]).click();
   await page.waitForTimeout(400);
 };
 
@@ -115,13 +117,17 @@ console.log('\n📸 화면 촬영\n');
 
 /* ── 길드원이 보는 화면 ── */
 await page.goto(APP, { waitUntil: 'networkidle' });
+await page.waitForSelector('.tile');
+await snap('viewer', '홈 — 앱을 열면 여기서 시작합니다');
+
+await tab('잔액');
 await page.waitForSelector('.row-name');
 await snap('viewer', '잔액 — 누가 얼마나 받을지');
 
 await tab('아이템');
 await snap('viewer', '아이템 — 분배 버튼이 없다');
 
-await tab('홈');
+await home();
 await snap('viewer', '홈 — 지금 처리할 일 + 모든 화면');
 
 await tab('내 정보');

@@ -103,24 +103,26 @@ function eq(actual, expected, what) {
 }
 
 /**
- * 화면 이동 (v11.2.1) — 하단 탭 4개 + [🏠 홈] 격자.
+ * 화면 이동 (v11.2.1) — 하단 탭이 없다. 모든 화면은 [🏠 홈]의 아이콘에서 연다.
  *
- * 레이드·내 정보·게시판·관리는 탭이 아니라 홈의 아이콘이다. 자리를 검사마다
- * 적어두면 화면을 한 번 바꿀 때 스무 곳이 깨지므로, 여기 한 곳에서만 안다.
+ * 자리를 검사마다 적어두면 화면을 한 번 바꿀 때 스무 곳이 깨지므로 여기 한 곳에서만 안다.
  * 이름이 아니라 **자리**로 누른다 — 中文·English 화면에서도 그대로 쓰기 위해서다.
  */
-const NAV = { balance: 0, items: 1, alliance: 2, home: 3 };
-const TILE = { raid: 0, me: 1, board: 2, admin: 3, lang: 4 };
+const TILE = { balance: 0, items: 1, alliance: 2, raid: 3, me: 4, board: 5, lang: 6, admin: 7 };
+
+/** 지금 열려 있는 화면을 닫고 홈으로 (이미 홈이면 아무것도 안 한다) */
+async function goHome(page, wait = 400) {
+  const x = page.locator('.screen-x');
+  if (await x.count()) {
+    await x.click();
+    await page.waitForTimeout(wait);
+  }
+}
 
 async function go(page, which, wait = 700) {
-  if (which in NAV) {
-    await page.locator('.nav button').nth(NAV[which]).click();
-  } else {
-    if (TILE[which] === undefined) throw new Error(`모르는 화면: ${which}`);
-    await page.locator('.nav button').nth(NAV.home).click();
-    await page.waitForTimeout(300);
-    await page.locator('.tile').nth(TILE[which]).click();
-  }
+  if (TILE[which] === undefined) throw new Error(`모르는 화면: ${which}`);
+  await goHome(page);
+  await page.locator('.tile').nth(TILE[which]).click();
   await page.waitForTimeout(wait);
 }
 
@@ -1229,6 +1231,9 @@ await page.route('https://drive.google.com/**', async (route) => {
 
 await t('길드원 화면: 잔액이 보이고 관리 버튼은 없다', async () => {
   await page.goto(APP, { waitUntil: 'networkidle' });
+  // 첫 화면은 홈이다 (v11.2.1) — 잔액은 아이콘에서 연다
+  await page.waitForSelector('.tile');
+  await go(page, 'balance');
   await page.waitForSelector('.row-name');
   await shot('01-viewer-balance');
 
@@ -2525,24 +2530,39 @@ await t('공유 버튼: 잔액·아이템·연합·레이드·내정보에만 �
   }
 });
 
-await t('하단 탭은 잔액·아이템·연합·홈 넷이고, 나머지는 홈에서 연다 (화면)', async () => {
+await t('첫 화면은 홈이고, 모든 화면이 아이콘으로 있다 (v11.2.1, 화면)', async () => {
   await page.reload({ waitUntil: 'networkidle' });
-  const labels = await page.locator('.nav button').allInnerTexts();
-  const got = labels.map((s) => s.split('\n').pop().trim());
-  const want = ['잔액', '아이템', '연합', '홈'];
-  if (got.join(' ') !== want.join(' ')) throw new Error(`탭 순서: ${got.join(' ')} (기대 ${want.join(' ')})`);
 
-  // 탭에서 빠진 화면이 홈에 전부 있어야 한다 — 하나라도 빠지면 영영 못 연다
-  await go(page, 'home');
+  // 앱을 열면 홈이다 — 하단 탭바는 없다
+  eq(await page.locator('.nav').count(), 0, '하단 탭바');
+  eq(await page.locator('.screen-bar').count(), 0, '첫 화면이 홈인가');
+
   const tiles = (await page.locator('.tile').allInnerTexts()).map((s) => s.split('\n')[1]);
-  const wantTiles = ['레이드', '내 정보', '게시판', '관리', '언어'];
-  if (tiles.join(' ') !== wantTiles.join(' ')) {
-    throw new Error(`홈 격자: ${tiles.join(' ')} (기대 ${wantTiles.join(' ')})`);
+  const want = ['잔액', '아이템', '연합', '레이드', '내 정보', '게시판', '언어', '관리'];
+  if (tiles.join(' ') !== want.join(' ')) {
+    throw new Error(`홈 아이콘: ${tiles.join(' ')} (기대 ${want.join(' ')})`);
   }
+  // ★ 관리는 맨 마지막 — 엄지가 닿기 쉬운 자리에 두면 잘못 눌린다
+  eq(tiles[tiles.length - 1], '관리', '관리 위치');
 
-  // 글자 크기 — 탭이 7개일 때는 8.8px 까지 줄여야 했다
-  const px = await page.locator('.nav button').first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
-  if (!(px >= 11)) throw new Error(`하단 탭 글자가 ${px}px 입니다.`);
+  // 글자 크기 — 탭 7개 시절에는 8.8px 까지 줄여야 했다
+  const px = await page.locator('.tile b').first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  if (!(px >= 12)) throw new Error(`아이콘 글자가 ${px}px 입니다.`);
+
+  // 아이콘 하나하나가 실제로 그 화면을 연다
+  for (const [key, title] of [
+    ['balance', '잔액'],
+    ['items', '아이템'],
+    ['alliance', '연합'],
+    ['raid', '레이드'],
+    ['me', '내 정보'],
+    ['board', '게시판'],
+    ['admin', '관리'],
+  ]) {
+    await go(page, key);
+    eq((await page.locator('.screen-bar h2').innerText()).trim(), title, `${key} 화면 제목`);
+  }
+  await goHome(page);
 });
 
 await t('폰 뒤로가기: 팝업만 닫히고 앱을 벗어나지 않는다 (v11.2.1)', async () => {
@@ -2557,32 +2577,31 @@ await t('폰 뒤로가기: 팝업만 닫히고 앱을 벗어나지 않는다 (v1
   await page.goBack();
   await page.waitForTimeout(500);
   eq(await page.locator('.sheet').count(), 0, '뒤로가기 뒤 팝업');
-  // ★ 앱을 벗어나면 하단 탭 자체가 사라진다 — 입력하던 내용이 통째로 날아가던 사고
-  eq(await page.locator('.nav button').count(), 4, '뒤로가기 뒤에도 앱 안인가');
-  eq((await page.locator('.nav button.on').innerText()).includes('잔액'), true, '보던 탭 유지');
+  // ★ 앱을 벗어나면 화면 자체가 사라진다 — 입력하던 내용이 통째로 날아가던 사고
+  eq((await page.locator('.screen-bar h2').innerText()).trim(), '잔액', '보던 화면 유지');
 });
 
-await t('폰 뒤로가기: 홈이 아닌 탭에서는 홈으로 온다 (v11.2.1)', async () => {
+await t('폰 뒤로가기: 화면에서 누르면 홈으로 온다 (v11.2.1)', async () => {
   await page.reload({ waitUntil: 'networkidle' });
   await go(page, 'items');
+  eq(await page.locator('.screen-bar').count(), 1, '아이템 화면');
+
   await page.goBack();
   await page.waitForTimeout(500);
-  eq((await page.locator('.nav button.on').innerText()).includes('홈'), true, '뒤로가기 뒤 화면');
-  eq(await page.locator('.tile').count(), 5, '홈 격자');
+  eq(await page.locator('.screen-bar').count(), 0, '뒤로가기 뒤 홈');
+  eq(await page.locator('.tile').count(), 8, '홈 아이콘 개수');
 });
 
-await t('홈에서 연 화면은 [✕] 로 닫으면 보던 탭으로 돌아온다 (v11.2.1)', async () => {
+await t('화면은 [✕] 로도 닫히고, 겹친 것은 위에서부터 닫힌다 (v11.2.1)', async () => {
   await page.reload({ waitUntil: 'networkidle' });
-  await go(page, 'balance');
 
-  // 공지 띠 → 게시판 화면 (탭이 아니라 덮는 화면이다) + 그 글 팝업까지 함께 열린다
+  // 공지 띠 → 게시판 화면 + 그 글 팝업까지 함께 열린다 (두 겹)
   await page.locator('.notice-bar').click();
   await page.waitForTimeout(900);
-  eq(await page.locator('.screen-bar').count(), 1, '화면 머리줄');
   eq((await page.locator('.screen-bar h2').innerText()).trim(), '게시판', '화면 제목');
   eq(await page.locator('.sheet').count(), 1, '공지 글 팝업');
 
-  // ★ 두 겹이 덮여 있다 — 뒤로가기는 **위에 있는 팝업만** 닫아야 한다
+  // ★ 뒤로가기는 **위에 있는 팝업만** 닫는다
   await page.goBack();
   await page.waitForTimeout(500);
   eq(await page.locator('.sheet').count(), 0, '뒤로가기 뒤 팝업');
@@ -2590,10 +2609,10 @@ await t('홈에서 연 화면은 [✕] 로 닫으면 보던 탭으로 돌아온�
 
   await page.locator('.screen-x').click();
   await page.waitForTimeout(500);
-  eq(await page.locator('.screen-bar').count(), 0, '닫은 뒤 머리줄');
-  eq((await page.locator('.nav button.on').innerText()).includes('잔액'), true, '돌아온 탭');
+  eq(await page.locator('.screen-bar').count(), 0, '[✕] 로 닫기');
+  eq(await page.locator('.tile').count(), 8, '홈으로 돌아왔는가');
 
-  // 뒤로가기로도 닫힌다 (팝업 → 화면 순서)
+  // 뒤로가기 두 번으로도 같은 순서로 닫힌다
   await page.locator('.notice-bar').click();
   await page.waitForTimeout(900);
   await page.goBack();
@@ -2601,26 +2620,26 @@ await t('홈에서 연 화면은 [✕] 로 닫으면 보던 탭으로 돌아온�
   await page.goBack();
   await page.waitForTimeout(500);
   eq(await page.locator('.screen-bar').count(), 0, '뒤로가기로 닫기');
-  eq((await page.locator('.nav button.on').innerText()).includes('잔액'), true, '뒤로가기 뒤 탭');
+  eq(await page.locator('.tile').count(), 8, '뒤로가기 뒤 홈');
 });
 
 await t('홈: 지금 처리할 일을 누르면 그 화면으로 간다 (v11.2.1)', async () => {
   await reset();
   await page.reload({ waitUntil: 'networkidle' });
-  await go(page, 'home');
 
   const todo = await page.locator('.todo-row').allInnerTexts();
   const items = todo.find((x) => x.includes('미분배 아이템'));
   if (!items) throw new Error(`홈에 미분배 아이템 줄이 없습니다: ${todo.join(' / ')}`);
-  // 잔액 탭 대시보드와 같은 숫자여야 한다 — 두 화면이 다르면 고장으로 보인다
+
+  // 잔액 화면 대시보드와 같은 숫자여야 한다 — 두 화면이 다르면 고장으로 보인다
   await go(page, 'balance');
   const dash = (await page.locator('.dash-item').first().innerText()).split('\n')[0].trim();
   if (!items.includes(dash)) throw new Error(`홈 ${items} 과 잔액 대시보드 ${dash} 이 다릅니다.`);
+  await goHome(page);
 
-  await go(page, 'home');
   await page.locator('.todo-row').filter({ hasText: '미분배 아이템' }).click();
   await page.waitForTimeout(600);
-  eq((await page.locator('.nav button.on').innerText()).includes('아이템'), true, '이동한 탭');
+  eq((await page.locator('.screen-bar h2').innerText()).trim(), '아이템', '이동한 화면');
 });
 
 await t('관리자 화면에는 마스터 전용 기능이 아예 보이지 않는다', async () => {
@@ -2753,12 +2772,13 @@ await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', asyn
   const head = await page.locator('.header h1').innerText();
   if (/[가-힣]/.test(head)) throw new Error(`헤더에 한글이 남아 있습니다: ${head}`);
 
-  // 하단 탭 이름이 전부 중문이어야 한다
-  const nav = await page.locator('.nav').innerText();
-  for (const want of ['余额', '物品', '联盟', '主页']) {
-    if (!nav.includes(want)) throw new Error(`탭에 ${want} 이(가) 없습니다: ${nav}`);
+  // 홈 아이콘 이름이 전부 중문이어야 한다
+  await goHome(page);
+  const grid = await page.locator('.grid').innerText();
+  for (const want of ['余额', '物品', '联盟', '管理']) {
+    if (!grid.includes(want)) throw new Error(`홈에 ${want} 이(가) 없습니다: ${grid}`);
   }
-  if (/[가-힣]/.test(nav)) throw new Error(`탭에 한글이 남아 있습니다: ${nav}`);
+  if (/[가-힣]/.test(grid)) throw new Error(`홈에 한글이 남아 있습니다: ${grid}`);
   await shot('11-zh-nav');
 
   // 각 탭을 돌며 한글이 남아 있는지 본다 (사람 이름·아이템명은 데이터라 제외)
@@ -2771,7 +2791,8 @@ await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', asyn
                      '车武植', '大西瓜Z',
                      '토요일', '오늘 밤', '미분배', '분배완료'];
   for (const tab of ['balance', 'items', 'board', 'alliance', 'me', 'home']) {
-    await go(page, tab, 600);
+    if (tab === 'home') await goHome(page, 600);
+    else await go(page, tab, 600);
     let body = await page.locator('main').innerText();
     if (!body.trim()) throw new Error(`${tab} 화면이 비었습니다.`);
     dataWords.forEach((w) => { body = body.split(w).join(''); });
@@ -2801,11 +2822,12 @@ await t('English 로 바꾸면 화면 문구가 전부 영문이 된다', async 
   const head = await page.locator('.header h1').innerText();
   if (/[가-힣]/.test(head)) throw new Error(`헤더에 한글이 남아 있습니다: ${head}`);
 
-  const nav = await page.locator('.nav').innerText();
-  for (const want of ['Balance', 'Items', 'Alliance', 'Home']) {
-    if (!nav.includes(want)) throw new Error(`탭에 ${want} 이(가) 없습니다: ${nav}`);
+  await goHome(page);
+  const grid = await page.locator('.grid').innerText();
+  for (const want of ['Balance', 'Items', 'Alliance', 'Admin']) {
+    if (!grid.includes(want)) throw new Error(`홈에 ${want} 이(가) 없습니다: ${grid}`);
   }
-  if (/[가-힣]/.test(nav)) throw new Error(`탭에 한글이 남아 있습니다: ${nav}`);
+  if (/[가-힣]/.test(grid)) throw new Error(`홈에 한글이 남아 있습니다: ${grid}`);
   await shot('13-en-nav');
 
   const dataWords = ['가이', '잠단', '斬斷', 'TC무식', '향로셔틀', '대서과Z', '팩맨', '詹阿呆',
@@ -2817,7 +2839,8 @@ await t('English 로 바꾸면 화면 문구가 전부 영문이 된다', async 
                      '车武植', '大西瓜Z',
                      '토요일', '오늘 밤', '미분배', '분배완료'];
   for (const tab of ['balance', 'items', 'board', 'alliance', 'me', 'home']) {
-    await go(page, tab, 600);
+    if (tab === 'home') await goHome(page, 600);
+    else await go(page, tab, 600);
     let body = await page.locator('main').innerText();
     if (!body.trim()) throw new Error(`${tab} 화면이 비었습니다.`);
     dataWords.forEach((w) => { body = body.split(w).join(''); });

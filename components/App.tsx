@@ -19,7 +19,6 @@ import LangSheet from './LangSheet';
 import DistributeSheet from './DistributeSheet';
 import PayoutSheet from './PayoutSheet';
 import SeasonSheet from './SeasonSheet';
-import { pushBack, releaseBack } from '@/lib/back';
 
 /** Apps Script 가 앱 이름을 정하지 않았을 때 내려주는 기본값 */
 const DEFAULT_APP_NAME = '길드정산';
@@ -33,27 +32,20 @@ const DEFAULT_APP_NAME = '길드정산';
  */
 const POLL_MS = 25_000;
 
-/** 하단 탭 — 매일 쓰는 것만 (v11.2.1) */
-type Tab = 'balance' | 'items' | 'alliance' | 'home';
-/** 홈에서 열어 화면을 덮는 것 — 뒤로가기·[✕] 로 닫는다 */
-type Screen = 'raid' | 'me' | 'board' | 'admin';
-
 /**
- * 아래 탭 줄 (v11.2.1 — 7개에서 4개로).
+ * 화면 (v11.2.1) — 하단 탭이 없다. 홈의 아이콘에서 열고, [✕]·뒤로가기로 닫는다.
  *
- * 7개일 때는 글자를 8.8px 까지 줄여야 들어갔다. 매일 쓰는 셋(잔액·아이템·연합)만
- * 남기고 나머지는 [🏠 홈] 안의 아이콘으로 옮겨 11.5px 로 키웠다.
- * 홈은 맨 끝이다 — 왼쪽 셋이 손에 익은 자리를 그대로 지킨다.
+ * 탭 7개 시절에는 글자를 8.8px 까지 줄여야 들어갔고, 눈이 나쁜 사람은 읽지 못했다.
+ * 아이콘 격자는 글자를 줄일 이유가 없고, 화면이 늘어도 한 칸만 더 놓으면 된다.
+ * 첫 화면은 **홈**이다 — 열자마자 "지금 처리할 일"이 숫자로 보인다.
  */
-const TABS: { id: Tab; icon: string; key: string }[] = [
-  { id: 'balance', icon: '💰', key: 'tab.balance' },
-  { id: 'items', icon: '📦', key: 'tab.items' },
-  { id: 'alliance', icon: '🤝', key: 'tab.alliance' },
-  { id: 'home', icon: '🏠', key: 'tab.home' },
-];
+type Screen = 'balance' | 'items' | 'alliance' | 'raid' | 'me' | 'board' | 'admin';
 
-/** 홈에서 연 화면의 제목 — 어디에 있는지 화면 위에 항상 보인다 */
+/** 화면 제목 — 지금 어디에 있고 어떻게 나가는지가 위에 항상 보인다 */
 const SCREEN_TITLE: Record<Screen, string> = {
+  balance: 'tab.balance',
+  items: 'tab.items',
+  alliance: 'tab.alliance',
   raid: 'tab.raid',
   me: 'tab.me',
   board: 'tab.board',
@@ -62,7 +54,7 @@ const SCREEN_TITLE: Record<Screen, string> = {
 
 export default function App() {
   const { t, srv } = useT();
-  const [tab, setTab] = useState<Tab>('balance');
+  // null 이면 홈(아이콘 격자)이다 — 앱을 열면 여기서 시작한다
   const [screen, setScreen] = useState<Screen | null>(null);
   const [langOpen, setLangOpen] = useState(false);
   const [state, setState] = useState<GuildState | null>(null);
@@ -82,8 +74,6 @@ export default function App() {
   const [distTarget, setDistTarget] = useState<LedgerItem | null>(null);
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** "홈이 아닌 곳에 있다"는 표식 하나 — 뒤로가기가 홈으로 데려온다 */
-  const awayRef = useRef(0);
 
   const toast = useCallback((text: string, err = false) => {
     setToastMsg({ text, err });
@@ -164,27 +154,6 @@ export default function App() {
     }, POLL_MS);
     return () => clearInterval(id);
   }, [refresh]);
-
-  /**
-   * 홈이 아닌 탭에 있는 동안 뒤로가기는 **홈으로** 보낸다 (v11.2.1).
-   *
-   * 표식은 언제나 하나뿐이다 — 잔액↔아이템처럼 탭을 여러 번 옮겨도
-   * 쌓이지 않는다. 그래서 홈에서 누른 뒤로가기 한 번이면 앱을 나간다.
-   * 화면(레이드·게시판…)이 덮여 있으면 그것이 위에 쌓여 있으므로
-   * 먼저 닫히고, 그다음 뒤로가기가 홈으로 온다.
-   */
-  useEffect(() => {
-    if (tab !== 'home' && awayRef.current === 0) {
-      awayRef.current = pushBack(() => {
-        awayRef.current = 0;
-        setScreen(null);
-        setTab('home');
-      });
-    } else if (tab === 'home' && awayRef.current !== 0) {
-      releaseBack(awayRef.current);
-      awayRef.current = 0;
-    }
-  }, [tab]);
 
   // "n초 전" 표시를 살아 있게 한다 (표시용 — 네트워크 호출과 무관)
   useEffect(() => {
@@ -324,9 +293,34 @@ export default function App() {
         </div>
       ) : (
         <main>
-          {/* 홈에서 연 화면은 탭 위를 덮는다 — [✕]·뒤로가기로 닫으면 있던 탭으로 돌아온다 */}
+          {/* 홈에서 연 화면 — 하나만 떠 있고, [✕]·뒤로가기로 홈에 돌아온다 */}
           {screen ? (
             <Screen title={t(SCREEN_TITLE[screen])} onClose={() => setScreen(null)}>
+              {screen === 'balance' ? (
+                <BalanceTab state={state} admin={admin} onPayout={setPayTarget} toast={toast} />
+              ) : null}
+              {screen === 'items' ? (
+                <ItemsTab
+                  state={state}
+                  admin={admin}
+                  master={master}
+                  onDistribute={setDistTarget}
+                  onDone={refreshNow}
+                  toast={toast}
+                  setBusy={setBusy}
+                />
+              ) : null}
+              {screen === 'alliance' ? (
+                // 연합 정산은 혈맹운영비 잔액을 실제로 늘리고 줄인다 — 잔액도 같이 맞춰야 한다
+                <AllianceTab
+                  admin={admin}
+                  master={master}
+                  fundName={state.fundName}
+                  toast={toast}
+                  setBusy={setBusy}
+                  onWrote={refreshNow}
+                />
+              ) : null}
               {screen === 'raid' ? <RaidTab admin={admin} toast={toast} setBusy={setBusy} /> : null}
               {screen === 'me' ? <MeTab state={state} toast={toast} /> : null}
               {screen === 'board' ? (
@@ -350,68 +344,11 @@ export default function App() {
                 />
               ) : null}
             </Screen>
-          ) : null}
-
-          {!screen && tab === 'home' ? (
-            <HomeTab
-              state={state}
-              admin={admin}
-              onGo={(to) => {
-                if (to === 'balance' || to === 'items' || to === 'alliance') setTab(to);
-                else setScreen(to);
-              }}
-              onLang={() => setLangOpen(true)}
-            />
-          ) : null}
-
-          {!screen && tab === 'balance' ? (
-            <BalanceTab state={state} admin={admin} onPayout={setPayTarget} toast={toast} />
-          ) : null}
-          {!screen && tab === 'items' ? (
-            <ItemsTab
-              state={state}
-              admin={admin}
-              master={master}
-              onDistribute={setDistTarget}
-              onDone={refreshNow}
-              toast={toast}
-              setBusy={setBusy}
-            />
-          ) : null}
-          {!screen && tab === 'alliance' ? (
-            // 연합 정산은 혈맹운영비 잔액을 실제로 늘리고 줄인다 — 잔액 탭도 같이 맞춰야 한다
-            <AllianceTab
-              admin={admin}
-              master={master}
-              fundName={state.fundName}
-              toast={toast}
-              setBusy={setBusy}
-              onWrote={refreshNow}
-            />
-          ) : null}
+          ) : (
+            <HomeTab state={state} admin={admin} onGo={setScreen} onLang={() => setLangOpen(true)} />
+          )}
         </main>
       )}
-
-      <nav className="nav">
-        {TABS.map((tb) => {
-          // 화면이 덮여 있는 동안에는 어느 탭도 "지금 여기"가 아니다
-          const on = !screen && tab === tb.id;
-          return (
-            <button
-              key={tb.id}
-              className={on ? 'on' : ''}
-              onClick={() => {
-                setScreen(null);
-                setTab(tb.id);
-              }}
-              aria-current={on ? 'page' : undefined}
-            >
-              <span className="ico">{tb.icon}</span>
-              {t(tb.key)}
-            </button>
-          );
-        })}
-      </nav>
 
       {langOpen ? <LangSheet onClose={() => setLangOpen(false)} /> : null}
 

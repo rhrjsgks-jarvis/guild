@@ -1889,44 +1889,62 @@ check('폰 뒤로가기는 앱을 벗어나지 않고 덮인 것만 닫는다 (v
   const screen = readFileSync(resolve(ROOT, 'components/Screen.tsx'), 'utf8');
   if (!/useBackClose\(onClose\)/.test(screen)) throw new Error('홈에서 연 화면이 뒤로가기로 닫히지 않습니다.');
   const app = readFileSync(resolve(ROOT, 'components/App.tsx'), 'utf8');
-  if (!/pushBack\(\(\) => \{[\s\S]{0,200}setTab\('home'\)/.test(app)) {
-    throw new Error('홈이 아닌 탭에서 뒤로가기가 홈으로 오지 않습니다.');
+  // 홈에서 연 화면은 Screen 이 감싸므로 그것 하나로 전부 덮인다
+  if (!/<Screen title=\{t\(SCREEN_TITLE\[screen\]\)\} onClose=\{\(\) => setScreen\(null\)\}>/.test(app)) {
+    throw new Error('화면이 Screen 으로 감싸여 있지 않습니다 — 뒤로가기로 닫히지 않습니다.');
   }
 
-  return '표식 1개 · 세 겹 순서대로 · 닫을 것 없으면 앱 밖으로 · 팝업/크게보기/화면/탭 4곳';
+  return '표식 1개 · 세 겹 순서대로 · 닫을 것 없으면 앱 밖으로 · 팝업/크게보기/화면 3곳';
 });
 
-check('하단 탭은 4개이고 나머지는 홈에서 연다 (v11.2.1)', () => {
+check('하단 탭이 없고 모든 화면은 홈 아이콘에서 연다 (v11.2.1)', () => {
   /*
    * 탭 7개는 글자를 8.8px 까지 줄여야 들어갔다 (영문 "Balance"·"Alliance" 기준).
-   * 눈이 나쁜 사람은 읽지 못한다. 매일 쓰는 셋만 남기고 나머지는 홈 격자로 옮겼다.
+   * 눈이 나쁜 사람은 읽지 못한다. 하단바를 없애고 홈의 아이콘 하나로 통일했다 —
+   * 화면이 하나 더 늘어도 칸만 하나 더 놓으면 되고, 글자를 줄일 이유가 없다.
    */
   const css = readFileSync(resolve(ROOT, 'app/globals.css'), 'utf8');
-  const rule = (css.match(/\.nav button \{[^}]*\}/) ?? [''])[0];
-  const px = Number((rule.match(/font-size: ([\d.]+)px/) ?? [0, 0])[1]);
-  if (!(px >= 11)) throw new Error(`하단 탭 글자가 ${px}px 입니다 — 11px 아래로 내려가면 읽히지 않습니다.`);
-
+  if (/^\.nav \{/m.test(css) || /^\.nav button/m.test(css)) {
+    throw new Error('하단 탭바 스타일이 남아 있습니다 — 새 화면은 홈 격자에 넣으세요.');
+  }
   const app = readFileSync(resolve(ROOT, 'components/App.tsx'), 'utf8');
-  const tabs = [...app.matchAll(/\{ id: '(\w+)', icon:/g)].map((m) => m[1]);
-  if (tabs.length > 4) throw new Error(`하단 탭이 ${tabs.length}개입니다 — 새 화면은 홈 격자에 넣으세요.`);
-  if (tabs[tabs.length - 1] !== 'home') throw new Error('홈이 하단 탭 맨 끝에 없습니다.');
+  if (/<nav/.test(app)) throw new Error('App.tsx 에 하단 탭바가 남아 있습니다.');
 
-  // 탭에서 빠진 화면은 **전부** 홈에서 갈 수 있어야 한다 — 하나라도 빠지면 영영 못 연다
+  // 아이콘 글자 — 격자는 줄일 이유가 없다
+  const tile = (css.match(/\.tile b \{[^}]*\}/) ?? [''])[0];
+  const px = Number((tile.match(/font-size: ([\d.]+)px/) ?? [0, 0])[1]);
+  if (!(px >= 12)) throw new Error(`아이콘 글자가 ${px}px 입니다 — 12px 아래로 내려가면 읽히지 않습니다.`);
+
+  /*
+   * 아이콘 순서 — 사용자가 정한 그대로. **관리는 언제나 맨 마지막**이다:
+   * 엄지가 닿기 쉬운 자리에 두면 PIN·도구 화면이 잘못 눌린다.
+   */
   const home = readFileSync(resolve(ROOT, 'components/HomeTab.tsx'), 'utf8');
-  for (const to of ['raid', 'me', 'board', 'admin']) {
+  const tilesAt = home.indexOf('const tiles');
+  // ★ 'return (' 은 앞쪽 useEffect 의 정리 함수에도 있다 — 반드시 tiles 뒤에서 찾는다
+  const tilesSrc = home.slice(tilesAt, home.indexOf('];', tilesAt));
+  const order = [...tilesSrc.matchAll(/key: '(\w+)'/g)].map((m) => m[1]);
+  const expected = ['balance', 'items', 'alliance', 'raid', 'me', 'board', 'lang', 'admin'];
+  if (order.join(',') !== expected.join(',')) {
+    throw new Error(`아이콘 순서가 다릅니다: ${order.join(' ')} (기대 ${expected.join(' ')})`);
+  }
+  if (order[order.length - 1] !== 'admin') throw new Error('관리가 맨 마지막이 아닙니다.');
+
+  // 모든 화면이 홈에서 열려야 한다 — 하나라도 빠지면 영영 못 연다
+  for (const to of ['balance', 'items', 'alliance', 'raid', 'me', 'board', 'admin']) {
     if (!new RegExp(`onGo\\('${to}'\\)`).test(home)) throw new Error(`홈에서 ${to} 화면으로 갈 수 없습니다.`);
     if (!new RegExp(`${to}: 'tab\\.${to}'`).test(app)) {
       throw new Error(`${to} 화면에 제목이 없습니다 — 어디에 있는지 알 수 없습니다.`);
     }
   }
-  // 나가는 길
+  // 나가는 길 (뒤로가기는 별도 검사)
   const screen = readFileSync(resolve(ROOT, 'components/Screen.tsx'), 'utf8');
-  if (!/className="screen-x"/.test(screen)) throw new Error('홈에서 연 화면에 닫기 버튼이 없습니다.');
+  if (!/className="screen-x"/.test(screen)) throw new Error('화면에 닫기 버튼이 없습니다.');
   if (!/aria-label=\{t\('c\.close'\)\}/.test(screen)) throw new Error('닫기 버튼에 이름이 없습니다.');
 
   /*
-   * ★ 홈의 연합·레이드 숫자는 따로 읽어야 한다. 홈은 자주 열리므로 캐시가 없으면
-   *   Apps Script 실행 할당량을 그대로 태운다 (규칙 6-2 와 같은 이유).
+   * ★ 홈의 연합·레이드 숫자는 따로 읽어야 한다. 홈은 이제 **모든 이동의 길목**이라
+   *   캐시가 없으면 Apps Script 실행 할당량을 그대로 태운다 (규칙 6-2 와 같은 이유).
    *   못 읽었을 때 0 으로 보여주면 "처리할 일이 없다"는 거짓말이 된다.
    */
   const ttl = Number((home.match(/MEMO_MS = ([\d_]+)/) ?? [0, '0'])[1].replace(/_/g, ''));
@@ -1937,7 +1955,7 @@ check('하단 탭은 4개이고 나머지는 홈에서 연다 (v11.2.1)', () => 
   }
   if (!/dropHomeMemo\(\)/.test(app)) throw new Error('쓰기 직후에 홈 숫자를 새로 읽지 않습니다.');
 
-  return `하단 ${tabs.length}개 · 글자 ${px}px · 홈에서 4화면 · 닫기 버튼 · 숫자 캐시 ${ttl / 1000}초`;
+  return `하단바 없음 · 아이콘 ${order.length}개(관리 맨 끝) · 글자 ${px}px · 닫기 버튼 · 숫자 캐시 ${ttl / 1000}초`;
 });
 
 check('인증샷은 앱 안에서 바로 보인다 (v11.1)', () => {
@@ -2804,15 +2822,15 @@ check('공유 버튼은 게시판·관리 탭에 없다', () => {
   const btn = readFileSync(resolve(ROOT, 'components/ShareBtn.tsx'), 'utf8');
   if (!/r === 'copied'/.test(btn)) throw new Error('클립보드로 물러섰을 때 사용자에게 알리지 않습니다.');
 
-  // 탭 순서 (사용자가 지정한 순서 그대로 — v11.2.1 부터 4개, 나머지는 홈 격자로)
+  // 화면 목록 (v11.2.1 — 하단 탭이 없어져 App.tsx 의 제목표가 곧 전체 화면 목록이다)
   const app = readFileSync(resolve(ROOT, 'components/App.tsx'), 'utf8');
-  const order = [...app.matchAll(/\{ id: '(\w+)', icon:/g)].map((m) => m[1]);
-  const expected = ['balance', 'items', 'alliance', 'home'];
-  if (order.join(',') !== expected.join(',')) {
-    throw new Error(`탭 순서가 다릅니다: ${order.join(' ')} (기대 ${expected.join(' ')})`);
+  const screens = [...app.matchAll(/^  (\w+): 'tab\.\w+',$/gm)].map((m) => m[1]);
+  const expected = ['balance', 'items', 'alliance', 'raid', 'me', 'board', 'admin'];
+  if (screens.join(',') !== expected.join(',')) {
+    throw new Error(`화면 목록이 다릅니다: ${screens.join(' ')} (기대 ${expected.join(' ')})`);
   }
 
-  return `공유 ${want.length}곳 · 제외 ${forbid.length}곳 · 탭 순서 ${expected.length}개`;
+  return `공유 ${want.length}곳 · 제외 ${forbid.length}곳 · 화면 ${expected.length}개`;
 });
 
 check('아이콘을 바꾸면 폰에서도 실제로 바뀐다', () => {

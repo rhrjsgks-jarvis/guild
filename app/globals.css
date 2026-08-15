@@ -39,7 +39,8 @@
   --radius: 16px;
   --shadow: 0 1px 2px rgba(40, 32, 16, 0.06), 0 4px 16px rgba(40, 32, 16, 0.07);
 
-  --nav-h: 60px;
+  /* 하단 탭바가 사라져 0 이다. 안전영역(홈 인디케이터)만 따로 챙긴다 (v11.2.1) */
+  --nav-h: 0px;
   --header-h: 52px;
 }
 
@@ -1102,45 +1103,10 @@ select:focus {
   overflow: auto;
 }
 
-/* ───────── 하단 탭바 ───────── */
-.nav {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 40;
-  display: flex;
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-  backdrop-filter: saturate(180%) blur(14px);
-  -webkit-backdrop-filter: saturate(180%) blur(14px);
-  border-top: 1px solid var(--line);
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-.nav button {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  height: var(--nav-h);
-  /* v11.3 에서 탭을 7개 → 4개(잔액·아이템·연합·홈)로 줄이면서 8.8px → 11.5px.
-     7개일 때는 영문("Balance"·"Alliance") 기준으로 8.8px 까지 줄여야 했다.
-     ★ 탭을 다시 늘리려거든 여기 대신 [🏠 홈]의 격자에 넣으세요 — 글자를 다시
-       줄이면 눈이 나쁜 사람이 못 읽습니다. */
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: -0.2px;
-  white-space: nowrap;
-  color: var(--text-faint);
-}
-
-.nav button .ico {
-  font-size: 17px;
-  line-height: 1;
-}
+/* 하단 탭바는 v11.2.1 에서 없앴다 — 모든 화면은 [🏠 홈]의 아이콘에서 연다.
+   탭 7개 시절에는 글자를 8.8px 까지 줄여야 들어갔고, 눈이 나쁜 사람은 읽지 못했다.
+   ★ 화면을 새로 만들면 하단바를 되살리지 말고 components/HomeTab.tsx 의 격자에
+     칸을 하나 더 놓으세요. */
 
 /* 공지 띠 — 어느 탭에 있든 항상 화면 맨 위에 붙는다 */
 .notice-bar {
@@ -1164,27 +1130,6 @@ select:focus {
     background: #3A2F12;
     border-bottom-color: #5A4A1E;
   }
-}
-
-.nav button.on {
-  color: var(--brand);
-}
-
-/* 활성 탭 위에 금색 선 하나. 색만으로 구분하면 색각 이상이 있는 사람에게는
-   표시가 없는 것과 같다 — 위치로도 알 수 있어야 한다. */
-.nav button.on::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 22%;
-  right: 22%;
-  height: 2px;
-  border-radius: 0 0 2px 2px;
-  background: var(--gold);
-}
-
-.nav button {
-  position: relative;
 }
 
 /* ───────── 시트 모달 ───────── */
