@@ -7,7 +7,7 @@ import ServerPicker from './ServerPicker';
 import ServerFilter from './ServerFilter';
 import Sheet from './Sheet';
 import type { RenameRecord, RosterEntry } from '@/lib/types';
-import { CLASS_LIST, api, byName, fmt, fullName, fundFirst, getStoredEmail, mergeName, normName, normServer } from '@/lib/client';
+import { CLASS_LIST, api, byName, classLabel, fmt, fullName, fundFirst, getStoredEmail, mergeName, normName, normServer } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
@@ -29,7 +29,7 @@ export default function RosterCard({
   onChanged: (res?: ApiResult) => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
-  const { t, srv } = useT();
+  const { t, srv, lang } = useT();
   const [roster, setRoster] = useState<RosterEntry[] | null>(null);
   const [error, setError] = useState('');
   const [target, setTarget] = useState<RosterEntry | null>(null);
@@ -163,7 +163,7 @@ export default function RosterCard({
                   <div className="row-sub">
                     {/* 클래스는 아랫줄에 둔다 (v11.5) — 이름 옆은 서버·한자가 이미 차지했고,
                         거기에 하나 더 붙이면 긴 이름이 잘려 다른 사람으로 오인된다 */}
-                    {m.cls ? `${m.cls} · ` : ''}
+                    {m.cls ? `${classLabel(m.cls, lang)} · ` : ''}
                     {m.weight !== undefined && m.weight !== 100 ? `${t('c.ratio')} ${m.weight}% · ` : ''}
                     {t('c.pending')} {fmt(m.pending)} {unit}
                   </div>
@@ -303,7 +303,7 @@ function MemberSheet({
   onDone: (res?: ApiResult) => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
-  const { t, srv } = useT();
+  const { t, srv, lang } = useT();
   const [newName, setNewName] = useState(member.name);
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<Mode>('edit');
@@ -641,7 +641,7 @@ function MemberSheet({
         <option value="">{t('ros.clsNone')}</option>
         {CLASS_LIST.map((c) => (
           <option key={c} value={c}>
-            {c}
+            {classLabel(c, lang)}
           </option>
         ))}
       </select>

@@ -59,6 +59,8 @@ export type MemberInfo = {
   server: string;
   /** 중국어권 혈맹원용 한자 표기 — 관리자가 눈으로 확인해 저장한 값만 들어온다 */
   hanja: string;
+  /** 리니지W 클래스 (v11.5) — 공식 13종 중 하나이거나 빈칸. 한 사람에 하나다 */
+  cls?: string;
 };
 
 export type LookupResult = {

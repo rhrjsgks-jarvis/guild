@@ -223,6 +223,9 @@ export function mergeName(name: string, hanja?: string): { main: string; sub: st
 /** `serverOf` 가 필요로 하는 최소한의 상태 */
 export type ServerSource = { memberInfo?: { name: string; server?: string }[] };
 
+/** `classOf` 가 필요로 하는 최소한의 상태 (v11.5) */
+export type ClassSource = { memberInfo?: { name: string; cls?: string }[] };
+
 /**
  * 이름 정렬 — 한국어 ㄱ~ㅎ (v10.9.2).
  *
@@ -289,10 +292,64 @@ export const CLASS_LIST = [
   '총사', '마격사', '성기사', '나찰', '귀검사', '혈법사',
 ];
 
+/**
+ * 클래스의 세 언어 표기 — 리니지W 공식 게임정보의 값 그대로다 (v11.5).
+ *
+ * 아이템명은 **열린 집합**이라 [용어] 시트에 모으지만, 클래스는 **닫힌 13종**이고
+ * 공식이 세 언어를 모두 제공한다. 그래서 사전이 아니라 여기에 둔다 —
+ * 사전에 넣으면 관리자가 13줄을 손으로 채워야 하고, 하나라도 비면
+ * 그 클래스만 대만 혈맹원에게 한국어로 보인다.
+ *
+ * ★ 시트에 저장되는 값은 **언제나 국문**이다 (아이템명과 같은 규칙).
+ *   여기 표는 보여줄 때만 쓴다.
+ */
+export const CLASS_I18N: Record<string, { zh: string; en: string }> = {
+  기사: { zh: '騎士', en: 'Knight' },
+  요정: { zh: '妖精', en: 'Elf' },
+  마법사: { zh: '魔法師', en: 'Magician' },
+  다크엘프: { zh: '黑暗妖精', en: 'Dark Elf' },
+  전사: { zh: '戰士', en: 'Warrior' },
+  군주: { zh: '王族', en: 'Monarch' },
+  수라: { zh: '修羅', en: 'Sura' },
+  총사: { zh: '槍手', en: 'Gunslinger' },
+  마격사: { zh: '魔鬥士', en: 'Mana Striker' },
+  성기사: { zh: '聖騎士', en: 'Paladin' },
+  나찰: { zh: '羅剎', en: 'Nachal' },
+  귀검사: { zh: '鬼劍士', en: 'Spirit Blader' },
+  혈법사: { zh: '血法師', en: 'Blood Magician' },
+};
+
+/**
+ * 화면 언어로 보여줄 클래스 표기.
+ * 표에 없는 값(옛 시트에 손으로 적어둔 것 등)은 **그대로** 돌려준다 —
+ * 지우거나 바꾸면 관리자가 넣어둔 값이 화면에서 사라진다 (규칙 7).
+ */
+export function classLabel(cls: string, lang: 'ko' | 'zh' | 'en'): string {
+  const v = String(cls ?? '').trim();
+  if (!v || lang === 'ko') return v;
+  const hit = CLASS_I18N[v];
+  return hit ? hit[lang] : v;
+}
+
 /** 멤버DB F열의 서버. 없으면 빈 문자열 — 지어내지 않는다 */
 export function serverOf(state: ServerSource | null | undefined, name: string): string {
   const hit = (state?.memberInfo ?? []).find((m) => normName(m.name) === normName(name));
   return normServer(hit?.server);
+}
+
+/**
+ * 멤버DB H열의 클래스 (v11.5). 없으면 빈 문자열 — 지어내지 않는다.
+ *
+ * `serverOf` 와 같은 자리에 같은 모양으로 둔다. 화면마다 memberInfo 를 직접
+ * 뒤지면 이름 비교가 제각각이 되어(규칙 4) 같은 사람이 화면마다 다르게 보인다.
+ *
+ * ★ 이름 옆이 아니라 **아랫줄**에 붙이는 용도다. 이름 옆은 서버 배지와 한자가
+ *   이미 차지했고, 참여자 칩에는 폭 예산이 걸려 있어 하나 더 얹으면 이름이
+ *   잘린다 — 잘린 이름은 다른 사람으로 오인된다.
+ */
+export function classOf(state: ClassSource | null | undefined, name: string): string {
+  const hit = (state?.memberInfo ?? []).find((m) => normName(m.name) === normName(name));
+  return String(hit?.cls ?? '').trim();
 }
 
 /**

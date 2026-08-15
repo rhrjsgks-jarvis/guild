@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { BalanceRow, GuildState } from '@/lib/types';
-import { byName, fmt, fundFirst, nameParts, normName, normServer } from '@/lib/client';
+import { byName, classLabel, classOf, fmt, fundFirst, nameParts, normName, normServer } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 import ShareBtn from './ShareBtn';
 import ServerFilter, { NO_SERVER } from './ServerFilter';
@@ -18,7 +18,7 @@ export default function BalanceTab({
   onPayout: (row: BalanceRow) => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
-  const { t, unit } = useT();
+  const { t, unit, lang } = useT();
   const [q, setQ] = useState('');
   const [onlyOwed, setOnlyOwed] = useState(false);
   /**
@@ -196,6 +196,8 @@ export default function BalanceTab({
                     ) : null}
                   </div>
                   <div className="row-sub">
+                    {/* 클래스는 아랫줄에 (v11.5) — 이름 옆은 서버·한자가 이미 차지했다 */}
+                    {classOf(state, r.name) ? `${classLabel(classOf(state, r.name), lang)} · ` : ''}
                     {t('c.joined')} {t('c.times', { n: r.cnt })}
                   </div>
                 </div>

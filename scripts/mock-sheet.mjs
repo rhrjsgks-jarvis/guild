@@ -73,9 +73,9 @@ function freshState() {
     // weight/server/hanja 는 멤버DB E·F·G 열을 흉내낸다.
     // '대서과Z' 를 50% 로 두어 비중 계산이 화면까지 이어지는지 볼 수 있게 한다.
     rows: [
-      { name: '가이', pending: 12400, paid: 88000, cnt: 31, weight: 100, server: '01', hanja: '' },
+      { name: '가이', pending: 12400, paid: 88000, cnt: 31, weight: 100, server: '01', hanja: '', cls: '기사' },
       { name: '잠단(斬斷)', pending: 0, paid: 45200, cnt: 19, weight: 100, server: '02', hanja: '斬斷' },
-      { name: 'TC무식', pending: 33150, paid: 120400, cnt: 44, weight: 100, server: '01', hanja: '车武植' },
+      { name: 'TC무식', pending: 33150, paid: 120400, cnt: 44, weight: 100, server: '01', hanja: '车武植', cls: '마법사' },
       { name: FUND_NAME, pending: 51000, paid: 0, cnt: 12, weight: 100, server: '', hanja: '' },
       { name: 'PlusS', pending: 7700, paid: 15000, cnt: 8, weight: 100, server: '03', hanja: '' },
       { name: '향로셔틀', pending: 0, paid: 9800, cnt: 5, weight: 100, server: '', hanja: '' },
@@ -369,7 +369,7 @@ const handlers = {
       rows: S.rows.map((r) => ({ ...r })),
       items: S.items.map((i) => ({ ...i })),
       members: S.rows.map((r) => r.name),
-      memberInfo: S.rows.map((r) => ({ name: r.name, weight: r.weight ?? 100, server: r.server ?? '', hanja: r.hanja ?? '' })),
+      memberInfo: S.rows.map((r) => ({ name: r.name, weight: r.weight ?? 100, server: r.server ?? '', hanja: r.hanja ?? '', cls: r.cls ?? '' })),
       fundName: FUND_NAME,
       fundRate: FUND_RATE,
       defaultWeight: DEFAULT_WEIGHT,
@@ -548,6 +548,7 @@ const handlers = {
         weight: r.weight ?? 100,
         server: r.server ?? '',
         hanja: r.hanja ?? '',
+        cls: r.cls ?? '',
       })),
   }),
 
