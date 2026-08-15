@@ -378,6 +378,85 @@ button {
   margin-top: 2px;
 }
 
+/* ───────── 용어 자동완성 (v11.4) ─────────
+   아이템명을 칠 때 세 언어로 찾아 고른다. 고르면 국문이 들어간다 —
+   기록이 한 종류로 모여야 나중에 세거나 찾을 수 있다. */
+.ac {
+  position: relative;
+}
+
+.ac-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  max-height: 280px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.ac-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: var(--text);
+  text-align: left;
+  font-family: inherit;
+}
+
+.ac-item:last-of-type {
+  border-bottom: 0;
+}
+
+.ac-item .cat {
+  flex: none;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.ac-item .nm {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.ac-item .sub {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 용어 목록의 아이콘 그림 — 관리자가 넣어둔 주소가 있을 때만 나온다 */
+.term-img {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--surface-2);
+}
+
+/* 아직 中文·English 를 못 채운 항목 — 비어 있음을 감추지 않는다 */
+.warnish {
+  color: var(--pending);
+}
+
 /* ───────── 홈 (v11.3) ───────── */
 
 /* "지금 처리할 일" — 숫자와 화살표까지 한 줄. 누르면 그 화면으로 간다 */

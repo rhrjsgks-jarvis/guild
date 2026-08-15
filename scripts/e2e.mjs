@@ -2684,6 +2684,72 @@ await t('잔액을 서버 칩으로 좁혀 본다 (v11.3, 화면)', async () => 
   eq((await names()).length, all.length, '칩을 풀면 전원');
 });
 
+await t('용어 사전: 中文으로 찾아 고르면 국문이 들어간다 (v11.4)', async () => {
+  await reset();
+
+  // ① 조회는 누구나 — 세 언어가 함께 내려온다
+  const data = (await (await fetch(`${APP}/api/terms?fresh=1`)).json()).data;
+  const heart = data.terms.find((x) => x.ko === '용의 심장');
+  if (!heart) throw new Error('모의 용어가 없습니다.');
+  eq(heart.zh, '龙之心', '중문 표기');
+
+  // ② 쓰기는 관리자 이상
+  eq((await post('/api/admin/terms', { ko: '새 용어', cat: '기타' })).status, 401, 'PIN 없이는 못 넣는다');
+  eq(
+    (await post('/api/admin/terms', { ko: '새 용어', cat: '기타', zh: '新词' }, { Cookie: cookie })).status,
+    200,
+    '관리자는 넣을 수 있다',
+  );
+  // 같은 국문이 두 줄이면 어느 것을 보여줄지 알 수 없다
+  const dup = await (await post('/api/admin/terms', { ko: '새 용어', cat: '기타' }, { Cookie: cookie })).json();
+  eq(dup.ok, false, '같은 국문 거부');
+  eq(dup.code, 'e.termDup', '거부 이유');
+});
+
+await t('용어 자동완성: 中文을 쳐도 나오고 국문이 입력된다 (v11.4, 화면)', async () => {
+  await reset();
+  await page.reload({ waitUntil: 'networkidle' });
+  await go(page, 'items');
+  await page.waitForTimeout(700);
+
+  // ★ 중국 혈맹원이 자기 언어로 친다
+  await page.locator('#fItem').fill('龙之');
+  await page.waitForTimeout(600);
+  const list = page.locator('.ac-item');
+  if ((await list.count()) === 0) throw new Error('중문으로 쳤을 때 자동완성이 안 나옵니다.');
+
+  await list.first().click();
+  await page.waitForTimeout(300);
+  // ★ 저장되는 이름은 언제나 국문이다 (기록이 한 종류로 모여야 셀 수 있다)
+  eq(await page.locator('#fItem').inputValue(), '용의 심장', '고른 뒤 입력된 이름');
+
+  // 사전에 없는 이름도 그대로 칠 수 있어야 한다 (새 아이템이 나오면 등록이 멈춘다)
+  await page.locator('#fItem').fill('처음 보는 아이템');
+  await page.waitForTimeout(400);
+  eq(await page.locator('#fItem').inputValue(), '처음 보는 아이템', '사전에 없는 이름');
+});
+
+await t('용어 화면: 세 언어로 찾고, 못 채운 항목을 감추지 않는다 (v11.4, 화면)', async () => {
+  await page.reload({ waitUntil: 'networkidle' });
+  // ★ 용어 사전은 홈 격자에 없다 (v11.4) — 관리 화면에서 연다
+  await go(page, 'admin');
+  await page.getByRole('button', { name: /용어 사전 열기/ }).click();
+  await page.waitForTimeout(800);
+  eq((await page.locator('.screen-bar h2').innerText()).trim(), '용어', '화면 제목');
+
+  // 영문으로 찾아본다
+  await page.locator('input[inputmode=search]').fill('Antha');
+  await page.waitForTimeout(500);
+  const body = await page.locator('main').innerText();
+  if (!body.includes('안타라스')) throw new Error(`영문 검색이 안 됩니다:\n${body}`);
+
+  // ★ 中文·English 를 아직 못 채운 항목은 그 사실을 보여준다 (감추면 채운 줄과 구별이 안 된다)
+  await page.locator('input[inputmode=search]').fill('기란');
+  await page.waitForTimeout(500);
+  const body2 = await page.locator('main').innerText();
+  if (!body2.includes('미입력')) throw new Error(`못 채운 항목을 표시하지 않습니다:\n${body2}`);
+});
+
 await t('첫 화면은 홈이고, 모든 화면이 아이콘으로 있다 (v11.2.1, 화면)', async () => {
   await page.reload({ waitUntil: 'networkidle' });
 

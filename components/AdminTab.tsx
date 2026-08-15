@@ -16,6 +16,7 @@ export default function AdminTab({
   servers,
   appName,
   onAuthChange,
+  onTerms,
   toast,
 }: {
   admin: boolean;
@@ -24,6 +25,8 @@ export default function AdminTab({
   servers: string[];
   appName: string;
   onAuthChange: (res?: ApiResult) => void;
+  /** 📚 용어 사전 화면 열기 — 홈 격자에는 두지 않는다 (v11.4) */
+  onTerms: () => void;
   toast: (msg: string, isError?: boolean) => void;
 }) {
   const { t, lang, setLang, unit: unitLabel, srv } = useT();
@@ -164,6 +167,19 @@ export default function AdminTab({
       {admin ? (
         <>
           <RosterCard unit={unitLabel(unit)} servers={servers} onChanged={onAuthChange} toast={toast} />
+
+          {/* 📚 용어 사전 — 아이템명·보스명 자동완성에 쓰는 표. 평소엔 뒤에서만 동작한다 */}
+          <div className="sect">{t('adm.termSect')}</div>
+          <div className="card">
+            <div className="field">
+              <p className="hint" style={{ marginTop: 0 }}>
+                {t('adm.termDesc')}
+              </p>
+              <button className="btn ghost block" style={{ marginTop: 10 }} onClick={onTerms}>
+                📚 {t('adm.termOpen')}
+              </button>
+            </div>
+          </div>
 
           <ToolsCard unit={unitLabel(unit)} master={master} onChanged={onAuthChange} toast={toast} />
 

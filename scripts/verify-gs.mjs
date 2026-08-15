@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v11_3.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v11_4.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 /**
@@ -1716,6 +1716,95 @@ check('연합 수정: 관리자는 미정산까지, 정산된 건은 마스터�
   return '시트 판정(되묻기보다 앞) · 라우트가 등급 고정 · 관리자는 금액 미전송 · 모의 동일';
 });
 
+check('용어 사전: 세 언어로 찾고, 저장은 언제나 국문 (v11.4)', () => {
+  /*
+   * 아이템명은 사용자 데이터라 기계가 번역하지 않는다 (규칙 7). 대신 **사람이 확인한**
+   * 표기를 [용어] 시트에 모아두고, 앱은 그 표에 있는 말만 병기·자동완성한다.
+   * 표에 없는 말은 손대지 않는다 — 지어내지 않는 것이 이 시스템의 기본이다.
+   */
+  for (const fn of ['api_getTerms', 'api_saveTerm', 'api_deleteTerm', '_getOrCreateTerms', '_normTerm']) {
+    if (!new RegExp(`function ${fn}\\b`).test(gs)) throw new Error(`${fn} 이(가) 없습니다.`);
+  }
+  if (!/const TERM_SHEET = /.test(gs)) throw new Error('[용어] 시트 상수가 없습니다.');
+  if (!/const BASE_SHEET_ORDER[^\n]*TERM_SHEET/.test(gs)) {
+    throw new Error('[용어] 시트가 시트 순서에 없습니다.');
+  }
+  // 국문이 없는 줄은 앱이 쓸 수 없다 (저장되는 이름이 국문이므로)
+  const get = extractFn(gs, 'api_getTerms');
+  if (!/if \(!ko\) return;/.test(get)) throw new Error('국문이 빈 줄을 걸러내지 않습니다.');
+  // 같은 국문이 두 줄이면 어느 것을 보여줄지 알 수 없다
+  const save = extractFn(gs, 'api_saveTerm');
+  if (!/e\.termDup/.test(save)) throw new Error('같은 국문이 두 번 들어가는 것을 막지 않습니다.');
+  if (!/lock\.waitLock/.test(save)) throw new Error('용어 저장이 락 없이 실행됩니다.');
+
+  // 라우터 · 쓰기 목록
+  for (const action of ['terms', 'saveTerm', 'deleteTerm']) {
+    if (!new RegExp(`case '${action}':`).test(gs)) throw new Error(`라우터에 ${action} 이(가) 없습니다.`);
+  }
+  if (!/'saveTerm', 'deleteTerm'/.test(gs)) throw new Error('용어 쓰기가 API_WRITE_ACTIONS 에 없습니다.');
+
+  // 라우트: 조회는 누구나, 쓰기는 관리자 이상 (표기가 틀려도 다이아는 안 움직인다)
+  const pub = readFileSync(resolve(ROOT, 'app/api/terms/route.ts'), 'utf8');
+  if (/export async function (POST|PATCH|DELETE)/.test(pub)) {
+    throw new Error('공개 /api/terms 에 쓰기 메서드가 있습니다.');
+  }
+  if (!/dropIfFresh\(req, 'terms'\)/.test(pub)) throw new Error('/api/terms 가 fresh 조회를 지원하지 않습니다.');
+  const ttl = Number((pub.match(/cached\('terms', ([\d_]+)/) ?? [0, '0'])[1].replace(/_/g, ''));
+  if (!(ttl >= 10_000)) throw new Error(`용어 캐시가 ${ttl}ms 입니다 — 글자를 칠 때마다 시트를 읽습니다.`);
+  const admin = readFileSync(resolve(ROOT, 'app/api/admin/terms/route.ts'), 'utf8');
+  if (!/requireAdmin\(\)/.test(admin)) throw new Error('용어 쓰기가 인증을 요구하지 않습니다.');
+  if (!/invalidate\('terms'\)/.test(admin)) throw new Error('용어를 고친 뒤 캐시를 비우지 않습니다.');
+
+  /*
+   * ★ 앱: 어느 언어로 쳐도 찾고, 고르면 **국문**이 들어간다.
+   *   고른 언어를 그대로 저장하면 같은 아이템이 두 이름으로 쌓여 셀 수가 없다.
+   */
+  const lib = readFileSync(resolve(ROOT, 'lib/terms.ts'), 'utf8');
+  const search = (lib.match(/export function searchTerms[\s\S]*?\n\}/) ?? [''])[0];
+  for (const f of ['t.ko', 't.zh', 't.en']) {
+    if (!search.includes(f)) throw new Error(`검색이 ${f} 를 보지 않습니다 — 그 언어로는 못 찾습니다.`);
+  }
+  const input = readFileSync(resolve(ROOT, 'components/ItemNameInput.tsx'), 'utf8');
+  if (!/onChange\(h\.ko\)/.test(input)) throw new Error('자동완성이 국문이 아닌 값을 넣습니다.');
+  // 사전에 없는 이름도 그대로 칠 수 있어야 한다 (새 아이템이 나오면 등록이 멈춘다)
+  if (/readOnly|disabled=\{true\}/.test(input)) throw new Error('사전에 없는 이름을 못 치게 막습니다.');
+  // 아이템 등록·연합 등록·연합 정정 세 곳이 같은 입력칸을 쓴다
+  const items = readFileSync(resolve(ROOT, 'components/ItemsTab.tsx'), 'utf8');
+  const ali = readFileSync(resolve(ROOT, 'components/AllianceTab.tsx'), 'utf8');
+  if (!/<ItemNameInput/.test(items)) throw new Error('아이템 등록에 자동완성이 없습니다.');
+  if ((ali.match(/<ItemNameInput/g) ?? []).length < 2) {
+    throw new Error('연합 등록·정정 중 한 곳에 자동완성이 없습니다.');
+  }
+  // 보스 이름도 같은 입력칸을 쓴다 (v11.4) — 中文으로 쳐도 찾아져야 한다
+  const raidTab = readFileSync(resolve(ROOT, 'components/RaidTab.tsx'), 'utf8');
+  if (!/<ItemNameInput id="raid-boss"/.test(raidTab)) throw new Error('보스 이름에 자동완성이 없습니다.');
+
+  /*
+   * 📋 붙여넣기 일괄 등록 — 수백 개를 손으로 칠 수는 없다.
+   * ★ 이미 있는 국문은 **건드리지 않는다.** 덮어쓰면 사람이 고쳐둔 표기가 한 번에 날아간다.
+   */
+  const bulk = extractFn(gs, 'api_bulkTerms');
+  if (!/if \(have\[k\]\) \{ skipped\.push/.test(bulk)) {
+    throw new Error('일괄 등록이 이미 있는 용어를 덮어씁니다.');
+  }
+  if (!/skipped/.test(bulk)) throw new Error('건너뛴 것을 알려주지 않습니다.');
+  if (!/case 'bulkTerms':/.test(gs)) throw new Error('라우터에 bulkTerms 가 없습니다.');
+  if (!/export async function PATCH/.test(admin)) throw new Error('일괄 등록 라우트가 없습니다.');
+  if (!/rows\.length > 300/.test(admin)) throw new Error('한 번에 보내는 양을 제한하지 않습니다.');
+  // 비어 있는 표기를 감추지 않는다 — 감추면 채워진 줄과 구별이 안 된다
+  const tab = readFileSync(resolve(ROOT, 'components/TermsTab.tsx'), 'utf8');
+  if (!/term\.needCheck/.test(tab)) throw new Error('中文·English 가 빈 항목을 표시하지 않습니다.');
+  // 그림은 관리자가 넣은 주소만 (우리가 어디선가 긁어오지 않는다)
+  if (!/x\.img \?/.test(tab)) throw new Error('그림이 없을 때도 자리를 만듭니다.');
+
+  // 모의 시트도 같은 모양이어야 E2E 가 의미가 있다
+  const mock = readFileSync(resolve(ROOT, 'scripts/mock-sheet.mjs'), 'utf8');
+  if (!/terms: \(\) => \(\{/.test(mock)) throw new Error('모의 시트에 용어 조회가 없습니다.');
+  if (!/e\.termDup/.test(mock)) throw new Error('모의 시트가 중복 국문을 막지 않습니다.');
+
+  return '시트 5함수 · 라우터 4종 · 조회 공개/쓰기 관리자 · 3언어 검색 · 국문 저장 · 입력칸 4곳 · 일괄 등록';
+});
+
 check('잔액도 서버로 좁혀 볼 수 있다 (v11.3)', () => {
   // 아이템 등록 화면과 **같은 칩**을 쓴다 — 두 벌로 만들면 한쪽만 낡는다
   const bal = readFileSync(resolve(ROOT, 'components/BalanceTab.tsx'), 'utf8');
@@ -2087,6 +2176,11 @@ check('하단 탭이 없고 모든 화면은 홈 아이콘에서 연다 (v11.2.1
   // ★ 'return (' 은 앞쪽 useEffect 의 정리 함수에도 있다 — 반드시 tiles 뒤에서 찾는다
   const tilesSrc = home.slice(tilesAt, home.indexOf('];', tilesAt));
   const order = [...tilesSrc.matchAll(/key: '(\w+)'/g)].map((m) => m[1]);
+  /*
+   * ★ 'terms'(용어 사전)는 **홈 격자에 없다** (v11.4). 사전은 평소 들여다보는 화면이
+   *   아니라 이름을 칠 때 뒤에서 붙는 기능이다 — 아이콘을 두면 매일 쓰는 것이 밀린다.
+   *   관리 화면에서 연다 (아래에서 그 길이 있는지 확인한다).
+   */
   const expected = ['balance', 'items', 'alliance', 'raid', 'me', 'board', 'lang', 'admin'];
   if (order.join(',') !== expected.join(',')) {
     throw new Error(`아이콘 순서가 다릅니다: ${order.join(' ')} (기대 ${expected.join(' ')})`);
@@ -2096,7 +2190,8 @@ check('하단 탭이 없고 모든 화면은 홈 아이콘에서 연다 (v11.2.1
   // 모든 화면이 홈에서 열려야 한다 — 하나라도 빠지면 영영 못 연다
   for (const to of ['balance', 'items', 'alliance', 'raid', 'me', 'board', 'admin']) {
     if (!new RegExp(`onGo\\('${to}'\\)`).test(home)) throw new Error(`홈에서 ${to} 화면으로 갈 수 없습니다.`);
-    if (!new RegExp(`${to}: 'tab\\.${to}'`).test(app)) {
+    // 제목 키는 tab.* 또는 그 화면 고유 키를 쓴다 (용어는 term.title)
+    if (!new RegExp(`${to}: '(tab\\.${to}|\\w+\\.title)'`).test(app)) {
       throw new Error(`${to} 화면에 제목이 없습니다 — 어디에 있는지 알 수 없습니다.`);
     }
   }
@@ -2996,8 +3091,8 @@ check('공유 버튼은 게시판·관리 탭에 없다', () => {
 
   // 화면 목록 (v11.2.1 — 하단 탭이 없어져 App.tsx 의 제목표가 곧 전체 화면 목록이다)
   const app = readFileSync(resolve(ROOT, 'components/App.tsx'), 'utf8');
-  const screens = [...app.matchAll(/^  (\w+): 'tab\.\w+',$/gm)].map((m) => m[1]);
-  const expected = ['balance', 'items', 'alliance', 'raid', 'me', 'board', 'admin'];
+  const screens = [...app.matchAll(/^  (\w+): '[\w.]+',$/gm)].map((m) => m[1]);
+  const expected = ['balance', 'items', 'alliance', 'raid', 'me', 'board', 'terms', 'admin'];
   if (screens.join(',') !== expected.join(',')) {
     throw new Error(`화면 목록이 다릅니다: ${screens.join(' ')} (기대 ${expected.join(' ')})`);
   }

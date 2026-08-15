@@ -6,6 +6,7 @@ import ShareBtn from './ShareBtn';
 import type { RaidRow, RaidState } from '@/lib/types';
 import { api, getStoredEmail } from '@/lib/client';
 import { useT } from '@/lib/i18n';
+import ItemNameInput from './ItemNameInput';
 
 /** 시트는 1=월 … 7=일, 자바스크립트 getDay()는 0=일 … 6=토 */
 export function todayDay(d: Date = new Date()): number {
@@ -313,14 +314,8 @@ function RaidSheet({
 
       <div className="field">
         <label htmlFor="raid-boss">{t('raid.boss')}</label>
-        <input
-          id="raid-boss"
-          type="text"
-          value={boss}
-          maxLength={40}
-          placeholder={t('raid.bossPh')}
-          onChange={(e) => setBoss(e.target.value)}
-        />
+        {/* 용어 사전 자동완성 (v11.4) — 中文·English 로 쳐도 보스를 찾는다 */}
+        <ItemNameInput id="raid-boss" value={boss} onChange={setBoss} />
       </div>
 
       <div className="field">
