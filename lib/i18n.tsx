@@ -394,6 +394,28 @@ const DICT: Record<string, Entry> = {
   'ali.title': ['연합 정산', '联盟结算', 'Alliance ledger'],
   'ali.byServer': ['서버별 누적', '各服务器累计', 'Totals by server'],
   'ali.filterServer': ['서버로 좁혀 보기', '按服务器筛选', 'Filter by server'],
+  /* 레이드일·보스·루팅 (v11.6) — 연합·아이템이 같은 문구를 쓴다 */
+  'loot.raidDate': ['레이드 날짜', '突襲日期', 'Raid date'],
+  'loot.raidHint': [
+    '비워두면 등록한 날로만 남습니다. 잡은 날과 등록한 날이 다르면 채워주세요.',
+    '留空則只記錄登錄日期。若打倒日與登錄日不同請填寫。',
+    'Leave blank to keep only the registration date. Fill it in if the raid was on another day.',
+  ],
+  'loot.boss': ['보스', '首領', 'Boss'],
+  'loot.lootServer': ['루팅 서버', '拾取伺服器', 'Looting server'],
+  'loot.lootChar': ['루팅 캐릭터', '拾取角色', 'Looter'],
+  'loot.lootCharHint': [
+    '명단에 없는 이름도 넣을 수 있습니다 (연합은 다른 혈맹원이 먹기도 합니다).',
+    '也可輸入名單以外的名字（聯盟有時由其他血盟成員拾取）。',
+    'Names outside the roster are allowed — in alliances someone else may loot it.',
+  ],
+  'loot.editTitle': ['레이드·루팅 정보', '突襲與拾取資訊', 'Raid & loot info'],
+  'loot.editSub': [
+    '아이템명에 함께 적어둔 내용을 칸으로 옮겨 두면 보스별·사람별로 찾을 수 있습니다.',
+    '把寫在道具名稱裡的內容分到各欄，就能依首領或人員查詢。',
+    'Split what you packed into the item name so you can search by boss or looter.',
+  ],
+  'loot.none': ['아직 없음', '尚未填寫', 'Not set'],
   'ali.records': ['🧾 정산 완료', '🧾 已结算', '🧾 Settled'],
   'ali.register': ['연합 등록', '登记联盟', 'Register'],
   'ali.registerSub': [
@@ -1238,6 +1260,7 @@ const DICT: Record<string, Entry> = {
   's.e.bodyLong': ['내용이 너무 깁니다 ({max}자 이내).', '内容太长（{max} 字以内）。', 'The body is too long ({max} characters max).'],
   's.e.badServer': ['서버를 01~12 중에서 선택해주세요.', '请从 01~12 中选择服务器。', 'Pick a server from 01–12.'],
   's.e.badClass': ['클래스는 목록에서 선택해주세요.', '请从列表中选择职业。', 'Pick a class from the list.'],
+  's.meta.saveOk': ['✅ 저장했습니다.', '✅ 已保存。', '✅ Saved.'],
   's.e.dupServer': [
     '{s}서버가 두 번 들어갔습니다. 한 줄로 합쳐주세요.',
     '{s} 服重复了，请合并成一行。',

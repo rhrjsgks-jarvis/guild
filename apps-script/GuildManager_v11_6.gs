@@ -1,8 +1,28 @@
 // ═══════════════════════════════════════════════════════════════
-//  길드 정산 시스템 v11.5  (분배비중 · 연합 · 레이드 · 용어사전 · 게시판 · 3개국어)
+//  길드 정산 시스템 v11.6  (분배비중 · 연합 · 레이드 · 용어사전 · 게시판 · 3개국어)
 //  시트 구성: [사용안내] [멤버DB] [참여자현황] [분배대기중] [잔액현황]
 //            [지급기록] [연합] [레이드] [용어] [게시판] [작업기록] + [시즌1] [시즌2] ...
 //            ← 이 순서로 항상 정렬됨
+// ═══════════════════════════════════════════════════════════════
+//  변경점 v11.5 → v11.6  (레이드일·보스·루팅서버·루팅캐릭터)
+//
+//   - ★ [연합]·[아이템] 두 시트에 **맨 뒤로** 네 칸을 더했다:
+//       레이드일 · 보스 · 루팅서버 · 루팅캐릭터
+//       지금까지는 이 넷을 아이템명 한 칸에 몰아 적어 왔다
+//       ("8/14 수룡 / 불변의 목걸이 / 차무식루팅"). 그러면 "안타라스가 준 것만" 세거나
+//       "차무식이 먹은 것만" 찾을 수가 없고, 아이템명이 사전과 안 맞아 등급·티어도 안 붙는다.
+//   - ★ '서버'(B열)와 '루팅서버'는 다른 것이다. 서버 = 정산에 참여한 서버(여러 줄),
+//       루팅서버 = 실제로 떨어진 서버(한 건에 하나).
+//   - ★ 새 칸은 전부 **선택**이다. 비우면 빈칸으로 남는다 — 옛 기록의 아이템명을
+//       우리가 쪼개 넣지 않는다 (규칙 7). 사람이 보고 옮겨 적는다.
+//   - ★ api_setAllianceMeta · api_setItemMeta — **관리자 이상**이 고친다.
+//       돈을 다루는 편집 함수와 **일부러 분리**했다. 이 둘은 새 4칸 말고는 손댈 길이
+//       없어서 정산·분배가 끝난 건이라도 관리자에게 열 수 있다.
+//       권한을 "누구인가"가 아니라 "무엇을 만질 수 있는가"로 가른다.
+//   - ★ 옛 시트는 열이 모자라다. _widenTo 로 먼저 넓힌다 — 안 넓히고 읽으면
+//       getRange 가 예외를 던져 **그 화면이 통째로 안 열린다.**
+//       특히 api_getAlliance(목록 조회)는 앱이 연합 탭을 열 때마다 지나는 길이다.
+//
 // ═══════════════════════════════════════════════════════════════
 //  변경점 v11.4 → v11.5  (아이템 티어 · 혈맹원 클래스 · 서버 필터 통일)
 //
@@ -605,7 +625,7 @@
 //     '누적기록'을 그대로 찾음 (하위 호환, 리네이밍과 무관)
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION = '11.5';
+const VERSION = '11.6';
 const T2S_MAP = {'國':'国','學':'学','這':'这','個':'个','們':'们','說':'说','話':'话','對':'对','時':'时','間':'间','現':'现','場':'场','開':'开','關':'关','內':'内','東':'东','車':'车','馬':'马','龍':'龙','風':'风','陽':'阳','陰':'阴','電':'电','語':'语','讀':'读','寫':'写','書':'书','紙':'纸','筆':'笔','長':'长','門':'门','問':'问','聽':'听','見':'见','覺':'觉','讓':'让','誰':'谁','還':'还','進':'进','運':'运','動':'动','靜':'静','樂':'乐','藥':'药','華':'华','蘭':'兰','葉':'叶','黃':'黄','麗':'丽','寶':'宝','貴':'贵','財':'财','買':'买','賣':'卖','錢':'钱','銀':'银','鐵':'铁','鋼':'钢','陳':'陈','劉':'刘','張':'张','楊':'杨','蔣':'蒋','鄭':'郑','謝':'谢','呂':'吕','蘇':'苏','韓':'韩','馮':'冯','於':'于','鳳':'凤','雲':'云','劍':'剑','斷':'断','亂':'乱','愛':'爱','聲':'声','醫':'医','藝':'艺','頭':'头','臉':'脸','腳':'脚','氣':'气','樓':'楼','橋':'桥','飛':'飞','機':'机','網':'网','線':'线','條':'条','裡':'里','邊':'边','錯':'错','壞':'坏','舊':'旧','寬':'宽','淺':'浅','週':'周','節':'节','業':'业','後':'后','來':'来','終':'终','結':'结','敗':'败','勝':'胜','負':'负','輸':'输','贏':'赢','強':'强','難':'难','簡':'简','單':'单','複':'复','雜':'杂','純':'纯','淨':'净','髒':'脏','齊':'齐','穩':'稳','變':'变','轉':'转','換':'换','顯':'显','樣':'样','種':'种','類':'类','團':'团','體':'体','統':'统','織':'织','組':'组','構':'构','設':'设','計':'计','劃':'划','數':'数','課':'课','題':'题','試':'试','練':'练','習':'习','師':'师','員':'员','職':'职','務':'务','責':'责','權':'权','應':'应','該':'该','須':'须','願':'愿','夢':'梦','憶':'忆','識':'识','認':'认','歡':'欢','醜':'丑','帥':'帅','靈':'灵','獸':'兽','鷹':'鹰','鶴':'鹤','鴻':'鸿','鱷':'鳄','鯨':'鲸','鯊':'鲨','蝦':'虾','殼':'壳','冑':'胄','戰':'战','爭':'争','鬥':'斗','擊':'击','禦':'御','護':'护','衛':'卫','謀':'谋','陣':'阵','營':'营','軍':'军','隊':'队','將':'将','嬪':'嫔','宮':'宫','廟':'庙','觀':'观','閣':'阁','蓮':'莲','楓':'枫','樺':'桦','檜':'桧','樹':'树','實':'实','幹':'干','莖':'茎','穫':'获','採':'采','鮮':'鲜','籠':'笼','傷':'伤','殺':'杀','斬':'斩','豬':'猪','雞':'鸡','鴨':'鸭','鵝':'鹅','龜':'龟','蟬':'蝉','蟻':'蚁','螞':'蚂','鴉':'鸦','鵰':'雕','鴛':'鸳','鴦':'鸯','賽':'赛','廠':'厂','廣':'广','麼':'么','誒':'诶','歲':'岁','歷':'历','歸':'归','殘':'残','蟲':'虫','貓':'猫','氈':'毡','貫':'贯','質':'质','貨':'货','貼':'贴','費':'费','資':'资','賬':'账','賺':'赚','贈':'赠','賀':'贺','賢':'贤','賦':'赋','賤':'贱','賓':'宾','賴':'赖','齲':'龋','齒':'齿','龄':'齡','齡':'龄','齣':'出','岡':'冈','剛':'刚','剮':'剐','創':'创','劇':'剧','勵':'励','勸':'劝','勻':'匀','匯':'汇','醬':'酱','醞':'酝','釀':'酿','釋':'释','釘':'钉','針':'针','釣':'钓','鈍':'钝','鈴':'铃','鈔':'钞','鉛':'铅','鋸':'锯','鋒':'锋','鍵':'键','鎖':'锁','鑄':'铸','鑼':'锣','錶':'表','鐘':'钟','鏡':'镜','鑽':'钻','鑑':'鉴','閉':'闭','閃':'闪','閏':'闰','閱':'阅','闆':'板','闖':'闯','陸':'陆','隱':'隐','雖':'虽','雙':'双','雛':'雏','靂':'雳','韋':'韦','韌':'韧','頁':'页','頂':'顶','項':'项','順':'顺','頌':'颂','預':'预','頑':'顽','頒':'颁','頗':'颇','領':'领','頡':'颉','頜':'颌','頸':'颈','頻':'频','頹':'颓','顆':'颗','額':'额','顏':'颜','顛':'颠','顧':'顾','飄':'飘','饑':'饥','餃':'饺','餅':'饼','館':'馆','饒':'饶','饞':'馋','馳':'驰','駕':'驾','駛':'驶','駐':'驻','駱':'骆','駭':'骇','騎':'骑','騰':'腾','驅':'驱','驚':'惊','驕':'骄','驗':'验','骯':'肮','髮':'发','鬍':'胡','鬧':'闹','鮑':'鲍','鯉':'鲤','鰲':'鳌','鱉':'鳖','鳥':'鸟','鳴':'鸣','鹹':'咸','麥':'麦','麵':'面','黨':'党'};  // 번체→간체 상용한자 (서체 변환 전용, 다른 뜻 글자는 포함하지 않음)
 const UNIT = '다이아';                 // 재화 단위 표기
 const MAX_MEMBERS = 100;              // 최대 멤버 수 (v10.5: 50 → 100)
@@ -667,8 +687,11 @@ const LEGACY_REMAINDER_NAME = 'TC무식';
 const FUND_RATE = 0.1;                // 혈맹운영비 비율 (0.1 = 10%)
 const FUND_RATE_STR = String(FUND_RATE);
 const DEFAULT_WEIGHT = 100;           // 멤버 기본 분배비중 (%)
-const LEDGER_HEADERS = ['등록일','아이템명','상태','참여인원','참여자명단','인증샷','분배✓','판매금액','혈맹운영비','1인당(기본)','분배일','입력자','분배자','수정자','분배내역'];
-const LG = { DATE:1, ITEM:2, STATUS:3, CNT:4, NAMES:5, PHOTO:6, CHECK:7, AMOUNT:8, FUND:9, PER:10, DIST:11, INPUTBY:12, DISTBY:13, EDITBY:14, SPLIT:15 };
+/** 아이템 시트 열 — 연합과 같은 이유로 새 4칸을 **맨 뒤**에 붙인다 (v11.6) */
+const LEDGER_HEADERS = ['등록일','아이템명','상태','참여인원','참여자명단','인증샷','분배✓','판매금액','혈맹운영비','1인당(기본)','분배일','입력자','분배자','수정자','분배내역',
+                        '레이드일','보스','루팅서버','루팅캐릭터'];
+const LG = { DATE:1, ITEM:2, STATUS:3, CNT:4, NAMES:5, PHOTO:6, CHECK:7, AMOUNT:8, FUND:9, PER:10, DIST:11, INPUTBY:12, DISTBY:13, EDITBY:14, SPLIT:15,
+             RAID:16, BOSS:17, LOOTSV:18, LOOTCH:19 };
 // 멤버DB 컬럼 (v10.0에서 E·F·G 추가)
 const MEM_COL = { NO:1, NAME:2, STATUS:3, DISPLAY:4, WEIGHT:5, SERVER:6, HANJA:7, CLASS:8 };
 const SERVER_LIST = ['01','02','03','04','05','06','07','08','09','10','11','12'];
@@ -947,7 +970,9 @@ function _reverseAmounts(balance, chk) {
 // 아이템 행을 읽어 정정·삭제에 필요한 정보를 꺼낸다
 function _readLedgerRow(ledger, row) {
   if (row < 2 || row > ledger.getLastRow()) return null;
-  const width = Math.min(ledger.getMaxColumns(), LG.SPLIT);
+  // 새 칸(레이드일·보스·루팅서버·루팅캐릭터)까지 읽되, **시트에 있는 만큼만** 요청한다.
+  // 옛 시트에 없는 열을 달라고 하면 예외가 나 아이템 화면이 통째로 죽는다.
+  const width = Math.min(ledger.getMaxColumns(), LEDGER_HEADERS.length);
   const data = ledger.getRange(row, 1, 1, width).getValues()[0];
   const participants = String(data[LG.NAMES - 1]).trim().split(',')
     .map(function (s) { return s.trim(); }).filter(Boolean);
@@ -2294,15 +2319,23 @@ function _decodeSplits(text) {
   return out;
 }
 
-// 기존 시트에 분배내역(O열)이 없으면 헤더를 만들어준다 (구버전에서 올라온 파일 대응)
+/**
+ * 기존 시트에 없는 뒤쪽 열을 만들어준다 (구버전에서 올라온 파일 대응).
+ * v11.6 부터 분배내역(O)뿐 아니라 레이드일·보스·루팅서버·루팅캐릭터(P~S)까지 본다.
+ *
+ * ★ 열을 안 늘리고 그 자리를 읽으면 getRange 가 예외를 던져 **아이템 화면이
+ *   통째로 안 열린다.** 값은 건드리지 않고 자리와 머리글만 마련한다.
+ */
 function _ensureLedgerSplitCol(ledger) {
   try {
-    if (ledger.getMaxColumns() < LG.SPLIT) ledger.insertColumnsAfter(ledger.getMaxColumns(), LG.SPLIT - ledger.getMaxColumns());
-    const cur = String(ledger.getRange(1, LG.SPLIT).getValue()).trim();
-    if (cur !== LEDGER_HEADERS[LG.SPLIT - 1]) {
-      ledger.getRange(1, LG.SPLIT).setValue(LEDGER_HEADERS[LG.SPLIT - 1])
+    _widenTo(ledger, LEDGER_HEADERS.length);
+    // 분배내역부터 끝까지 — 비어 있는 머리글만 채운다
+    for (let c = LG.SPLIT; c <= LEDGER_HEADERS.length; c++) {
+      const cur = String(ledger.getRange(1, c).getValue()).trim();
+      if (cur === LEDGER_HEADERS[c - 1]) continue;
+      ledger.getRange(1, c).setValue(LEDGER_HEADERS[c - 1])
         .setBackground('#37474F').setFontColor('#FFF').setFontWeight('bold').setHorizontalAlignment('center');
-      ledger.setColumnWidth(LG.SPLIT, 240);
+      ledger.setColumnWidth(c, c === LG.SPLIT ? 240 : 110);
     }
   } catch (e) { /* 서식 실패는 분배를 막지 않는다 */ }
 }
@@ -2573,6 +2606,9 @@ function _rebuildGuide(ss) {
     ['🟡 잔액현황 → 멤버별 분배전/분배완료/참여횟수 + 지급✓ 버튼', 'b'],
     ['🔴 지급기록 → 중간정산 지급 이력 자동 저장', 'b'],
     ['🤝 ' + ALLIANCE_SHEET + ' → 연합 정산 (서버별 누적, 개인 잔액과 무관)', 'b'],
+    ['   ⭐ v11.6: 레이드일·보스·루팅서버·루팅캐릭터 칸이 생겼습니다 (맨 뒤 4열)', 'b'],
+    ['      아이템명에 몰아 적지 말고 칸에 나눠 넣으면 보스별·사람별로 찾을 수 있습니다', 'b'],
+    ['      앱 목록의 [🏷️] 버튼으로 관리자가 언제든 고칠 수 있습니다 (금액은 안 바뀝니다)', 'b'],
     ['🗡️ ' + RAID_SHEET + ' → 보스 등장 시간표 (요일 × 시간)', 'b'],
     ['📢 ' + BOARD_SHEET + ' → 게시판·공지', 'b'],
     ['⬜ 시즌1, 시즌2... → 시즌 종료 시 자동 생성되는 보관 기록', 'b'],
@@ -3225,7 +3261,7 @@ function _readLedgerPhotos(formula, display) {
 }
 
 // 등록 코어 (메뉴 + 웹앱 공용, UI 없음)
-function _registerCore(ss, itemName, participants, photoLink, clientEmail) {
+function _registerCore(ss, itemName, participants, photoLink, clientEmail, meta) {
   const ledger = ss.getSheetByName(LEDGER_SHEET);
   if (!ledger) throw new Error(LEDGER_SHEET + ' 시트를 찾을 수 없습니다.');
   const actor = _getActorEmail(clientEmail);
@@ -3238,6 +3274,11 @@ function _registerCore(ss, itemName, participants, photoLink, clientEmail) {
   ledger.getRange(r, LG.AMOUNT).setBackground('#FFF9C4').setNumberFormat('#,##0').setHorizontalAlignment('right');
   ledger.getRange(r, LG.STATUS).setHorizontalAlignment('center');
   ledger.getRange(r, LG.INPUTBY).setValue(actor);
+  // 레이드일·보스·루팅 (v11.6) — 전부 선택이다. 비면 빈칸으로 남는다
+  _ensureLedgerSplitCol(ledger);
+  var lm = _lootMeta(meta);
+  ledger.getRange(r, LG.LOOTSV).setNumberFormat('@');
+  ledger.getRange(r, LG.RAID, 1, 4).setValues([[lm.raid, lm.boss, lm.lootSv, lm.lootCh]]);
   _recalcAllParticipationCounts(ss);   // ★ 등록 즉시 참여횟수 반영 (분배 여부 무관 — 레이드 출석 기준)
   _logAction(ss, '등록', itemName, actor, participants.length + '명 참여 등록');
   const regRow = ledger.getRange(r, 1, 1, 11).getValues()[0];
@@ -5037,8 +5078,22 @@ function api_deletePost(id, email) {
 //    레이드 직후엔 금액을 모르는 것이 정상이라, 예전처럼 한 번에 다 받으면
 //    금액이 정해질 때까지 등록 자체를 미루게 된다 (그러다 인증샷을 잃어버린다).
 // ═══════════════════════════════════════════════════════════════
-const ALLIANCE_HEADERS = ['등록일','서버','아이템명','금액','비중(%)','인원수','적립액','인증샷','입력자','상태','묶음','혈비'];
-const ALLY_COL = { DATE:1, SERVER:2, ITEM:3, AMOUNT:4, PCT:5, PEOPLE:6, CREDITED:7, PHOTO:8, BY:9, STATUS:10, GROUP:11, FUND:12 };
+/**
+ * 연합 시트 열 (v11.6 에서 뒤 4칸 추가).
+ *
+ * ★ 새 칸은 **맨 뒤**다. 중간에 끼우면 이미 쓰고 있는 시트의 값이 한 칸씩
+ *   밀려 읽힌다 — 금액·적립액이 밀리면 장부가 통째로 어긋난다.
+ * ★ `서버`(B)와 `루팅서버`는 다른 것이다.
+ *     서버      = 정산에 참여한 서버 (한 건에 여러 줄)
+ *     루팅서버  = 그 아이템이 실제로 떨어진 서버 (한 건에 하나)
+ *   같은 칸에 넣으면 "05·06·11·12가 나눠 가진 건을 11서버가 먹었다"를 적을 수 없다.
+ * ★ `등록일`(A)과 `레이드일`도 다르다. 지금까지 아이템명 앞에 '8/14' 를 적어온 것이
+ *   레이드일이다 — 등록은 그 다음 날 하는 일이 흔하다.
+ */
+const ALLIANCE_HEADERS = ['등록일','서버','아이템명','금액','비중(%)','인원수','적립액','인증샷','입력자','상태','묶음','혈비',
+                          '레이드일','보스','루팅서버','루팅캐릭터'];
+const ALLY_COL = { DATE:1, SERVER:2, ITEM:3, AMOUNT:4, PCT:5, PEOPLE:6, CREDITED:7, PHOTO:8, BY:9, STATUS:10, GROUP:11, FUND:12,
+                   RAID:13, BOSS:14, LOOTSV:15, LOOTCH:16 };
 
 function _buildAlliance(ss) {
   const sheet = ss.insertSheet(ALLIANCE_SHEET);
@@ -5068,9 +5123,46 @@ function _styleAllianceHeader(sheet) {
  * 헤더만 채워 넣으면 기존 행은 그대로 쓸 수 있다 (묶음이 없는 행은 한 줄이 한 건이다).
  */
 function _ensureAllianceHeaders(sheet) {
+  // ★ 먼저 **열 수**를 늘린다. 12열짜리 옛 시트에서 16열을 읽으면 getRange 가
+  //   예외를 던져 연합 화면이 통째로 죽는다 (헤더를 맞추기도 전에 터진다).
+  _widenTo(sheet, ALLIANCE_HEADERS.length);
   const cur = sheet.getRange(1, 1, 1, ALLIANCE_HEADERS.length).getValues()[0];
   const same = ALLIANCE_HEADERS.every(function (h, i) { return String(cur[i]).trim() === h; });
   if (!same) _styleAllianceHeader(sheet);
+}
+
+/**
+ * 레이드일 · 보스 · 루팅서버 · 루팅캐릭터 (v11.6) — 연합·아이템이 같은 한 벌을 쓴다.
+ *
+ * 지금까지는 이 넷을 아이템명 한 칸에 몰아 적어 왔다
+ * (`8/14 수룡 / 불변의 목걸이 / 차무식루팅`). 그러면 "안타라스가 준 것만" 세거나
+ * "차무식이 먹은 것만" 찾을 수가 없다. 칸을 나누는 것이 이 기능의 전부다.
+ *
+ * ★ 전부 **선택**이다. 비워두면 빈칸으로 남는다 — 모르는 값을 지어내지 않는다.
+ * ★ 보스·루팅캐릭터는 목록 밖의 값도 받는다. 막으면 새 보스가 나오거나 외부
+ *   혈맹원이 루팅했을 때 등록 자체가 멈춘다 (규칙 6-4 와 같은 이유).
+ * ★ 루팅서버만 01~12 로 제한한다 — 서버는 닫힌 집합이고, 틀리면 집계가 갈린다.
+ */
+function _lootMeta(meta) {
+  const m = meta || {};
+  const sv = _normServer(m.lootSv);
+  return {
+    raid: String(m.raid == null ? '' : m.raid).trim(),
+    boss: String(m.boss == null ? '' : m.boss).trim(),
+    lootSv: SERVER_LIST.indexOf(sv) >= 0 ? sv : '',
+    lootCh: String(m.lootCh == null ? '' : m.lootCh).trim()
+  };
+}
+
+/**
+ * 시트의 열 수를 최소 n 개로 늘린다 (v11.6).
+ *
+ * 값은 건드리지 않는다 — 자리만 마련한다. 열을 늘리지 않고 그 자리를 읽거나
+ * 쓰면 Apps Script 가 예외를 던지고, 그 화면이 통째로 안 열린다.
+ */
+function _widenTo(sheet, n) {
+  const have = sheet.getMaxColumns();
+  if (have < n) sheet.insertColumnsAfter(have, n - have);
 }
 
 function _getOrCreateAlliance(ss) {
@@ -5218,6 +5310,11 @@ function api_getAlliance() {
   const totals = {};
   SERVER_LIST.forEach(function (s) { totals[s] = { server: s, credited: 0, amount: 0, count: 0, people: 0 }; });
 
+  // ★ 읽기 전에 열을 맞춘다 (v11.6). 여기는 앱이 연합 탭을 열 때마다 지나는
+  //   길인데, 12열짜리 옛 시트에서 16열을 달라고 하면 예외가 나 **탭이 아예
+  //   열리지 않는다.** 쓰기 경로에만 보강을 두면 이 길이 그대로 남는다.
+  if (sheet) _ensureAllianceHeaders(sheet);
+
   if (sheet && sheet.getLastRow() > 1) {
     const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, ALLIANCE_HEADERS.length).getValues();
     vals.forEach(function (r, i) {
@@ -5240,7 +5337,13 @@ function api_getAlliance() {
         fund: Number(String(r[ALLY_COL.FUND - 1]).replace(/,/g, '')) || 0,
         by: String(r[ALLY_COL.BY - 1]).trim(),
         status: status,
-        done: status === ST_DONE
+        done: status === ST_DONE,
+        // v11.6 — 옛 행은 이 칸들이 비어 있다. 비어 있는 것이 정상이고,
+        // 아이템명에 적혀 있던 내용을 우리가 쪼개 넣지 않는다 (규칙 7).
+        raid: _cellText(r[ALLY_COL.RAID - 1]),
+        boss: String(r[ALLY_COL.BOSS - 1] == null ? '' : r[ALLY_COL.BOSS - 1]).trim(),
+        lootSv: _normServer(r[ALLY_COL.LOOTSV - 1]),
+        lootCh: String(r[ALLY_COL.LOOTCH - 1] == null ? '' : r[ALLY_COL.LOOTCH - 1]).trim()
       };
       rows.push(rec);
       if (!totals[server]) totals[server] = { server: server, credited: 0, amount: 0, count: 0, people: 0 };
@@ -5297,9 +5400,13 @@ function api_getAlliance() {
  * 그때 금액을 요구하면 등록 자체가 미뤄져 인증샷을 잃어버린다.
  * 인증샷은 **없어도 등록된다** — 증거를 못 찍었다고 기록을 통째로 막을 이유가 없다.
  */
-function api_addAlliance(item, entries, photoLinks, email) {
+function api_addAlliance(item, entries, photoLinks, email, meta) {
   item = String(item || '').trim();
   if (!item) return _rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
+
+  // v11.6 — 레이드일·보스·루팅서버·루팅캐릭터. 전부 **선택**이다.
+  // 비워두면 빈칸으로 남는다 — 없는 값을 지어내지 않는다 (규칙 7).
+  const m = _lootMeta(meta);
 
   const list = _allyEntries(entries);
   const bad = _allyCheckServers(list, '참여한 서버를 하나 이상 넣어주세요.', 'e.badServer');
@@ -5321,7 +5428,10 @@ function api_addAlliance(item, entries, photoLinks, email) {
     //   묶음 공용으로 온 photoLinks(옛 앱)는 첫 줄에 함께 담아 호환을 지킨다.
     const values = list.map(function (e, i) {
       const mine = i === 0 ? _photoCell(e.photos.concat(_photoList(photos))) : _photoCell(e.photos);
-      return [now, e.server, item, '', '', e.people, '', mine, actor, ST_WAIT, group, ''];
+      // 레이드일·보스·루팅은 **한 건에 하나**다 — 서버마다 줄이 나뉘어도 같은 값을 적는다.
+      // 첫 줄에만 적으면 그 줄이 지워졌을 때 나머지 줄에서 정보가 사라진다.
+      return [now, e.server, item, '', '', e.people, '', mine, actor, ST_WAIT, group, '',
+              m.raid, m.boss, m.lootSv, m.lootCh];
     });
     // ★ 서버 칸은 **쓰기 전에** 글자 서식으로 바꾼다. 자동 서식이면 '01' 이 숫자 1 로
     //   저장되고, 그러면 서버별 누적('01'~'12')에서 이 건이 통째로 빠진다 (v11.1).
@@ -5438,6 +5548,85 @@ function api_creditAlliance(group, amount, email) {
  * ★ 인증샷·등록일은 건드리지 않는다. 고치는 것은 사람이 적어 넣은 값뿐이고,
  *   언제 등록했는지는 기록이다. 묶음의 첫 줄은 절대 지우지 않는다 (인증샷이 거기 있다).
  */
+/**
+ * 아이템 쪽 같은 기능 (v11.6) — 줄 번호로 찾는다.
+ * 연합과 마찬가지로 새 4칸 말고는 아무것도 만지지 않는다.
+ */
+function api_setItemMeta(row, meta, email) {
+  row = Number(row) || 0;
+  if (row < 2) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+  const m = _lootMeta(meta);
+
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(15000); } catch (e) { return _rc({ ok: false, msg: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.' }, 'e.busy'); }
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ledger = ss.getSheetByName(LEDGER_SHEET);
+    if (!ledger || row > ledger.getLastRow()) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+    _ensureLedgerSplitCol(ledger);
+
+    ledger.getRange(row, LG.LOOTSV).setNumberFormat('@');
+    ledger.getRange(row, LG.RAID, 1, 4).setValues([[m.raid, m.boss, m.lootSv, m.lootCh]]);
+
+    const name = String(ledger.getRange(row, LG.ITEM).getValue()).trim();
+    _logAction(ss, '아이템정보수정', name, _getActorEmail(email),
+      [m.raid, m.boss, m.lootSv, m.lootCh].filter(String).join(' / '));
+    return _rc({ ok: true, msg: '✅ 저장했습니다.' }, 'meta.saveOk');
+  } catch (e) {
+    return { ok: false, msg: '오류: ' + e.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * 레이드일·보스·루팅서버·루팅캐릭터만 고친다 (v11.6) — **관리자 이상**.
+ *
+ * ★ 돈을 다루는 api_editAlliance 와 **일부러 분리**했다. 이 함수는 새 4칸 말고는
+ *   아무것도 만질 수 없다 — 금액·인원·적립액·상태는 코드상 손댈 길이 없다.
+ *   그래서 정산이 끝난 건이라도 관리자에게 열 수 있다 (틀려도 한 줄 고치면 끝난다).
+ * ★ 권한을 "누구인가"가 아니라 "무엇을 만질 수 있는가"로 가른다. 화면을 고쳐
+ *   직접 불러도 이 경로로는 장부가 바뀌지 않는다.
+ * ★ 묶음 전체에 같은 값을 쓴다 — 한 건은 레이드 하나이고, 줄이 서버별로 나뉘어
+ *   있을 뿐이다. 첫 줄에만 쓰면 그 줄을 지웠을 때 정보가 사라진다.
+ */
+function api_setAllianceMeta(group, meta, email) {
+  group = String(group || '').trim();
+  if (!group) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+  const m = _lootMeta(meta);
+
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(15000); } catch (e) { return _rc({ ok: false, msg: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.' }, 'e.busy'); }
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(ALLIANCE_SHEET);
+    if (!sheet || sheet.getLastRow() < 2) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+    _ensureAllianceHeaders(sheet);
+
+    const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, ALLIANCE_HEADERS.length).getValues();
+    const rows = [];
+    vals.forEach(function (r, i) {
+      const g = String(r[ALLY_COL.GROUP - 1]).trim() || ('r' + (i + 2));
+      if (g === group) rows.push(i + 2);
+    });
+    if (rows.length === 0) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+
+    // 루팅서버 칸도 글자 서식으로 — '01' 이 숫자 1 로 저장되면 서버가 갈린다 (v11.1 과 같은 사고)
+    rows.forEach(function (row) {
+      sheet.getRange(row, ALLY_COL.LOOTSV).setNumberFormat('@');
+      sheet.getRange(row, ALLY_COL.RAID, 1, 4).setValues([[m.raid, m.boss, m.lootSv, m.lootCh]]);
+    });
+
+    _logAction(ss, '연합정보수정', group, _getActorEmail(email),
+      [m.raid, m.boss, m.lootSv, m.lootCh].filter(String).join(' / '));
+    return _rc({ ok: true, msg: '✅ 저장했습니다.' }, 'meta.saveOk');
+  } catch (e) {
+    return { ok: false, msg: '오류: ' + e.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function api_editAlliance(group, item, entries, amount, email, confirm, asMaster) {
   group = String(group || '').trim();
   item = String(item || '').trim();
@@ -6732,6 +6921,7 @@ const API_WRITE_ACTIONS = ['register', 'distribute', 'payout', 'rename', 'addMem
                            'correctItem', 'deleteItem', 'editItem', 'undoPayout', 'runTool',
                            'deletePost', 'addAlliance', 'creditAlliance', 'editAlliance', 'addAllianceServers', 'deleteAlliance', 'updateMember',
                            'saveTerm', 'deleteTerm', 'bulkTerms',
+                           'setAllianceMeta', 'setItemMeta',
                            'bulkAddMembers',
                            'addRaid', 'updateRaid', 'deleteRaid',
                            'setAppName', 'setAdminPin', 'setSeasonServer'];
@@ -6884,7 +7074,7 @@ function _apiRoute(action, req) {
       return api_lookupBalance(req.name);
 
     case 'register':
-      return api_register(req.itemName, req.participants, req.photoLink, req.email, req.photoLinks);
+      return api_register(req.itemName, req.participants, req.photoLink, req.email, req.photoLinks, req.meta);
 
     case 'distribute':
       return api_distribute(req.row, req.amount, req.email);
@@ -6961,7 +7151,7 @@ function _apiRoute(action, req) {
       return { ok: true, data: api_getAlliance() };
 
     case 'addAlliance':
-      return api_addAlliance(req.item, req.entries, req.photoLinks, req.email);
+      return api_addAlliance(req.item, req.entries, req.photoLinks, req.email, req.meta);
 
     case 'analyzeMembers':
       return api_analyzeMembers(req.text, req.base64);
@@ -7008,6 +7198,12 @@ function _apiRoute(action, req) {
     // 홈페이지 표를 복사해 붙여넣는 길 — 이미 있는 국문은 건드리지 않는다
     case 'bulkTerms':
       return api_bulkTerms(req.rows, req.email);
+
+    // 레이드일·보스·루팅 (v11.6) — 새 4칸만 건드린다. 돈은 못 만진다
+    case 'setAllianceMeta':
+      return api_setAllianceMeta(req.group, req.meta, req.email);
+    case 'setItemMeta':
+      return api_setItemMeta(req.row, req.meta, req.email);
 
     case 'addRaid':
       return api_addRaid(req.day, req.time, req.boss, req.note, req.email);
@@ -7186,14 +7382,14 @@ function api_getState() {
 }
 
 // 아이템 등록 API — photoLinks(여러 장) 를 우선 쓰고, 없으면 옛 photoLink(한 장)
-function api_register(itemName, participants, photoLink, email, photoLinks) {
+function api_register(itemName, participants, photoLink, email, photoLinks, meta) {
   itemName = String(itemName || '').trim();
   participants = (participants || []).map(p => String(p).trim()).filter(p => p && p !== FUND_NAME);
   if (!itemName) return _rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
   if (participants.length === 0) return _rc({ ok: false, msg: '참여 멤버를 선택해주세요.' }, 'e.noParticipants');
   try {
     const pics = (photoLinks && photoLinks.length) ? photoLinks : [String(photoLink || '').trim()];
-    _registerCore(SpreadsheetApp.getActiveSpreadsheet(), itemName, participants, pics, email);
+    _registerCore(SpreadsheetApp.getActiveSpreadsheet(), itemName, participants, pics, email, meta);
     return _rc({ ok: true, msg: '✅ "' + itemName + '" 등록 완료 (' + participants.length + '명, ' + ST_WAIT + ')' },
                'reg.ok', { item: itemName, n: participants.length });
   } catch (e) {

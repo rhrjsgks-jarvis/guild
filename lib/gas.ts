@@ -61,6 +61,9 @@ export type GasAction =
   | 'setSeasonServer'
   /* v11.0 — 미분배 아이템 수정 (마스터관리자) */
   | 'editItem'
+  /* v11.6 — 레이드일·보스·루팅 (새 4칸만 건드린다, 관리자 이상) */
+  | 'setAllianceMeta'
+  | 'setItemMeta'
   /* v11.1 — 연합 항목 정정 (마스터관리자) */
   | 'editAlliance'
   | 'addAllianceServers';

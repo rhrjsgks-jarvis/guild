@@ -22,6 +22,18 @@ const DEFAULT_WEIGHT = 100;
 const UNIT = '다이아';
 const SERVER_LIST = ['01','02','03','04','05','06','07','08','09','10','11','12'];
 // .gs · lib/client.ts 와 같은 목록이어야 한다 (verify:gs 가 대조한다)
+/** .gs 의 _lootMeta 와 같은 규칙 — 루팅서버만 01~12 로 제한한다 */
+function lootMeta(m) {
+  const o = m || {};
+  const sv = String(o.lootSv ?? '').trim();
+  return {
+    raid: String(o.raid ?? '').trim(),
+    boss: String(o.boss ?? '').trim(),
+    lootSv: SERVER_LIST.includes(sv) ? sv : '',
+    lootCh: String(o.lootCh ?? '').trim(),
+  };
+}
+
 const CLASS_LIST = ['기사', '요정', '마법사', '다크엘프', '전사', '군주', '수라',
                     '총사', '마격사', '성기사', '나찰', '귀검사', '혈법사'];
 const MAX_MEMBERS = 100;   // .gs 의 MAX_MEMBERS 와 반드시 같아야 한다
@@ -30,7 +42,7 @@ const ST_DONE = '✅분배완료';
 // 앱이 기대하는 버전과 같은 값 — 화면에 "버전 불일치" 경고가 뜨지 않아야 정상이다.
 // ★ 한 곳에만 적는다. 여기저기 흩어 적으면 버전을 올릴 때 한 군데가 남아
 //   "실어 온 상태의 버전이 다르다"는 엉뚱한 실패로 나타난다 (실제로 겪었다).
-const GS_VERSION = '11.5';
+const GS_VERSION = '11.6';
 let MOCK_GS_VERSION = GS_VERSION;
 
 /**
@@ -392,7 +404,7 @@ const handlers = {
       : { ok: false, msg: '멤버DB에서 찾지 못했습니다. 이름을 다시 확인해주세요.' };
   },
 
-  register: ({ itemName, participants, photoLink, photoLinks }) => {
+  register: ({ itemName, participants, photoLink, photoLinks, meta }) => {
     const list = (participants || []).filter((p) => p && p !== FUND_NAME);
     if (!itemName) return rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
     if (list.length === 0) return rc({ ok: false, msg: '참여 멤버를 선택해주세요.' }, 'e.noParticipants');
@@ -409,6 +421,7 @@ const handlers = {
     S.items.push({
       row: S.nextRow++,
       item: itemName,
+      ...lootMeta(meta),
       date: new Date().toISOString().slice(5, 10).replace('-', '/'),
       cnt: list.length,
       names: list,
@@ -960,7 +973,7 @@ const handlers = {
   },
 
   // ① 등록 — 금액은 받지 않는다. 아이템 하나에 여러 서버 · 사진 여러 장 (v11.0)
-  addAlliance: ({ item, entries, photoLinks }) => {
+  addAlliance: ({ item, entries, photoLinks, meta }) => {
     const nm = String(item || '').trim();
     if (!nm) return rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
 
@@ -982,6 +995,7 @@ const handlers = {
     list.forEach((e, i) => {
       S.alliance.push({
         row: S.nextAllianceRow++, group, date: '08/05 09:00', server: e.server, item: nm,
+        ...lootMeta(meta),
         // ★ 사진은 줄마다 그 서버의 것 (v11.3). 묶음 공용(옛 앱)은 첫 줄에 함께
         amount: 0, pct: 0, people: e.people, credited: 0,
         photos: i === 0 ? [...e.photos, ...pics] : [...e.photos], fund: 0, done: false,
@@ -996,6 +1010,25 @@ const handlers = {
   },
 
   // ② 정산 — 혈비를 떼고 인원수 비례로 서버에 나눈다 (v11.0)
+  /**
+   * 레이드일·보스·루팅서버·루팅캐릭터만 고친다 (v11.6) — 관리자 이상.
+   * 돈을 다루는 editAlliance 와 일부러 나뉘어 있다 — 이 경로로는 금액이 안 바뀐다.
+   */
+  setAllianceMeta: ({ group, meta }) => {
+    const hit = S.alliance.filter((r) => r.group === group);
+    if (hit.length === 0) return rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+    const m = lootMeta(meta);
+    hit.forEach((r) => Object.assign(r, m));
+    return rc({ ok: true, msg: '✅ 저장했습니다.' }, 'meta.saveOk');
+  },
+
+  setItemMeta: ({ row, meta }) => {
+    const hit = S.items.find((i) => i.row === Number(row));
+    if (!hit) return rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+    Object.assign(hit, lootMeta(meta));
+    return rc({ ok: true, msg: '✅ 저장했습니다.' }, 'meta.saveOk');
+  },
+
   creditAlliance: ({ group, amount }) => {
     const targets = S.alliance.filter((r) => r.group === String(group));
     if (targets.length === 0) return rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');

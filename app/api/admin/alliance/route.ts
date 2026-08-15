@@ -2,7 +2,7 @@ import { callGas } from '@/lib/gas';
 import { requireAdmin } from '@/lib/auth';
 import { invalidate } from '@/lib/cache';
 import { syncStateCache } from '@/lib/fresh';
-import { parseEntries, photoLinks as parsePhotos } from '@/lib/alliance';
+import { lootMeta, parseEntries, photoLinks as parsePhotos } from '@/lib/alliance';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -37,6 +37,7 @@ export async function POST(req: Request) {
     photoLinks?: unknown;
     group?: unknown;
     amount?: unknown;
+    meta?: unknown;
     email?: unknown;
   };
   try {
@@ -49,6 +50,20 @@ export async function POST(req: Request) {
   // op 를 안 보내면 등록으로 본다 (앱 구버전 호환)
   const op = String(body.op ?? 'register');
 
+  /**
+   * 🏷️ 레이드일·보스·루팅서버·루팅캐릭터만 고친다 (v11.6) — **관리자 이상**.
+   *
+   * 돈을 다루는 edit 와 일부러 나눴다. 시트의 api_setAllianceMeta 는 이 4칸 말고는
+   * 손댈 길이 없어서, 정산이 끝난 건이라도 관리자에게 열 수 있다.
+   */
+  if (op === 'setMeta') {
+    const group = String(body.group ?? '').trim();
+    if (!group) return Response.json({ ok: false, msg: '기록을 찾을 수 없습니다.' }, { status: 400 });
+    const res = await callGas('setAllianceMeta', { group, meta: lootMeta(body.meta), email });
+    if (res.ok) invalidate('alliance');
+    return Response.json(res, { status: res.ok ? 200 : 400 });
+  }
+
   if (op === 'register') {
     const item = String(body.item ?? '').trim();
     if (!item) return Response.json({ ok: false, msg: '아이템명을 입력해주세요.' }, { status: 400 });
@@ -59,7 +74,8 @@ export async function POST(req: Request) {
     // 인증샷은 선택이고 줄마다 따로 붙는다. photoLinks 는 묶음 공용(옛 앱 호환)
     const res = await callGas(
       'addAlliance',
-      { item, entries: parsed.entries, photoLinks: parsePhotos(body.photoLinks), email },
+      // 레이드일·보스·루팅 (v11.6) — 값 판정(서버는 01~12, 나머지는 자유)은 시트가 한다 (규칙 5-3)
+      { item, entries: parsed.entries, photoLinks: parsePhotos(body.photoLinks), email, meta: lootMeta(body.meta) },
       { timeoutMs: 45_000 },
     );
     if (res.ok) invalidate('alliance');

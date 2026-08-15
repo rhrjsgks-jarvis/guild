@@ -318,6 +318,7 @@ export default function App() {
                   admin={admin}
                   master={master}
                   fundName={state.fundName}
+                  members={state.members}
                   toast={toast}
                   setBusy={setBusy}
                   onWrote={refreshNow}

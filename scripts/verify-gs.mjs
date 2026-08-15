@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v11_5.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v11_6.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 /**
@@ -1454,8 +1454,13 @@ check('개명 병합이 멤버DB에 같은 이름을 두 줄 남기지 않는다
 check('연합은 등록과 정산이 분리되어 있다', () => {
   // 레이드 직후엔 아직 안 팔려서 금액을 모르는 것이 정상이다.
   // 등록 단계에서 금액을 요구하면 등록 자체가 미뤄져 인증샷을 잃어버린다.
-  if (!/function api_addAlliance\(item, entries, photoLinks, email\)/.test(gs)) {
-    throw new Error('api_addAlliance 가 아직 금액을 받습니다 — 등록/정산이 분리되지 않았습니다.');
+  // ★ 인자 **목록을 통째로** 비교하지 않는다. 그러면 금액과 무관한 인자를 하나
+  //   더해도(v11.6 의 meta) 실패해서, 정작 지켜야 할 "금액을 안 받는다"가
+  //   자리 순서에 묶여버린다. 규칙은 `amount` 를 받지 않는 것이다.
+  const addSig = (gs.match(/function api_addAlliance\(([^)]*)\)/) ?? [])[1];
+  if (addSig == null) throw new Error('api_addAlliance 가 없습니다.');
+  if (/\bamount\b/.test(addSig)) {
+    throw new Error(`api_addAlliance 가 아직 금액을 받습니다 (${addSig}) — 등록/정산이 분리되지 않았습니다.`);
   }
   if (!/function api_creditAlliance\(group, amount, email\)/.test(gs)) {
     throw new Error('api_creditAlliance 가 없습니다.');
@@ -1479,8 +1484,15 @@ check('연합은 등록과 정산이 분리되어 있다', () => {
   // 라우터·쓰기목록에 새 액션이 등록됐는지. 인자 이름까지 봐야 한다 —
   // 시그니처만 바꾸고 라우터를 안 고치면 항상 undefined 가 넘어간다.
   if (!/case 'creditAlliance':/.test(gs)) throw new Error('라우터에 creditAlliance 가 없습니다.');
-  if (!/api_addAlliance\(req\.item, req\.entries, req\.photoLinks, req\.email\)/.test(gs)) {
-    throw new Error('라우터가 api_addAlliance 에 옛 인자를 넘깁니다.');
+  // ★ 고정 문자열로 비교하지 않는다 — 인자를 하나 더할 때마다 검사가 깨진다.
+  //   지켜야 할 것은 **시그니처와 라우터 호출이 서로 맞는지**다.
+  //   어긋나면 그 자리에 언제나 undefined 가 넘어가고, 아무 오류도 나지 않는다.
+  const addCall = (gs.match(/api_addAlliance\(([^)]*)\)\s*;/) ?? [])[1];
+  if (addCall == null) throw new Error('라우터가 api_addAlliance 를 부르지 않습니다.');
+  const want = addSig.split(',').map((s) => s.trim()).filter(Boolean);
+  const got = addCall.split(',').map((s) => s.trim().replace(/^req\./, ''));
+  if (want.length !== got.length || want.some((p, i) => p !== got[i])) {
+    throw new Error(`라우터 인자가 시그니처와 어긋납니다.\n     정의: ${want.join(', ')}\n     호출: ${got.join(', ')}`);
   }
   if (!/api_creditAlliance\(req\.group, req\.amount, req\.email\)/.test(gs)) {
     throw new Error('라우터가 api_creditAlliance 에 옛 인자를 넘깁니다.');
@@ -1617,8 +1629,17 @@ check('연합 한 건에 여러 서버가 들어가고, 혈비는 실제로 적�
 
   // 모의 시트도 같은 모양이어야 E2E 가 의미가 있다
   const mock = readFileSync(resolve(ROOT, 'scripts/mock-sheet.mjs'), 'utf8');
-  if (!/addAlliance: \(\{ item, entries, photoLinks \}\)/.test(mock)) {
-    throw new Error('모의 시트의 연합 등록이 옛 모양입니다.');
+  // ★ 인자를 하나 더할 때마다 깨지지 않게, **필요한 것이 들어 있는지**만 본다.
+  //   지켜야 할 것은 "서버별 인원(entries)을 받고 금액은 안 받는다" 이다.
+  const mockAdd = (mock.match(/addAlliance: \(\{([^}]*)\}\)/) ?? [])[1] ?? '';
+  if (!mockAdd) throw new Error('모의 시트에 addAlliance 가 없습니다.');
+  for (const need of ['item', 'entries']) {
+    if (!new RegExp(`\\b${need}\\b`).test(mockAdd)) {
+      throw new Error(`모의 시트의 연합 등록이 ${need} 를 안 받습니다 (${mockAdd.trim()}).`);
+    }
+  }
+  if (/\bamount\b/.test(mockAdd)) {
+    throw new Error('모의 시트의 연합 등록이 금액을 받습니다 — 등록/정산이 분리되지 않았습니다.');
   }
   if (!/creditAlliance: \(\{ group, amount \}\)/.test(mock)) {
     throw new Error('모의 시트의 연합 정산이 옛 모양입니다.');
@@ -3159,6 +3180,39 @@ check('아이콘을 바꾸면 폰에서도 실제로 바뀐다', () => {
   return `네트워크 우선 5종 · 아이콘 ${need.length}개 · manifest ${mf.icons.length}개 · maskable 분리`;
 });
 
+check('레이드·루팅 정보는 돈을 만지지 못한다 (v11.6)', () => {
+  // 관리자에게 열 수 있는 근거가 **코드 구조**에 있어야 한다.
+  // 이 함수가 금액·인원·상태를 쓸 수 있으면, 정산 완료 건을 관리자가 고치는 순간
+  // 장부가 바뀐다. 그래서 새 4칸 말고는 쓰지 못하게 막고 그것을 여기서 확인한다.
+  for (const fn of ['api_setAllianceMeta', 'api_setItemMeta']) {
+    const body = extractFn(gs, fn);
+    // 쓰기는 새 4칸(RAID~LOOTCH)과 서식 지정만 허용한다
+    const writes = [...body.matchAll(/getRange\(([^)]*)\)\s*\.\s*setValues?\(/g)].map((m) => m[1]);
+    for (const w of writes) {
+      if (!/\.(RAID|LOOTSV)\b/.test(w)) {
+        throw new Error(`${fn} 이 새 4칸 밖에 씁니다: getRange(${w})`);
+      }
+    }
+    for (const forbidden of ['AMOUNT', 'CREDITED', 'FUND', 'STATUS', 'PEOPLE', 'CHECK']) {
+      if (new RegExp(`\\.${forbidden}\\b`).test(body)) {
+        throw new Error(`${fn} 이 ${forbidden} 열을 건드립니다 — 관리자에게 열 수 없습니다.`);
+      }
+    }
+    if (!/LockService/.test(body)) throw new Error(`${fn} 에 락이 없습니다.`);
+  }
+
+  // 라우트도 관리자 경계여야 한다 (마스터 전용이면 요청한 목적을 못 이룬다)
+  const itemRoute = readFileSync(resolve(ROOT, 'app/api/admin/item-meta/route.ts'), 'utf8');
+  if (!/requireAdmin\(\)/.test(itemRoute)) throw new Error('item-meta 라우트에 관리자 인증이 없습니다.');
+  if (/requireMaster/.test(itemRoute)) throw new Error('item-meta 가 마스터 전용입니다 — 관리자도 고칠 수 있어야 합니다.');
+
+  // 루팅서버는 닫힌 집합이다 — 시트가 판정한다 (라우트만 믿으면 직접 호출로 뚫린다)
+  if (!/SERVER_LIST\.indexOf\(sv\) >= 0 \? sv : ''/.test(extractFn(gs, '_lootMeta'))) {
+    throw new Error('_lootMeta 가 루팅서버를 01~12 로 제한하지 않습니다.');
+  }
+  return '금액·적립액·상태 접근 0 · 락 있음 · 관리자 경계 · 루팅서버 제한';
+});
+
 check('용어 수정은 모든 칸을 시트까지 전달한다 (v11.5)', () => {
   // 🐛 실제로 있었던 사고: 라우트가 img·tier 를 안 넘겨서, 용어를 한 번 수정하면
   //    아이콘 주소가 지워지고 티어가 빈칸이 됐다. 시트는 **받은 값으로 덮어쓰기**
@@ -3246,8 +3300,10 @@ check('화면에 한국어가 직접 박혀 있지 않다', () => {
       // 한글이 없으면 통과
       if (!/[가-힣]/.test(line)) return;
       // 사전 키로 감싼 호출·데이터 비교용 상수는 허용한다
+      // 데이터 비교용 상수는 허용한다 — 화면에 보이는 문구가 아니라 **시트의 값**이다.
+      // `cat="보스"` 를 번역하면 시트의 분류와 대조가 깨져 자동완성이 아무것도 못 찾는다.
       const allowed =
-        /_normName|'다이아'|'합계'|'분배완료'|startsWith\('💰'\)|'한국어'|DEFAULT_APP_NAME/.test(line);
+        /_normName|'다이아'|'합계'|'분배완료'|startsWith\('💰'\)|'한국어'|DEFAULT_APP_NAME|cat="보스"/.test(line);
       if (allowed) return;
       bad.push(`${path}:${i + 1}  ${line.trim().slice(0, 60)}`);
     });

@@ -1,4 +1,5 @@
 import { callGas } from '@/lib/gas';
+import { lootMeta } from '@/lib/alliance';
 import { requireAdmin } from '@/lib/auth';
 import { syncStateCache } from '@/lib/fresh';
 
@@ -15,6 +16,7 @@ export async function POST(req: Request) {
     participants?: unknown;
     photoLink?: unknown;
     photoLinks?: unknown;
+    meta?: unknown;
     email?: unknown;
   };
   try {
@@ -45,6 +47,8 @@ export async function POST(req: Request) {
       participants,
       photoLink: String(body.photoLink ?? '').trim(),
       photoLinks,
+      // 레이드일·보스·루팅 (v11.6) — 값 판정은 시트가 한다 (규칙 5-3)
+      meta: lootMeta(body.meta),
       email: String(body.email ?? '').trim(),
     },
     { timeoutMs: 45_000, withState: true },

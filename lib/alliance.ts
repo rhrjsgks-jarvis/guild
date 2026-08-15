@@ -47,3 +47,29 @@ export function parseEntries(raw: unknown, emptyMsg: string): { entries: AllyEnt
 
   return { entries };
 }
+
+/**
+ * 레이드일 · 보스 · 루팅서버 · 루팅캐릭터 (v11.6) — 연합·아이템 라우트가 한 벌을 쓴다.
+ *
+ * ★ 여기서 하는 것은 **형식 정리뿐**이다. 값 판정(루팅서버가 01~12 인가)은
+ *   시트가 한다 — 라우트를 직접 부르는 길이 있으므로 여기서 끝내면 안 된다 (규칙 5-3).
+ * ★ 전부 선택이다. 빈 값은 빈 문자열로 넘긴다 — undefined 로 두면 시트가
+ *   "안 바꿈"과 "지움"을 구별할 수 없다.
+ * ★ 길이 상한을 둔다. 아이템명에 몰아 적던 습관 때문에 한 칸에 문장을 넣는
+ *   일이 생기는데, 그러면 목록 한 줄이 화면을 덮는다.
+ */
+export function lootMeta(raw: unknown): {
+  raid: string;
+  boss: string;
+  lootSv: string;
+  lootCh: string;
+} {
+  const o = (raw ?? {}) as Record<string, unknown>;
+  const s = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max);
+  return {
+    raid: s(o.raid, 10),
+    boss: s(o.boss, 40),
+    lootSv: s(o.lootSv, 2),
+    lootCh: s(o.lootCh, 30),
+  };
+}

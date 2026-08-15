@@ -21,6 +21,14 @@ export type LedgerItem = {
   names: string[];
   /** 인증샷 — v11.0 부터 한 아이템에 여러 장 (옛 기록은 0~1장) */
   photos?: string[];
+  /**
+   * 레이드일 · 보스 · 루팅서버 · 루팅캐릭터 (v11.6).
+   * 옛 기록은 비어 있다 — 아이템명에 적혀 있던 것을 우리가 쪼개 넣지 않는다.
+   */
+  raid?: string;
+  boss?: string;
+  lootSv?: string;
+  lootCh?: string;
 };
 
 export type GuildState = {
@@ -126,6 +134,14 @@ export type AllianceRow = {
   /** '⏳미분배' | '✅분배완료' — v10.2 이하 행은 금액 유무로 판정된다 */
   status: string;
   done: boolean;
+  /**
+   * 레이드일 · 보스 · 루팅서버 · 루팅캐릭터 (v11.6).
+   * 옛 기록은 비어 있다 — 아이템명에 적혀 있던 것을 우리가 쪼개 넣지 않는다.
+   */
+  raid?: string;
+  boss?: string;
+  lootSv?: string;
+  lootCh?: string;
 };
 
 /** 아이템 하나 = 여러 서버 줄을 묶은 것. 화면은 항상 이 단위로 보여준다 */
@@ -143,6 +159,14 @@ export type AllianceGroup = {
   servers: { server: string; people: number; credited: number; photos?: string[] }[];
   rows: number[];
   done: boolean;
+  /**
+   * 레이드일 · 보스 · 루팅서버 · 루팅캐릭터 (v11.6).
+   * 옛 기록은 비어 있다 — 아이템명에 적혀 있던 것을 우리가 쪼개 넣지 않는다.
+   */
+  raid?: string;
+  boss?: string;
+  lootSv?: string;
+  lootCh?: string;
 };
 
 export type AllianceTotal = {

@@ -21,6 +21,8 @@ import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 import ItemName from './ItemName';
 import ItemNameInput from './ItemNameInput';
+import LootEditSheet from './LootEditSheet';
+import LootFields, { EMPTY_LOOT, lootLine, type Loot } from './LootFields';
 import LedgerCard from './LedgerCard';
 import ServerFilter, { NO_SERVER } from './ServerFilter';
 import ShareBtn from './ShareBtn';
@@ -67,6 +69,10 @@ export default function ItemsTab({
   const [viewing, setViewing] = useState<LedgerItem | null>(null);
   const [svPick, setSvPick] = useState<string[]>([]);
   const [showRest, setShowRest] = useState(false);
+  /** 레이드일·보스·루팅 (v11.6) — 연합 등록과 같은 한 벌 */
+  const [loot, setLoot] = useState<Loot>(EMPTY_LOOT);
+  /** 레이드일·보스·루팅 고치기 (v11.6) — 관리자 이상 */
+  const [metaOf, setMetaOf] = useState<LedgerItem | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // 혈맹운영비 계정은 참여자가 될 수 없다
@@ -137,6 +143,7 @@ export default function ItemsTab({
     setShowOcr('');
     setSvPick([]);
     setShowRest(false);
+    setLoot(EMPTY_LOOT);
     if (fileRef.current) fileRef.current.value = '';
   }
 
@@ -195,6 +202,7 @@ export default function ItemsTab({
       participants: [...picked],
       photoLink: photoLink.trim(),
       photoLinks: links,
+      meta: loot,
       email: getStoredEmail(),
     });
     setBusy(false);
@@ -236,6 +244,7 @@ export default function ItemsTab({
                   <ItemName name={it.item} />
                 </button>
                 <button type="button" className="row-sub linkish" onClick={() => setViewing(it)}>
+                  {lootLine(it) ? `${lootLine(it)} · ` : ''}
                   {it.date} · {t('c.joined')} {t('c.persons', { n: it.cnt })}
                   {it.photos && it.photos.length > 0
                     ? ` · ${t('ali.photoN', { n: it.photos.length })}`
@@ -247,6 +256,12 @@ export default function ItemsTab({
               {master ? (
                 <button className="btn ghost" onClick={() => setEditing(it)}>
                   {t('items.edit')}
+                </button>
+              ) : null}
+              {/* 🏷️ 는 관리자도 누른다 — 새 4칸은 다이아를 움직이지 않는다 */}
+              {admin ? (
+                <button className="btn ghost" onClick={() => setMetaOf(it)}>
+                  🏷️
                 </button>
               ) : null}
               {admin ? (
@@ -275,6 +290,8 @@ export default function ItemsTab({
               </label>
               {/* 용어 사전 자동완성 (v11.4) — 세 언어로 찾아 고르면 국문이 들어간다 */}
               <ItemNameInput id="fItem" value={itemName} onChange={setItemName} />
+
+              <LootFields value={loot} onChange={setLoot} servers={state.serverList ?? []} members={state.members} idPrefix="ireg" />
             </div>
 
             <div className="field">
@@ -459,6 +476,24 @@ export default function ItemsTab({
           participants={pickedList}
           onCancel={() => setConfirming(false)}
           onConfirm={submit}
+        />
+      ) : null}
+
+      {metaOf ? (
+        <LootEditSheet
+          title={t('loot.editTitle')}
+          source={metaOf.item}
+          initial={{ raid: metaOf.raid ?? '', boss: metaOf.boss ?? '', lootSv: metaOf.lootSv ?? '', lootCh: metaOf.lootCh ?? '' }}
+          servers={state.serverList ?? []}
+          members={state.members}
+          target={{ kind: 'item', row: metaOf.row }}
+          onClose={() => setMetaOf(null)}
+          onDone={(res) => {
+            setMetaOf(null);
+            onDone(res);
+          }}
+          toast={toast}
+          setBusy={setBusy}
         />
       ) : null}
 

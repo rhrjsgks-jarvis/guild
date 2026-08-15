@@ -7,6 +7,8 @@ import ServerFilter from './ServerFilter';
 import PhotoStrip from './PhotoStrip';
 import ItemName from './ItemName';
 import ItemNameInput from './ItemNameInput';
+import LootFields, { EMPTY_LOOT, lootLine, type Loot } from './LootFields';
+import LootEditSheet from './LootEditSheet';
 import type { AllianceGroup, AllianceState } from '@/lib/types';
 import { api, calcAlliance, fmt, getStoredEmail, prepPhoto } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
@@ -38,6 +40,7 @@ export default function AllianceTab({
   admin,
   master,
   fundName,
+  members,
   toast,
   setBusy,
   onWrote,
@@ -47,6 +50,8 @@ export default function AllianceTab({
   master: boolean;
   /** 혈맹운영비 계정 이름 — 미리보기에서 어디로 가는 돈인지 밝힌다 */
   fundName: string;
+  /** 루팅캐릭터 제안용 (v11.6) — 명단에 없는 이름도 칠 수 있다 */
+  members: string[];
   toast: (msg: string, isError?: boolean) => void;
   setBusy: (on: boolean) => void;
   /** 혈맹운영비 잔액이 바뀌므로 잔액 탭도 함께 갱신한다 */
@@ -62,6 +67,8 @@ export default function AllianceTab({
   const [detail, setDetail] = useState<AllianceGroup | null>(null);
   /** 서버로 좁혀 보기 (v11.5) — 잔액·아이템 화면과 같은 칩 */
   const [svPick, setSvPick] = useState<string[]>([]);
+  /** 레이드일·보스·루팅 고치기 (v11.6) — 관리자 이상 */
+  const [metaOf, setMetaOf] = useState<AllianceGroup | null>(null);
 
   // fresh=true 는 내가 방금 쓴 직후에만 — 서버 캐시를 건너뛴다 (lib/fresh.ts)
   const load = useCallback(async (fresh = false) => {
@@ -235,6 +242,7 @@ export default function AllianceTab({
                 <div className="row-main">
                   {groupLine(g)}
                   <button type="button" className="row-sub linkish" onClick={() => setDetail(g)}>
+                    {lootLine(g) ? `${lootLine(g)} · ` : ''}
                     {g.date} · {t('c.people')} {g.people}
                     {g.photos.length > 0 ? ` · ${t('ali.photoN', { n: g.photos.length })}` : ''}
                   </button>
@@ -248,6 +256,9 @@ export default function AllianceTab({
                       정산된 건(아래 목록)은 그대로 마스터 전용이다. */}
                   <button className="btn ghost" onClick={() => setEditing(g)}>
                     {t('items.edit')}
+                  </button>
+                  <button className="btn ghost" onClick={() => setMetaOf(g)}>
+                    🏷️ {t('loot.editTitle')}
                   </button>
                   {/* 레이드 뒤에 "우리 서버도 갔었다" 는 이야기가 늦게 온다.
                       그때마다 마스터를 부르면 등록이 미뤄지므로 관리자에게 연다.
@@ -327,6 +338,7 @@ export default function AllianceTab({
                 <div className="row-main">
                   {groupLine(g)}
                   <button type="button" className="row-sub linkish" onClick={() => setDetail(g)}>
+                    {lootLine(g) ? `${lootLine(g)} · ` : ''}
                     {g.date} · {fmt(g.amount)} · {t('c.people')} {g.people}
                     {g.photos.length > 0 ? ` · ${t('ali.photoN', { n: g.photos.length })}` : ''}
                   </button>
@@ -335,6 +347,10 @@ export default function AllianceTab({
               </div>
               {admin ? (
                 <div className="row-acts">
+                  {/* 🏷️ 는 정산완료여도 관리자가 누를 수 있다 — 새 4칸은 돈을 안 움직인다 */}
+                  <button className="btn ghost" onClick={() => setMetaOf(g)}>
+                    🏷️ {t('loot.editTitle')}
+                  </button>
                   {master ? (
                     <button className="btn ghost" onClick={() => setEditing(g)}>
                       {t('items.edit')}
@@ -350,10 +366,29 @@ export default function AllianceTab({
         )}
       </div>
 
+      {metaOf && data ? (
+        <LootEditSheet
+          title={t('loot.editTitle')}
+          source={metaOf.item}
+          initial={{ raid: metaOf.raid ?? '', boss: metaOf.boss ?? '', lootSv: metaOf.lootSv ?? '', lootCh: metaOf.lootCh ?? '' }}
+          servers={data.serverList}
+          members={members}
+          target={{ kind: 'alliance', group: metaOf.group }}
+          onClose={() => setMetaOf(null)}
+          onDone={() => {
+            setMetaOf(null);
+            void load(true);
+          }}
+          toast={toast}
+          setBusy={setBusy}
+        />
+      ) : null}
+
       {adding && data ? (
         <RegisterSheet
           servers={data.serverList}
           inUse={inUse}
+          members={members}
           onClose={() => setAdding(false)}
           onDone={() => {
             setAdding(false);
@@ -637,6 +672,7 @@ function RowPhoto({
 function RegisterSheet({
   servers,
   inUse,
+  members,
   onClose,
   onDone,
   toast,
@@ -644,6 +680,8 @@ function RegisterSheet({
 }: {
   servers: string[];
   inUse: string[];
+  /** 루팅캐릭터 제안용 — 명단에 없는 이름도 칠 수 있다 */
+  members: string[];
   onClose: () => void;
   onDone: (res?: ApiResult) => void;
   toast: (msg: string, isError?: boolean) => void;
@@ -651,6 +689,7 @@ function RegisterSheet({
 }) {
   const { t, srv } = useT();
   const [item, setItem] = useState('');
+  const [loot, setLoot] = useState<Loot>(EMPTY_LOOT);
   const [rows, setRows] = useState<Entry[]>([newRow(servers[0] ?? '01')]);
 
   const valid = Boolean(item.trim()) && rowsValid(rows);
@@ -662,6 +701,7 @@ function RegisterSheet({
       op: 'register',
       item: item.trim(),
       entries: toEntries(rows),
+      meta: loot,
       email: getStoredEmail(),
     });
     setBusy(false);
@@ -676,6 +716,8 @@ function RegisterSheet({
       </label>
       {/* 용어 사전 자동완성 (v11.4) — 中文으로 쳐도 찾아지고, 저장은 국문이다 */}
       <ItemNameInput id="ait" value={item} onChange={setItem} />
+
+      <LootFields value={loot} onChange={setLoot} servers={servers} members={members} idPrefix="areg" />
 
       <ServerRows
         servers={servers}

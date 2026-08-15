@@ -17,17 +17,28 @@ export default function ItemNameInput({
   value,
   onChange,
   maxLength = 40,
+  cat,
+  placeholder,
 }: {
   id: string;
   value: string;
   onChange: (next: string) => void;
   maxLength?: number;
+  /**
+   * 제안을 이 분류로 좁힌다 (v11.6). 보스 칸은 `'보스'` 를 준다 —
+   * 보스 자리에 아이템이 뜨면 잘못 고르기 쉽고, 337개 아이템에 묻혀
+   * 167개 보스가 안 보인다.
+   * ★ 좁히는 것은 **제안뿐**이다. 분류 밖의 이름도 그대로 칠 수 있다.
+   */
+  cat?: string;
+  placeholder?: string;
 }) {
   const { t, lang } = useT();
   const { terms } = useTerms();
   const [open, setOpen] = useState(true);
 
-  const hits = open ? searchTerms(terms, value, 8) : [];
+  const pool = cat ? terms.filter((x) => x.cat === cat) : terms;
+  const hits = open ? searchTerms(pool, value, 8) : [];
   // 이미 정확히 고른 이름이면 굳이 목록을 띄우지 않는다
   const exact = hits.length === 1 && hits[0].ko === value;
 
@@ -38,6 +49,7 @@ export default function ItemNameInput({
         type="text"
         maxLength={maxLength}
         value={value}
+        placeholder={placeholder}
         autoComplete="off"
         onChange={(e) => {
           setOpen(true);
