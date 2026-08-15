@@ -11,6 +11,7 @@ import LootFields, { EMPTY_LOOT, type Loot } from './LootFields';
 import LootEditSheet from './LootEditSheet';
 import type { AllianceGroup, AllianceState } from '@/lib/types';
 import { api, calcAlliance, fmt, getStoredEmail, prepPhoto } from '@/lib/client';
+import { termDisplay, useTerms } from '@/lib/terms';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 import ShareBtn from './ShareBtn';
@@ -57,7 +58,8 @@ export default function AllianceTab({
   /** 혈맹운영비 잔액이 바뀌므로 잔액 탭도 함께 갱신한다 */
   onWrote?: (res?: ApiResult) => void;
 }) {
-  const { t, unit, srv } = useT();
+  const { t, unit, srv, lang } = useT();
+  const { terms } = useTerms();
   const [data, setData] = useState<AllianceState | null>(null);
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
@@ -185,7 +187,10 @@ export default function AllianceTab({
    *   나머지는 글자다 — 배지를 더 붙이면 한 줄이 배지로 뒤덮인다.
    */
   const groupLine = (g: AllianceGroup) => {
-    const before = [g.raid, g.boss].map((x) => String(x ?? '').trim()).filter(Boolean);
+    // ★ 보스만 사전으로 번역한다 (v11.6). 날짜·서버번호·캐릭터명은 번역 대상이 아니다 —
+    //   캐릭터명은 사람 이름이고, 사람 이름은 번역하지 않는다 (규칙 6-4).
+    const before = [g.raid, termDisplay(terms, g.boss ?? '', lang)]
+      .map((x) => String(x ?? '').trim()).filter(Boolean);
     const after = [g.lootSv, g.lootCh].map((x) => String(x ?? '').trim()).filter(Boolean);
     return (
       <button type="button" className="row-name linkish" onClick={() => setDetail(g)}>

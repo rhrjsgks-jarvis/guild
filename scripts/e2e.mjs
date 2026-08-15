@@ -3048,6 +3048,43 @@ await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', asyn
   await page.waitForTimeout(400);
 });
 
+await t('아이템·보스 이름은 사전에 있는 것만 번역된다 (v11.6)', async () => {
+  // 이름을 공식 표기로 통일하고 나면 언어를 바꿀 때 번역이 붙어야 한다.
+  // ★ **사전에 있는 것만** 바뀐다. 없는 이름은 국문 그대로다 — 기계 번역은
+  //   하지 않는다 (규칙 6-4·7). 그래서 두 가지를 함께 본다.
+  await reset();
+  await page.goto(APP, { waitUntil: 'networkidle' });
+
+  await go(page, 'items');
+  await page.waitForTimeout(600);
+  const ko = await page.locator('.card').first().innerText();
+  if (!ko.includes('용의 심장')) throw new Error(`한국어 화면에 '용의 심장' 이 없습니다: ${ko.slice(0, 200)}`);
+
+  // 中文 으로
+  await go(page, 'admin');
+  await page.waitForTimeout(400);
+  await page.getByRole('button', { name: '中文' }).click();
+  await page.waitForTimeout(400);
+  await go(page, 'items');
+  await page.waitForTimeout(600);
+  const zh = await page.locator('.card').first().innerText();
+
+  // ① 사전에 있는 이름은 번역된다
+  if (!zh.includes('龙之心')) throw new Error(`中文 에서 '龙之心' 이 안 보입니다: ${zh.slice(0, 300)}`);
+  if (zh.includes('용의 심장')) throw new Error(`中文 인데 국문이 그대로 남아 있습니다: ${zh.slice(0, 300)}`);
+
+  // ② 사전에 없는 이름은 **국문 그대로** — 지어내지 않는다
+  if (!zh.includes('기란 세금')) {
+    throw new Error(`사전에 없는 이름이 사라지거나 바뀌었습니다 (지어내면 안 됩니다): ${zh.slice(0, 300)}`);
+  }
+
+  // 한국어로 되돌린다 (뒤에 오는 검사가 한글 화면을 기대한다)
+  await go(page, 'admin');
+  await page.waitForTimeout(400);
+  await page.getByRole('button', { name: '한국어' }).click();
+  await page.waitForTimeout(400);
+});
+
 await t('English 로 바꾸면 화면 문구가 전부 영문이 된다', async () => {
   await reset();
   await page.goto(APP, { waitUntil: 'networkidle' });

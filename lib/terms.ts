@@ -85,6 +85,24 @@ export function findTerm(terms: Term[], name: string): Term | null {
 }
 
 /**
+ * 화면 언어로 보여줄 아이템·보스 이름 (v11.6).
+ *
+ * ★ **사전에 있는 것만** 바꾼다. 없으면 국문 그대로다 — 기계 번역은 하지 않는다
+ *   (규칙 6-4·7). 그래서 이름이 공식 표기와 맞아야 번역이 붙는다.
+ * ★ 中文·English 칸이 비어 있어도 국문 그대로다. 빈칸은 "아직 확인 못 했다"는
+ *   뜻이지 "번역이 없다"가 아니다.
+ * ★ 시트에 저장되는 이름은 **언제나 국문**이다. 이건 보여줄 때만 쓴다 —
+ *   대만 혈맹원이 「不變項鍊」을 보고 골라도 기록에는 '불변의 목걸이'가 들어간다.
+ */
+export function termDisplay(terms: Term[], name: string, lang: 'ko' | 'zh' | 'en'): string {
+  const raw = String(name ?? '').trim();
+  if (!raw || lang === 'ko') return raw;
+  const hit = findTerm(terms, raw);
+  const other = lang === 'zh' ? hit?.zh : hit?.en;
+  return other?.trim() ? other.trim() : raw;
+}
+
+/**
  * 등급 테두리 색 (v11.5) — 사전의 `cat` 으로만 정한다.
  *
  * ★ 이름을 보고 짐작하지 않는다. '전설 제작 비법서'(전설)와 '전설의 도전자'(보스)는

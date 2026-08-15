@@ -19,6 +19,7 @@ import {
 } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
+import { termDisplay, useTerms } from '@/lib/terms';
 import ItemName from './ItemName';
 import ItemNameInput from './ItemNameInput';
 import LootEditSheet from './LootEditSheet';
@@ -57,6 +58,7 @@ export default function ItemsTab({
   setBusy: (on: boolean) => void;
 }) {
   const { t, unit, srv, lang } = useT();
+  const { terms } = useTerms();
   const [itemName, setItemName] = useState('');
   const [photoLink, setPhotoLink] = useState('');
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -243,7 +245,7 @@ export default function ItemsTab({
                 {/* 연합 탭과 **같은 순서**로 (v11.6): 날짜 · 보스 · 아이템 · 루팅서버 · 루팅캐릭터.
                     두 화면이 다르게 보이면 같은 기록을 두 가지로 기억하게 된다 */}
                 <button type="button" className="row-name linkish" onClick={() => setViewing(it)}>
-                  {[it.raid, it.boss].map((x) => String(x ?? '').trim()).filter(Boolean).map((v) => (
+                  {[it.raid, termDisplay(terms, it.boss ?? '', lang)].map((x) => String(x ?? '').trim()).filter(Boolean).map((v) => (
                     <span className="lootpart" key={v}>
                       {v}
                     </span>

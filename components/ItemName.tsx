@@ -1,7 +1,7 @@
 'use client';
 
 import { useT } from '@/lib/i18n';
-import { GRADE_UNKNOWN, gradeColor, tierOf, useTerms } from '@/lib/terms';
+import { GRADE_UNKNOWN, gradeColor, termDisplay, tierOf, useTerms } from '@/lib/terms';
 
 /**
  * 아이템 이름 한 벌 (v11.5) — 등급 테두리 · 티어 배지 · 아이콘.
@@ -25,7 +25,7 @@ export default function ItemName({
   /** 목록에서는 md, 제목 자리에서는 lg */
   size?: 'md' | 'lg';
 }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const { terms } = useTerms();
   const color = gradeColor(terms, name);
   /**
@@ -52,7 +52,9 @@ export default function ItemName({
           background: known ? `${color}1A` : 'transparent',
         }}
       >
-        {name}
+        {/* 화면 언어로 보여준다 (v11.6) — 사전에 있는 것만 바뀌고, 없으면 국문 그대로다.
+            저장되는 이름은 언제나 국문이라 이 표시가 기록을 바꾸지는 않는다 */}
+        {termDisplay(terms, name, lang)}
       </span>
       {tierNo ? <span className="iname-tier">{t('item.tierN', { n: tierNo })}</span> : null}
     </span>
