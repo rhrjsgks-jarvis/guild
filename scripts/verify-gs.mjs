@@ -8,13 +8,21 @@
  * 검사 항목은 아래 CHECKS 배열이 전부다. 새 규칙이 생기면 여기에 추가하면 된다.
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { resolve, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v11_3.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
+
+/**
+ * ROOT 기준 상대경로를 언제나 슬래시로 돌려준다.
+ * 윈도우에서 resolve() 는 역슬래시를 주므로 `full.replace(ROOT + '/', '')` 는
+ * 아무것도 못 떼어내고 절대경로가 그대로 키가 된다 — 그러면
+ * routes['app/api/master/route.ts'] 조회가 통째로 빗나가 "파일이 없습니다" 가 된다.
+ */
+const relPath = (full) => relative(ROOT, full).split(/[\\/]/).join('/');
 
 const gs = readFileSync(GS_PATH, 'utf8');
 const clientTs = readFileSync(CLIENT_PATH, 'utf8');
@@ -628,7 +636,7 @@ function readRoutes(dir = resolve(ROOT, 'app/api'), out = {}) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     const full = resolve(dir, e.name);
     if (e.isDirectory()) readRoutes(full, out);
-    else if (e.name === 'route.ts') out[full.replace(ROOT + '/', '')] = readFileSync(full, 'utf8');
+    else if (e.name === 'route.ts') out[relPath(full)] = readFileSync(full, 'utf8');
   }
   return out;
 }
@@ -3087,7 +3095,7 @@ check('화면에 한국어가 직접 박혀 있지 않다', () => {
 
 /* ────────────────────────────────────────────── */
 
-console.log(`\n🔍 ${GS_PATH.replace(ROOT + '/', '')} + app/api + 화면 문구 검사\n`);
+console.log(`\n🔍 ${relPath(GS_PATH)} + app/api + 화면 문구 검사\n`);
 notes.forEach((n) => console.log(n));
 
 if (failures.length) {

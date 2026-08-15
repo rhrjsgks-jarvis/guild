@@ -1,0 +1,11 @@
+# 줄바꿈은 어디서 clone 하든 LF 로 고정한다.
+#
+# 윈도우 기본값(core.autocrlf=true)으로 clone 하면 모든 파일이 CRLF 로 바뀐다.
+# 그러면 scripts/verify-gs.mjs 의 정규식이 줄 끝의 \r 때문에 어긋나 "함수가
+# 없습니다" 로 무더기 실패하고, 한 줄만 고쳐 커밋해도 git 은 파일 전체가
+# 바뀐 것으로 기록해 diff 를 볼 수 없게 된다.
+* text=auto eol=lf
+
+# 그림은 손대지 않는다 (변환하면 파일이 깨진다)
+*.png binary
+*.ico binary

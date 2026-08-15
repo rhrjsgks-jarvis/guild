@@ -12,6 +12,11 @@ import { spawn } from 'node:child_process';
 const MOCK_PORT = 8787;
 const PIN = '1234';
 
+// next 를 npx 로 부르지 않는다. 윈도우에서 npx 는 npx.cmd 라 shell 없이는
+// spawn ENOENT 로 죽고, shell 을 켜면 cmd.exe 가 한 겹 끼어들어 kill 이
+// 그 아래 Next 까지 닿지 않는다 (3000 포트를 문 채 남는다).
+const NEXT_BIN = 'node_modules/next/dist/bin/next';
+
 const children = [];
 const run = (cmd, args, env) => {
   const child = spawn(cmd, args, { env: { ...process.env, ...env }, stdio: 'inherit' });
@@ -41,7 +46,7 @@ run('node', ['scripts/mock-sheet.mjs'], { MOCK_PORT: String(MOCK_PORT) });
 
 setTimeout(() => {
   console.log(`\n🔑 관리자 PIN: ${PIN}\n`);
-  run('npx', ['next', 'dev'], {
+  run('node', [NEXT_BIN, 'dev'], {
     GAS_URL: `http://127.0.0.1:${MOCK_PORT}/exec`,
     GAS_TOKEN: 'TESTTOKEN',
     ADMIN_PIN: PIN,

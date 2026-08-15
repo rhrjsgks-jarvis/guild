@@ -41,6 +41,10 @@ const SHOTS = process.env.E2E_SHOTS;
 
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 
+// npx 로 부르면 윈도우에서 spawn ENOENT 로 죽는다 (npx 는 npx.cmd 다).
+// shell 을 켜서 우회하면 cmd.exe 가 끼어들어 kill 이 Next 까지 닿지 않는다.
+const NEXT_BIN = 'node_modules/next/dist/bin/next';
+
 const children = [];
 function spawnBg(cmd, args, env) {
   const child = spawn(cmd, args, { env: { ...process.env, ...env }, stdio: 'ignore' });
@@ -178,7 +182,7 @@ for (const [label, port] of [
 }
 
 spawnBg('node', ['scripts/mock-sheet.mjs'], { MOCK_PORT: String(MOCK_PORT) });
-spawnBg('npx', ['next', 'start', '-p', String(APP_PORT)], {
+spawnBg('node', [NEXT_BIN, 'start', '-p', String(APP_PORT)], {
   GAS_URL: MOCK,
   GAS_TOKEN: 'TESTTOKEN',
   ADMIN_PIN: PIN,
