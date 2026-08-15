@@ -1578,7 +1578,16 @@ await t('멤버DB 한자표기가 잔액·아이템·내정보에 함께 나온�
   await go(page, 'items');
   await page.waitForTimeout(700);
   const chip = page.locator('.mchip').filter({ hasText: 'TC무식' }).first();
-  eq(await chip.locator('.nm i').innerText(), '车武植', '칩 둘째 줄 (G열 한자)');
+  // 둘째 줄은 `한자 · 클래스` 다 (v11.5). 클래스가 붙어도 **한자가 맨 앞**이어야 한다 —
+  // `포함`만 보면 나중에 한자가 빠지고 클래스만 남아도 통과해버린다.
+  const line2 = await chip.locator('.nm i').innerText();
+  if (!line2.startsWith('车武植')) {
+    throw new Error(`칩 둘째 줄이 G열 한자로 시작하지 않습니다: "${line2}"`);
+  }
+  // 클래스를 넣어둔 사람이므로 함께 나와야 한다 (관리에서 넣은 값이 화면마다 같이 보인다)
+  if (!line2.includes('마법사')) {
+    throw new Error(`칩 둘째 줄에 클래스가 없습니다: "${line2}"`);
+  }
 
   // 내 정보 드롭다운
   await go(page, 'me');

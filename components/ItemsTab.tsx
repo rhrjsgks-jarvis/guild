@@ -7,6 +7,8 @@ import {
   CHIP_SVR_PX,
   api,
   byName,
+  classLabel,
+  classOf,
   fitIn,
   fmt,
   getStoredEmail,
@@ -52,7 +54,7 @@ export default function ItemsTab({
   toast: (msg: string, isError?: boolean) => void;
   setBusy: (on: boolean) => void;
 }) {
-  const { t, unit, srv } = useT();
+  const { t, unit, srv, lang } = useT();
   const [itemName, setItemName] = useState('');
   const [photoLink, setPhotoLink] = useState('');
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -390,6 +392,12 @@ export default function ItemsTab({
                   // 누구인지 가릴 수 없다. 배지가 먹는 폭은 예산에서 뺀다.
                   const sv = svOf.get(m) ?? '';
                   const budget = CHIP_NAME_PX - (sv ? CHIP_SVR_PX : 0);
+                  // 둘째 줄 = 한자 · 클래스 (v11.5). 한자가 없으면 클래스만 온다.
+                  // ★ 이름 옆(첫 줄)에는 붙이지 않는다 — 서버 배지가 이미 예산을 먹고 있어
+                  //   하나 더 얹으면 이름이 잘리고, 잘린 이름은 다른 사람으로 오인된다.
+                  //   둘째 줄도 **합친 문자열 기준**으로 크기를 정해야 삐져나가지 않는다.
+                  const cl = classLabel(classOf(state, m), lang);
+                  const line2 = [sub, cl].filter(Boolean).join(' · ');
                   return (
                     <label key={m} className={'mchip' + (picked.has(m) ? ' sel' : '')}>
                       <input type="checkbox" checked={picked.has(m)} onChange={() => toggle(m)} />
@@ -398,7 +406,7 @@ export default function ItemsTab({
                           {sv ? <span className="svr">{sv}</span> : null}
                           {main}
                         </b>
-                        {sub ? <i style={{ fontSize: fitIn(sub, CHIP_NAME_PX, 19, 12) }}>{sub}</i> : null}
+                        {line2 ? <i style={{ fontSize: fitIn(line2, CHIP_NAME_PX, 19, 12) }}>{line2}</i> : null}
                       </span>
                     </label>
                   );
@@ -491,7 +499,7 @@ function ItemDetailSheet({
   entry: LedgerItem;
   onClose: () => void;
 }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const names = [...entry.names].sort((a, b) => byName(a, b));
   return (
     <Sheet title={`📦 ${entry.item}`} subtitle={t('items.detailSub')} onClose={onClose}>
@@ -499,6 +507,9 @@ function ItemDetailSheet({
       <div className="mgrid">
         {names.map((m) => {
           const sv = serverOf(state, m);
+          // 클래스는 둘째 줄에 (v11.5) — 이 목록은 한자 줄을 쓰지 않아 자리가 비어 있다.
+          // 이름 옆에 붙이면 서버 배지와 겹쳐 이름이 잘린다.
+          const cl = classLabel(classOf(state, m), lang);
           return (
             <div className="mchip" key={m}>
               <span className="nm">
@@ -506,6 +517,7 @@ function ItemDetailSheet({
                   {sv ? <span className="svr">{sv}</span> : null}
                   {m}
                 </b>
+                {cl ? <i>{cl}</i> : null}
               </span>
             </div>
           );
