@@ -22,7 +22,9 @@ export async function POST(req: Request) {
     ko?: unknown;
     zh?: unknown;
     en?: unknown;
+    img?: unknown;
     note?: unknown;
+    tier?: unknown;
     email?: unknown;
   };
   try {
@@ -42,7 +44,12 @@ export async function POST(req: Request) {
     ko,
     zh: String(body.zh ?? '').trim(),
     en: String(body.en ?? '').trim(),
+    // 🐛 img 는 v11.4 부터 여기서 빠져 있었다 — 용어를 한 번 수정하면
+    //    관리자가 넣어둔 아이콘 주소가 조용히 지워졌다 (시트는 받은 값으로 덮어쓴다).
+    img: String(body.img ?? '').trim(),
     note: String(body.note ?? '').trim(),
+    // 티어도 그대로 전달만 한다 — 값 판정(0~3, 알 수 없으면 빈칸)은 시트가 한다 (규칙 5-3)
+    tier: String(body.tier ?? '').trim(),
     email: String(body.email ?? '').trim(),
   });
 
@@ -69,9 +76,9 @@ export async function PATCH(req: Request) {
   }
 
   const raw = Array.isArray(body.rows) ? body.rows : [];
-  const rows: { cat: string; ko: string; zh: string; en: string }[] = [];
+  const rows: { cat: string; ko: string; zh: string; en: string; tier: string }[] = [];
   for (const r of raw) {
-    const o = (r ?? {}) as { cat?: unknown; ko?: unknown; zh?: unknown; en?: unknown };
+    const o = (r ?? {}) as { cat?: unknown; ko?: unknown; zh?: unknown; en?: unknown; tier?: unknown };
     const ko = String(o.ko ?? '').trim();
     if (!ko) continue;
     rows.push({
@@ -79,6 +86,8 @@ export async function PATCH(req: Request) {
       ko,
       zh: String(o.zh ?? '').trim(),
       en: String(o.en ?? '').trim(),
+      // 티어도 함께 — 붙여넣기 한 번으로 티어까지 들어간다 (판정은 시트가 한다)
+      tier: String(o.tier ?? '').trim(),
     });
   }
   if (rows.length === 0) {

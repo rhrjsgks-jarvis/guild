@@ -3159,6 +3159,26 @@ check('아이콘을 바꾸면 폰에서도 실제로 바뀐다', () => {
   return `네트워크 우선 5종 · 아이콘 ${need.length}개 · manifest ${mf.icons.length}개 · maskable 분리`;
 });
 
+check('용어 수정은 모든 칸을 시트까지 전달한다 (v11.5)', () => {
+  // 🐛 실제로 있었던 사고: 라우트가 img·tier 를 안 넘겨서, 용어를 한 번 수정하면
+  //    아이콘 주소가 지워지고 티어가 빈칸이 됐다. 시트는 **받은 값으로 덮어쓰기**
+  //    때문에, 라우트가 빠뜨린 칸은 "안 바뀜"이 아니라 "지워짐"이 된다.
+  //    게다가 응답은 ok:true 라 아무도 눈치채지 못한다.
+  const route = readFileSync(resolve(ROOT, 'app/api/admin/terms/route.ts'), 'utf8');
+  const call = (route.match(/callGas\('saveTerm',\s*\{([\s\S]*?)\}\)/) ?? [])[1] ?? '';
+  if (!call) throw new Error("saveTerm 호출을 찾을 수 없습니다.");
+
+  // .gs 가 받는 인자와 라우트가 보내는 칸이 같아야 한다
+  const sig = (gs.match(/function api_saveTerm\(([^)]*)\)/) ?? [])[1] ?? '';
+  const params = sig.split(',').map((s) => s.trim()).filter((s) => s && s !== 'email');
+  // `ko: ...` 와 축약형 `ko,` 를 모두 인정한다
+  const missing = params.filter((p) => !new RegExp(`(^|[\\s,{])${p}\\s*(:|,|$)`, 'm').test(call));
+  if (missing.length) {
+    throw new Error(`라우트가 시트로 안 넘기는 칸: ${missing.join(', ')} — 그 칸은 저장할 때 지워집니다.`);
+  }
+  return `${params.length}칸 전달 (${params.join('·')})`;
+});
+
 check('클래스 목록은 앱과 시트가 같다 (v11.5)', () => {
   // 한쪽만 고치면 앱에서 고른 클래스를 시트가 거부해, 저장 버튼이 아무 일도
   // 안 하는 것처럼 보인다. 분배 산식을 두 곳에서 맞추는 것과 같은 이유다 (규칙 1).
