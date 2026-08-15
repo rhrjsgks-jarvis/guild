@@ -27,7 +27,7 @@ const ST_DONE = '✅분배완료';
 // 앱이 기대하는 버전과 같은 값 — 화면에 "버전 불일치" 경고가 뜨지 않아야 정상이다.
 // ★ 한 곳에만 적는다. 여기저기 흩어 적으면 버전을 올릴 때 한 군데가 남아
 //   "실어 온 상태의 버전이 다르다"는 엉뚱한 실패로 나타난다 (실제로 겪었다).
-const GS_VERSION = '11.3';
+const GS_VERSION = '11.4';
 let MOCK_GS_VERSION = GS_VERSION;
 
 /**
@@ -42,7 +42,8 @@ function rc(res, code, vars) {
 }
 
 /** .gs 의 API_WRITE_ACTIONS 와 같은 목록 — 상태를 실어 보낼 대상 판정에 쓴다 */
-const WRITE_ACTIONS = ['register', 'distribute', 'payout', 'rename', 'addMember', 'removeMember',
+const WRITE_ACTIONS = ['saveTerm', 'deleteTerm',
+                       'register', 'distribute', 'payout', 'rename', 'addMember', 'removeMember',
                        'correctItem', 'deleteItem', 'editItem', 'undoPayout', 'runTool',
                        'editAlliance', 'addAllianceServers',
                        'deletePost', 'addAlliance', 'creditAlliance', 'deleteAlliance', 'updateMember',
@@ -135,6 +136,15 @@ function freshState() {
       ...[1, 2, 3, 4, 5, 6, 7].map((d, i) => ({ row: 16 + i, day: d, time: '19:10', boss: '오만1층2층', note: '' })),
     ],
     nextRaidRow: 23,
+    // 📚 용어 사전 (v11.4) — 국문 · 中文 · English. 빈칸은 "아직 확인 못 했다"는 뜻이다
+    terms: [
+      { row: 2, cat: '보스', ko: '안타라스', zh: '安塔瑞斯', en: 'Antharas', img: '', note: '' },
+      { row: 3, cat: '보스', ko: '발라카스', zh: '巴拉卡斯', en: 'Valakas', img: '', note: '' },
+      { row: 4, cat: '전설', ko: '용의 심장', zh: '龙之心', en: 'Dragon Heart', img: '', note: '' },
+      // 中文·English 를 아직 못 채운 줄 — 앱이 지어내지 않고 그대로 둔다
+      { row: 5, cat: '스킬북', ko: '기란 마법서', zh: '', en: '', img: '', note: '확인 필요' },
+    ],
+    nextTermRow: 6,
     adminPinOverride: '',
     renames: [
       { at: '07/12 09:30', before: '옛닉네임', after: '가이', by: 'admin@example.com', merged: false, detail: '"옛닉네임" → "가이"' },
@@ -830,6 +840,43 @@ const handlers = {
     if (i < 0) return { ok: false, msg: '이미 삭제된 글입니다.' };
     S.posts.splice(i, 1);
     return rc({ ok: true, msg: '✅ 삭제했습니다.' }, 'post.delOk');
+  },
+
+  /* ── 📚 용어 사전 (v11.4) ── */
+  terms: () => ({
+    ok: true,
+    data: { terms: S.terms, cats: ['전설', '신화', '스킬북', '보스', '서버', '기타'] },
+  }),
+
+  saveTerm: ({ row, cat, ko, zh, en, img, note }) => {
+    const name = String(ko || '').trim();
+    if (!name) return rc({ ok: false, msg: '한국어 표기를 넣어주세요.' }, 'e.termKo');
+    const at = Number(row) || 0;
+    const key = (v) => String(v ?? '').replace(/\s+/g, '').toLowerCase();
+    // 같은 국문이 두 줄이면 어느 것을 보여줄지 알 수 없다
+    if (S.terms.some((t) => t.row !== at && key(t.ko) === key(name))) {
+      return rc({ ok: false, msg: `"${name}" 은(는) 이미 있습니다.` }, 'e.termDup', { item: name });
+    }
+    const next = {
+      cat: String(cat || '기타').trim(),
+      ko: name,
+      zh: String(zh || '').trim(),
+      en: String(en || '').trim(),
+      img: String(img || '').trim(),
+      note: String(note || '').trim(),
+    };
+    const hit = S.terms.find((t) => t.row === at);
+    if (hit) Object.assign(hit, next);
+    else S.terms.push({ row: S.nextTermRow++, ...next });
+    return rc({ ok: true, msg: `✅ "${name}" 을(를) 저장했습니다.` }, 'term.saveOk', { item: name });
+  },
+
+  deleteTerm: ({ row }) => {
+    const at = Number(row) || 0;
+    const i = S.terms.findIndex((t) => t.row === at);
+    if (i < 0) return rc({ ok: false, msg: '지울 용어를 찾을 수 없습니다.' }, 'e.noRecord');
+    const [gone] = S.terms.splice(i, 1);
+    return rc({ ok: true, msg: `✅ "${gone.ko}" 을(를) 지웠습니다.` }, 'term.delOk', { item: gone.ko });
   },
 
   alliance: () => {

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Sheet from './Sheet';
 import ServerPicker from './ServerPicker';
 import PhotoStrip from './PhotoStrip';
+import ItemNameInput from './ItemNameInput';
 import type { AllianceGroup, AllianceState } from '@/lib/types';
 import { api, calcAlliance, fmt, getStoredEmail, prepPhoto } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
@@ -628,7 +629,8 @@ function RegisterSheet({
       <label className="fl" htmlFor="ait">
         {t('c.itemName')}
       </label>
-      <input id="ait" type="text" maxLength={40} value={item} onChange={(e) => setItem(e.target.value)} />
+      {/* 용어 사전 자동완성 (v11.4) — 中文으로 쳐도 찾아지고, 저장은 국문이다 */}
+      <ItemNameInput id="ait" value={item} onChange={setItem} />
 
       <ServerRows
         servers={servers}
@@ -931,7 +933,7 @@ function EditSheet({
       <label className="fl" htmlFor="eai">
         {t('c.itemName')}
       </label>
-      <input id="eai" type="text" maxLength={40} value={item} onChange={(e) => setItem(e.target.value)} />
+      <ItemNameInput id="eai" value={item} onChange={setItem} />
 
       <ServerRows
         servers={servers}

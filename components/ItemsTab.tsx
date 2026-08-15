@@ -17,6 +17,7 @@ import {
 } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
+import ItemNameInput from './ItemNameInput';
 import LedgerCard from './LedgerCard';
 import ServerFilter, { NO_SERVER } from './ServerFilter';
 import ShareBtn from './ShareBtn';
@@ -269,13 +270,8 @@ export default function ItemsTab({
               <label className="fl" htmlFor="fItem">
                 {t('items.name')}
               </label>
-              <input
-                id="fItem"
-                type="text"
-                placeholder={t('items.namePh')}
-                value={itemName}
-                onChange={(e) => setItemName(e.target.value)}
-              />
+              {/* 용어 사전 자동완성 (v11.4) — 세 언어로 찾아 고르면 국문이 들어간다 */}
+              <ItemNameInput id="fItem" value={itemName} onChange={setItemName} />
             </div>
 
             <div className="field">

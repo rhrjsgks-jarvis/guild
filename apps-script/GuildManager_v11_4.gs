@@ -1,8 +1,22 @@
 // ═══════════════════════════════════════════════════════════════
-//  길드 정산 시스템 v11.3  (분배비중 · 연합 · 레이드 · 게시판 · 마스터관리자 · 3개국어)
+//  길드 정산 시스템 v11.4  (분배비중 · 연합 · 레이드 · 용어사전 · 게시판 · 3개국어)
 //  시트 구성: [사용안내] [멤버DB] [참여자현황] [분배대기중] [잔액현황]
-//            [지급기록] [연합] [레이드] [게시판] [작업기록] + [시즌1] [시즌2] ...
+//            [지급기록] [연합] [레이드] [용어] [게시판] [작업기록] + [시즌1] [시즌2] ...
 //            ← 이 순서로 항상 정렬됨
+// ═══════════════════════════════════════════════════════════════
+//  변경점 v11.3 → v11.4  (리니지W 용어 사전 — 국문 · 中文 · English)
+//
+//   - ★ 새 [용어] 시트. 아이템·보스·서버 이름을 세 언어로 적어두면, 앱이
+//       **표에 있는 말만** 병기하고 자동완성한다. 표에 없는 말은 손대지 않는다.
+//       기계 번역은 여전히 하지 않는다 — 사람이 확인한 표기만 쓴다 (규칙 7).
+//   - ★ 저장되는 아이템명은 **언제나 국문**이다. 중국 혈맹원이 「龙之心」으로 골라도
+//       기록에는 '용의 심장' 이 들어간다. 두 이름으로 쌓이면 개수를 셀 수 없다.
+//   - 中文·English 는 **비워도 된다.** 빈칸은 "아직 확인 못 했다"는 뜻이고,
+//       앱은 그 항목을 국문 그대로 보여준다.
+//   - `[📚 용어 목록 채우기]` 도구가 지금까지 등록한 아이템명·보스·서버를 모아준다.
+//       날짜·슬래시가 섞인 메모성 이름은 건너뛴다 (목록이 지저분해진다).
+//   - 용어 추가·수정·삭제는 **관리자**도 할 수 있다 — 표기가 틀려도 다이아는
+//       움직이지 않고, 실제 표기를 아는 사람이 바로 고칠 수 있어야 한다.
 // ═══════════════════════════════════════════════════════════════
 //  변경점 v11.2 → v11.3  (연합 인증샷을 서버별로 · 관리자도 미정산 건은 고친다)
 //
@@ -568,7 +582,7 @@
 //     '누적기록'을 그대로 찾음 (하위 호환, 리네이밍과 무관)
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION = '11.3';
+const VERSION = '11.4';
 const T2S_MAP = {'國':'国','學':'学','這':'这','個':'个','們':'们','說':'说','話':'话','對':'对','時':'时','間':'间','現':'现','場':'场','開':'开','關':'关','內':'内','東':'东','車':'车','馬':'马','龍':'龙','風':'风','陽':'阳','陰':'阴','電':'电','語':'语','讀':'读','寫':'写','書':'书','紙':'纸','筆':'笔','長':'长','門':'门','問':'问','聽':'听','見':'见','覺':'觉','讓':'让','誰':'谁','還':'还','進':'进','運':'运','動':'动','靜':'静','樂':'乐','藥':'药','華':'华','蘭':'兰','葉':'叶','黃':'黄','麗':'丽','寶':'宝','貴':'贵','財':'财','買':'买','賣':'卖','錢':'钱','銀':'银','鐵':'铁','鋼':'钢','陳':'陈','劉':'刘','張':'张','楊':'杨','蔣':'蒋','鄭':'郑','謝':'谢','呂':'吕','蘇':'苏','韓':'韩','馮':'冯','於':'于','鳳':'凤','雲':'云','劍':'剑','斷':'断','亂':'乱','愛':'爱','聲':'声','醫':'医','藝':'艺','頭':'头','臉':'脸','腳':'脚','氣':'气','樓':'楼','橋':'桥','飛':'飞','機':'机','網':'网','線':'线','條':'条','裡':'里','邊':'边','錯':'错','壞':'坏','舊':'旧','寬':'宽','淺':'浅','週':'周','節':'节','業':'业','後':'后','來':'来','終':'终','結':'结','敗':'败','勝':'胜','負':'负','輸':'输','贏':'赢','強':'强','難':'难','簡':'简','單':'单','複':'复','雜':'杂','純':'纯','淨':'净','髒':'脏','齊':'齐','穩':'稳','變':'变','轉':'转','換':'换','顯':'显','樣':'样','種':'种','類':'类','團':'团','體':'体','統':'统','織':'织','組':'组','構':'构','設':'设','計':'计','劃':'划','數':'数','課':'课','題':'题','試':'试','練':'练','習':'习','師':'师','員':'员','職':'职','務':'务','責':'责','權':'权','應':'应','該':'该','須':'须','願':'愿','夢':'梦','憶':'忆','識':'识','認':'认','歡':'欢','醜':'丑','帥':'帅','靈':'灵','獸':'兽','鷹':'鹰','鶴':'鹤','鴻':'鸿','鱷':'鳄','鯨':'鲸','鯊':'鲨','蝦':'虾','殼':'壳','冑':'胄','戰':'战','爭':'争','鬥':'斗','擊':'击','禦':'御','護':'护','衛':'卫','謀':'谋','陣':'阵','營':'营','軍':'军','隊':'队','將':'将','嬪':'嫔','宮':'宫','廟':'庙','觀':'观','閣':'阁','蓮':'莲','楓':'枫','樺':'桦','檜':'桧','樹':'树','實':'实','幹':'干','莖':'茎','穫':'获','採':'采','鮮':'鲜','籠':'笼','傷':'伤','殺':'杀','斬':'斩','豬':'猪','雞':'鸡','鴨':'鸭','鵝':'鹅','龜':'龟','蟬':'蝉','蟻':'蚁','螞':'蚂','鴉':'鸦','鵰':'雕','鴛':'鸳','鴦':'鸯','賽':'赛','廠':'厂','廣':'广','麼':'么','誒':'诶','歲':'岁','歷':'历','歸':'归','殘':'残','蟲':'虫','貓':'猫','氈':'毡','貫':'贯','質':'质','貨':'货','貼':'贴','費':'费','資':'资','賬':'账','賺':'赚','贈':'赠','賀':'贺','賢':'贤','賦':'赋','賤':'贱','賓':'宾','賴':'赖','齲':'龋','齒':'齿','龄':'齡','齡':'龄','齣':'出','岡':'冈','剛':'刚','剮':'剐','創':'创','劇':'剧','勵':'励','勸':'劝','勻':'匀','匯':'汇','醬':'酱','醞':'酝','釀':'酿','釋':'释','釘':'钉','針':'针','釣':'钓','鈍':'钝','鈴':'铃','鈔':'钞','鉛':'铅','鋸':'锯','鋒':'锋','鍵':'键','鎖':'锁','鑄':'铸','鑼':'锣','錶':'表','鐘':'钟','鏡':'镜','鑽':'钻','鑑':'鉴','閉':'闭','閃':'闪','閏':'闰','閱':'阅','闆':'板','闖':'闯','陸':'陆','隱':'隐','雖':'虽','雙':'双','雛':'雏','靂':'雳','韋':'韦','韌':'韧','頁':'页','頂':'顶','項':'项','順':'顺','頌':'颂','預':'预','頑':'顽','頒':'颁','頗':'颇','領':'领','頡':'颉','頜':'颌','頸':'颈','頻':'频','頹':'颓','顆':'颗','額':'额','顏':'颜','顛':'颠','顧':'顾','飄':'飘','饑':'饥','餃':'饺','餅':'饼','館':'馆','饒':'饶','饞':'馋','馳':'驰','駕':'驾','駛':'驶','駐':'驻','駱':'骆','駭':'骇','騎':'骑','騰':'腾','驅':'驱','驚':'惊','驕':'骄','驗':'验','骯':'肮','髮':'发','鬍':'胡','鬧':'闹','鮑':'鲍','鯉':'鲤','鰲':'鳌','鱉':'鳖','鳥':'鸟','鳴':'鸣','鹹':'咸','麥':'麦','麵':'面','黨':'党'};  // 번체→간체 상용한자 (서체 변환 전용, 다른 뜻 글자는 포함하지 않음)
 const UNIT = '다이아';                 // 재화 단위 표기
 const MAX_MEMBERS = 100;              // 최대 멤버 수 (v10.5: 50 → 100)
@@ -638,6 +652,7 @@ const SERVER_LIST = ['01','02','03','04','05','06','07','08','09','10','11','12'
 const BOARD_SHEET = '게시판';           // 자유 게시판 + 공지사항
 const ALLIANCE_SHEET = '연합';          // 연합 정산 누적
 const RAID_SHEET = '레이드';            // 보스 등장 시간표 (요일 × 시간)
+const TERM_SHEET = '용어';              // 리니지W 용어 사전 (국문 · 中文 · English)
 const AUDIT_SHEET = '작업기록';         // 등록·분배·정정·삭제 영구 감사 로그 (행 삭제되어도 이력 보존)
 const ST_WAIT = '⏳미분배';
 const ST_DONE = '✅분배완료';
@@ -646,7 +661,7 @@ const BAL_COL = { NAME: 1, PENDING: 2, PAID: 3, CNT: 4, CHECK: 5, AMT: 6 };
 const PROTECT_MODE = 'warn';           // 'warn'=경고 모드 | 'block'=공유자 차단
 
 // 표준 시트 순서입니다 (시즌N 제외 — 시즌은 번호순 정렬 후 맨 뒤에 붙습니다)
-const BASE_SHEET_ORDER = ['사용안내', '멤버DB', INPUT_SHEET, LEDGER_SHEET, '잔액현황', PAYOUT_SHEET, ALLIANCE_SHEET, RAID_SHEET, BOARD_SHEET, AUDIT_SHEET];
+const BASE_SHEET_ORDER = ['사용안내', '멤버DB', INPUT_SHEET, LEDGER_SHEET, '잔액현황', PAYOUT_SHEET, ALLIANCE_SHEET, RAID_SHEET, TERM_SHEET, BOARD_SHEET, AUDIT_SHEET];
 
 // ─────────────────────────────────────────
 // 📐 시트 정돈: 표준 순서 정렬 + 행높이 통일 + (확인 후) 불필요 시트 삭제
@@ -2707,6 +2722,20 @@ function _rebuildGuide(ss) {
     ['  분배 자체에는 전혀 영향이 없습니다', 'b'],
     ['· [📤 디스코드로 전송]은 특정 건을 수동으로 다시 보낼 때 사용', 'b'],
     [''  , 'sp'],
+    ['📚 리니지W 용어 — [' + TERM_SHEET + '] 시트 (v11.4)', 'sec'],
+    ['· 아이템·보스·서버 이름을 한국어 / 中文 / English 로 적어두는 표입니다', 'b'],
+    ['· 앱의 아이템명 칸에서 **어느 언어로 쳐도** 이 표를 찾아 자동완성합니다', 'b'],
+    ['  (중국 혈맹원이 "龙之" 만 쳐도 그 아이템이 나옵니다)', 'b'],
+    ['· ⭐ 골라 넣으면 시트에는 **언제나 한국어**가 저장됩니다 — 같은 아이템이', 'b'],
+    ['  두 이름으로 쌓이면 나중에 개수를 세거나 찾을 수 없습니다', 'b'],
+    ['· 中文·English 는 **비워도 됩니다.** 빈칸은 "아직 확인 못 했다"는 뜻이고,', 'b'],
+    ['  앱은 그 항목을 한국어 그대로 보여줍니다 (지어내지 않습니다)', 'b'],
+    ['· 이미지 열에 구글 드라이브 그림 주소를 넣으면 앱 목록에 함께 보입니다', 'b'],
+    ['· 추가·수정·삭제는 앱 [📚 용어] 화면에서 관리자도 할 수 있습니다', 'b'],
+    ['💡 처음이라면 앱 [⚙️ 관리] → 관리 도구 → [📚 용어 목록 채우기] 를 실행하세요', 'b'],
+    ['   지금까지 등록한 아이템명·보스·서버가 한국어로 채워집니다', 'b'],
+    ['', 'sp'],
+
     ['🤝 연합 정산 — [' + ALLIANCE_SHEET + '] 시트 (v11.3)', 'sec'],
     ['· ⭐ 아이템 하나에 참여 서버를 여러 곳 넣을 수 있습니다', 'b'],
     ['  (시트에는 서버마다 한 줄이 들어가고 K열 "묶음" 값으로 한 건이 됩니다)', 'b'],
@@ -4340,6 +4369,80 @@ function _toolRegistry() {
       }
     },
 
+    seedTerms: {
+      name: '📚 용어 목록 채우기',
+      desc: '지금까지 등록한 아이템명과 보스·서버 이름을 [용어] 시트에 모읍니다. ' +
+            '이미 있는 말은 건드리지 않고, 中文·English 는 빈칸으로 둡니다 (사람이 채웁니다).',
+      danger: 1,
+      inputs: [],
+      run: function (ss) {
+        const sheet = _getOrCreateTerms(ss);
+        const have = {};
+        if (sheet.getLastRow() > 1) {
+          sheet.getRange(2, 2, sheet.getLastRow() - 1, 1).getValues().forEach(function (r) {
+            const k = _normTerm(r[0]);
+            if (k) have[k] = true;
+          });
+        }
+
+        const add = [];
+        const push = function (cat, ko, zh, en, note) {
+          const k = _normTerm(ko);
+          if (!k || have[k]) return;
+          have[k] = true;
+          add.push([cat, String(ko).trim(), zh || '', en || '', '', note || '확인 필요']);
+        };
+
+        /*
+         * ① 우리 기록에서 모은다 — 지어낸 것이 하나도 없는 목록이다.
+         *    아이템명은 관리자가 손으로 적은 메모("8/13 안타라스 / 전제비")가 섞여 있을 수
+         *    있는데, 그것까지 넣으면 목록이 지저분해진다. 슬래시·날짜가 들어간 줄은 건너뛴다.
+         */
+        const ledger = ss.getSheetByName(LEDGER_SHEET);
+        const looksLikeMemo = function (v) { return /[\/]|\d{1,2}월|\d{1,2}\/\d{1,2}/.test(v); };
+        if (ledger && ledger.getLastRow() > 1) {
+          ledger.getRange(2, LG.ITEM, ledger.getLastRow() - 1, 1).getValues().forEach(function (r) {
+            const v = String(r[0]).trim();
+            if (v && !looksLikeMemo(v)) push('기타', v);
+          });
+        }
+        const ally = ss.getSheetByName(ALLIANCE_SHEET);
+        if (ally && ally.getLastRow() > 1) {
+          ally.getRange(2, ALLY_COL.ITEM, ally.getLastRow() - 1, 1).getValues().forEach(function (r) {
+            const v = String(r[0]).trim();
+            if (v && !looksLikeMemo(v)) push('기타', v);
+          });
+        }
+        const raid = ss.getSheetByName(RAID_SHEET);
+        if (raid && raid.getLastRow() > 1) {
+          raid.getRange(2, 3, raid.getLastRow() - 1, 1).getValues().forEach(function (r) {
+            const v = String(r[0]).trim();
+            if (v) push('보스', v);
+          });
+        }
+        // 서버는 우리가 쓰는 번호 그대로 (01~12) — 표기가 갈릴 일이 없다
+        SERVER_LIST.forEach(function (sv) {
+          push('서버', sv + '서버', sv + '服', 'Server ' + sv, '');
+        });
+
+        /*
+         * ② 널리 쓰이는 이름 몇 개만 초안으로 넣는다.
+         *    ★ 확실하지 않은 표기는 **비워둔다.** 지어낸 이름이 들어가면 아무도
+         *      틀린 줄 모르고, 그 상태로 중국 혈맹원에게 그대로 전달된다 (규칙 7).
+         */
+        [['보스', '안타라스', '安塔瑞斯', 'Antharas'],
+         ['보스', '발라카스', '巴拉卡斯', 'Valakas'],
+         ['보스', '파푸리온', '', 'Fafurion'],
+         ['보스', '린드비오르', '', 'Lindvior']].forEach(function (t) {
+          push(t[0], t[1], t[2], t[3], t[2] && t[3] ? '' : '확인 필요');
+        });
+
+        if (add.length === 0) return { ok: true, msg: '✅ 새로 넣을 용어가 없습니다.' };
+        sheet.getRange(sheet.getLastRow() + 1, 1, add.length, TERM_HEADERS.length).setValues(add);
+        return { ok: true, msg: '✅ 용어 ' + add.length + '개를 넣었습니다. [용어] 시트에서 中文·English 를 채워주세요.' };
+      }
+    },
+
     tidy: {
       name: '📐 시트 정돈',
       desc: '시트 순서와 행 높이, 이름 서식을 표준으로 되돌립니다.',
@@ -5627,6 +5730,140 @@ function api_updateMember(name, patch, email) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+//  📚 용어 사전 (v11.4) — 국문 · 中文 · English
+//
+//  아이템명은 **사용자 데이터**라 기계가 번역하지 않는다 (규칙 7). 대신 사람이
+//  확인한 표기를 여기 모아두고, 앱은 **표에 있는 말만** 병기하고 자동완성한다.
+//  표에 없는 말은 손대지 않는다 — 지어내지 않는 것이 이 시스템의 기본이다.
+//
+//  ★ 시트에 저장되는 아이템명은 **언제나 국문**이다. 중국 혈맹원이 「龙之心」으로
+//    골라도 기록에는 '용의 심장' 이 들어간다. 같은 아이템이 두 이름으로 쌓이면
+//    나중에 개수를 세거나 검색할 때 갈린다.
+//  ★ 中文·English 칸은 **비어 있어도 된다.** 빈칸은 "아직 확인 못 했다"는 뜻이고,
+//    앱은 그런 항목을 국문 그대로 보여준다.
+// ═══════════════════════════════════════════════════════════════
+const TERM_HEADERS = ['분류', '한국어', '中文', 'English', '이미지', '비고'];
+/** 분류는 자유 문자열이지만, 화면에서 묶어 보여주려고 기본값을 정해둔다 */
+const TERM_CATS = ['전설', '신화', '스킬북', '보스', '서버', '기타'];
+
+function _buildTerms(ss) {
+  const sheet = ss.insertSheet(TERM_SHEET);
+  [90, 220, 200, 220, 260, 180].forEach(function (w, i) { sheet.setColumnWidth(i + 1, w); });
+  sheet.getRange(1, 1, 1, TERM_HEADERS.length).setValues([TERM_HEADERS])
+    .setBackground('#4E342E').setFontColor('#FFF').setFontWeight('bold').setHorizontalAlignment('center');
+  sheet.getRange(1, 1).setNote('전설 · 신화 · 스킬북 · 보스 · 기타');
+  sheet.getRange(1, 2).setNote('앱에 저장되는 이름입니다. 자동완성으로 고르면 이 값이 들어갑니다.');
+  sheet.getRange(1, 3).setNote('모르면 비워두세요. 빈칸이면 앱이 국문 그대로 보여줍니다.');
+  sheet.getRange(1, 5).setNote('아이콘 그림 주소 (선택). 구글 드라이브에 올린 이미지 링크를 넣으세요.\n' +
+    '없으면 앱은 그림 없이 이름만 보여줍니다.');
+  sheet.setFrozenRows(1);
+  sheet.setTabColor('#6D4C41');
+  return sheet;
+}
+
+function _getOrCreateTerms(ss) {
+  return ss.getSheetByName(TERM_SHEET) || _buildTerms(ss);
+}
+
+/** 자동완성 비교용 — 공백·대소문자를 지운다 (이름 비교는 언제나 정규화를 거친다, 규칙 4) */
+function _normTerm(v) {
+  return String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
+}
+
+function api_getTerms() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(TERM_SHEET);
+  const terms = [];
+  if (sheet && sheet.getLastRow() > 1) {
+    const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, TERM_HEADERS.length).getValues();
+    vals.forEach(function (r, i) {
+      const ko = String(r[1]).trim();
+      // 국문이 없는 줄은 앱이 쓸 수 없다 — 저장되는 이름이 국문이기 때문이다
+      if (!ko) return;
+      terms.push({
+        row: i + 2,
+        cat: String(r[0]).trim() || '기타',
+        ko: ko,
+        zh: String(r[2]).trim(),
+        en: String(r[3]).trim(),
+        // 그림은 **관리자가 직접 넣은 주소**만 쓴다 — 우리가 어디선가 긁어오지 않는다
+        img: String(r[4]).trim(),
+        note: String(r[5]).trim()
+      });
+    });
+  }
+  return { terms: terms, cats: TERM_CATS };
+}
+
+/**
+ * 용어 추가·수정 — **관리자**도 할 수 있다.
+ *
+ * 표기를 잘못 넣어도 다이아는 움직이지 않고, 한 줄 고치면 끝난다.
+ * 오히려 중국 혈맹원이 실제로 쓰는 표기를 아는 사람이 바로 고칠 수 있어야 한다.
+ * row 를 주면 그 줄을 고치고, 없으면 새로 넣는다.
+ */
+function api_saveTerm(row, cat, ko, zh, en, img, note, email) {
+  ko = String(ko || '').trim();
+  if (!ko) return _rc({ ok: false, msg: '한국어 표기를 넣어주세요.' }, 'e.termKo');
+
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(15000); } catch (e) { return _rc({ ok: false, msg: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.' }, 'e.busy'); }
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = _getOrCreateTerms(ss);
+    const actor = _getActorEmail(email);
+    const at = Number(row) || 0;
+    const values = [String(cat || '기타').trim(), ko, String(zh || '').trim(),
+                    String(en || '').trim(), String(img || '').trim(), String(note || '').trim()];
+
+    // 같은 국문이 두 줄이면 어느 것을 보여줄지 알 수 없다
+    const last = sheet.getLastRow();
+    if (last > 1) {
+      const kos = sheet.getRange(2, 2, last - 1, 1).getValues();
+      for (let i = 0; i < kos.length; i++) {
+        if (i + 2 === at) continue;
+        if (_normTerm(kos[i][0]) === _normTerm(ko)) {
+          return _rc({ ok: false, msg: '"' + ko + '" 은(는) 이미 있습니다.' }, 'e.termDup', { item: ko });
+        }
+      }
+    }
+
+    if (at >= 2) {
+      sheet.getRange(at, 1, 1, TERM_HEADERS.length).setValues([values]);
+    } else {
+      sheet.getRange(sheet.getLastRow() + 1, 1, 1, TERM_HEADERS.length).setValues([values]);
+    }
+    _logAction(ss, at >= 2 ? '용어수정' : '용어추가', ko, actor, values.slice(2, 4).join(' / '));
+    return _rc({ ok: true, msg: '✅ "' + ko + '" 을(를) 저장했습니다.' }, 'term.saveOk', { item: ko });
+  } catch (e) {
+    return { ok: false, msg: '오류: ' + e.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function api_deleteTerm(row, email) {
+  const at = Number(row) || 0;
+  if (at < 2) return _rc({ ok: false, msg: '지울 용어를 찾을 수 없습니다.' }, 'e.noRecord');
+
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(15000); } catch (e) { return _rc({ ok: false, msg: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.' }, 'e.busy'); }
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(TERM_SHEET);
+    if (!sheet || at > sheet.getLastRow()) return _rc({ ok: false, msg: '지울 용어를 찾을 수 없습니다.' }, 'e.noRecord');
+    const ko = String(sheet.getRange(at, 2).getValue()).trim();
+    sheet.deleteRow(at);
+    _logAction(ss, '용어삭제', ko, _getActorEmail(email), '');
+    return _rc({ ok: true, msg: '✅ "' + ko + '" 을(를) 지웠습니다.' }, 'term.delOk', { item: ko });
+  } catch (e) {
+    return { ok: false, msg: '오류: ' + e.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 //  ⚔️ 보스 시간표 (v10.8)
 //
 //  요일 × 시간 × 보스. 한 칸에 보스가 여럿이면 여러 줄로 넣는다
@@ -6299,6 +6536,7 @@ const API_TOKEN_PROP = 'API_TOKEN';
 const API_WRITE_ACTIONS = ['register', 'distribute', 'payout', 'rename', 'addMember', 'removeMember',
                            'correctItem', 'deleteItem', 'editItem', 'undoPayout', 'runTool',
                            'deletePost', 'addAlliance', 'creditAlliance', 'editAlliance', 'addAllianceServers', 'deleteAlliance', 'updateMember',
+                           'saveTerm', 'deleteTerm',
                            'bulkAddMembers',
                            'addRaid', 'updateRaid', 'deleteRaid',
                            'setAppName', 'setAdminPin', 'setSeasonServer'];
@@ -6559,6 +6797,18 @@ function _apiRoute(action, req) {
 
     case 'raid':
       return { ok: true, data: api_getRaid() };
+
+    /* ── v11.4 용어 사전 (국문 · 中文 · English) ── */
+
+    case 'terms':
+      return { ok: true, data: api_getTerms() };
+
+    // 표기를 잘못 넣어도 다이아는 움직이지 않는다 — 관리자에게 연다
+    case 'saveTerm':
+      return api_saveTerm(req.row, req.cat, req.ko, req.zh, req.en, req.img, req.note, req.email);
+
+    case 'deleteTerm':
+      return api_deleteTerm(req.row, req.email);
 
     case 'addRaid':
       return api_addRaid(req.day, req.time, req.boss, req.note, req.email);

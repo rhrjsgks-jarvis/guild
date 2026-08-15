@@ -125,6 +125,7 @@ const DICT: Record<string, Entry> = {
   'home.boardSub': ['공지·글', '公告·帖子', 'Notices & posts'],
   'home.adminSub': ['PIN·도구', 'PIN·工具', 'PIN & tools'],
   'home.goHome': ['홈으로', '返回主页', 'Home'],
+  'home.termSub': ['한·中·EN 이름', '韩·中·英 名称', 'KO·ZH·EN names'],
   'home.lang': ['언어', '语言', 'Language'],
   'home.langSub': ['한·中·EN', '韩·中·英', 'KO·ZH·EN'],
 
@@ -144,6 +145,49 @@ const DICT: Record<string, Entry> = {
   'bal.pendingTotal': ['분배전 합계', '待发放合计', 'Unpaid total'],
   'bal.sect': ['💰 멤버별 잔액 · 분배완료 누적 {v}', '💰 成员余额 · 已发放累计 {v}', '💰 Balances · paid to date {v}'],
   'bal.search': ['이름 검색', '搜索名称', 'Search by name'],
+  /* ── 📚 용어 사전 (v11.4) ── */
+  'term.title': ['용어', '词汇', 'Glossary'],
+  'term.sect': ['리니지W 용어 {n}개', '天堂W 词汇 {n} 条', '{n} Lineage W terms'],
+  'term.search': ['한국어 · 中文 · English 로 검색', '用韩/中/英搜索', 'Search in KO · ZH · EN'],
+  'term.searchHint': [
+    '어느 언어로 쳐도 찾습니다. 오른쪽 [공유]를 누르면 세 언어가 한 줄로 복사됩니다.',
+    '任意语言均可搜索。点右侧[分享]可复制三种语言。',
+    'Search in any language. [Share] copies all three.',
+  ],
+  'term.catAll': ['전체', '全部', 'All'],
+  'term.empty': [
+    '아직 용어가 없습니다. [관리] → 관리 도구 → [📚 용어 목록 채우기] 를 실행해보세요.',
+    '还没有词汇。请在[管理]→工具中运行[📚 填充词汇表]。',
+    'No terms yet. Run [📚 Fill glossary] in Admin → Tools.',
+  ],
+  'term.noMatch': ['찾는 말이 없습니다.', '未找到。', 'No match.'],
+  'term.needCheck': ['中文·English 미입력', '中文·English 未填', 'ZH·EN not filled in'],
+  'term.add': ['용어 추가', '添加词汇', 'Add term'],
+  'term.cat': ['분류', '分类', 'Category'],
+  'term.ko': ['한국어 (앱에 저장되는 이름)', '韩语（保存到表格的名称）', 'Korean (the stored name)'],
+  'term.editSub': [
+    '모르는 표기는 비워두세요 — 지어내지 않습니다.',
+    '不确定的请留空 — 系统不会编造。',
+    'Leave unknown fields blank — nothing is invented.',
+  ],
+  'term.blankOk': [
+    '中文·English 는 비워도 됩니다. 비어 있으면 앱이 한국어 그대로 보여줍니다.',
+    '中文·English 可留空，留空时按韩语原样显示。',
+    'ZH·EN may stay empty; the Korean name is shown as is.',
+  ],
+  'term.img': ['아이콘 그림 주소 (선택)', '图标地址（可选）', 'Icon image URL (optional)'],
+  'term.imgHint': [
+    '구글 드라이브에 올린 그림 주소를 넣으면 목록에 함께 보입니다. 비워도 됩니다.',
+    '可填写上传到 Google Drive 的图片地址，留空也可以。',
+    'Paste a Google Drive image link, or leave it empty.',
+  ],
+  'term.delAsk': ['"{item}" 을(를) 용어 목록에서 지울까요?', '要从词汇表删除「{item}」吗？', 'Remove "{item}" from the glossary?'],
+  'term.pickHint': [
+    '누르면 한국어 이름이 들어갑니다 (기록은 한 가지 이름으로 모읍니다).',
+    '点击后填入韩语名称（记录统一用一种名称）。',
+    'Tap to insert the Korean name (records keep one name).',
+  ],
+
   'bal.byServer': ['서버로 좁혀 보기', '按服务器筛选', 'Filter by server'],
   'bal.onlyOwed': ['받을 잔액이 남은 사람만 보기', '仅显示还有余额的人', 'Only those still owed'],
   'bal.noMatch': ['조건에 맞는 멤버가 없습니다.', '没有符合条件的成员。', 'No members match.'],
@@ -998,6 +1042,20 @@ const DICT: Record<string, Entry> = {
   's.post.ok': ['✅ 글을 등록했습니다.', '✅ 已发布。', '✅ Posted.'],
   's.post.noticeOk': ['✅ 공지를 등록했습니다.', '✅ 已发布公告。', '✅ Notice posted.'],
   's.post.delOk': ['✅ 삭제했습니다.', '✅ 已删除。', '✅ Deleted.'],
+  /* v11.4 — 용어 사전 (국문 · 中文 · English) */
+  's.e.termKo': [
+    '한국어 표기를 넣어주세요.',
+    '请填写韩语名称。',
+    'Enter the Korean name.',
+  ],
+  's.e.termDup': [
+    '"{item}" 은(는) 이미 용어 목록에 있습니다.',
+    '「{item}」已在词汇表中。',
+    '"{item}" is already in the glossary.',
+  ],
+  's.term.saveOk': ['✅ "{item}" 을(를) 저장했습니다.', '✅ 已保存「{item}」。', '✅ Saved "{item}".'],
+  's.term.delOk': ['✅ "{item}" 을(를) 지웠습니다.', '✅ 已删除「{item}」。', '✅ Deleted "{item}".'],
+
   /* v11.3 — 정산된 연합 건은 마스터만 고친다 (관리자는 미정산 건까지) */
   's.e.allyMasterOnly': [
     '"{item}" 은(는) 이미 정산된 건이라 마스터관리자만 고칠 수 있습니다.',

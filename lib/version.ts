@@ -14,4 +14,4 @@
  * Vercel 은 push 하면 1~2분 뒤 자동 반영되지만 `.gs` 는 사용자가 직접
  * 붙여넣고 재배포해야 해서, 둘이 어긋난 채로 지내기 쉽기 때문이다.
  */
-export const APP_VERSION = '11.3';
+export const APP_VERSION = '11.4';
