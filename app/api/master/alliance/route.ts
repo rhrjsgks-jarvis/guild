@@ -2,12 +2,16 @@ import { callGas } from '@/lib/gas';
 import { requireMaster } from '@/lib/auth';
 import { invalidate } from '@/lib/cache';
 import { syncStateCache } from '@/lib/fresh';
+import { parseEntries } from '@/lib/alliance';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 /**
- * 연합 항목 정정 (v11.1) — 마스터관리자 전용.
+ * 연합 항목 정정 (v11.1 → v11.3) — **정산된 건까지** 고치는 마스터관리자 경로.
+ *
+ * 아직 금액을 안 넣은 건은 관리자도 고칠 수 있다 (/api/admin/alliance, op:'edit').
+ * 여기서만 되는 것은 **이미 정산된 건**이다 — 혈맹운영비 잔액이 실제로 움직인다.
  *
  *   ⏳미분배 — 아이템명·서버별 인원만 고친다. 아직 아무 돈도 움직이지 않았다
  *   ✅분배완료 — 판매금액까지 고친다. 서버별 몫을 다시 계산하고,
@@ -45,28 +49,8 @@ export async function POST(req: Request) {
   const item = String(body.item ?? '').trim();
   if (!item) return Response.json({ ok: false, msg: '아이템명을 입력해주세요.' }, { status: 400 });
 
-  const raw = Array.isArray(body.entries) ? body.entries : [];
-  const entries: { server: string; people: number }[] = [];
-  for (const e of raw) {
-    const o = (e ?? {}) as { server?: unknown; people?: unknown };
-    const server = String(o.server ?? '').trim();
-    if (!server) continue;
-    const people = Number(o.people);
-    if (!Number.isInteger(people) || people < 0) {
-      return Response.json({ ok: false, msg: '인원수는 0 이상의 정수여야 합니다.' }, { status: 400 });
-    }
-    entries.push({ server, people });
-  }
-  if (entries.length === 0) {
-    return Response.json({ ok: false, msg: '참여한 서버를 하나 이상 넣어주세요.' }, { status: 400 });
-  }
-  const seen = new Set<string>();
-  for (const e of entries) {
-    if (seen.has(e.server)) {
-      return Response.json({ ok: false, msg: `${e.server}서버가 두 번 들어갔습니다.` }, { status: 400 });
-    }
-    seen.add(e.server);
-  }
+  const parsed = parseEntries(body.entries, '참여한 서버를 하나 이상 넣어주세요.');
+  if ('error' in parsed) return Response.json({ ok: false, msg: parsed.error }, { status: 400 });
 
   // 금액은 정산된 건에서만 쓴다. 안 보내면 시트가 지금 금액을 그대로 쓴다
   let amount: number | null = null;
@@ -79,7 +63,18 @@ export async function POST(req: Request) {
 
   const res = await callGas(
     'editAlliance',
-    { group, item, entries, amount, email: String(body.email ?? '').trim(), confirm: body.confirm === true },
+    {
+      group,
+      item,
+      entries: parsed.entries,
+      amount,
+      email: String(body.email ?? '').trim(),
+      // ★ 앱이 바뀔 숫자를 보여준 뒤에만 true 가 된다 — 여기서 채우면 안전장치가 무력화된다
+      confirm: body.confirm === true,
+      // 마스터 라우트라는 사실은 **서버가** 안다 (requireMaster 를 통과했다).
+      // 앱이 보낸 값이 아니라 이 자리에서 고정한다 — 관리자 라우트는 false 로 고정
+      asMaster: true,
+    },
     { timeoutMs: 55_000, withState: true },
   );
 

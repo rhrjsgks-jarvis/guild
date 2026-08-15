@@ -124,6 +124,7 @@ const DICT: Record<string, Entry> = {
   'home.meSub': ['내 잔액', '我的余额', 'My balance'],
   'home.boardSub': ['공지·글', '公告·帖子', 'Notices & posts'],
   'home.adminSub': ['PIN·도구', 'PIN·工具', 'PIN & tools'],
+  'home.goHome': ['홈으로', '返回主页', 'Home'],
   'home.lang': ['언어', '语言', 'Language'],
   'home.langSub': ['한·中·EN', '韩·中·英', 'KO·ZH·EN'],
 
@@ -143,6 +144,7 @@ const DICT: Record<string, Entry> = {
   'bal.pendingTotal': ['분배전 합계', '待发放合计', 'Unpaid total'],
   'bal.sect': ['💰 멤버별 잔액 · 분배완료 누적 {v}', '💰 成员余额 · 已发放累计 {v}', '💰 Balances · paid to date {v}'],
   'bal.search': ['이름 검색', '搜索名称', 'Search by name'],
+  'bal.byServer': ['서버로 좁혀 보기', '按服务器筛选', 'Filter by server'],
   'bal.onlyOwed': ['받을 잔액이 남은 사람만 보기', '仅显示还有余额的人', 'Only those still owed'],
   'bal.noMatch': ['조건에 맞는 멤버가 없습니다.', '没有符合条件的成员。', 'No members match.'],
   'bal.noMember': ['멤버가 없습니다.', '暂无成员。', 'No members yet.'],
@@ -347,8 +349,9 @@ const DICT: Record<string, Entry> = {
     '同一服务器不能填两次。',
     'The same server cannot be added twice.',
   ],
-  'ali.photosLabel': ['인증샷 (선택 · 여러 장)', '截图（可选 · 多张）', 'Screenshots (optional, multiple)'],
-  'ali.photoAdd': ['📷 사진 추가', '📷 添加照片', '📷 Add photo'],
+  /* v11.3 — 인증샷은 서버 줄마다 따로 붙는다 */
+  'ali.photoAddServer': ['📷 {s}서버 사진 추가', '📷 添加{s}服照片', '📷 Add photo for server {s}'],
+  'ali.photoSaved': ['이미 붙어 있는 사진 {n}장', '已附加照片 {n} 张', '{n} already attached'],
   'ali.photoOptional': [
     '인증샷은 없어도 등록됩니다. 사진을 넣으면 인원수를 대신 세어줍니다.',
     '没有截图也能登记。上传照片可自动统计人数。',
@@ -356,11 +359,6 @@ const DICT: Record<string, Entry> = {
   ],
   'ali.photoN': ['📷 {n}장', '📷 {n} 张', '📷 {n}'],
   'ali.photoRead': ['📷{i} {n}명', '📷{i} {n}人', '📷{i} {n}'],
-  'ali.photoManual': [
-    '서버가 여럿이라 자동으로 넣지 않습니다. 위 인원 칸에 직접 넣어주세요.',
-    '有多个服务器，不会自动填入。请在上方人数栏手动输入。',
-    'Several servers — nothing is filled in automatically. Enter the counts above.',
-  ],
   'ali.remove': ['빼기', '移除', 'Remove'],
   'ali.fundShare': ['🏦 {fund} (혈비 + 잔여)', '🏦 {fund}（运营费 + 余数）', '🏦 {fund} (fee + remainder)'],
   'ali.detail': ['참여 서버 보기', '查看参与服务器', 'View servers'],
@@ -1000,6 +998,12 @@ const DICT: Record<string, Entry> = {
   's.post.ok': ['✅ 글을 등록했습니다.', '✅ 已发布。', '✅ Posted.'],
   's.post.noticeOk': ['✅ 공지를 등록했습니다.', '✅ 已发布公告。', '✅ Notice posted.'],
   's.post.delOk': ['✅ 삭제했습니다.', '✅ 已删除。', '✅ Deleted.'],
+  /* v11.3 — 정산된 연합 건은 마스터만 고친다 (관리자는 미정산 건까지) */
+  's.e.allyMasterOnly': [
+    '"{item}" 은(는) 이미 정산된 건이라 마스터관리자만 고칠 수 있습니다.',
+    '「{item}」已结算，只有主管理员可以修改。',
+    '"{item}" is already settled — only the master admin can edit it.',
+  ],
   's.e.allyDone': [
     '"{item}" 은(는) 이미 정산된 건입니다. 새로고침해주세요.',
     '「{item}」已结算，请刷新。',

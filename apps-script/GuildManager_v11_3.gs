@@ -1,8 +1,23 @@
 // ═══════════════════════════════════════════════════════════════
-//  길드 정산 시스템 v11.2  (분배비중 · 연합 · 레이드 · 게시판 · 마스터관리자 · 3개국어)
+//  길드 정산 시스템 v11.3  (분배비중 · 연합 · 레이드 · 게시판 · 마스터관리자 · 3개국어)
 //  시트 구성: [사용안내] [멤버DB] [참여자현황] [분배대기중] [잔액현황]
 //            [지급기록] [연합] [레이드] [게시판] [작업기록] + [시즌1] [시즌2] ...
 //            ← 이 순서로 항상 정렬됨
+// ═══════════════════════════════════════════════════════════════
+//  변경점 v11.2 → v11.3  (연합 인증샷을 서버별로 · 관리자도 미정산 건은 고친다)
+//
+//   - ★ 연합 인증샷이 **줄마다 그 서버의 것**이 된다. 예전에는 묶음의 첫 줄에
+//       모아 두어서, 3서버 건에 사진 3장을 붙여도 어느 서버 것인지 알 수 없었다.
+//       이제 등록·[＋]·정정 모두 `entries[i].photos` 로 줄마다 받는다.
+//       어느 서버의 사진인지는 **사람이 고른다** — 시스템이 짐작하지 않는다 (규칙 7).
+//       덕분에 사진이 읽은 인원수도 **그 줄에만** 채운다 (v11.1 의 8·8·8 사고 방지).
+//   - ★ 연합 인증샷 칸은 **언제나 원문 URL**로 쓴다. HYPERLINK 수식으로 쓰면
+//       `getValues()` 가 "📷 보기"만 돌려주어 앱에서 사진이 통째로 사라진다.
+//       v11.1 의 [＋] 경로가 사진이 한 장일 때 수식으로 써서 실제로 그랬다.
+//   - ★ `api_editAlliance` 에 `asMaster` 가 붙는다. **정산된 건은 마스터관리자만**
+//       고칠 수 있고, 관리자는 아직 돈이 하나도 안 움직인 **미정산 건만** 고친다.
+//       판정은 시트가 한다 — 라우트를 직접 부르거나 앱을 고쳐도 뚫리지 않는다.
+//   - 정정에서 사진은 **잇기만** 한다. 지우는 길은 두지 않는다 (증거는 되돌릴 수 없다).
 // ═══════════════════════════════════════════════════════════════
 //  변경점 v11.1 → v11.2  (마스터가 분배완료 아이템도 고친다 · 서버 추가에 인증샷)
 //
@@ -553,7 +568,7 @@
 //     '누적기록'을 그대로 찾음 (하위 호환, 리네이밍과 무관)
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION = '11.2';
+const VERSION = '11.3';
 const T2S_MAP = {'國':'国','學':'学','這':'这','個':'个','們':'们','說':'说','話':'话','對':'对','時':'时','間':'间','現':'现','場':'场','開':'开','關':'关','內':'内','東':'东','車':'车','馬':'马','龍':'龙','風':'风','陽':'阳','陰':'阴','電':'电','語':'语','讀':'读','寫':'写','書':'书','紙':'纸','筆':'笔','長':'长','門':'门','問':'问','聽':'听','見':'见','覺':'觉','讓':'让','誰':'谁','還':'还','進':'进','運':'运','動':'动','靜':'静','樂':'乐','藥':'药','華':'华','蘭':'兰','葉':'叶','黃':'黄','麗':'丽','寶':'宝','貴':'贵','財':'财','買':'买','賣':'卖','錢':'钱','銀':'银','鐵':'铁','鋼':'钢','陳':'陈','劉':'刘','張':'张','楊':'杨','蔣':'蒋','鄭':'郑','謝':'谢','呂':'吕','蘇':'苏','韓':'韩','馮':'冯','於':'于','鳳':'凤','雲':'云','劍':'剑','斷':'断','亂':'乱','愛':'爱','聲':'声','醫':'医','藝':'艺','頭':'头','臉':'脸','腳':'脚','氣':'气','樓':'楼','橋':'桥','飛':'飞','機':'机','網':'网','線':'线','條':'条','裡':'里','邊':'边','錯':'错','壞':'坏','舊':'旧','寬':'宽','淺':'浅','週':'周','節':'节','業':'业','後':'后','來':'来','終':'终','結':'结','敗':'败','勝':'胜','負':'负','輸':'输','贏':'赢','強':'强','難':'难','簡':'简','單':'单','複':'复','雜':'杂','純':'纯','淨':'净','髒':'脏','齊':'齐','穩':'稳','變':'变','轉':'转','換':'换','顯':'显','樣':'样','種':'种','類':'类','團':'团','體':'体','統':'统','織':'织','組':'组','構':'构','設':'设','計':'计','劃':'划','數':'数','課':'课','題':'题','試':'试','練':'练','習':'习','師':'师','員':'员','職':'职','務':'务','責':'责','權':'权','應':'应','該':'该','須':'须','願':'愿','夢':'梦','憶':'忆','識':'识','認':'认','歡':'欢','醜':'丑','帥':'帅','靈':'灵','獸':'兽','鷹':'鹰','鶴':'鹤','鴻':'鸿','鱷':'鳄','鯨':'鲸','鯊':'鲨','蝦':'虾','殼':'壳','冑':'胄','戰':'战','爭':'争','鬥':'斗','擊':'击','禦':'御','護':'护','衛':'卫','謀':'谋','陣':'阵','營':'营','軍':'军','隊':'队','將':'将','嬪':'嫔','宮':'宫','廟':'庙','觀':'观','閣':'阁','蓮':'莲','楓':'枫','樺':'桦','檜':'桧','樹':'树','實':'实','幹':'干','莖':'茎','穫':'获','採':'采','鮮':'鲜','籠':'笼','傷':'伤','殺':'杀','斬':'斩','豬':'猪','雞':'鸡','鴨':'鸭','鵝':'鹅','龜':'龟','蟬':'蝉','蟻':'蚁','螞':'蚂','鴉':'鸦','鵰':'雕','鴛':'鸳','鴦':'鸯','賽':'赛','廠':'厂','廣':'广','麼':'么','誒':'诶','歲':'岁','歷':'历','歸':'归','殘':'残','蟲':'虫','貓':'猫','氈':'毡','貫':'贯','質':'质','貨':'货','貼':'贴','費':'费','資':'资','賬':'账','賺':'赚','贈':'赠','賀':'贺','賢':'贤','賦':'赋','賤':'贱','賓':'宾','賴':'赖','齲':'龋','齒':'齿','龄':'齡','齡':'龄','齣':'出','岡':'冈','剛':'刚','剮':'剐','創':'创','劇':'剧','勵':'励','勸':'劝','勻':'匀','匯':'汇','醬':'酱','醞':'酝','釀':'酿','釋':'释','釘':'钉','針':'针','釣':'钓','鈍':'钝','鈴':'铃','鈔':'钞','鉛':'铅','鋸':'锯','鋒':'锋','鍵':'键','鎖':'锁','鑄':'铸','鑼':'锣','錶':'表','鐘':'钟','鏡':'镜','鑽':'钻','鑑':'鉴','閉':'闭','閃':'闪','閏':'闰','閱':'阅','闆':'板','闖':'闯','陸':'陆','隱':'隐','雖':'虽','雙':'双','雛':'雏','靂':'雳','韋':'韦','韌':'韧','頁':'页','頂':'顶','項':'项','順':'顺','頌':'颂','預':'预','頑':'顽','頒':'颁','頗':'颇','領':'领','頡':'颉','頜':'颌','頸':'颈','頻':'频','頹':'颓','顆':'颗','額':'额','顏':'颜','顛':'颠','顧':'顾','飄':'飘','饑':'饥','餃':'饺','餅':'饼','館':'馆','饒':'饶','饞':'馋','馳':'驰','駕':'驾','駛':'驶','駐':'驻','駱':'骆','駭':'骇','騎':'骑','騰':'腾','驅':'驱','驚':'惊','驕':'骄','驗':'验','骯':'肮','髮':'发','鬍':'胡','鬧':'闹','鮑':'鲍','鯉':'鲤','鰲':'鳌','鱉':'鳖','鳥':'鸟','鳴':'鸣','鹹':'咸','麥':'麦','麵':'面','黨':'党'};  // 번체→간체 상용한자 (서체 변환 전용, 다른 뜻 글자는 포함하지 않음)
 const UNIT = '다이아';                 // 재화 단위 표기
 const MAX_MEMBERS = 100;              // 최대 멤버 수 (v10.5: 50 → 100)
@@ -2692,11 +2707,15 @@ function _rebuildGuide(ss) {
     ['  분배 자체에는 전혀 영향이 없습니다', 'b'],
     ['· [📤 디스코드로 전송]은 특정 건을 수동으로 다시 보낼 때 사용', 'b'],
     [''  , 'sp'],
-    ['🤝 연합 정산 — [' + ALLIANCE_SHEET + '] 시트 (v11.0)', 'sec'],
+    ['🤝 연합 정산 — [' + ALLIANCE_SHEET + '] 시트 (v11.3)', 'sec'],
     ['· ⭐ 아이템 하나에 참여 서버를 여러 곳 넣을 수 있습니다', 'b'],
     ['  (시트에는 서버마다 한 줄이 들어가고 K열 "묶음" 값으로 한 건이 됩니다)', 'b'],
     ['· 등록할 때는 아이템명과 서버별 인원수만 넣습니다 — 금액은 팔린 뒤에', 'b'],
-    ['· 인증샷은 여러 장 붙일 수 있고, 없어도 등록됩니다', 'b'],
+    ['· ⭐ 인증샷은 **서버 줄마다 따로** 붙입니다 (v11.3) — 01서버 사진은', 'b'],
+    ['  01서버 줄에, 02서버 사진은 02서버 줄에 저장됩니다', 'b'],
+    ['  (어느 서버의 사진인지는 사람이 고릅니다 — 시스템이 짐작하지 않습니다)', 'b'],
+    ['· 사진이 읽어낸 인원수는 그 줄에만 채워지고, 직접 고친 값은 덮어쓰지', 'b'],
+    ['  않습니다. 인증샷은 여러 장 붙일 수 있고, 없어도 등록됩니다', 'b'],
     ['· 정산(금액 넣기) 산식은 아이템 분배와 같은 모양입니다:', 'b'],
     ['    혈비     = 판매금액 × ' + pct + '%  (버림)', 'b'],
     ['    분배가능 = 판매금액 − 혈비', 'b'],
@@ -2706,6 +2725,12 @@ function _rebuildGuide(ss) {
     ['  (기록을 삭제하면 적립분도 함께 회수됩니다)', 'b'],
     ['· 연합 인원은 우리 멤버DB와 무관하므로 "몇 명"만 셉니다 — 누구인지는', 'b'],
     ['  판별하지 않습니다. 개인 잔액은 어느 단계에서도 바뀌지 않습니다', 'b'],
+    ['· ⭐ 수정 권한 (v11.3):', 'b'],
+    ['    관리자 → 아직 금액을 안 넣은 건(' + ST_WAIT + ')의 아이템명·서버·인원·사진', 'b'],
+    ['    마스터 → 위 전부 + 이미 정산된 건의 판매금액·인원 (혈비 차액 자동 조정)', 'b'],
+    ['  정산된 건은 고칠 때 ' + FUND_NAME + ' 잔액이 실제로 움직이므로 마스터 전용입니다', 'warn'],
+    ['· 정정에서 인증샷은 더하기만 됩니다 — 지우는 길은 두지 않았습니다', 'b'],
+    ['  (증거 사진은 잘못 지우면 되돌릴 방법이 없습니다)', 'b'],
     ['', 'sp'],
 
     ['✏️ 미분배 아이템 수정 (v11.0 · 마스터관리자)', 'sec'],
@@ -4935,6 +4960,58 @@ function _photoList(cell) {
     .filter(function (u) { return /^https?:\/\//.test(u); });
 }
 
+/**
+ * 연합 인증샷 쓰기 (v11.3) — **줄마다 그 서버의 사진**을 담는다.
+ *
+ * ★ 연합 시트의 인증샷 칸은 **언제나 원문 URL**이다. HYPERLINK 수식으로 넣으면
+ *   `getValues()` 가 계산 결과("📷 보기")만 돌려주어 앱에서 사진이 통째로 사라진다
+ *   (v11.1 의 [＋] 경로가 한 장일 때 수식으로 써서 실제로 그랬다).
+ * ★ 이미 있는 사진에 **잇는다.** 덮어쓰면 먼저 붙인 사진이 사라진다.
+ */
+function _writeAllyPhotos(sheet, row, links) {
+  const add = _photoList(_photoCell(links));
+  if (add.length === 0) return 0;
+  const cell = sheet.getRange(row, ALLY_COL.PHOTO);
+  // 옛 행에 남아 있을 수 있는 수식도 함께 읽는다 (v11.0 이전 한 장짜리)
+  const have = _readLedgerPhotos(cell.getFormula(), cell.getDisplayValue());
+  const merged = have.slice();
+  add.forEach(function (u) { if (merged.indexOf(u) < 0) merged.push(u); });
+  cell.setValue(merged.join('\n'));
+  return merged.length;
+}
+
+/**
+ * 연합 서버 줄 정규화 (v11.3) — 등록·정정·서버추가가 **같은 규칙**을 쓴다.
+ * 사진은 줄마다 따로 받는다 (어느 서버의 사진인지 사람이 정한다 — 규칙 7).
+ */
+function _allyEntries(entries) {
+  return (entries || []).map(function (e) {
+    return {
+      server: _normServer(e && e.server),
+      people: Math.max(Math.floor(Number(e && e.people) || 0), 0),
+      photos: _photoList(_photoCell(e && e.photos))
+    };
+  }).filter(function (e) { return e.server; });
+}
+
+/** 서버 줄 검사 — 잘못됐으면 결과 객체를, 괜찮으면 null 을 돌려준다 */
+function _allyCheckServers(list, emptyMsg, emptyCode) {
+  if (list.length === 0) return _rc({ ok: false, msg: emptyMsg }, emptyCode);
+  const seen = {};
+  for (let i = 0; i < list.length; i++) {
+    if (SERVER_LIST.indexOf(list[i].server) < 0) {
+      return _rc({ ok: false, msg: '서버를 01~12 중에서 선택해주세요.' }, 'e.badServer');
+    }
+    // 같은 서버를 두 줄로 넣으면 인원이 갈려 분배 비율이 틀어진다
+    if (seen[list[i].server]) {
+      return _rc({ ok: false, msg: list[i].server + '서버가 두 번 들어갔습니다. 한 줄로 합쳐주세요.' },
+        'e.dupServer', { s: list[i].server });
+    }
+    seen[list[i].server] = true;
+  }
+  return null;
+}
+
 /** 혈맹운영비 잔액에 더한다 (음수면 뺀다). 참여횟수는 건드리지 않는다 — 다른 사건이다 (규칙 3) */
 function _creditFundBalance(ss, delta) {
   if (!delta) return 0;
@@ -5017,7 +5094,8 @@ function api_getAlliance() {
       order.push(r.group);
     }
     const g = byGroup[r.group];
-    g.servers.push({ server: r.server, people: r.people, credited: r.credited });
+    // 사진은 **줄마다 그 서버의 것**이다 (v11.3) — 화면도 서버별로 보여준다
+    g.servers.push({ server: r.server, people: r.people, credited: r.credited, photos: r.photos });
     g.rows.push(r.row);
     g.people += r.people;
     g.credited += r.credited;
@@ -5051,24 +5129,9 @@ function api_addAlliance(item, entries, photoLinks, email) {
   item = String(item || '').trim();
   if (!item) return _rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
 
-  const list = (entries || []).map(function (e) {
-    return { server: _normServer(e && e.server),
-             people: Math.max(Math.floor(Number(e && e.people) || 0), 0) };
-  }).filter(function (e) { return e.server; });
-
-  if (list.length === 0) return _rc({ ok: false, msg: '참여한 서버를 하나 이상 넣어주세요.' }, 'e.badServer');
-  const seen = {};
-  for (let i = 0; i < list.length; i++) {
-    if (SERVER_LIST.indexOf(list[i].server) < 0) {
-      return _rc({ ok: false, msg: '서버를 01~12 중에서 선택해주세요.' }, 'e.badServer');
-    }
-    // 같은 서버를 두 줄로 넣으면 인원이 갈려 분배 비율이 틀어진다
-    if (seen[list[i].server]) {
-      return _rc({ ok: false, msg: list[i].server + '서버가 두 번 들어갔습니다. 한 줄로 합쳐주세요.' },
-        'e.dupServer', { s: list[i].server });
-    }
-    seen[list[i].server] = true;
-  }
+  const list = _allyEntries(entries);
+  const bad = _allyCheckServers(list, '참여한 서버를 하나 이상 넣어주세요.', 'e.badServer');
+  if (bad) return bad;
 
   const lock = LockService.getScriptLock();
   try { lock.waitLock(15000); } catch (e) { return _rc({ ok: false, msg: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.' }, 'e.busy'); }
@@ -5081,8 +5144,12 @@ function api_addAlliance(item, entries, photoLinks, email) {
     const at = sheet.getLastRow() + 1;
     const now = new Date();
 
+    // ★ 인증샷은 **줄마다 그 서버의 것**이다 (v11.3). 어느 서버의 사진인지는
+    //   사람이 고르는 것이지 시스템이 짐작할 일이 아니다 (규칙 7).
+    //   묶음 공용으로 온 photoLinks(옛 앱)는 첫 줄에 함께 담아 호환을 지킨다.
     const values = list.map(function (e, i) {
-      return [now, e.server, item, '', '', e.people, '', i === 0 ? photos : '', actor, ST_WAIT, group, ''];
+      const mine = i === 0 ? _photoCell(e.photos.concat(_photoList(photos))) : _photoCell(e.photos);
+      return [now, e.server, item, '', '', e.people, '', mine, actor, ST_WAIT, group, ''];
     });
     // ★ 서버 칸은 **쓰기 전에** 글자 서식으로 바꾼다. 자동 서식이면 '01' 이 숫자 1 로
     //   저장되고, 그러면 서버별 누적('01'~'12')에서 이 건이 통째로 빠진다 (v11.1).
@@ -5095,8 +5162,12 @@ function api_addAlliance(item, entries, photoLinks, email) {
     sheet.getRange(at, ALLY_COL.FUND, values.length, 1).setNumberFormat('#,##0');
 
     const total = list.reduce(function (t, e) { return t + e.people; }, 0);
-    const where = list.map(function (e) { return e.server + '서버 ' + e.people + '명'; }).join(' · ');
-    _logAction(ss, '연합등록', item, actor, where + ' (' + ST_WAIT + ')');
+    const shots = list.reduce(function (t, e) { return t + e.photos.length; }, 0) + _photoList(photos).length;
+    const where = list.map(function (e) {
+      return e.server + '서버 ' + e.people + '명' + (e.photos.length ? '(📷' + e.photos.length + ')' : '');
+    }).join(' · ');
+    _logAction(ss, '연합등록', item, actor,
+      where + ' (' + ST_WAIT + ')' + (shots ? ' · 인증샷 ' + shots + '장' : ''));
     return _rc({
       ok: true, group: group, servers: list.length, people: total,
       msg: '✅ "' + item + '" 등록 완료 — ' + where + ' (' + ST_WAIT + ')'
@@ -5195,29 +5266,14 @@ function api_creditAlliance(group, amount, email) {
  * ★ 인증샷·등록일은 건드리지 않는다. 고치는 것은 사람이 적어 넣은 값뿐이고,
  *   언제 등록했는지는 기록이다. 묶음의 첫 줄은 절대 지우지 않는다 (인증샷이 거기 있다).
  */
-function api_editAlliance(group, item, entries, amount, email, confirm) {
+function api_editAlliance(group, item, entries, amount, email, confirm, asMaster) {
   group = String(group || '').trim();
   item = String(item || '').trim();
   if (!item) return _rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
 
-  const list = (entries || []).map(function (e) {
-    return { server: _normServer(e && e.server),
-             people: Math.max(Math.floor(Number(e && e.people) || 0), 0) };
-  }).filter(function (e) { return e.server; });
-
-  if (list.length === 0) return _rc({ ok: false, msg: '참여한 서버를 하나 이상 넣어주세요.' }, 'e.badServer');
-  const seen = {};
-  for (let i = 0; i < list.length; i++) {
-    if (SERVER_LIST.indexOf(list[i].server) < 0) {
-      return _rc({ ok: false, msg: '서버를 01~12 중에서 선택해주세요.' }, 'e.badServer');
-    }
-    // 같은 서버를 두 줄로 넣으면 인원이 갈려 분배 비율이 틀어진다
-    if (seen[list[i].server]) {
-      return _rc({ ok: false, msg: list[i].server + '서버가 두 번 들어갔습니다. 한 줄로 합쳐주세요.' },
-        'e.dupServer', { s: list[i].server });
-    }
-    seen[list[i].server] = true;
-  }
+  const list = _allyEntries(entries);
+  const bad = _allyCheckServers(list, '참여한 서버를 하나 이상 넣어주세요.', 'e.badServer');
+  if (bad) return bad;
 
   const lock = LockService.getScriptLock();
   try { lock.waitLock(15000); } catch (e) { return _rc({ ok: false, msg: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.' }, 'e.busy'); }
@@ -5244,6 +5300,18 @@ function api_editAlliance(group, item, entries, amount, email, confirm) {
       if (st === ST_DONE) done = true;
     });
     if (hit.length === 0) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+
+    /*
+     * ★ 정산된 건을 고치는 것은 **마스터관리자만** 할 수 있다 (v11.3).
+     *   금액·인원이 바뀌면 혈맹운영비 잔액이 실제로 움직인다 — 되돌리는 일에
+     *   해당하므로 관리자에게는 열지 않는다 (CLAUDE.md 권한 경계).
+     *   관리자에게 여는 것은 **아직 돈이 하나도 안 움직인** 미정산 건뿐이다.
+     *   ★ 판정은 **시트가** 한다. 라우트를 직접 부르거나 앱을 고쳐도 뚫리지 않는다.
+     */
+    if (done && asMaster !== true) {
+      return _rc({ ok: false, msg: '이미 정산된 건은 마스터관리자만 고칠 수 있습니다.' },
+        'e.allyMasterOnly', { item: before });
+    }
 
     // 정산된 건이면 금액도 함께 고친다. 안 보내면 지금 금액을 그대로 쓴다
     let newAmount = 0;
@@ -5278,6 +5346,9 @@ function api_editAlliance(group, item, entries, amount, email, confirm) {
     for (let i = 0; i < keep; i++) {
       sheet.getRange(hit[i].row, ALLY_COL.SERVER).setValue(list[i].server);
       sheet.getRange(hit[i].row, ALLY_COL.PEOPLE).setValue(list[i].people);
+      // ★ 새로 붙인 사진은 **잇기만** 한다 (v11.3). 정정에서 사진을 지우는 길은 두지 않는다 —
+      //   실수로 지우면 되돌릴 방법이 없고, 인증샷은 나중에 다툼이 생겼을 때의 유일한 증거다
+      if (list[i].photos.length > 0) _writeAllyPhotos(sheet, hit[i].row, list[i].photos);
     }
     // 아이템명은 묶음의 모든 줄에서 같아야 한다
     hit.forEach(function (h) { sheet.getRange(h.row, ALLY_COL.ITEM).setValue(item); });
@@ -5294,7 +5365,8 @@ function api_editAlliance(group, item, entries, amount, email, confirm) {
       const at = hit[hit.length - 1].row + 1;
       sheet.insertRowsAfter(hit[hit.length - 1].row, extra.length);
       const rowsOut = extra.map(function (e) {
-        return [when, e.server, item, '', '', e.people, '', '', actorOld || actor, done ? ST_DONE : ST_WAIT, group, ''];
+        return [when, e.server, item, '', '', e.people, '', _photoCell(e.photos),
+                actorOld || actor, done ? ST_DONE : ST_WAIT, group, ''];
       });
       sheet.getRange(at, ALLY_COL.SERVER, extra.length, 1).setNumberFormat('@');
       sheet.getRange(at, 1, extra.length, ALLIANCE_HEADERS.length).setValues(rowsOut);
@@ -5361,23 +5433,9 @@ function api_editAlliance(group, item, entries, amount, email, confirm) {
 function api_addAllianceServers(group, entries, email, photoLinks) {
   group = String(group || '').trim();
 
-  const list = (entries || []).map(function (e) {
-    return { server: _normServer(e && e.server),
-             people: Math.max(Math.floor(Number(e && e.people) || 0), 0) };
-  }).filter(function (e) { return e.server; });
-  if (list.length === 0) return _rc({ ok: false, msg: '추가할 서버를 하나 이상 넣어주세요.' }, 'e.badServer');
-
-  const seen = {};
-  for (let i = 0; i < list.length; i++) {
-    if (SERVER_LIST.indexOf(list[i].server) < 0) {
-      return _rc({ ok: false, msg: '서버를 01~12 중에서 선택해주세요.' }, 'e.badServer');
-    }
-    if (seen[list[i].server]) {
-      return _rc({ ok: false, msg: list[i].server + '서버가 두 번 들어갔습니다. 한 줄로 합쳐주세요.' },
-        'e.dupServer', { s: list[i].server });
-    }
-    seen[list[i].server] = true;
-  }
+  const list = _allyEntries(entries);
+  const bad = _allyCheckServers(list, '추가할 서버를 하나 이상 넣어주세요.', 'e.badServer');
+  if (bad) return bad;
 
   const lock = LockService.getScriptLock();
   try { lock.waitLock(15000); } catch (e) { return _rc({ ok: false, msg: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.' }, 'e.busy'); }
@@ -5421,7 +5479,8 @@ function api_addAllianceServers(group, entries, email, photoLinks) {
     // 묶음 바로 뒤에 끼워 넣는다 — 맨 아래로 보내면 다른 묶음 사이로 흩어진다
     sheet.insertRowsAfter(last, list.length);
     const rowsOut = list.map(function (e) {
-      return [when, e.server, item, '', '', e.people, '', '', actorOld || actor, ST_WAIT, group, ''];
+      // ★ 새 줄의 사진은 그 줄에 담는다 (v11.3) — 첫 줄에 몰아넣으면 어느 서버 것인지 사라진다
+      return [when, e.server, item, '', '', e.people, '', _photoCell(e.photos), actorOld || actor, ST_WAIT, group, ''];
     });
     sheet.getRange(last + 1, ALLY_COL.SERVER, list.length, 1).setNumberFormat('@');
     sheet.getRange(last + 1, 1, list.length, ALLIANCE_HEADERS.length).setValues(rowsOut);
@@ -5430,25 +5489,17 @@ function api_addAllianceServers(group, entries, email, photoLinks) {
       sheet.getRange(last + 1, col, list.length, 1).setNumberFormat('#,##0');
     });
 
-    // ★ 인증샷은 묶음의 **첫 줄에 모아 둔다** (v11.1). 새로 넣은 것을 뒤에 잇는다 —
-    //   덮어쓰면 처음 등록할 때 붙인 사진이 사라진다.
+    // 묶음 공용으로 온 사진(옛 앱)은 첫 줄에 잇는다 — 덮어쓰면 먼저 붙인 것이 사라진다
     const added = _photoList(_photoCell(photoLinks));
-    let shots = 0;
-    if (added.length > 0) {
-      const cell = sheet.getRange(first, ALLY_COL.PHOTO);
-      const have = _readLedgerPhotos(cell.getFormula(), cell.getDisplayValue());
-      const merged = have.slice();
-      added.forEach(function (u) { if (merged.indexOf(u) < 0) merged.push(u); });
-      // HYPERLINK 은 한 개만 담는다 — 두 장 이상이면 줄바꿈으로 나열한다
-      if (merged.length === 1) cell.setFormula('=HYPERLINK("' + merged[0] + '","📷 보기")');
-      else cell.setValue(merged.join('\n'));
-      shots = merged.length;
-    }
+    if (added.length > 0) _writeAllyPhotos(sheet, first, added);
 
     const total = list.reduce(function (t, e) { return t + e.people; }, 0);
-    const where = list.map(function (e) { return e.server + '서버 ' + e.people + '명'; }).join(' · ');
+    const mine = list.reduce(function (t, e) { return t + e.photos.length; }, 0);
+    const where = list.map(function (e) {
+      return e.server + '서버 ' + e.people + '명' + (e.photos.length ? '(📷' + e.photos.length + ')' : '');
+    }).join(' · ');
     _logAction(ss, '연합서버추가', item, actor,
-      where + ' 추가' + (added.length > 0 ? ' · 인증샷 ' + added.length + '장 추가' : ''));
+      where + ' 추가' + (added.length + mine > 0 ? ' · 인증샷 ' + (added.length + mine) + '장 추가' : ''));
     return _rc({
       ok: true, group: group, servers: list.length, people: total,
       msg: '✅ "' + item + '" 에 ' + where + ' 을(를) 추가했습니다.'
@@ -6488,9 +6539,14 @@ function _apiRoute(action, req) {
     case 'creditAlliance':
       return api_creditAlliance(req.group, req.amount, req.email);
 
-    // 연합 등록 항목 수정 (v11.1) — 미분배 건만. 마스터관리자 전용 라우트가 지킨다
+    /*
+     * 연합 항목 수정 (v11.3) — 관리자는 **미정산 건만**, 마스터는 정산된 건까지.
+     * asMaster 는 앱이 아니라 **라우트가** 채운다 (마스터 라우트만 true).
+     * 정산된 건인지는 시트가 직접 보고 판정하므로, 값을 속여도 아래에서 막힌다.
+     */
     case 'editAlliance':
-      return api_editAlliance(req.group, req.item, req.entries, req.amount, req.email, req.confirm === true);
+      return api_editAlliance(req.group, req.item, req.entries, req.amount, req.email,
+        req.confirm === true, req.asMaster === true);
 
     // 참여 서버 추가 (v11.1) — 줄을 더하기만 한다. 관리자도 할 수 있다
     case 'addAllianceServers':

@@ -5,6 +5,7 @@ import type { BalanceRow, GuildState } from '@/lib/types';
 import { byName, fmt, fundFirst, nameParts, normName, normServer } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 import ShareBtn from './ShareBtn';
+import ServerFilter, { NO_SERVER } from './ServerFilter';
 
 export default function BalanceTab({
   state,
@@ -20,6 +21,14 @@ export default function BalanceTab({
   const { t, unit } = useT();
   const [q, setQ] = useState('');
   const [onlyOwed, setOnlyOwed] = useState(false);
+  /**
+   * 서버로 좁혀 보기 (v11.3) — 아이템 등록 화면과 **같은 칩**을 쓴다.
+   *
+   * 인원이 늘면서 "01서버 사람만 보고 싶다"가 잦아졌는데, 잔액에는 그 길이 없어
+   * 이름을 하나씩 눈으로 골라야 했다. 아무것도 안 고르면 전원이 보인다 —
+   * 기본이 "다 보기"여야 처음 여는 사람이 놀라지 않는다.
+   */
+  const [svPick, setSvPick] = useState<string[]>([]);
 
   const u = unit(state.unit);
 
@@ -34,6 +43,20 @@ export default function BalanceTab({
     return map;
   }, [state.memberInfo]);
 
+  // 서버별 인원 — 칩에 그대로 붙는다 (혈맹운영비는 사람이 아니므로 빼고 센다)
+  const { svCounts, svNone } = useMemo(() => {
+    const counts: Record<string, number> = {};
+    let none = 0;
+    const fundKey = normName(state.fundName);
+    for (const r of state.rows) {
+      if (normName(r.name) === fundKey) continue;
+      const sv = serverOf.get(normName(r.name)) ?? '';
+      if (!sv) none += 1;
+      else counts[sv] = (counts[sv] ?? 0) + 1;
+    }
+    return { svCounts: counts, svNone: none };
+  }, [state.rows, state.fundName, serverOf]);
+
   const { list, totalPending, totalPaid, owedCount } = useMemo(() => {
     let tp = 0;
     let td = 0;
@@ -45,9 +68,17 @@ export default function BalanceTab({
     }
 
     const needle = q.trim().toLowerCase();
+    const fundName = normName(state.fundName);
     const filtered = state.rows
       .filter((r) => (onlyOwed ? r.pending > 0 : true))
       .filter((r) => (needle ? r.name.toLowerCase().includes(needle) : true))
+      // 서버 칩 — 아무것도 안 골랐으면 전원. 혈맹운영비는 사람이 아니라 금고라 언제나 남는다
+      .filter((r) => {
+        if (svPick.length === 0) return true;
+        if (normName(r.name) === fundName) return true;
+        const sv = serverOf.get(normName(r.name)) ?? '';
+        return sv ? svPick.includes(sv) : svPick.includes(NO_SERVER);
+      })
       // 이름순(ㄱ~ㅎ) — 금액순으로 두면 분배할 때마다 자리가 바뀌어 눈으로 찾을 수가 없다.
       // "받을 사람만 보기"와 이름 검색이 있으므로 지급할 때도 불편하지 않다 (v10.9.2)
       .sort((a, b) => byName(a.name, b.name));
@@ -57,7 +88,7 @@ export default function BalanceTab({
     const pinned = fundFirst(filtered, (r) => normName(r.name) === fundKey);
 
     return { list: pinned, totalPending: tp, totalPaid: td, owedCount: owed };
-  }, [state.rows, state.fundName, q, onlyOwed]);
+  }, [state.rows, state.fundName, q, onlyOwed, svPick, serverOf]);
 
   /**
    * 공유용 글 — 지금 화면에 보이는 목록 그대로 내보낸다.
@@ -127,11 +158,22 @@ export default function BalanceTab({
             {t('bal.onlyOwed')}
           </label>
         </div>
+        {/* 서버별 인원 — 아이템 등록 화면과 같은 칩이다 (숫자가 그 서버 인원) */}
+        <div className="field" style={{ paddingTop: 0 }}>
+          <label className="fl">{t('bal.byServer')}</label>
+          <ServerFilter
+            servers={state.serverList ?? []}
+            counts={svCounts}
+            noneCount={svNone}
+            value={svPick}
+            onChange={setSvPick}
+          />
+        </div>
       </div>
 
       <div className="card" style={{ marginTop: 12 }}>
         {list.length === 0 ? (
-          <div className="empty">{q || onlyOwed ? t('bal.noMatch') : t('bal.noMember')}</div>
+          <div className="empty">{q || onlyOwed || svPick.length > 0 ? t('bal.noMatch') : t('bal.noMember')}</div>
         ) : (
           list.map((r) => {
             // 한자는 멤버DB G열이 먼저, 없으면 이름 괄호 (lib/client 의 nameParts 한 곳에서만 정한다)

@@ -197,11 +197,12 @@ export default function AllianceTab({
               </div>
               {admin ? (
                 <div className="row-acts">
-                  {master ? (
-                    <button className="btn ghost" onClick={() => setEditing(g)}>
-                      {t('items.edit')}
-                    </button>
-                  ) : null}
+                  {/* ★ 아직 금액을 안 넣은 건은 **관리자도 고친다** (v11.3) —
+                      다이아가 하나도 안 움직인 상태라 틀려도 고치면 그만이다.
+                      정산된 건(아래 목록)은 그대로 마스터 전용이다. */}
+                  <button className="btn ghost" onClick={() => setEditing(g)}>
+                    {t('items.edit')}
+                  </button>
                   {/* 레이드 뒤에 "우리 서버도 갔었다" 는 이야기가 늦게 온다.
                       그때마다 마스터를 부르면 등록이 미뤄지므로 관리자에게 연다.
                       더하기만 되고 이미 있는 줄은 못 고친다 (서버가 막는다). */}
@@ -373,7 +374,7 @@ export default function AllianceTab({
   );
 }
 
-/** 등록·정정에 쓰는 서버별 인원 한 줄 */
+/** 등록·정정에 쓰는 서버별 한 줄 — 인원과 **그 서버의 인증샷**을 함께 든다 (v11.3) */
 type Entry = {
   server: string;
   people: string;
@@ -385,7 +386,18 @@ type Entry = {
    *   8 이 첫 줄을 덮어써 8·8·8 이 된 사고가 있었다 (v11.0).
    */
   touched?: boolean;
+  /** 이 줄에 새로 붙인 인증샷 — 그 서버의 사진이다 (v11.3) */
+  photos: string[];
+  /** 사진마다 몇 명으로 읽었는지 — **제안**일 뿐, 넣는 것은 사람이 한다 */
+  reads: number[];
+  /** 이미 시트에 저장돼 있는 사진 (정정 화면에서 보여주기만 한다) */
+  saved?: string[];
 };
+
+/** 새 줄 하나 — 어디서 만들든 같은 모양이어야 한다 */
+function newRow(server: string): Entry {
+  return { server, people: '0', photos: [], reads: [] };
+}
 
 /**
  * 서버별 인원 편집기 — **등록과 정정이 같은 화면을 쓴다.**
@@ -396,11 +408,15 @@ function ServerRows({
   inUse,
   rows,
   setRows,
+  toast,
+  setBusy,
 }: {
   servers: string[];
   inUse: string[];
   rows: Entry[];
   setRows: (fn: (cur: Entry[]) => Entry[]) => void;
+  toast: (msg: string, isError?: boolean) => void;
+  setBusy: (on: boolean) => void;
 }) {
   const { t } = useT();
   const chosen = rows.map((r) => r.server).filter(Boolean);
@@ -443,6 +459,8 @@ function ServerRows({
               </button>
             ) : null}
           </div>
+          {/* ★ 인증샷은 **이 서버의 것**이다 (v11.3) — 어느 서버 사진인지 사람이 고른다 */}
+          <RowPhoto row={r} onChange={(next) => setRow(i, next)} toast={toast} setBusy={setBusy} />
         </div>
       ))}
       {rows.length < servers.length ? (
@@ -454,7 +472,7 @@ function ServerRows({
             // 아직 안 고른 서버를 기본값으로 — 중복을 애초에 만들지 않는다
             setRows((cur) => [
               ...cur,
-              { server: servers.find((sv) => !cur.some((c) => c.server === sv)) ?? '', people: '0' },
+              newRow(servers.find((sv) => !cur.some((c) => c.server === sv)) ?? ''),
             ])
           }
         >
@@ -472,43 +490,41 @@ function rowsValid(rows: Entry[]): boolean {
   return chosen.length > 0 && new Set(chosen).size === chosen.length;
 }
 
-/** 화면의 서버 줄 → 서버로 보낼 모양 */
+/** 화면의 서버 줄 → 서버로 보낼 모양 (사진은 **새로 붙인 것만** 보낸다 — 시트가 잇는다) */
 function toEntries(rows: Entry[]) {
-  return rows.filter((r) => r.server).map((r) => ({ server: r.server, people: Number(r.people) || 0 }));
+  return rows
+    .filter((r) => r.server)
+    .map((r) => ({ server: r.server, people: Number(r.people) || 0, photos: r.photos }));
 }
 
-/** ① 등록 — 아이템명 · 서버별 인원 · 인증샷(선택, 여러 장). 금액은 받지 않는다. */
 /**
- * 인증샷 고르기 — **등록과 [＋] 가 같은 규칙을 쓴다** (v11.1).
+ * 서버 줄 하나의 인증샷 (v11.3) — **등록·[＋]·정정이 같은 규칙을 쓴다.**
  *
- * ★ 읽어낸 인원수는 **제안**이지 정답이 아니다. 어느 서버의 사진인지 시스템은
- *   알 수 없고 사진마다 인원도 다르다. 그래서 자동으로 넣는 것은
- *   "서버가 한 줄뿐이고 아직 아무도 손대지 않은" 경우뿐이고,
- *   그 밖에는 읽은 값을 **보여주기만** 한다.
- *   (사진 3장을 붙이고 13·8·8 로 고쳐 넣었는데 마지막 사진의 8 이 첫 줄을
- *    덮어써 8·8·8 이 된 사고가 있었다 — v11.0)
+ * ★ 예전에는 사진을 묶음 전체에 붙였다. 그래서 3서버 건에 사진 3장을 올려도
+ *   어느 서버 것인지 알 수 없었고, 읽어낸 인원수를 어느 줄에 넣을지도 알 수 없어
+ *   첫 줄에 넣다가 13·8·8 을 8·8·8 로 덮어쓴 사고까지 났다 (v11.0).
+ *   이제 사진은 **줄마다** 붙으므로 읽은 인원수도 **그 줄에만** 채운다.
+ * ★ 그래도 사람이 직접 고친 값(touched)은 절대 덮어쓰지 않는다 — 읽어낸 값은
+ *   제안이지 정답이 아니다 (규칙 7).
  */
-function usePhotoPick({
-  rows,
-  setRows,
+function RowPhoto({
+  row,
+  onChange,
   toast,
   setBusy,
 }: {
-  rows: Entry[];
-  setRows: (fn: (cur: Entry[]) => Entry[]) => void;
+  row: Entry;
+  onChange: (next: Partial<Entry>) => void;
   toast: (msg: string, isError?: boolean) => void;
   setBusy: (on: boolean) => void;
 }) {
   const { t, srv } = useT();
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [reads, setReads] = useState<number[]>([]);
-  const [photoMsg, setPhotoMsg] = useState('');
+  const [msg, setMsg] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function pick(file: File) {
     setBusy(true);
-    setPhotoMsg('');
-    // 원본을 그대로 보내면 요청이 비대해지고 OCR 도 더 못 읽는다
+    // 원본을 그대로 보내면 요청이 비대해지고 OCR 도 더 못 읽는다.
     // 여기는 인원수만 센다 — 이름을 읽지 않으므로 강한 보정이 유리하다
     const jpeg = await prepPhoto(file, 'count');
     if (!jpeg) {
@@ -523,27 +539,23 @@ function usePhotoPick({
       return;
     }
     const url = String(res.photoUrl ?? '');
-    if (url) setPhotos((cur) => (cur.includes(url) ? cur : [...cur, url]));
-
     const n = Number(res.people ?? 0);
-    if (n > 0) {
-      setReads((cur) => [...cur, n]);
-      setRows((cur) =>
-        cur.length === 1 && !cur[0].touched && (cur[0].people === '' || cur[0].people === '0')
-          ? [{ ...cur[0], people: String(n) }]
-          : cur,
-      );
-    }
-    setPhotoMsg(srv(res));
+
+    onChange({
+      photos: url && !row.photos.includes(url) ? [...row.photos, url] : row.photos,
+      reads: n > 0 ? [...row.reads, n] : row.reads,
+      // 아직 사람이 손대지 않은 줄에만 채운다 (0/빈칸일 때)
+      people: n > 0 && !row.touched && (row.people === '' || row.people === '0') ? String(n) : row.people,
+    });
+    setMsg(srv(res));
   }
 
-  const view = (
-    <>
-      <label className="fl" style={{ marginTop: 12 }}>
-        {t('ali.photosLabel')}
-      </label>
-      <button className="btn ghost block" onClick={() => fileRef.current?.click()}>
-        {t('ali.photoAdd')}
+  const saved = row.saved ?? [];
+
+  return (
+    <div className="ali-row-photo">
+      <button type="button" className="btn ghost block" onClick={() => fileRef.current?.click()}>
+        {t('ali.photoAddServer', { s: row.server || '—' })}
       </button>
       <input
         ref={fileRef}
@@ -554,26 +566,25 @@ function usePhotoPick({
         onChange={(e) => {
           const list = Array.from(e.target.files ?? []);
           e.target.value = '';
-          setReads([]);
           void (async () => {
             for (const f of list) await pick(f);
           })();
         }}
       />
-      {photos.length > 0 ? <PhotoStrip urls={photos} /> : null}
-      {/* 사진마다 몇 명으로 읽었는지 보여준다 — 넣는 것은 사람이 한다 */}
-      {reads.length > 0 ? (
-        <p className="hint">
-          {reads.map((n, i) => t('ali.photoRead', { i: i + 1, n })).join(' · ')}
-          {rows.length > 1 ? ` — ${t('ali.photoManual')}` : ''}
-        </p>
+      {saved.length > 0 ? (
+        <>
+          <p className="hint">{t('ali.photoSaved', { n: saved.length })}</p>
+          <PhotoStrip urls={saved} />
+        </>
       ) : null}
-      {photoMsg ? <p className="hint">{photoMsg}</p> : null}
-      <p className="hint">{t('ali.photoOptional')}</p>
-    </>
+      {row.photos.length > 0 ? <PhotoStrip urls={row.photos} /> : null}
+      {/* 사진마다 몇 명으로 읽었는지 보여준다 — 넣는 것은 사람이 한다 */}
+      {row.reads.length > 0 ? (
+        <p className="hint">{row.reads.map((n, i) => t('ali.photoRead', { i: i + 1, n })).join(' · ')}</p>
+      ) : null}
+      {msg ? <p className="hint">{msg}</p> : null}
+    </div>
   );
-
-  return { photos, view };
 }
 
 /** ① 등록 — 아이템명 · 서버별 인원 · 인증샷(선택, 여러 장). 금액은 받지 않는다. */
@@ -594,8 +605,7 @@ function RegisterSheet({
 }) {
   const { t, srv } = useT();
   const [item, setItem] = useState('');
-  const [rows, setRows] = useState<Entry[]>([{ server: servers[0] ?? '01', people: '0' }]);
-  const { photos, view: photoView } = usePhotoPick({ rows, setRows, toast, setBusy });
+  const [rows, setRows] = useState<Entry[]>([newRow(servers[0] ?? '01')]);
 
   const valid = Boolean(item.trim()) && rowsValid(rows);
 
@@ -606,7 +616,6 @@ function RegisterSheet({
       op: 'register',
       item: item.trim(),
       entries: toEntries(rows),
-      photoLinks: photos,
       email: getStoredEmail(),
     });
     setBusy(false);
@@ -621,13 +630,19 @@ function RegisterSheet({
       </label>
       <input id="ait" type="text" maxLength={40} value={item} onChange={(e) => setItem(e.target.value)} />
 
-      <ServerRows servers={servers} inUse={inUse} rows={rows} setRows={setRows} />
-
-      {photoView}
+      <ServerRows
+        servers={servers}
+        inUse={inUse}
+        rows={rows}
+        setRows={setRows}
+        toast={toast}
+        setBusy={setBusy}
+      />
 
       <p className="hint" style={{ marginTop: 10 }}>
-        {t('ali.registerHint')}
+        {t('ali.photoOptional')}
       </p>
+      <p className="hint">{t('ali.registerHint')}</p>
 
       <div className="sheet-actions">
         <button className="btn ghost" onClick={onClose}>
@@ -762,9 +777,7 @@ function AddServersSheet({
   const have = entry.servers.map((s) => s.server);
   // 이미 들어 있는 서버는 고를 수 없다 — 두 줄이 되면 인원이 갈려 분배 비율이 틀어진다
   const free = servers.filter((sv) => !have.includes(sv));
-  const [rows, setRows] = useState<Entry[]>([{ server: free[0] ?? '', people: '0' }]);
-  // 등록 화면과 **같은 사진 규칙**을 쓴다 — 읽은 값이 손댄 값을 덮어쓰지 않는다
-  const { photos, view: photoView } = usePhotoPick({ rows, setRows, toast, setBusy });
+  const [rows, setRows] = useState<Entry[]>([newRow(free[0] ?? '')]);
 
   const picked = rows.map((r) => r.server).filter(Boolean);
   const valid =
@@ -777,7 +790,6 @@ function AddServersSheet({
       op: 'addServers',
       group: entry.group,
       entries: toEntries(rows),
-      photoLinks: photos,
       email: getStoredEmail(),
     });
     setBusy(false);
@@ -799,11 +811,15 @@ function AddServersSheet({
       {free.length === 0 ? (
         <p className="hint">{t('ali.allServers')}</p>
       ) : (
-        <ServerRows servers={free} inUse={inUse.filter((sv) => free.includes(sv))} rows={rows} setRows={setRows} />
+        <ServerRows
+          servers={free}
+          inUse={inUse.filter((sv) => free.includes(sv))}
+          rows={rows}
+          setRows={setRows}
+          toast={toast}
+          setBusy={setBusy}
+        />
       )}
-
-      {/* 사진은 여기서도 붙일 수 있다 — 묶음의 인증샷에 이어 붙는다 */}
-      {photoView}
 
       <div className="sheet-actions">
         <button className="btn ghost" onClick={onClose}>
@@ -849,7 +865,14 @@ function EditSheet({
   const { t, srv } = useT();
   const [item, setItem] = useState(entry.item);
   const [rows, setRows] = useState<Entry[]>(
-    entry.servers.map((s) => ({ server: s.server, people: String(s.people) })),
+    // 이미 저장된 사진은 `saved` 로 보여주기만 한다 — 정정에서 지우는 길은 두지 않는다
+    entry.servers.map((s) => ({
+      server: s.server,
+      people: String(s.people),
+      photos: [],
+      reads: [],
+      saved: s.photos ?? [],
+    })),
   );
   const [raw, setRaw] = useState(entry.done ? String(entry.amount) : '');
 
@@ -866,14 +889,28 @@ function EditSheet({
   async function submit(confirm: boolean) {
     if (!valid) return;
     setBusy(true);
-    const res = await api('/api/master/alliance', {
-      group: entry.group,
-      item: item.trim(),
-      entries: toEntries(rows),
-      amount: entry.done ? amount : null,
-      email: getStoredEmail(),
-      confirm,
-    });
+    /*
+     * ★ 아직 금액을 안 넣은 건은 **관리자 경로**로 보낸다 (v11.3).
+     *   돈이 하나도 안 움직이는 수정이라 관리자에게 열어둔 길이다.
+     *   정산된 건은 마스터 경로로만 간다 — 혈맹운영비 잔액이 실제로 움직인다.
+     *   어느 쪽이든 "정산된 건인가"는 **시트가** 다시 판정한다.
+     */
+    const res = entry.done
+      ? await api('/api/master/alliance', {
+          group: entry.group,
+          item: item.trim(),
+          entries: toEntries(rows),
+          amount,
+          email: getStoredEmail(),
+          confirm,
+        })
+      : await api('/api/admin/alliance', {
+          op: 'edit',
+          group: entry.group,
+          item: item.trim(),
+          entries: toEntries(rows),
+          email: getStoredEmail(),
+        });
     setBusy(false);
 
     // 서버가 되물으면 여기서 멈춘다. 숫자는 이미 화면에 떠 있다
@@ -896,7 +933,14 @@ function EditSheet({
       </label>
       <input id="eai" type="text" maxLength={40} value={item} onChange={(e) => setItem(e.target.value)} />
 
-      <ServerRows servers={servers} inUse={inUse} rows={rows} setRows={setRows} />
+      <ServerRows
+        servers={servers}
+        inUse={inUse}
+        rows={rows}
+        setRows={setRows}
+        toast={toast}
+        setBusy={setBusy}
+      />
 
       {entry.done ? (
         <>
@@ -974,18 +1018,28 @@ function DetailSheet({
       subtitle={t('ali.creditSub', { sv: entry.servers.length, n: entry.people })}
       onClose={onClose}
     >
+      {/* ★ 인증샷은 **서버마다 그 서버의 것**을 보여준다 (v11.3) —
+          한데 모아 두면 어느 서버의 증거인지 알 수 없다 */}
       {entry.servers.map((s) => (
-        <div className="row" key={s.server}>
-          <div className="row-main">
-            <div className="row-name">
-              <span className="svr">{s.server}</span>
-              {t('ali.serverN', { s: s.server })}
+        <div key={s.server}>
+          <div className="row">
+            <div className="row-main">
+              <div className="row-name">
+                <span className="svr">{s.server}</span>
+                {t('ali.serverN', { s: s.server })}
+              </div>
+              <div className="row-sub">
+                {t('c.people')} {s.people}
+                {(s.photos ?? []).length > 0 ? ` · ${t('ali.photoN', { n: (s.photos ?? []).length })}` : ''}
+              </div>
             </div>
-            <div className="row-sub">
-              {t('c.people')} {s.people}
-            </div>
+            <div className="row-amt">{entry.done ? `${fmt(s.credited)} ${unit}` : '—'}</div>
           </div>
-          <div className="row-amt">{entry.done ? `${fmt(s.credited)} ${unit}` : '—'}</div>
+          {(s.photos ?? []).length > 0 ? (
+            <div className="ali-row-photo">
+              <PhotoStrip urls={s.photos ?? []} />
+            </div>
+          ) : null}
         </div>
       ))}
       {entry.done ? (
@@ -999,15 +1053,21 @@ function DetailSheet({
         </div>
       ) : null}
 
-      {/* 인증샷 — 앱 안에서 바로 본다. 새 탭으로 나가면 보던 자리를 잃는다 */}
-      <div className="fl" style={{ marginTop: 14 }}>
-        {t('shot.sect')} {entry.photos.length > 0 ? `(${entry.photos.length})` : ''}
-      </div>
-      {entry.photos.length > 0 ? (
-        <PhotoStrip urls={entry.photos} />
-      ) : (
-        <p className="hint">{t('shot.none')}</p>
-      )}
+      {/* 묶음 전체 인증샷 — 서버별로 나뉘기 전(v11.2 이하)에 붙인 사진이 여기 남는다.
+          위에서 이미 보여준 것은 빼고, 남은 것만 보여준다 */}
+      {(() => {
+        const perServer = new Set(entry.servers.flatMap((s) => s.photos ?? []));
+        const rest = entry.photos.filter((u) => !perServer.has(u));
+        if (rest.length === 0 && perServer.size > 0) return null;
+        return (
+          <>
+            <div className="fl" style={{ marginTop: 14 }}>
+              {t('shot.sect')} {rest.length > 0 ? `(${rest.length})` : ''}
+            </div>
+            {rest.length > 0 ? <PhotoStrip urls={rest} /> : <p className="hint">{t('shot.none')}</p>}
+          </>
+        );
+      })()}
 
       <div className="sheet-actions">
         <button className="btn ghost" onClick={onClose}>

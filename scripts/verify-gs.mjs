@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v11_2.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v11_3.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 const gs = readFileSync(GS_PATH, 'utf8');
@@ -1560,14 +1560,23 @@ check('연합 산식: 다이아 보존 + 앱/시트 이중구현 일치 (v11.0)'
 check('연합 한 건에 여러 서버가 들어가고, 혈비는 실제로 적립·회수된다 (v11.0)', () => {
   // 같은 서버를 두 줄로 넣으면 인원이 갈려 분배 비율이 틀어진다
   const add = (gs.match(/function api_addAlliance[\s\S]*?\n\}\n/) ?? [''])[0];
-  if (!/e\.dupServer/.test(add)) throw new Error('같은 서버가 두 번 들어가는 것을 막지 않습니다.');
+  // 중복 서버 판정은 세 함수(등록·정정·서버추가)가 **한 벌**을 쓴다 (v11.3)
+  const check3 = extractFn(gs, '_allyCheckServers');
+  if (!/e\.dupServer/.test(check3)) throw new Error('같은 서버가 두 번 들어가는 것을 막지 않습니다.');
+  for (const fn of ['api_addAlliance', 'api_editAlliance', 'api_addAllianceServers']) {
+    if (!new RegExp('_allyCheckServers').test((gs.match(new RegExp('function ' + fn + '[\\s\\S]*?\\n\\}\\n')) ?? [''])[0])) {
+      throw new Error(`${fn} 이(가) 공통 서버 검사를 쓰지 않습니다 — 한쪽만 고쳐지면 어긋납니다.`);
+    }
+  }
   if (!/group/.test(add)) throw new Error('여러 줄을 묶는 값이 없습니다.');
 
   // 인증샷은 선택이다 — 증거를 못 찍었다고 기록을 통째로 막을 이유가 없다
   if (/(photoLinks|photos)[^\n]*\.length\s*(===?\s*0|<\s*1)/.test(add)) {
     throw new Error('인증샷이 없다고 등록을 거부합니다.');
   }
-  if (!/_photoCell\(photoLinks\)/.test(add)) throw new Error('등록이 사진 여러 장을 저장하지 않습니다.');
+  // v11.3 — 사진은 **줄마다 그 서버의 것**. 묶음 공용(옛 앱)은 첫 줄에 함께 담는다
+  if (!/_photoCell\(e\.photos\)/.test(add)) throw new Error('등록이 서버별 사진을 저장하지 않습니다.');
+  if (!/_photoCell\(photoLinks\)/.test(add)) throw new Error('묶음 공용 사진(옛 앱)을 버립니다.');
 
   // 정산은 혈맹운영비 잔액을 실제로 늘린다. 삭제하면 되돌려야 장부가 맞는다.
   const credit = (gs.match(/function api_creditAlliance[\s\S]*?\n\}\n/) ?? [''])[0];
@@ -1607,6 +1616,118 @@ check('연합 한 건에 여러 서버가 들어가고, 혈비는 실제로 적�
     throw new Error('모의 시트의 연합 정산이 옛 모양입니다.');
   }
   return '중복 서버 거부 · 인증샷 선택 · 혈비 적립/회수 · 참여횟수 무관 · 라우트/앱/모의 묶음 단위';
+});
+
+check('연합 인증샷은 서버 줄마다 따로 붙는다 (v11.3)', () => {
+  /*
+   * 예전에는 사진을 묶음의 **첫 줄에** 모아 두었다. 3서버 건에 3장을 올려도
+   * 어느 서버 것인지 알 수 없었고, 읽어낸 인원수를 어느 줄에 넣을지도 몰라
+   * 첫 줄에 넣다가 13·8·8 을 8·8·8 로 덮어쓴 사고까지 났다 (v11.0).
+   */
+  // 세 경로(등록·서버추가·정정) 모두 줄마다 사진을 쓴다
+  const add = extractFn(gs, 'api_addAlliance');
+  const addSv = extractFn(gs, 'api_addAllianceServers');
+  const edit = extractFn(gs, 'api_editAlliance');
+  if (!/_photoCell\(e\.photos\)/.test(add)) throw new Error('등록이 서버별 사진을 저장하지 않습니다.');
+  if (!/_photoCell\(e\.photos\)/.test(addSv)) throw new Error('서버 추가가 그 줄에 사진을 저장하지 않습니다.');
+  if (!/_writeAllyPhotos\(sheet, hit\[i\]\.row, list\[i\]\.photos\)/.test(edit)) {
+    throw new Error('정정이 그 줄에 사진을 잇지 않습니다.');
+  }
+  // 정정은 **잇기만** 한다 — 지우면 되돌릴 방법이 없다
+  const writer = extractFn(gs, '_writeAllyPhotos');
+  if (!/merged/.test(writer) || !/have\.slice\(\)/.test(writer)) {
+    throw new Error('사진을 이어 붙이지 않고 덮어씁니다 — 먼저 붙인 사진이 사라집니다.');
+  }
+  /*
+   * ★ 연합 칸은 **언제나 원문 URL**이어야 한다. HYPERLINK 수식으로 쓰면
+   *   getValues() 가 "📷 보기"만 돌려주어 앱에서 사진이 통째로 사라진다.
+   *   v11.1 의 [＋] 경로가 사진 한 장일 때 수식으로 써서 실제로 그랬다.
+   */
+  if (/HYPERLINK/.test(writer)) throw new Error('연합 인증샷을 수식으로 씁니다 — 앱에서 안 보입니다.');
+  for (const [name, body] of [['등록', add], ['서버추가', addSv]]) {
+    if (/ALLY_COL\.PHOTO[^\n]*setFormula/.test(body)) {
+      throw new Error(`${name} 이(가) 연합 인증샷을 수식으로 씁니다.`);
+    }
+  }
+  // 읽기: 묶음 servers[] 가 그 줄의 사진을 함께 내려준다
+  const get = extractFn(gs, 'api_getAlliance');
+  if (!/photos: r\.photos/.test(get)) throw new Error('서버별 사진을 앱에 내려주지 않습니다.');
+
+  // 앱: 사진 버튼이 줄 안에 있고, 읽은 인원은 그 줄에만 채운다
+  const ali = readFileSync(resolve(ROOT, 'components/AllianceTab.tsx'), 'utf8');
+  if (!/<RowPhoto row=\{r\}/.test(ali)) throw new Error('서버 줄 안에 사진 편집기가 없습니다.');
+  if (!/photos: r\.photos/.test(ali)) throw new Error('앱이 서버별 사진을 보내지 않습니다.');
+  // 화면에서도 서버별로 보여준다 (한데 모으면 어느 서버 증거인지 알 수 없다)
+  if (!/s\.photos \?\? \[\]/.test(ali)) throw new Error('서버별 사진을 화면에 보여주지 않습니다.');
+
+  // 모의 시트도 같은 모양이어야 E2E 가 의미가 있다
+  const mock = readFileSync(resolve(ROOT, 'scripts/mock-sheet.mjs'), 'utf8');
+  if (!/function allyEntries/.test(mock)) throw new Error('모의 시트가 서버별 사진을 받지 않습니다.');
+  if (!/photos: \[\.\.\.e\.photos\]/.test(mock)) throw new Error('모의 시트가 줄마다 사진을 넣지 않습니다.');
+
+  return '등록/추가/정정 3경로 · 잇기만 · 수식 금지 · 조회·앱·모의 서버별';
+});
+
+check('연합 수정: 관리자는 미정산까지, 정산된 건은 마스터만 (v11.3)', () => {
+  /*
+   * 아직 금액이 안 들어간 건은 다이아가 하나도 안 움직인 상태다 — 틀리면 고치면 그만이고,
+   * 그때마다 마스터를 불러야 하면 등록 자체가 미뤄진다.
+   * 반대로 정산된 건은 고칠 때마다 혈맹운영비 잔액이 실제로 움직인다 (되돌리는 일).
+   */
+  const edit = extractFn(gs, 'api_editAlliance');
+  if (!/function api_editAlliance\(group, item, entries, amount, email, confirm, asMaster\)/.test(gs)) {
+    throw new Error('정정 함수가 등급을 받지 않습니다.');
+  }
+  if (!/if \(done && asMaster !== true\)/.test(edit)) {
+    throw new Error('시트가 정산된 건을 마스터 전용으로 막지 않습니다.');
+  }
+  // 막는 자리가 **되묻기보다 앞**이어야 한다 — 뒤면 관리자에게 바뀔 금액이 새어 나간다
+  if (edit.indexOf('asMaster !== true') > edit.indexOf('needsConfirm')) {
+    throw new Error('등급 판정이 되묻기보다 뒤에 있습니다.');
+  }
+  if (!/e\.allyMasterOnly/.test(edit)) throw new Error('막을 때 이유를 알려주지 않습니다.');
+
+  // 라우트: 등급은 **라우트가 고정**한다 (앱이 보낸 값을 쓰면 아무나 마스터가 된다)
+  const adminRoute = readFileSync(resolve(ROOT, 'app/api/admin/alliance/route.ts'), 'utf8');
+  const master = readFileSync(resolve(ROOT, 'app/api/master/alliance/route.ts'), 'utf8');
+  if (!/asMaster: false/.test(adminRoute)) throw new Error('관리자 라우트가 asMaster 를 고정하지 않습니다.');
+  if (!/asMaster: true/.test(master)) throw new Error('마스터 라우트가 asMaster 를 보내지 않습니다.');
+  if (/asMaster:\s*body\./.test(adminRoute + master)) {
+    throw new Error('앱이 보낸 값으로 등급을 정합니다.');
+  }
+  if (!/requireAdmin\(\)/.test(adminRoute) || !/requireMaster\(\)/.test(master)) {
+    throw new Error('라우트가 인증을 요구하지 않습니다.');
+  }
+  // 관리자 경로는 금액을 아예 안 보낸다 (금액은 정산된 건에서만 쓰는 값이다)
+  if (!/amount: null/.test(adminRoute)) throw new Error('관리자 경로가 금액을 보냅니다.');
+
+  // 모의 시트도 같은 판정을 해야 E2E 가 의미가 있다
+  const mock = readFileSync(resolve(ROOT, 'scripts/mock-sheet.mjs'), 'utf8');
+  if (!/done && asMaster !== true/.test(mock)) throw new Error('모의 시트가 등급을 판정하지 않습니다.');
+
+  return '시트 판정(되묻기보다 앞) · 라우트가 등급 고정 · 관리자는 금액 미전송 · 모의 동일';
+});
+
+check('잔액도 서버로 좁혀 볼 수 있다 (v11.3)', () => {
+  // 아이템 등록 화면과 **같은 칩**을 쓴다 — 두 벌로 만들면 한쪽만 낡는다
+  const bal = readFileSync(resolve(ROOT, 'components/BalanceTab.tsx'), 'utf8');
+  if (!/<ServerFilter/.test(bal)) throw new Error('잔액에 서버 칩이 없습니다.');
+  if (!/from '\.\/ServerFilter'/.test(bal)) throw new Error('서버 칩을 따로 만들었습니다.');
+  // 아무것도 안 고르면 전원이 보여야 한다 (기본이 "다 보기")
+  if (!/if \(svPick\.length === 0\) return true;/.test(bal)) {
+    throw new Error('아무것도 안 골랐을 때 목록이 비어버립니다.');
+  }
+  // 혈맹운영비는 사람이 아니라 금고다 — 서버로 걸러 사라지면 합계를 볼 수 없다
+  if (!/if \(normName\(r\.name\) === fundName\) return true;/.test(bal)) {
+    throw new Error('서버로 좁히면 혈맹운영비가 사라집니다.');
+  }
+  // 인원 수는 사람만 센다
+  if (!/if \(normName\(r\.name\) === fundKey\) continue;/.test(bal)) {
+    throw new Error('서버별 인원에 혈맹운영비가 섞입니다.');
+  }
+  // 서버 미지정인 사람도 고를 길이 있어야 한다 (없으면 영영 못 본다)
+  if (!/svPick\.includes\(NO_SERVER\)/.test(bal)) throw new Error('서버 미지정인 사람을 고를 수 없습니다.');
+  return '공통 칩 1벌 · 기본 전원 · 혈비 유지 · 미지정 포함';
 });
 
 check("연합 서버 표기: '1' 과 '01' 이 같은 서버다 (v11.1)", () => {
@@ -1704,7 +1825,8 @@ check('인증샷은 여러 장 붙고, 이관해도 살아남는다 (v11.0)', ()
   if (!/photoLinks: links/.test(items)) throw new Error('아이템 등록이 사진 목록을 보내지 않습니다.');
   const ali = readFileSync(resolve(ROOT, 'components/AllianceTab.tsx'), 'utf8');
   if (!/multiple/.test(ali)) throw new Error('연합 등록이 사진 한 장만 받습니다.');
-  if (!/photoLinks: photos/.test(ali)) throw new Error('연합 등록이 사진 목록을 보내지 않습니다.');
+  // v11.3 — 연합 사진은 **줄마다** 보낸다 (묶음 공용이 아니다)
+  if (!/photos: r\.photos/.test(ali)) throw new Error('연합 등록이 서버별 사진을 보내지 않습니다.');
   return `읽기 ${cases.length}케이스 (옛 수식·새 나열 동시 지원) · 이관 보존 · 앱 2곳 여러 장`;
 });
 
@@ -1721,13 +1843,23 @@ check('사진이 읽은 인원수가 사람이 넣은 값을 덮어쓰지 않는
   if (/k === 0 \? \{ \.\.\.r, people: String\(n\) \}/.test(ali)) {
     throw new Error('사진 결과가 첫 줄을 무조건 덮어씁니다.');
   }
-  // 자동 입력은 "한 줄뿐이고 아직 안 건드린" 경우로 좁혀져 있어야 한다
-  const auto = (ali.match(/if \(n > 0\) \{[\s\S]*?\n    \}/) ?? [''])[0];
-  if (!/cur\.length === 1/.test(auto)) throw new Error('서버가 여럿인데도 자동으로 채웁니다.');
-  if (!/!cur\[0\]\.touched/.test(auto)) throw new Error('사람이 고친 값을 덮어쓸 수 있습니다.');
+  /*
+   * v11.3 — 사진이 **그 서버 줄에** 붙으므로 읽은 값도 그 줄에만 채운다.
+   * 그래도 사람이 고친 값(touched)이나 이미 채워진 값은 절대 덮어쓰지 않는다.
+   */
+  const auto = (ali.match(/people: n > 0[^\n]*/) ?? [''])[0];
+  if (!/!row\.touched/.test(auto)) throw new Error('사람이 고친 인원을 사진이 덮어씁니다.');
+  if (!/row\.people === '' \|\| row\.people === '0'/.test(auto)) {
+    throw new Error('이미 넣어둔 인원을 사진이 덮어씁니다.');
+  }
+  // 사진 고르기는 줄마다 하나 — 묶음 전체에 붙이던 옛 경로가 남아 있으면 안 된다
+  if (/usePhotoPick/.test(ali)) throw new Error('묶음 전체에 사진을 붙이던 옛 경로가 남아 있습니다.');
+
   // 대신 읽은 값은 보여줘야 한다 — 안 보여주면 사진을 붙인 뜻이 없다
   if (!/ali\.photoRead/.test(ali)) throw new Error('사진이 읽은 인원수를 보여주지 않습니다.');
-  if (!/ali\.photoManual/.test(ali)) throw new Error('직접 넣어야 한다는 안내가 없습니다.');
+  // v11.3 — 사진이 줄마다 붙으므로 "어느 서버인지 직접 정하라"는 안내는 필요 없어졌다.
+  // 대신 사진 버튼이 **줄 안에** 있어야 한다
+  if (!/ali\.photoAddServer/.test(ali)) throw new Error('사진 버튼이 서버 줄 안에 없습니다.');
   return '손댄 값 보호 · 자동 입력은 한 줄·미입력일 때만 · 읽은 값은 표시';
 });
 
@@ -1749,7 +1881,7 @@ check('연합 정정은 마스터만, 서버 추가는 관리자도 (v11.1)', ()
   if (!/_calcAlliance\(/.test(edit)) throw new Error('정정이 공통 산식을 쓰지 않습니다.');
 
   // 라우터가 confirm 을 그대로 넘기는지 (임의로 true 를 만들면 안전장치가 무력화된다)
-  if (!/api_editAlliance\(req\.group, req\.item, req\.entries, req\.amount, req\.email, req\.confirm === true\)/.test(gs)) {
+  if (!/api_editAlliance\(req\.group, req\.item, req\.entries, req\.amount, req\.email,\s*\n?\s*req\.confirm === true, req\.asMaster === true\)/.test(gs)) {
     throw new Error('라우터가 정정 인자를 그대로 넘기지 않습니다.');
   }
 
@@ -1759,8 +1891,23 @@ check('연합 정정은 마스터만, 서버 추가는 관리자도 (v11.1)', ()
   if (!/confirm: body\.confirm === true/.test(master)) {
     throw new Error('라우트가 confirm 을 그대로 전달하지 않습니다.');
   }
+  /*
+   * v11.3 — 관리자도 **미정산 건**은 고친다. 대신 두 가지가 지켜져야 한다:
+   *   ① 관리자 라우트는 asMaster 를 **false 로 고정**한다 (앱이 보낸 값을 쓰지 않는다)
+   *   ② 정산된 건인지는 **시트가** 판정한다 — 라우트를 직접 불러도 뚫리지 않는다
+   */
   const adminRoute = readFileSync(resolve(ROOT, 'app/api/admin/alliance/route.ts'), 'utf8');
-  if (/'editAlliance'/.test(adminRoute)) throw new Error('관리자 라우트에서 정정을 부릅니다.');
+  if (!/asMaster: false/.test(adminRoute)) {
+    throw new Error('관리자 라우트가 asMaster 를 false 로 고정하지 않습니다.');
+  }
+  if (/asMaster: body\./.test(adminRoute) || /asMaster: body\./.test(master)) {
+    throw new Error('앱이 보낸 값으로 등급을 정합니다 — 라우트가 고정해야 합니다.');
+  }
+  if (!/asMaster: true/.test(master)) throw new Error('마스터 라우트가 asMaster 를 보내지 않습니다.');
+  if (!/if \(done && asMaster !== true\)/.test(edit)) {
+    throw new Error('시트가 정산된 건을 마스터 전용으로 막지 않습니다.');
+  }
+  if (!/e\.allyMasterOnly/.test(edit)) throw new Error('막을 때 이유를 알려주지 않습니다.');
 
   // ➕ 서버 추가는 관리자도 한다 — 대신 **더하기만** 되어야 안전하다
   const add = (gs.match(/function api_addAllianceServers[\s\S]*?\n\}\n/) ?? [''])[0];
@@ -1775,15 +1922,23 @@ check('연합 정정은 마스터만, 서버 추가는 관리자도 (v11.1)', ()
   if (!/have\[list\[i\]\.server\]/.test(add)) throw new Error('이미 있는 서버를 또 더할 수 있습니다.');
   if (!/'addAllianceServers'/.test(adminRoute)) throw new Error('관리자 라우트에 서버 추가가 없습니다.');
 
-  // 화면: 정정은 마스터에게만, ＋ 는 관리자에게
+  /*
+   * 화면 (v11.3): 미정산 건의 [수정]은 관리자에게도, **정산된 건의 [수정]은 마스터에게만**.
+   * ＋ 는 관리자에게.
+   */
   const ali = readFileSync(resolve(ROOT, 'components/AllianceTab.tsx'), 'utf8');
   if (!/master \? \(\s*\n\s*<button className="btn ghost" onClick=\{\(\) => setEditing\(g\)\}/.test(ali)) {
-    throw new Error('정정 버튼이 마스터에게만 보이지 않습니다.');
+    throw new Error('정산된 건의 정정 버튼이 마스터에게만 보이지 않습니다.');
+  }
+  // 미정산 건은 관리자도 — 앱이 관리자 경로(op:'edit')로 보낸다
+  if (!/op: 'edit',/.test(ali)) throw new Error('미정산 건 수정이 관리자 경로로 가지 않습니다.');
+  if (!/entry\.done\s*\n?\s*\? await api\('\/api\/master\/alliance'/.test(ali)) {
+    throw new Error('정산된 건이 마스터 경로로 가지 않습니다.');
   }
   if (!/setAddingSv\(g\)/.test(ali)) throw new Error('＋ 버튼이 없습니다.');
   if (!/\/api\/master\/alliance/.test(ali)) throw new Error('앱이 마스터 라우트를 부르지 않습니다.');
   // 등록·정정이 같은 편집기를 써야 한쪽만 낡지 않는다
-  if ((ali.match(/<ServerRows /g) ?? []).length < 3) {
+  if ((ali.match(/<ServerRows[\s\n]/g) ?? []).length < 3) {
     throw new Error('서버·인원 편집기를 화면마다 따로 만들었습니다.');
   }
   return '정정=마스터(확인·차액조정·공통산식) · 추가=관리자(더하기만) · 편집기 1벌';
@@ -1937,10 +2092,19 @@ check('하단 탭이 없고 모든 화면은 홈 아이콘에서 연다 (v11.2.1
       throw new Error(`${to} 화면에 제목이 없습니다 — 어디에 있는지 알 수 없습니다.`);
     }
   }
-  // 나가는 길 (뒤로가기는 별도 검사)
+  /*
+   * 나가는 길은 셋이다 — 위 [✕] · 아래 [🏠 홈] · 폰 뒤로가기(별도 검사).
+   * ★ 아래 홈 버튼이 있어야 목록을 한참 내린 뒤에도 손이 닿는다 (v11.3).
+   */
   const screen = readFileSync(resolve(ROOT, 'components/Screen.tsx'), 'utf8');
   if (!/className="screen-x"/.test(screen)) throw new Error('화면에 닫기 버튼이 없습니다.');
   if (!/aria-label=\{t\('c\.close'\)\}/.test(screen)) throw new Error('닫기 버튼에 이름이 없습니다.');
+  if (!/className="home-btn"/.test(screen)) throw new Error('아래쪽 [홈] 버튼이 없습니다.');
+  const homeBtn = (screen.match(/<button type="button" className="home-btn"[\s\S]*?<\/button>/) ?? [''])[0];
+  if (!/onClick=\{onClose\}/.test(homeBtn)) throw new Error('[홈] 버튼이 홈으로 보내지 않습니다.');
+  // 버튼이 내용을 가리면 마지막 줄을 영영 못 읽는다
+  const pad = (css.match(/\.screen \{[^}]*\}/) ?? [''])[0];
+  if (!/padding-bottom/.test(pad)) throw new Error('[홈] 버튼이 화면 마지막 줄을 가립니다.');
 
   /*
    * ★ 홈의 연합·레이드 숫자는 따로 읽어야 한다. 홈은 이제 **모든 이동의 길목**이라

@@ -2,6 +2,7 @@ import { callGas } from '@/lib/gas';
 import { requireAdmin } from '@/lib/auth';
 import { invalidate } from '@/lib/cache';
 import { syncStateCache } from '@/lib/fresh';
+import { parseEntries, photoLinks as parsePhotos } from '@/lib/alliance';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -9,8 +10,14 @@ export const maxDuration = 60;
 /**
  * 연합 정산 — 혈맹 아이템과 같은 순서로 2단계다 (v10.3, v11.0 에서 확장).
  *
- *   op:'register' → 아이템명 + **서버별 참여 인원** + 인증샷 여러 장.  상태 ⏳미분배
- *   op:'credit'   → 그 묶음에 판매금액을 넣어 혈비 공제 후 인원수 비례로 서버에 누적.
+ *   op:'register'   → 아이템명 + **서버별 참여 인원 · 서버별 인증샷**.  상태 ⏳미분배
+ *   op:'addServers' → 참여 서버 줄만 더한다 (기존 값은 못 고친다)
+ *   op:'edit'       → **아직 금액을 안 넣은 건만** 고친다 (v11.3)
+ *   op:'credit'     → 그 묶음에 판매금액을 넣어 혈비 공제 후 인원수 비례로 서버에 누적.
+ *
+ * ★ op:'edit' 로 **정산된 건은 못 고친다.** 그건 혈맹운영비 잔액이 실제로 움직이는
+ *   작업이라 마스터 전용이다 (/api/master/alliance). 여기서는 `asMaster: false` 를
+ *   보내고, 실제 판정은 **시트가** 한다 — 이 라우트를 직접 불러도 뚫리지 않는다.
  *
  * 레이드 직후엔 아직 안 팔려서 금액을 모르는 것이 정상이다. 그때 금액을
  * 요구하면 등록 자체가 미뤄지고 그 사이에 인증샷을 잃어버린다.
@@ -46,36 +53,15 @@ export async function POST(req: Request) {
     const item = String(body.item ?? '').trim();
     if (!item) return Response.json({ ok: false, msg: '아이템명을 입력해주세요.' }, { status: 400 });
 
-    const raw = Array.isArray(body.entries) ? body.entries : [];
-    const entries: { server: string; people: number }[] = [];
-    for (const e of raw) {
-      const o = (e ?? {}) as { server?: unknown; people?: unknown };
-      const server = String(o.server ?? '').trim();
-      if (!server) continue;
-      const people = Number(o.people);
-      if (!Number.isInteger(people) || people < 0) {
-        return Response.json({ ok: false, msg: '인원수는 0 이상의 정수여야 합니다.' }, { status: 400 });
-      }
-      entries.push({ server, people });
-    }
-    if (entries.length === 0) {
-      return Response.json({ ok: false, msg: '참여한 서버를 하나 이상 넣어주세요.' }, { status: 400 });
-    }
-    // 같은 서버를 두 줄로 넣으면 인원이 갈려 분배 비율이 틀어진다 (시트도 같은 판정을 한다)
-    const seen = new Set<string>();
-    for (const e of entries) {
-      if (seen.has(e.server)) {
-        return Response.json({ ok: false, msg: `${e.server}서버가 두 번 들어갔습니다.` }, { status: 400 });
-      }
-      seen.add(e.server);
-    }
+    const parsed = parseEntries(body.entries, '참여한 서버를 하나 이상 넣어주세요.');
+    if ('error' in parsed) return Response.json({ ok: false, msg: parsed.error }, { status: 400 });
 
-    // 인증샷은 선택이다. 없으면 빈 배열로 그대로 보낸다.
-    const photoLinks = (Array.isArray(body.photoLinks) ? body.photoLinks : [])
-      .map((u) => String(u ?? '').trim())
-      .filter((u) => /^https?:\/\//.test(u));
-
-    const res = await callGas('addAlliance', { item, entries, photoLinks, email }, { timeoutMs: 45_000 });
+    // 인증샷은 선택이고 줄마다 따로 붙는다. photoLinks 는 묶음 공용(옛 앱 호환)
+    const res = await callGas(
+      'addAlliance',
+      { item, entries: parsed.entries, photoLinks: parsePhotos(body.photoLinks), email },
+      { timeoutMs: 45_000 },
+    );
     if (res.ok) invalidate('alliance');
     return Response.json(res, { status: res.ok ? 200 : 400 });
   }
@@ -87,35 +73,51 @@ export async function POST(req: Request) {
     if (!group) {
       return Response.json({ ok: false, msg: '기록을 찾을 수 없습니다.' }, { status: 400 });
     }
-    const raw = Array.isArray(body.entries) ? body.entries : [];
-    const entries: { server: string; people: number }[] = [];
-    for (const e of raw) {
-      const o = (e ?? {}) as { server?: unknown; people?: unknown };
-      const server = String(o.server ?? '').trim();
-      if (!server) continue;
-      const people = Number(o.people);
-      if (!Number.isInteger(people) || people < 0) {
-        return Response.json({ ok: false, msg: '인원수는 0 이상의 정수여야 합니다.' }, { status: 400 });
-      }
-      entries.push({ server, people });
-    }
-    if (entries.length === 0) {
-      return Response.json({ ok: false, msg: '추가할 서버를 하나 이상 넣어주세요.' }, { status: 400 });
-    }
-    const dup = new Set<string>();
-    for (const e of entries) {
-      if (dup.has(e.server)) {
-        return Response.json({ ok: false, msg: `${e.server}서버가 두 번 들어갔습니다.` }, { status: 400 });
-      }
-      dup.add(e.server);
-    }
+    const parsed = parseEntries(body.entries, '추가할 서버를 하나 이상 넣어주세요.');
+    if ('error' in parsed) return Response.json({ ok: false, msg: parsed.error }, { status: 400 });
 
-    // 인증샷은 선택이다. 여기서도 여러 장 받는다 (묶음의 사진에 이어 붙는다)
-    const photoLinks = (Array.isArray(body.photoLinks) ? body.photoLinks : [])
-      .map((u) => String(u ?? '').trim())
-      .filter((u) => /^https?:\/\//.test(u));
+    const res = await callGas(
+      'addAllianceServers',
+      { group, entries: parsed.entries, email, photoLinks: parsePhotos(body.photoLinks) },
+      { timeoutMs: 45_000 },
+    );
+    if (res.ok) invalidate('alliance');
+    return Response.json(res, { status: res.ok ? 200 : 400 });
+  }
 
-    const res = await callGas('addAllianceServers', { group, entries, email, photoLinks }, { timeoutMs: 45_000 });
+  /*
+   * ✏️ 미정산 건 수정 (v11.3) — **관리자**도 할 수 있다.
+   *
+   * 아직 금액이 하나도 안 들어간 건이라 다이아가 움직이지 않는다. 틀리면 고치면 끝이고,
+   * 그때마다 마스터를 불러야 하면 등록 자체가 미뤄진다.
+   * 정산된 건은 시트가 거부한다 — 여기서 asMaster 를 false 로 **고정**해 보내고,
+   * 실제 판정은 시트가 상태를 직접 보고 한다.
+   */
+  if (op === 'edit') {
+    const group = String(body.group ?? '').trim();
+    if (!group) return Response.json({ ok: false, msg: '기록을 찾을 수 없습니다.' }, { status: 400 });
+
+    const item = String(body.item ?? '').trim();
+    if (!item) return Response.json({ ok: false, msg: '아이템명을 입력해주세요.' }, { status: 400 });
+
+    const parsed = parseEntries(body.entries, '참여한 서버를 하나 이상 넣어주세요.');
+    if ('error' in parsed) return Response.json({ ok: false, msg: parsed.error }, { status: 400 });
+
+    const res = await callGas(
+      'editAlliance',
+      {
+        group,
+        item,
+        entries: parsed.entries,
+        // 금액은 정산된 건에서만 쓰는 값이다 — 관리자 경로에서는 아예 보내지 않는다
+        amount: null,
+        email,
+        // confirm 은 보내지 않는다 — 되묻기가 필요한 것은 정산된 건뿐이고,
+        // 그건 애초에 이 경로로 들어올 수 없다 (시트가 막는다)
+        asMaster: false,
+      },
+      { timeoutMs: 45_000 },
+    );
     if (res.ok) invalidate('alliance');
     return Response.json(res, { status: res.ok ? 200 : 400 });
   }

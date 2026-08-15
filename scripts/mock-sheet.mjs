@@ -27,7 +27,7 @@ const ST_DONE = '✅분배완료';
 // 앱이 기대하는 버전과 같은 값 — 화면에 "버전 불일치" 경고가 뜨지 않아야 정상이다.
 // ★ 한 곳에만 적는다. 여기저기 흩어 적으면 버전을 올릴 때 한 군데가 남아
 //   "실어 온 상태의 버전이 다르다"는 엉뚱한 실패로 나타난다 (실제로 겪었다).
-const GS_VERSION = '11.2';
+const GS_VERSION = '11.3';
 let MOCK_GS_VERSION = GS_VERSION;
 
 /**
@@ -332,6 +332,17 @@ function stripTag(raw) {
     if (kept.length > 0) out = kept.join(' ');
   }
   return out.replace(/\s{2,}/g, ' ').trim();
+}
+
+/** 연합 서버 줄 정규화 — .gs 의 _allyEntries 와 같은 모양 (v11.3, 사진은 줄마다) */
+function allyEntries(entries) {
+  return (entries || [])
+    .map((e) => ({
+      server: normServer(e && e.server),
+      people: Math.max(Math.floor(Number(e && e.people) || 0), 0),
+      photos: ((e && e.photos) || []).map((u) => String(u || '').trim()).filter(Boolean),
+    }))
+    .filter((e) => e.server);
 }
 
 const handlers = {
@@ -846,7 +857,7 @@ const handlers = {
         });
       }
       const g = byGroup.get(r.group);
-      g.servers.push({ server: normServer(r.server), people: r.people, credited: r.credited });
+      g.servers.push({ server: normServer(r.server), people: r.people, credited: r.credited, photos: r.photos ?? [] });
       g.rows.push(r.row);
       g.people += r.people;
       g.credited += r.credited;
@@ -876,9 +887,7 @@ const handlers = {
     const nm = String(item || '').trim();
     if (!nm) return rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
 
-    const list = (entries || [])
-      .map((e) => ({ server: normServer(e && e.server), people: Math.max(Math.floor(Number(e && e.people) || 0), 0) }))
-      .filter((e) => e.server);
+    const list = allyEntries(entries);
     if (list.length === 0) return rc({ ok: false, msg: '참여한 서버를 하나 이상 넣어주세요.' }, 'e.badServer');
 
     const seen = new Set();
@@ -896,7 +905,9 @@ const handlers = {
     list.forEach((e, i) => {
       S.alliance.push({
         row: S.nextAllianceRow++, group, date: '08/05 09:00', server: e.server, item: nm,
-        amount: 0, pct: 0, people: e.people, credited: 0, photos: i === 0 ? pics : [], fund: 0, done: false,
+        // ★ 사진은 줄마다 그 서버의 것 (v11.3). 묶음 공용(옛 앱)은 첫 줄에 함께
+        amount: 0, pct: 0, people: e.people, credited: 0,
+        photos: i === 0 ? [...e.photos, ...pics] : [...e.photos], fund: 0, done: false,
       });
     });
 
@@ -941,15 +952,13 @@ const handlers = {
   },
 
   // ✏️ 연합 정정 (v11.1, 마스터) — 미분배는 바로, 정산된 건은 되물은 뒤에
-  editAlliance: ({ group, item, entries, amount, confirm }) => {
+  editAlliance: ({ group, item, entries, amount, confirm, asMaster }) => {
     const hit = S.alliance.filter((r) => r.group === String(group));
     if (hit.length === 0) return rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
     const nm = String(item || '').trim();
     if (!nm) return rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
 
-    const list = (entries || [])
-      .map((e) => ({ server: normServer(e && e.server), people: Math.max(Math.floor(Number(e && e.people) || 0), 0) }))
-      .filter((e) => e.server);
+    const list = allyEntries(entries);
     if (list.length === 0) return rc({ ok: false, msg: '참여한 서버를 하나 이상 넣어주세요.' }, 'e.badServer');
     const seen = new Set();
     for (const e of list) {
@@ -959,6 +968,11 @@ const handlers = {
     }
 
     const done = hit.some((r) => r.done);
+    // ★ 정산된 건은 마스터관리자만 (v11.3) — 관리자 라우트는 asMaster 를 false 로 고정한다
+    if (done && asMaster !== true) {
+      return rc({ ok: false, msg: '이미 정산된 건은 마스터관리자만 고칠 수 있습니다.' },
+        'e.allyMasterOnly', { item: hit[0].item });
+    }
     const oldFund = hit.reduce((a, r) => a + r.fund, 0);
     const oldAmount = hit.reduce((a, r) => Math.max(a, r.amount), 0);
     const before = hit[0].item;
@@ -1018,9 +1032,7 @@ const handlers = {
     if (hit.some((r) => r.done)) {
       return rc({ ok: false, msg: '이미 정산된 건입니다.' }, 'e.allyDone', { item: hit[0].item });
     }
-    const list = (entries || [])
-      .map((e) => ({ server: normServer(e && e.server), people: Math.max(Math.floor(Number(e && e.people) || 0), 0) }))
-      .filter((e) => e.server);
+    const list = allyEntries(entries);
     if (list.length === 0) return rc({ ok: false, msg: '추가할 서버를 하나 이상 넣어주세요.' }, 'e.badServer');
 
     const have = new Set(hit.map((r) => normServer(r.server)));
@@ -1040,7 +1052,8 @@ const handlers = {
     const last = S.alliance.lastIndexOf(hit[hit.length - 1]);
     const rows = list.map((e) => ({
       row: S.nextAllianceRow++, group: String(group), date: hit[0].date, server: e.server,
-      item: hit[0].item, amount: 0, pct: 0, people: e.people, credited: 0, photos: [], fund: 0, done: false,
+      item: hit[0].item, amount: 0, pct: 0, people: e.people, credited: 0,
+      photos: [...e.photos], fund: 0, done: false,
     }));
     S.alliance.splice(last + 1, 0, ...rows);
 

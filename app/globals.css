@@ -508,6 +508,41 @@ button {
   white-space: nowrap;
 }
 
+/* 화면 아래에 늘 떠 있는 [🏠 홈] (v11.3) — 목록이 길어도 손이 닿는 곳에
+   나가는 길이 하나 있어야 한다. 위쪽 [✕]까지 다시 올라가는 것은 폰에서 멀다. */
+.screen {
+  /* 홈 버튼이 내용을 가리지 않게 그만큼 비워둔다 */
+  padding-bottom: calc(60px + env(safe-area-inset-bottom));
+}
+
+.home-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border-top: 1px solid var(--line);
+}
+
+.home-btn {
+  display: block;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 12px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+}
+
 .screen-x {
   flex: none;
   width: 32px;
@@ -1486,6 +1521,24 @@ select:focus {
 .ali-entry-foot .hint {
   margin-top: 0;
   flex: 1;
+}
+
+/* 서버 줄 안의 인증샷 (v11.3) — 사진이 **그 서버의 것**임을 자리로 보여준다.
+   묶음 전체에 붙이던 시절에는 3서버 건에 사진 3장이 있어도 어느 것이 어느
+   서버인지 알 수 없었다. */
+.ali-row-photo {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+
+.ali-row-photo .btn {
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.ali-row-photo .shots {
+  margin-top: 7px;
 }
 
 /* 인증샷 여러 장 — 미리보기를 쌓으면 시트가 길어지므로 번호 배지로만 둔다 */

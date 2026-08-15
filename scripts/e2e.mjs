@@ -110,11 +110,14 @@ function eq(actual, expected, what) {
  */
 const TILE = { balance: 0, items: 1, alliance: 2, raid: 3, me: 4, board: 5, lang: 6, admin: 7 };
 
-/** 지금 열려 있는 화면을 닫고 홈으로 (이미 홈이면 아무것도 안 한다) */
+/**
+ * 지금 열려 있는 화면을 닫고 홈으로 (이미 홈이면 아무것도 안 한다).
+ * 아래쪽 [🏠 홈] 버튼을 쓴다 — 실제로 사람이 가장 많이 누르는 길이다 (v11.3).
+ */
 async function goHome(page, wait = 400) {
-  const x = page.locator('.screen-x');
-  if (await x.count()) {
-    await x.click();
+  const home = page.locator('.home-btn');
+  if (await home.count()) {
+    await home.click();
     await page.waitForTimeout(wait);
   }
 }
@@ -2104,24 +2107,29 @@ await t('연합 등록: 사진이 읽은 인원이 손으로 넣은 값을 덮�
   }
   await page.waitForTimeout(200);
 
-  // 그다음 사진 세 장을 붙인다 (모의 시트는 13·8·8 을 차례로 읽어준다)
+  // 그다음 **줄마다 자기 사진**을 한 장씩 붙인다 (v11.3 — 모의 시트는 13·8·8 을 차례로 읽어준다)
   const png = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
     'base64',
   );
-  await page.locator('.sheet input[type=file]').setInputFiles(
-    [1, 2, 3].map((i) => ({ name: `shot${i}.png`, mimeType: 'image/png', buffer: png })),
-  );
-  await page.waitForTimeout(3000);
+  eq(await page.locator('.sheet .ali-entry input[type=file]').count(), 3, '줄마다 사진 입력칸');
+  for (let i = 0; i < 3; i++) {
+    await page.locator('.sheet .ali-entry').nth(i).locator('input[type=file]').setInputFiles([
+      { name: `shot${i + 1}.png`, mimeType: 'image/png', buffer: png },
+    ]);
+    await page.waitForTimeout(1200);
+  }
 
   // ★ 손으로 넣은 값이 그대로여야 한다
   for (let i = 0; i < 3; i++) {
     const v = await page.locator('.sheet .ali-entry').nth(i).locator('.ali-entry-foot input').inputValue();
     eq(v, counts[i], `${i + 1}번째 줄 인원`);
   }
-  // 읽은 값은 보여주기만 한다
-  const body = await page.locator('.sheet').innerText();
-  if (!/📷1/.test(body)) throw new Error(`사진이 읽은 인원수를 안 보여줍니다:\n${body}`);
+  // 읽은 값은 **그 줄에** 보여주기만 한다
+  for (let i = 0; i < 3; i++) {
+    const line = await page.locator('.sheet .ali-entry').nth(i).innerText();
+    if (!/📷1/.test(line)) throw new Error(`${i + 1}번째 줄이 읽은 인원수를 안 보여줍니다:\n${line}`);
+  }
   await shot('29-photo-no-overwrite');
 
   // 저장하면 손으로 넣은 값이 그대로 들어가야 한다
@@ -2269,6 +2277,116 @@ await t('연합 정정: 마스터만, 혈비는 차액만 움직인다 (v11.1)',
   eq(rec.amount, 200000, '바뀐 판매금액');
   // ★ 보존 불변식은 정정 뒤에도 성립해야 한다
   eq(rec.fund + rec.credited, 200000, '혈비 + 서버 몫 = 판매금액');
+});
+
+await t('연합 인증샷이 서버 줄마다 따로 붙는다 (v11.3)', async () => {
+  await reset();
+  const A = 'https://drive.google.com/file/d/MOCKALLYA0001/view';
+  const B = 'https://drive.google.com/file/d/MOCKALLYB0001/view';
+  const C = 'https://drive.google.com/file/d/MOCKALLYC0001/view';
+
+  // 서버 셋을 한 번에 등록하면서 **줄마다 다른 사진**을 붙인다
+  const res = await post(
+    '/api/admin/alliance',
+    {
+      op: 'register',
+      item: '서버별 인증샷',
+      entries: [
+        { server: '01', people: 13, photos: [A] },
+        { server: '02', people: 8, photos: [B] },
+        { server: '03', people: 8, photos: [] },
+      ],
+    },
+    { Cookie: cookie },
+  );
+  const body = await res.json();
+  eq(body.ok, true, '등록');
+
+  const data = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
+  const g = data.waiting.find((x) => x.item === '서버별 인증샷');
+  if (!g) throw new Error('등록한 건을 찾을 수 없습니다.');
+
+  const of = (sv) => g.servers.find((x) => x.server === sv);
+  eq(of('01').photos.join(), A, '01서버 사진');
+  eq(of('02').photos.join(), B, '02서버 사진');
+  eq(of('03').photos.join(), '', '03서버는 사진 없음');
+  // ★ 인원은 사진과 무관하게 사람이 넣은 값 그대로여야 한다 (13·8·8 사고)
+  eq(of('01').people, 13, '01서버 인원');
+  eq(of('02').people, 8, '02서버 인원');
+
+  // [＋] 로 더한 서버도 자기 사진을 갖는다
+  eq(
+    (await (await post(
+      '/api/admin/alliance',
+      { op: 'addServers', group: g.group, entries: [{ server: '04', people: 5, photos: [C] }] },
+      { Cookie: cookie },
+    )).json()).ok,
+    true,
+    '서버 추가',
+  );
+  const after = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
+  const g2 = after.waiting.find((x) => x.group === g.group);
+  eq(g2.servers.find((x) => x.server === '04').photos.join(), C, '더한 서버의 사진');
+  // 먼저 붙인 사진이 사라지면 안 된다
+  eq(g2.servers.find((x) => x.server === '01').photos.join(), A, '먼저 붙인 사진 유지');
+});
+
+await t('연합 수정: 관리자는 미정산까지, 정산된 건은 마스터만 (v11.3)', async () => {
+  await reset();
+  const before = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
+  const wait = before.waiting[0];
+
+  // ① 관리자가 미정산 건을 고친다 — 다이아가 안 움직이므로 열려 있다
+  const ok = await post(
+    '/api/admin/alliance',
+    {
+      op: 'edit',
+      group: wait.group,
+      item: '관리자가 고침',
+      entries: [{ server: '05', people: 4 }, { server: '07', people: 6 }],
+    },
+    { Cookie: cookie },
+  );
+  eq((await ok.json()).ok, true, '관리자 미정산 수정');
+
+  const mid = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
+  const g = mid.waiting.find((x) => x.group === wait.group);
+  eq(g.item, '관리자가 고침', '바뀐 아이템명');
+  eq(g.people, 10, '바뀐 인원');
+
+  // ② 정산한 뒤에는 관리자가 못 고친다 — 혈맹운영비 잔액이 움직이는 일이다
+  eq(
+    (await post('/api/admin/alliance', { op: 'credit', group: wait.group, amount: 100000 }, { Cookie: cookie })).status,
+    200,
+    '정산',
+  );
+  const denied = await post(
+    '/api/admin/alliance',
+    {
+      op: 'edit',
+      group: wait.group,
+      item: '관리자가 또 고침',
+      entries: [{ server: '05', people: 9 }],
+    },
+    { Cookie: cookie },
+  );
+  const deniedBody = await denied.json();
+  eq(deniedBody.ok, false, '정산된 건은 관리자에게 막힌다');
+  eq(deniedBody.code, 'e.allyMasterOnly', '막힌 이유를 코드로 알려준다');
+
+  // 아무것도 안 바뀌었어야 한다
+  const after = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
+  const rec = after.records.find((x) => x.group === wait.group);
+  eq(rec.item, '관리자가 고침', '막힌 뒤에도 그대로');
+  eq(rec.servers.length, 2, '서버 수 그대로');
+
+  // ③ 같은 건을 마스터는 고칠 수 있다 (되묻기 → 확인)
+  const askBody = await (await post(
+    '/api/master/alliance',
+    { group: wait.group, item: '마스터가 고침', entries: [{ server: '05', people: 4 }, { server: '07', people: 6 }], amount: 200000 },
+    { Cookie: masterCookie },
+  )).json();
+  eq(askBody.needsConfirm, true, '마스터에게는 되묻는다');
 });
 
 await t('연합 서버 추가: 관리자도 하되 기존 값은 못 고친다 (v11.1)', async () => {
@@ -2530,6 +2648,38 @@ await t('공유 버튼: 잔액·아이템·연합·레이드·내정보에만 �
   }
 });
 
+await t('잔액을 서버 칩으로 좁혀 본다 (v11.3, 화면)', async () => {
+  await reset();
+  await page.reload({ waitUntil: 'networkidle' });
+  await go(page, 'balance');
+
+  const names = async () => (await page.locator('.row-name').allInnerTexts()).map((x) => x.trim());
+  const all = await names();
+  if (all.length < 3) throw new Error(`잔액 목록이 너무 짧습니다: ${all.length}`);
+
+  // 칩에 서버별 **인원**이 붙어 있어야 한다 (아이템 등록 화면과 같은 모양)
+  const chips = await page.locator('.svchip').allInnerTexts();
+  if (chips.length === 0) throw new Error('서버 칩이 없습니다.');
+
+  // 01 서버만 골라본다
+  await page.locator('.svchip').filter({ hasText: /^01/ }).first().click();
+  await page.waitForTimeout(400);
+  const only01 = await names();
+  if (only01.length >= all.length) throw new Error('서버를 골랐는데 목록이 그대로입니다.');
+  // ★ 혈맹운영비는 사람이 아니라 금고다 — 서버로 좁혀도 남아야 합계를 볼 수 있다
+  if (!only01.some((n) => n.includes('혈맹운영비'))) throw new Error('서버로 좁히니 혈맹운영비가 사라졌습니다.');
+  // 고른 서버의 사람만 남아야 한다
+  for (const n of only01) {
+    if (n.includes('혈맹운영비')) continue;
+    if (!n.startsWith('01')) throw new Error(`01 서버가 아닌 사람이 남았습니다: ${n}`);
+  }
+
+  // 다시 누르면 전원으로 돌아온다
+  await page.locator('.svchip').filter({ hasText: /^01/ }).first().click();
+  await page.waitForTimeout(400);
+  eq((await names()).length, all.length, '칩을 풀면 전원');
+});
+
 await t('첫 화면은 홈이고, 모든 화면이 아이콘으로 있다 (v11.2.1, 화면)', async () => {
   await page.reload({ waitUntil: 'networkidle' });
 
@@ -2610,6 +2760,15 @@ await t('화면은 [✕] 로도 닫히고, 겹친 것은 위에서부터 닫힌�
   await page.locator('.screen-x').click();
   await page.waitForTimeout(500);
   eq(await page.locator('.screen-bar').count(), 0, '[✕] 로 닫기');
+  eq(await page.locator('.tile').count(), 8, '홈으로 돌아왔는가');
+
+  // 아래쪽 [🏠 홈] 버튼으로도 나온다 — 목록을 한참 내린 뒤에도 손이 닿는 자리다
+  await page.locator('.tile').nth(TILE.board).click();
+  await page.waitForTimeout(700);
+  eq(await page.locator('.home-btn').count(), 1, '아래쪽 홈 버튼');
+  await page.locator('.home-btn').click();
+  await page.waitForTimeout(500);
+  eq(await page.locator('.screen-bar').count(), 0, '[홈] 으로 닫기');
   eq(await page.locator('.tile').count(), 8, '홈으로 돌아왔는가');
 
   // 뒤로가기 두 번으로도 같은 순서로 닫힌다

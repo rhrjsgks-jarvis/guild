@@ -135,7 +135,8 @@ export type AllianceGroup = {
   people: number;
   credited: number;
   photos: string[];
-  servers: { server: string; people: number; credited: number }[];
+  /** 서버별 줄 — 인증샷도 **줄마다 그 서버의 것**이다 (v11.3) */
+  servers: { server: string; people: number; credited: number; photos?: string[] }[];
   rows: number[];
   done: boolean;
 };
