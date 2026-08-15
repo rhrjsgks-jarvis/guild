@@ -1817,6 +1817,129 @@ check('팝업은 바깥을 눌러도 닫히지 않는다 (v11.1)', () => {
   return '배경 닫기 없음 · 오른쪽 위 [✕] · Esc 유지 · 제목 자리 확보';
 });
 
+check('폰 뒤로가기는 앱을 벗어나지 않고 덮인 것만 닫는다 (v11.2.1)', () => {
+  /*
+   * v11.1 에서 배경 닫기를 막은 뒤로, 팝업을 닫으려고 뒤로가기를 누르는 일이
+   * 오히려 늘었다. 그때 앱을 통째로 벗어나면 참여자를 스무 명 체크한 것이
+   * 그대로 사라진다 — 막으려던 사고가 다른 문으로 열려 있었던 셈이다.
+   */
+  const back = readFileSync(resolve(ROOT, 'lib/back.ts'), 'utf8');
+  for (const fn of ['pushBack', 'releaseBack', 'useBackClose']) {
+    if (!new RegExp(`export function ${fn}\\b`).test(back)) throw new Error(`lib/back.ts 에 ${fn} 이(가) 없습니다.`);
+  }
+
+  // ★ [✕] 로 닫을 때 history 를 건드리면 안 된다. history.back() 은 비동기라,
+  //   탭 이동과 겹치면 한 번에 두 겹이 닫히거나 뒤로가기가 먹통이 된다.
+  const release = (back.match(/export function releaseBack[\s\S]*?\n\}/) ?? [''])[0];
+  if (/history\./.test(release)) {
+    throw new Error('releaseBack 이 history 를 건드립니다 — 탭 이동과 겹치면 두 겹이 함께 닫힙니다.');
+  }
+  // 표식은 언제나 최대 한 개 (arm 은 armed 일 때 아무것도 하지 않는다)
+  const arm = (back.match(/function arm\(\)[\s\S]*?\n\}/) ?? [''])[0];
+  if (!/if \(armed/.test(arm)) throw new Error('history 표식이 여러 개 쌓일 수 있습니다.');
+  if (!/armed = false;[\s\S]{0,120}stack\.pop\(\)/.test(back)) {
+    throw new Error('뒤로가기를 받았을 때 맨 위 한 겹만 닫는 경로가 없습니다.');
+  }
+
+  // 실제로 돌려본다 — 세 겹을 덮고 뒤로가기를 세 번 누르면 위에서부터 하나씩 닫히고,
+  // 네 번째는 앱 밖으로 나가야 한다 (표식이 다시 올라가면 영영 못 나간다)
+  const listeners = [];
+  const entries = [];
+  const ctx = vm.createContext({
+    window: {
+      history: { pushState: () => entries.push(1) },
+      addEventListener: (type, fn) => type === 'popstate' && listeners.push(fn),
+    },
+  });
+  const plain = back
+    // React 를 쓰는 훅만 걷어내고 나머지는 그대로 돌린다
+    .replace(/export function useBackClose[\s\S]*?\n\}\n/, '')
+    .replace(/^'use client';/m, '')
+    .replace(/^import[^\n]*\n/gm, '')
+    .replace(/export function/g, 'function')
+    .replace(/type Entry = [^\n]*\n/, '')
+    .replace(/: number|: \(\) => void|: Entry\[\]|: boolean/g, '');
+  vm.runInContext(`${plain}; __push = pushBack; __release = releaseBack; __depth = backDepth;`, ctx);
+
+  const closed = [];
+  ctx.__push(() => closed.push('탭'));
+  ctx.__push(() => closed.push('팝업'));
+  ctx.__push(() => closed.push('사진'));
+  if (entries.length !== 1) throw new Error(`세 겹인데 history 항목이 ${entries.length}개입니다 (기대 1개).`);
+
+  const pressBack = () => listeners.forEach((fn) => fn());
+  pressBack();
+  if (closed.join(',') !== '사진') throw new Error(`뒤로가기 1번: ${closed.join(',')} (기대 사진)`);
+  pressBack();
+  pressBack();
+  if (closed.join(',') !== '사진,팝업,탭') throw new Error(`뒤로가기 3번: ${closed.join(',')}`);
+  if (ctx.__depth() !== 0) throw new Error('세 번 눌렀는데 덮인 것이 남아 있습니다.');
+  // 남은 것이 있을 때만 표식을 다시 올린다 — 마지막 한 겹까지 올리면 앱을 나갈 수 없다
+  if (entries.length !== 3) {
+    throw new Error(`표식이 ${entries.length}번 올라갔습니다 (기대 3) — 마지막 겹을 닫고도 올리면 앱을 못 나갑니다.`);
+  }
+  pressBack();
+  if (entries.length !== 3) throw new Error('닫을 것이 없는데 표식을 다시 올립니다 — 앱을 나갈 수 없습니다.');
+
+  // 팝업·크게보기·홈이 아닌 탭 — 세 곳 모두 연결돼 있어야 한다
+  const sheet = readFileSync(resolve(ROOT, 'components/Sheet.tsx'), 'utf8');
+  if (!/useBackClose\(onClose\)/.test(sheet)) throw new Error('Sheet 가 뒤로가기로 닫히지 않습니다.');
+  const strip = readFileSync(resolve(ROOT, 'components/PhotoStrip.tsx'), 'utf8');
+  if (!/useBackClose\(onClose\)/.test(strip)) throw new Error('인증샷 크게보기가 뒤로가기로 닫히지 않습니다.');
+  const screen = readFileSync(resolve(ROOT, 'components/Screen.tsx'), 'utf8');
+  if (!/useBackClose\(onClose\)/.test(screen)) throw new Error('홈에서 연 화면이 뒤로가기로 닫히지 않습니다.');
+  const app = readFileSync(resolve(ROOT, 'components/App.tsx'), 'utf8');
+  if (!/pushBack\(\(\) => \{[\s\S]{0,200}setTab\('home'\)/.test(app)) {
+    throw new Error('홈이 아닌 탭에서 뒤로가기가 홈으로 오지 않습니다.');
+  }
+
+  return '표식 1개 · 세 겹 순서대로 · 닫을 것 없으면 앱 밖으로 · 팝업/크게보기/화면/탭 4곳';
+});
+
+check('하단 탭은 4개이고 나머지는 홈에서 연다 (v11.2.1)', () => {
+  /*
+   * 탭 7개는 글자를 8.8px 까지 줄여야 들어갔다 (영문 "Balance"·"Alliance" 기준).
+   * 눈이 나쁜 사람은 읽지 못한다. 매일 쓰는 셋만 남기고 나머지는 홈 격자로 옮겼다.
+   */
+  const css = readFileSync(resolve(ROOT, 'app/globals.css'), 'utf8');
+  const rule = (css.match(/\.nav button \{[^}]*\}/) ?? [''])[0];
+  const px = Number((rule.match(/font-size: ([\d.]+)px/) ?? [0, 0])[1]);
+  if (!(px >= 11)) throw new Error(`하단 탭 글자가 ${px}px 입니다 — 11px 아래로 내려가면 읽히지 않습니다.`);
+
+  const app = readFileSync(resolve(ROOT, 'components/App.tsx'), 'utf8');
+  const tabs = [...app.matchAll(/\{ id: '(\w+)', icon:/g)].map((m) => m[1]);
+  if (tabs.length > 4) throw new Error(`하단 탭이 ${tabs.length}개입니다 — 새 화면은 홈 격자에 넣으세요.`);
+  if (tabs[tabs.length - 1] !== 'home') throw new Error('홈이 하단 탭 맨 끝에 없습니다.');
+
+  // 탭에서 빠진 화면은 **전부** 홈에서 갈 수 있어야 한다 — 하나라도 빠지면 영영 못 연다
+  const home = readFileSync(resolve(ROOT, 'components/HomeTab.tsx'), 'utf8');
+  for (const to of ['raid', 'me', 'board', 'admin']) {
+    if (!new RegExp(`onGo\\('${to}'\\)`).test(home)) throw new Error(`홈에서 ${to} 화면으로 갈 수 없습니다.`);
+    if (!new RegExp(`${to}: 'tab\\.${to}'`).test(app)) {
+      throw new Error(`${to} 화면에 제목이 없습니다 — 어디에 있는지 알 수 없습니다.`);
+    }
+  }
+  // 나가는 길
+  const screen = readFileSync(resolve(ROOT, 'components/Screen.tsx'), 'utf8');
+  if (!/className="screen-x"/.test(screen)) throw new Error('홈에서 연 화면에 닫기 버튼이 없습니다.');
+  if (!/aria-label=\{t\('c\.close'\)\}/.test(screen)) throw new Error('닫기 버튼에 이름이 없습니다.');
+
+  /*
+   * ★ 홈의 연합·레이드 숫자는 따로 읽어야 한다. 홈은 자주 열리므로 캐시가 없으면
+   *   Apps Script 실행 할당량을 그대로 태운다 (규칙 6-2 와 같은 이유).
+   *   못 읽었을 때 0 으로 보여주면 "처리할 일이 없다"는 거짓말이 된다.
+   */
+  const ttl = Number((home.match(/MEMO_MS = ([\d_]+)/) ?? [0, '0'])[1].replace(/_/g, ''));
+  if (!(ttl >= 30_000)) throw new Error(`홈 숫자 캐시가 ${ttl}ms 입니다 — 너무 짧으면 시트를 계속 읽습니다.`);
+  if (/fresh=1/.test(home)) throw new Error('홈이 평소 조회를 fresh 로 부릅니다 — 캐시가 무의미해집니다.');
+  if (!/ally: -1|ally = a\.ok/.test(home) || !/>= 0 \? /.test(home)) {
+    throw new Error('못 읽은 숫자를 0 과 구별하지 않습니다.');
+  }
+  if (!/dropHomeMemo\(\)/.test(app)) throw new Error('쓰기 직후에 홈 숫자를 새로 읽지 않습니다.');
+
+  return `하단 ${tabs.length}개 · 글자 ${px}px · 홈에서 4화면 · 닫기 버튼 · 숫자 캐시 ${ttl / 1000}초`;
+});
+
 check('인증샷은 앱 안에서 바로 보인다 (v11.1)', () => {
   // 시트에 저장되는 값은 드라이브 **뷰어 페이지** 주소다. <img> 에 그대로 넣으면
   // 아무것도 안 나온다 — 썸네일 주소로 바꿔야 보인다.
@@ -2681,10 +2804,10 @@ check('공유 버튼은 게시판·관리 탭에 없다', () => {
   const btn = readFileSync(resolve(ROOT, 'components/ShareBtn.tsx'), 'utf8');
   if (!/r === 'copied'/.test(btn)) throw new Error('클립보드로 물러섰을 때 사용자에게 알리지 않습니다.');
 
-  // 탭 순서 (사용자가 지정한 순서 그대로)
+  // 탭 순서 (사용자가 지정한 순서 그대로 — v11.2.1 부터 4개, 나머지는 홈 격자로)
   const app = readFileSync(resolve(ROOT, 'components/App.tsx'), 'utf8');
   const order = [...app.matchAll(/\{ id: '(\w+)', icon:/g)].map((m) => m[1]);
-  const expected = ['balance', 'items', 'alliance', 'raid', 'me', 'board', 'admin'];
+  const expected = ['balance', 'items', 'alliance', 'home'];
   if (order.join(',') !== expected.join(',')) {
     throw new Error(`탭 순서가 다릅니다: ${order.join(' ')} (기대 ${expected.join(' ')})`);
   }

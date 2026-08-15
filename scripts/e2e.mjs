@@ -102,6 +102,28 @@ function eq(actual, expected, what) {
   if (actual !== expected) throw new Error(`${what}: 기대 ${JSON.stringify(expected)}, 실제 ${JSON.stringify(actual)}`);
 }
 
+/**
+ * 화면 이동 (v11.2.1) — 하단 탭 4개 + [🏠 홈] 격자.
+ *
+ * 레이드·내 정보·게시판·관리는 탭이 아니라 홈의 아이콘이다. 자리를 검사마다
+ * 적어두면 화면을 한 번 바꿀 때 스무 곳이 깨지므로, 여기 한 곳에서만 안다.
+ * 이름이 아니라 **자리**로 누른다 — 中文·English 화면에서도 그대로 쓰기 위해서다.
+ */
+const NAV = { balance: 0, items: 1, alliance: 2, home: 3 };
+const TILE = { raid: 0, me: 1, board: 2, admin: 3, lang: 4 };
+
+async function go(page, which, wait = 700) {
+  if (which in NAV) {
+    await page.locator('.nav button').nth(NAV[which]).click();
+  } else {
+    if (TILE[which] === undefined) throw new Error(`모르는 화면: ${which}`);
+    await page.locator('.nav button').nth(NAV.home).click();
+    await page.waitForTimeout(300);
+    await page.locator('.tile').nth(TILE[which]).click();
+  }
+  await page.waitForTimeout(wait);
+}
+
 const send = (method) => (path, body, headers = {}) =>
   fetch(APP + path, {
     method,
@@ -1210,16 +1232,16 @@ await t('길드원 화면: 잔액이 보이고 관리 버튼은 없다', async (
   await page.waitForSelector('.row-name');
   await shot('01-viewer-balance');
 
-  await page.locator('.nav button', { hasText: /아이템/ }).click();
+  await go(page, 'items');
   await page.waitForTimeout(300);
   eq(await page.getByRole('button', { name: '분배' }).count(), 0, '분배 버튼 개수');
-  await page.locator('.nav button', { hasText: /잔액/ }).click();
+  await go(page, 'balance');
   await page.waitForTimeout(300);
   eq(await page.getByRole('button', { name: '지급' }).count(), 0, '지급 버튼 개수');
 });
 
 await t('공유 카드의 QR이 앱 주소로 디코딩된다', async () => {
-  await page.locator('.nav button', { hasText: /관리/ }).click();
+  await go(page, 'admin');
   await page.waitForSelector('[aria-label="앱 주소 QR 코드"] svg', { timeout: 10_000 });
   await shot('02-share');
 
@@ -1250,7 +1272,7 @@ await t('PIN을 넣으면 관리 버튼이 나타난다', async () => {
   await page.locator('#pin').fill(PIN);
   await page.getByRole('button', { name: /잠금 해제/ }).click();
   await page.waitForTimeout(1200);
-  await page.locator('.nav button', { hasText: /잔액/ }).click();
+  await go(page, 'balance');
   await page.waitForTimeout(500);
   if ((await page.getByRole('button', { name: '지급' }).count()) === 0) {
     throw new Error('로그인 후에도 지급 버튼이 없습니다.');
@@ -1261,7 +1283,7 @@ await t('PIN을 넣으면 관리 버튼이 나타난다', async () => {
 await t('PIN 칸에 문자가 섞인 PIN 도 입력할 수 있다', async () => {
   // inputMode="numeric" 이면 폰에서 숫자 키패드만 떠서, 문자가 섞인
   // 마스터 PIN 은 아무리 정확히 알아도 입력할 방법이 없다.
-  await page.locator('.nav button').last().click();
+  await go(page, 'admin');
   await page.waitForTimeout(400);
 
   const pin = page.locator('#pin');
@@ -1284,7 +1306,7 @@ await t('PIN 칸에 문자가 섞인 PIN 도 입력할 수 있다', async () => 
 });
 
 await t('분배 미리보기가 혈비·1인당을 정확히 계산한다', async () => {
-  await page.locator('.nav button', { hasText: /아이템/ }).click();
+  await go(page, 'items');
   await page.waitForTimeout(300);
   await page.getByRole('button', { name: '분배' }).first().click();
   await page.locator('#amt').fill('50000');
@@ -1316,7 +1338,7 @@ await t('아이템을 등록하면 목록에 나타난다', async () => {
 await t('아이템 등록: 서버로 좁혀도 체크한 사람은 사라지지 않는다 (화면)', async () => {
   await reset();
   await page.reload({ waitUntil: 'networkidle' });
-  await page.locator('.nav button').filter({ hasText: /아이템/ }).click();
+  await go(page, 'items');
   await page.waitForTimeout(900);
 
   const chips = page.locator('#itemServers .svchip');
@@ -1426,7 +1448,7 @@ await t('아이템 등록: 서버로 좁혀도 체크한 사람은 사라지지 
 });
 
 await t('상단 시즌 칩으로 지난 시즌을 연다', async () => {
-  await page.locator('.nav button', { hasText: /잔액/ }).click();
+  await go(page, 'balance');
   await page.waitForTimeout(400);
   await page.getByRole('button', { name: /지난 시즌/ }).first().click();
   await page.waitForTimeout(900);
@@ -1460,7 +1482,7 @@ await t('상단 시즌 칩으로 지난 시즌을 연다', async () => {
 await t('참여자 칩이 국문·한문 두 줄로 나오고 이름이 잘리지 않는다', async () => {
   await reset();
   await page.reload({ waitUntil: 'networkidle' });
-  await page.locator('.nav button').filter({ hasText: /아이템/ }).click();
+  await go(page, 'items');
   await page.waitForTimeout(600);
 
   const chip = page.locator('.mchip').filter({ hasText: '잠단' }).first();
@@ -1523,7 +1545,7 @@ await t('멤버DB 한자표기가 잔액·아이템·내정보에 함께 나온�
    * 사용자가 겪은 상황과 같은 표본이다.
    */
   await page.reload({ waitUntil: 'networkidle' });
-  await page.locator('.nav button').filter({ hasText: /잔액/ }).click();
+  await go(page, 'balance');
   await page.waitForTimeout(700);
 
   const row = page.locator('.row').filter({ hasText: 'TC무식' }).first();
@@ -1541,13 +1563,13 @@ await t('멤버DB 한자표기가 잔액·아이템·내정보에 함께 나온�
   if (/[\u2e80-\u9fff]/.test(plain)) throw new Error(`한자가 없는데 만들어 붙였습니다: "${plain}"`);
 
   // 아이템 탭의 참여자 칩
-  await page.locator('.nav button').filter({ hasText: /아이템/ }).click();
+  await go(page, 'items');
   await page.waitForTimeout(700);
   const chip = page.locator('.mchip').filter({ hasText: 'TC무식' }).first();
   eq(await chip.locator('.nm i').innerText(), '车武植', '칩 둘째 줄 (G열 한자)');
 
   // 내 정보 드롭다운
-  await page.locator('.nav button').filter({ hasText: /내 정보/ }).click();
+  await go(page, 'me');
   await page.waitForTimeout(700);
   const opts = await page.locator('#meName option').allInnerTexts();
   if (!opts.some((o) => o.includes('TC무식') && o.includes('车武植'))) {
@@ -1559,7 +1581,7 @@ await t('멤버DB 한자표기가 잔액·아이템·내정보에 함께 나온�
 await t('혈맹원 관리: 아이디 바로 아래에 한자표기 칸이 있다 (화면)', async () => {
   await reset();
   await page.reload({ waitUntil: 'networkidle' });
-  await page.locator('.nav button').last().click();
+  await go(page, 'admin');
   await page.waitForTimeout(900);
 
   // ★ 명단 자체에도 이름 옆에 한자가 붙어야 한다. 아래 줄에 작게 두면
@@ -1612,7 +1634,7 @@ await t('혈맹원 관리: 아이디 바로 아래에 한자표기 칸이 있다
   await page.waitForTimeout(2000);
 
   // 셋 다 반영돼야 한다. 하나라도 빠지면 관리자는 무엇이 저장됐는지 알 수 없다.
-  await page.locator('.nav button').filter({ hasText: /잔액/ }).click();
+  await go(page, 'balance');
   await page.waitForTimeout(900);
   const after = await page.locator('.row').filter({ hasText: 'TC무식2' }).first().locator('.row-name').innerText();
   if (!after.includes('車武植K')) throw new Error(`바꾼 한자표기가 잔액에 반영되지 않았습니다: "${after}"`);
@@ -1629,7 +1651,7 @@ await t('혈맹원 관리: 아이디 바로 아래에 한자표기 칸이 있다
 await t('혈맹원 추가 버튼 하나로 한 명도 여럿도 넣는다 (화면)', async () => {
   await reset();
   await page.reload({ waitUntil: 'networkidle' });
-  await page.locator('.nav button').last().click();
+  await go(page, 'admin');
   await page.waitForTimeout(900);
 
   // 같은 일을 하는 버튼이 둘이면 무엇이 다른지 묻게 된다 — 입구는 하나다
@@ -1659,7 +1681,7 @@ await t('혈맹원 추가 버튼 하나로 한 명도 여럿도 넣는다 (화�
 await t('이전 아이디에서 기록 가져오기 (화면) — 중복 아이디는 막힌다', async () => {
   await reset();
   await page.reload({ waitUntil: 'networkidle' });
-  await page.locator('.nav button').last().click();
+  await go(page, 'admin');
   await page.waitForTimeout(900);
 
   // '팩맨'(기록 0)을 열어 '가이'(분배전 12,400)의 기록을 가져온다
@@ -1710,7 +1732,7 @@ await t('이전 아이디에서 기록 가져오기 (화면) — 중복 아이�
 });
 
 await t('잔액 목록에 서버 번호가 붙는다', async () => {
-  await page.locator('.nav button').filter({ hasText: /잔액/ }).click();
+  await go(page, 'balance');
   await page.waitForTimeout(600);
 
   // 모의 데이터에서 '가이' 는 01 서버, '대서과Z' 는 04 서버
@@ -1731,7 +1753,7 @@ await t('잔액 목록에 서버 번호가 붙는다', async () => {
 });
 
 await t('혈맹운영비가 잔액·혈맹원 관리 맨 위에 온다 (화면)', async () => {
-  await page.locator('.nav button').filter({ hasText: /잔액/ }).click();
+  await go(page, 'balance');
   await page.waitForTimeout(600);
 
   // 혈비는 사람이 아니라 길드의 금고다 — 사람들 사이에 섞이면 인원이 늘수록 밀린다
@@ -1762,7 +1784,7 @@ await t('혈맹운영비가 잔액·혈맹원 관리 맨 위에 온다 (화면)'
   await page.waitForTimeout(400);
 
   // [혈맹원 관리] 도 같다 — 시트가 내려준 isFund 로 판정한다
-  await page.locator('.nav button').last().click();
+  await go(page, 'admin');
   await page.waitForTimeout(900);
   const rosterFirst = page.locator('.sect', { hasText: '혈맹원 관리' }).locator('..').locator('.row').first();
   if (!(await rosterFirst.innerText()).includes('혈맹운영비')) {
@@ -1784,12 +1806,12 @@ await t('사람 목록이 잔액·아이템·관리 모두 이름순(ㄱ~ㅎ)이
   };
 
   // ① 잔액 — 맨 위 혈비만 빼고
-  await page.locator('.nav button').filter({ hasText: /잔액/ }).click();
+  await go(page, 'balance');
   await page.waitForTimeout(700);
   inOrder((await page.locator('.card .row .row-name').allInnerTexts()).slice(1).map(clean), '잔액');
 
   // ② 아이템 참여자 칩
-  await page.locator('.nav button').filter({ hasText: /아이템/ }).click();
+  await go(page, 'items');
   await page.waitForTimeout(800);
   inOrder(
     await page.locator('.mgrid .mchip .nm b').evaluateAll((els) =>
@@ -1803,7 +1825,7 @@ await t('사람 목록이 잔액·아이템·관리 모두 이름순(ㄱ~ㅎ)이
   );
 
   // ③ 관리 혈맹원 명단 — 혈비는 맨 위에 고정, 그 아래가 이름순
-  await page.locator('.nav button').last().click();
+  await go(page, 'admin');
   await page.waitForTimeout(900);
   // 바로 다음 카드만 본다 — 부모째로 잡으면 아래의 도구 목록까지 딸려 온다
   const rows = await page
@@ -1829,7 +1851,7 @@ await t('사람 목록이 잔액·아이템·관리 모두 이름순(ㄱ~ㅎ)이
 });
 
 await t('지급 창에 서버·한자까지 나온다 (누구에게 주는지가 이 창의 전부다)', async () => {
-  await page.locator('.nav button').filter({ hasText: /잔액/ }).click();
+  await go(page, 'balance');
   await page.waitForTimeout(700);
   await page.locator('.card .row').filter({ hasText: 'TC무식' }).first()
     .getByRole('button', { name: '지급' }).click();
@@ -1849,7 +1871,7 @@ await t('지급 창에 서버·한자까지 나온다 (누구에게 주는지가
 await t('서버 일괄 지정: 칩으로 고르고 여러 명을 한 번에 넣는다 (화면)', async () => {
   await reset();
   await page.reload({ waitUntil: 'networkidle' });
-  await page.locator('.nav button').last().click();
+  await go(page, 'admin');
   await page.waitForTimeout(900);
 
   // 서버가 비어 있는 사람이 있으면 관리자에게 미리 알려준다 —
@@ -1921,7 +1943,7 @@ await t('서버 일괄 지정: 칩으로 고르고 여러 명을 한 번에 넣�
 await t('연합: 등록 → 나중에 금액 넣기 (화면 흐름)', async () => {
   await reset();
   await page.reload({ waitUntil: 'networkidle' });
-  await page.locator('.nav button').filter({ hasText: /연합/ }).click();
+  await go(page, 'alliance');
   await page.waitForTimeout(800);
 
   // 모의 데이터에 금액 대기 건이 하나 있다
@@ -2056,7 +2078,7 @@ await t('연합 등록: 사진이 읽은 인원이 손으로 넣은 값을 덮�
   // 8 이 첫 줄을 덮어써 8·8·8 이 됐다. 사람이 넣은 숫자가 기계의 추측보다 우선한다.
   await reset();
   await page.reload({ waitUntil: 'networkidle' });
-  await page.locator('.nav button').filter({ hasText: /연합/ }).click();
+  await go(page, 'alliance');
   await page.waitForTimeout(800);
   await page.getByRole('button', { name: /연합 등록/ }).click();
   await page.waitForTimeout(500);
@@ -2289,7 +2311,7 @@ await t('연합 서버 추가: 관리자도 하되 기존 값은 못 고친다 (
 await t('연합: 아이템명을 누르면 서버별 참여 인원이 펼쳐진다 (화면)', async () => {
   await reset();
   await page.reload({ waitUntil: 'networkidle' });
-  await page.locator('.nav button').filter({ hasText: /연합/ }).click();
+  await go(page, 'alliance');
   await page.waitForTimeout(900);
 
   // 모의 데이터의 '연합 보스' 는 03서버 12명 · 05서버 6명이 나눠 가진 한 건이다
@@ -2382,7 +2404,7 @@ await t('아이템 수정은 마스터만 — 분배 후에는 확인을 거친�
 await t('팝업은 바깥을 눌러도 닫히지 않는다 (v11.1, 화면)', async () => {
   await reset();
   await page.reload({ waitUntil: 'networkidle' });
-  await page.locator('.nav button').filter({ hasText: /아이템/ }).click();
+  await go(page, 'items');
   await page.waitForTimeout(700);
 
   // 아이템 상세를 열고, 입력하던 것이 날아가지 않는지 본다
@@ -2416,7 +2438,7 @@ await t('인증샷: 아이템·연합에서 눌러 앱 안에서 본다 (v11.1, 
   driveHits.length = 0;
 
   // ① 아이템 — 이름을 누르면 참여자와 인증샷이 열린다
-  await page.locator('.nav button').filter({ hasText: /아이템/ }).click();
+  await go(page, 'items');
   await page.waitForTimeout(700);
   await page.locator('.row-name.linkish').filter({ hasText: '기란 세금' }).first().click();
   await page.waitForTimeout(600);
@@ -2439,7 +2461,7 @@ await t('인증샷: 아이템·연합에서 눌러 앱 안에서 본다 (v11.1, 
   await page.waitForTimeout(400);
 
   // ② 연합 — 아이템명을 누르면 같은 방식으로 열린다
-  await page.locator('.nav button').filter({ hasText: /연합/ }).click();
+  await go(page, 'alliance');
   await page.waitForTimeout(800);
   await page.locator('.row-name.linkish').filter({ hasText: '연합 보스' }).first().click();
   await page.waitForTimeout(600);
@@ -2452,7 +2474,7 @@ await t('인증샷: 아이템·연합에서 눌러 앱 안에서 본다 (v11.1, 
 await t('레이드: 오늘 요일이 먼저 뜨고, 다른 요일로 바꿔 볼 수 있다 (화면)', async () => {
   await reset();
   await page.reload({ waitUntil: 'networkidle' });
-  await page.locator('.nav button').filter({ hasText: /레이드/ }).click();
+  await go(page, 'raid');
   await page.waitForTimeout(900);
 
   // 요일 칩 7개 — 오늘이 켜져 있어야 한다
@@ -2488,29 +2510,117 @@ await t('레이드: 오늘 요일이 먼저 뜨고, 다른 요일로 바꿔 볼 
 
 await t('공유 버튼: 잔액·아이템·연합·레이드·내정보에만 있다 (화면)', async () => {
   await page.reload({ waitUntil: 'networkidle' });
-  for (const tab of [/잔액/, /아이템/, /연합/, /레이드/]) {
-    await page.locator('.nav button').filter({ hasText: tab }).click();
-    await page.waitForTimeout(700);
+  for (const where of ['balance', 'items', 'alliance', 'raid']) {
+    await go(page, where);
     if ((await page.locator('.share-btn').count()) === 0) {
-      throw new Error(`${tab} 탭에 공유 버튼이 없습니다.`);
+      throw new Error(`${where} 화면에 공유 버튼이 없습니다.`);
     }
   }
   // ★ 게시판·관리에는 없어야 한다
-  for (const tab of [/게시판/, /관리$/]) {
-    await page.locator('.nav button').filter({ hasText: tab }).click();
-    await page.waitForTimeout(700);
+  for (const where of ['board', 'admin']) {
+    await go(page, where);
     if ((await page.locator('.share-btn').count()) > 0) {
-      throw new Error(`${tab} 탭에 공유 버튼이 있습니다.`);
+      throw new Error(`${where} 화면에 공유 버튼이 있습니다.`);
     }
   }
 });
 
-await t('탭 순서가 잔액·아이템·연합·레이드·내정보·게시판·관리다 (화면)', async () => {
+await t('하단 탭은 잔액·아이템·연합·홈 넷이고, 나머지는 홈에서 연다 (화면)', async () => {
   await page.reload({ waitUntil: 'networkidle' });
   const labels = await page.locator('.nav button').allInnerTexts();
   const got = labels.map((s) => s.split('\n').pop().trim());
-  const want = ['잔액', '아이템', '연합', '레이드', '내 정보', '게시판', '관리'];
+  const want = ['잔액', '아이템', '연합', '홈'];
   if (got.join(' ') !== want.join(' ')) throw new Error(`탭 순서: ${got.join(' ')} (기대 ${want.join(' ')})`);
+
+  // 탭에서 빠진 화면이 홈에 전부 있어야 한다 — 하나라도 빠지면 영영 못 연다
+  await go(page, 'home');
+  const tiles = (await page.locator('.tile').allInnerTexts()).map((s) => s.split('\n')[1]);
+  const wantTiles = ['레이드', '내 정보', '게시판', '관리', '언어'];
+  if (tiles.join(' ') !== wantTiles.join(' ')) {
+    throw new Error(`홈 격자: ${tiles.join(' ')} (기대 ${wantTiles.join(' ')})`);
+  }
+
+  // 글자 크기 — 탭이 7개일 때는 8.8px 까지 줄여야 했다
+  const px = await page.locator('.nav button').first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  if (!(px >= 11)) throw new Error(`하단 탭 글자가 ${px}px 입니다.`);
+});
+
+await t('폰 뒤로가기: 팝업만 닫히고 앱을 벗어나지 않는다 (v11.2.1)', async () => {
+  await page.reload({ waitUntil: 'networkidle' });
+  await go(page, 'balance');
+
+  // 시즌 팝업을 연다 (누구나 열 수 있어 등급과 무관하다)
+  await page.locator('.header .meta button.chip').first().click();
+  await page.waitForTimeout(500);
+  eq(await page.locator('.sheet').count(), 1, '팝업이 열렸는가');
+
+  await page.goBack();
+  await page.waitForTimeout(500);
+  eq(await page.locator('.sheet').count(), 0, '뒤로가기 뒤 팝업');
+  // ★ 앱을 벗어나면 하단 탭 자체가 사라진다 — 입력하던 내용이 통째로 날아가던 사고
+  eq(await page.locator('.nav button').count(), 4, '뒤로가기 뒤에도 앱 안인가');
+  eq((await page.locator('.nav button.on').innerText()).includes('잔액'), true, '보던 탭 유지');
+});
+
+await t('폰 뒤로가기: 홈이 아닌 탭에서는 홈으로 온다 (v11.2.1)', async () => {
+  await page.reload({ waitUntil: 'networkidle' });
+  await go(page, 'items');
+  await page.goBack();
+  await page.waitForTimeout(500);
+  eq((await page.locator('.nav button.on').innerText()).includes('홈'), true, '뒤로가기 뒤 화면');
+  eq(await page.locator('.tile').count(), 5, '홈 격자');
+});
+
+await t('홈에서 연 화면은 [✕] 로 닫으면 보던 탭으로 돌아온다 (v11.2.1)', async () => {
+  await page.reload({ waitUntil: 'networkidle' });
+  await go(page, 'balance');
+
+  // 공지 띠 → 게시판 화면 (탭이 아니라 덮는 화면이다) + 그 글 팝업까지 함께 열린다
+  await page.locator('.notice-bar').click();
+  await page.waitForTimeout(900);
+  eq(await page.locator('.screen-bar').count(), 1, '화면 머리줄');
+  eq((await page.locator('.screen-bar h2').innerText()).trim(), '게시판', '화면 제목');
+  eq(await page.locator('.sheet').count(), 1, '공지 글 팝업');
+
+  // ★ 두 겹이 덮여 있다 — 뒤로가기는 **위에 있는 팝업만** 닫아야 한다
+  await page.goBack();
+  await page.waitForTimeout(500);
+  eq(await page.locator('.sheet').count(), 0, '뒤로가기 뒤 팝업');
+  eq(await page.locator('.screen-bar').count(), 1, '뒤로가기 뒤 게시판 화면');
+
+  await page.locator('.screen-x').click();
+  await page.waitForTimeout(500);
+  eq(await page.locator('.screen-bar').count(), 0, '닫은 뒤 머리줄');
+  eq((await page.locator('.nav button.on').innerText()).includes('잔액'), true, '돌아온 탭');
+
+  // 뒤로가기로도 닫힌다 (팝업 → 화면 순서)
+  await page.locator('.notice-bar').click();
+  await page.waitForTimeout(900);
+  await page.goBack();
+  await page.waitForTimeout(400);
+  await page.goBack();
+  await page.waitForTimeout(500);
+  eq(await page.locator('.screen-bar').count(), 0, '뒤로가기로 닫기');
+  eq((await page.locator('.nav button.on').innerText()).includes('잔액'), true, '뒤로가기 뒤 탭');
+});
+
+await t('홈: 지금 처리할 일을 누르면 그 화면으로 간다 (v11.2.1)', async () => {
+  await reset();
+  await page.reload({ waitUntil: 'networkidle' });
+  await go(page, 'home');
+
+  const todo = await page.locator('.todo-row').allInnerTexts();
+  const items = todo.find((x) => x.includes('미분배 아이템'));
+  if (!items) throw new Error(`홈에 미분배 아이템 줄이 없습니다: ${todo.join(' / ')}`);
+  // 잔액 탭 대시보드와 같은 숫자여야 한다 — 두 화면이 다르면 고장으로 보인다
+  await go(page, 'balance');
+  const dash = (await page.locator('.dash-item').first().innerText()).split('\n')[0].trim();
+  if (!items.includes(dash)) throw new Error(`홈 ${items} 과 잔액 대시보드 ${dash} 이 다릅니다.`);
+
+  await go(page, 'home');
+  await page.locator('.todo-row').filter({ hasText: '미분배 아이템' }).click();
+  await page.waitForTimeout(600);
+  eq((await page.locator('.nav button.on').innerText()).includes('아이템'), true, '이동한 탭');
 });
 
 await t('관리자 화면에는 마스터 전용 기능이 아예 보이지 않는다', async () => {
@@ -2530,13 +2640,13 @@ await t('관리자 화면에는 마스터 전용 기능이 아예 보이지 않�
   await asRole(cookie);   // ── 관리자 ──
 
   // ① 아이템 탭 — 정정·삭제 카드가 통째로 없어야 한다
-  await page.locator('.nav button').filter({ hasText: /아이템/ }).click();
+  await go(page, 'items');
   await page.waitForTimeout(700);
   let body = await page.locator('main').innerText();
   if (/정정/.test(body)) throw new Error('관리자에게 정정·삭제 카드가 보입니다.');
 
   // ② 관리 탭 — 되돌릴 수 없는 도구와 지급취소가 없어야 한다
-  await page.locator('.nav button').last().click();
+  await go(page, 'admin');
   await page.waitForTimeout(900);
   body = await page.locator('main').innerText();
   for (const gone of ['시즌 종료', '공장 초기화', '최초 설치', '기존 파일에서 가져오기', '지급 취소']) {
@@ -2558,7 +2668,7 @@ await t('관리자 화면에는 마스터 전용 기능이 아예 보이지 않�
 
   await asRole(masterCookie);   // ── 마스터 ──
 
-  await page.locator('.nav button').last().click();
+  await go(page, 'admin');
   await page.waitForTimeout(900);
   body = await page.locator('main').innerText();
   for (const shown of ['시즌 종료', '공장 초기화', '지급 취소']) {
@@ -2566,7 +2676,7 @@ await t('관리자 화면에는 마스터 전용 기능이 아예 보이지 않�
   }
   await shot('20-master-view');
 
-  await page.locator('.nav button').filter({ hasText: /아이템/ }).click();
+  await go(page, 'items');
   await page.waitForTimeout(700);
   if (!/정정/.test(await page.locator('main').innerText())) {
     throw new Error('마스터에게 정정·삭제 카드가 안 보입니다.');
@@ -2634,7 +2744,7 @@ await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', asyn
   await page.goto(APP, { waitUntil: 'networkidle' });
 
   // [관리] 탭 → 언어 → 中文
-  await page.locator('.nav button').last().click();     // 관리 탭 (언어 무관)
+  await go(page, 'admin');
   await page.waitForTimeout(400);
   await page.getByRole('button', { name: '中文' }).click();
   await page.waitForTimeout(400);
@@ -2645,7 +2755,7 @@ await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', asyn
 
   // 하단 탭 이름이 전부 중문이어야 한다
   const nav = await page.locator('.nav').innerText();
-  for (const want of ['余额', '物品', '公告板', '联盟', '我的', '管理']) {
+  for (const want of ['余额', '物品', '联盟', '主页']) {
     if (!nav.includes(want)) throw new Error(`탭에 ${want} 이(가) 없습니다: ${nav}`);
   }
   if (/[가-힣]/.test(nav)) throw new Error(`탭에 한글이 남아 있습니다: ${nav}`);
@@ -2660,11 +2770,10 @@ await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', asyn
                      // 사람 이름이므로 어느 언어에서도 번역되지 않는 것이 정상이다 (규칙 7)
                      '车武植', '大西瓜Z',
                      '토요일', '오늘 밤', '미분배', '분배완료'];
-  for (const [tab, zh] of [['余额', '余额'], ['物品', '物品'], ['公告板', '公告板'], ['联盟', '联盟'], ['我的', '我的']]) {
-    await page.locator('.nav button').filter({ hasText: tab }).click();
-    await page.waitForTimeout(600);
+  for (const tab of ['balance', 'items', 'board', 'alliance', 'me', 'home']) {
+    await go(page, tab, 600);
     let body = await page.locator('main').innerText();
-    if (!body.includes(zh) && !body.trim()) throw new Error(`${tab} 탭이 비었습니다.`);
+    if (!body.trim()) throw new Error(`${tab} 화면이 비었습니다.`);
     dataWords.forEach((w) => { body = body.split(w).join(''); });
     const leftover = body.match(/[가-힣]+/g);
     if (leftover && leftover.length) {
@@ -2674,7 +2783,7 @@ await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', asyn
   await shot('12-zh-admin');
 
   // 한국어로 되돌린다 (뒤에 오는 검사가 한글 화면을 기대한다)
-  await page.locator('.nav button').last().click();
+  await go(page, 'admin');
   await page.waitForTimeout(400);
   await page.getByRole('button', { name: '한국어' }).click();
   await page.waitForTimeout(400);
@@ -2684,7 +2793,7 @@ await t('English 로 바꾸면 화면 문구가 전부 영문이 된다', async 
   await reset();
   await page.goto(APP, { waitUntil: 'networkidle' });
 
-  await page.locator('.nav button').last().click();     // 관리 탭 (언어 무관)
+  await go(page, 'admin');
   await page.waitForTimeout(400);
   await page.getByRole('button', { name: 'English' }).click();
   await page.waitForTimeout(400);
@@ -2693,7 +2802,7 @@ await t('English 로 바꾸면 화면 문구가 전부 영문이 된다', async 
   if (/[가-힣]/.test(head)) throw new Error(`헤더에 한글이 남아 있습니다: ${head}`);
 
   const nav = await page.locator('.nav').innerText();
-  for (const want of ['Balance', 'Items', 'Board', 'Alliance', 'Me', 'Admin']) {
+  for (const want of ['Balance', 'Items', 'Alliance', 'Home']) {
     if (!nav.includes(want)) throw new Error(`탭에 ${want} 이(가) 없습니다: ${nav}`);
   }
   if (/[가-힣]/.test(nav)) throw new Error(`탭에 한글이 남아 있습니다: ${nav}`);
@@ -2707,11 +2816,10 @@ await t('English 로 바꾸면 화면 문구가 전부 영문이 된다', async 
                      // 사람 이름이므로 어느 언어에서도 번역되지 않는 것이 정상이다 (규칙 7)
                      '车武植', '大西瓜Z',
                      '토요일', '오늘 밤', '미분배', '분배완료'];
-  for (const tab of ['Balance', 'Items', 'Board', 'Alliance', 'Me']) {
-    await page.locator('.nav button').filter({ hasText: tab }).click();
-    await page.waitForTimeout(600);
+  for (const tab of ['balance', 'items', 'board', 'alliance', 'me', 'home']) {
+    await go(page, tab, 600);
     let body = await page.locator('main').innerText();
-    if (!body.trim()) throw new Error(`${tab} 탭이 비었습니다.`);
+    if (!body.trim()) throw new Error(`${tab} 화면이 비었습니다.`);
     dataWords.forEach((w) => { body = body.split(w).join(''); });
     const leftover = body.match(/[가-힣]+/g);
     if (leftover && leftover.length) {
@@ -2725,7 +2833,7 @@ await t('English 로 바꾸면 화면 문구가 전부 영문이 된다', async 
   }
   await shot('14-en-admin');
 
-  await page.locator('.nav button').last().click();
+  await go(page, 'admin');
   await page.waitForTimeout(400);
   await page.getByRole('button', { name: '한국어' }).click();
   await page.waitForTimeout(400);
@@ -2735,22 +2843,21 @@ await t('서버 결과 메시지가 화면 언어로 나온다 (code + vars)', a
   // 시트는 한국어 msg + code/vars 만 보낸다. 화면 언어 문장은 앱이 조립한다.
   // 여기서 실패하면 사용자는 중문·영문 화면에서 한국어 토스트를 보게 된다.
   const setLang = async (label) => {
-    await page.locator('.nav button').last().click();   // 관리 탭 (언어 무관)
+    await go(page, 'admin');
     await page.waitForTimeout(500);
     await page.getByRole('button', { name: label, exact: true }).click();
     await page.waitForTimeout(600);
   };
 
-  for (const [label, itemsTab, openBtn, doBtn, want] of [
-    ['中文', '物品', '分配', '确认分配', /钻石/],
-    ['English', 'Items', 'Distribute', 'Distribute', /dia/],
+  for (const [label, openBtn, doBtn, want] of [
+    ['中文', '分配', '确认分配', /钻石/],
+    ['English', 'Distribute', 'Distribute', /dia/],
   ]) {
     await reset();
     await page.reload({ waitUntil: 'networkidle' });
     await setLang(label);
 
-    await page.locator('.nav button').filter({ hasText: itemsTab }).click();
-    await page.waitForTimeout(600);
+    await go(page, 'items', 600);
     await page.getByRole('button', { name: openBtn, exact: true }).first().click();
     await page.waitForTimeout(300);
     await page.locator('#amt').fill('50000');

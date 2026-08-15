@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useT } from '@/lib/i18n';
+import { useBackClose } from '@/lib/back';
 
 /**
  * 아래에서 올라오는 모달. prompt/confirm 대신 쓴다
@@ -11,8 +12,12 @@ import { useT } from '@/lib/i18n';
  *   폰에서는 시트가 화면을 거의 다 채워서 스크롤하려다 가장자리를 스치는 일이
  *   잦고, 그때마다 **입력하던 내용이 통째로 사라졌다.** 아이템 등록처럼
  *   참여자를 스무 명 체크한 뒤라면 손해가 크다.
- *   닫는 길은 두 가지뿐이다 — 오른쪽 위 [✕] 와 아래쪽 버튼(취소·저장·닫기).
- *   Esc 도 남겨둔다 (PC 에서는 실수로 눌릴 일이 없고, 키보드만 쓰는 사람에게 필요하다).
+ *   닫는 길은 세 가지다 — 오른쪽 위 [✕], 아래쪽 버튼(취소·저장·닫기),
+ *   그리고 **폰 뒤로가기** (v11.2.1). Esc 도 남겨둔다.
+ *
+ * ★ 뒤로가기로 닫히는 것이 v11.2.1 에서 가장 중요한 수정이다. 그전까지는
+ *   팝업을 닫으려고 뒤로가기를 누르면 앱을 통째로 벗어나서, 입력하던 내용이
+ *   전부 사라졌다 — 배경 닫기를 막아둔 탓에 오히려 더 자주 눌렸다.
  */
 export default function Sheet({
   title,
@@ -26,6 +31,9 @@ export default function Sheet({
   children: React.ReactNode;
 }) {
   const { t } = useT();
+
+  // 폰 뒤로가기 = 이 팝업만 닫기 (앱을 벗어나지 않는다)
+  useBackClose(onClose);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

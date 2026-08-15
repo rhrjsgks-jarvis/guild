@@ -13,9 +13,13 @@ import AllianceTab from './AllianceTab';
 import RaidTab from './RaidTab';
 import MeTab from './MeTab';
 import AdminTab from './AdminTab';
+import HomeTab, { dropHomeMemo } from './HomeTab';
+import Screen from './Screen';
+import LangSheet from './LangSheet';
 import DistributeSheet from './DistributeSheet';
 import PayoutSheet from './PayoutSheet';
 import SeasonSheet from './SeasonSheet';
+import { pushBack, releaseBack } from '@/lib/back';
 
 /** Apps Script 가 앱 이름을 정하지 않았을 때 내려주는 기본값 */
 const DEFAULT_APP_NAME = '길드정산';
@@ -29,27 +33,38 @@ const DEFAULT_APP_NAME = '길드정산';
  */
 const POLL_MS = 25_000;
 
-type Tab = 'balance' | 'items' | 'alliance' | 'raid' | 'me' | 'board' | 'admin';
+/** 하단 탭 — 매일 쓰는 것만 (v11.2.1) */
+type Tab = 'balance' | 'items' | 'alliance' | 'home';
+/** 홈에서 열어 화면을 덮는 것 — 뒤로가기·[✕] 로 닫는다 */
+type Screen = 'raid' | 'me' | 'board' | 'admin';
 
 /**
- * 아래 탭 줄의 순서 (v10.8).
+ * 아래 탭 줄 (v11.2.1 — 7개에서 4개로).
  *
- * 자주 여는 것부터 왼쪽에 둔다 — 잔액·아이템은 매일, 게시판은 가끔이다.
- * 관리는 항상 맨 끝: 엄지가 닿기 쉬운 자리에 두면 잘못 눌린다.
+ * 7개일 때는 글자를 8.8px 까지 줄여야 들어갔다. 매일 쓰는 셋(잔액·아이템·연합)만
+ * 남기고 나머지는 [🏠 홈] 안의 아이콘으로 옮겨 11.5px 로 키웠다.
+ * 홈은 맨 끝이다 — 왼쪽 셋이 손에 익은 자리를 그대로 지킨다.
  */
 const TABS: { id: Tab; icon: string; key: string }[] = [
   { id: 'balance', icon: '💰', key: 'tab.balance' },
   { id: 'items', icon: '📦', key: 'tab.items' },
   { id: 'alliance', icon: '🤝', key: 'tab.alliance' },
-  { id: 'raid', icon: '🗡️', key: 'tab.raid' },
-  { id: 'me', icon: '🙋', key: 'tab.me' },
-  { id: 'board', icon: '📋', key: 'tab.board' },
-  { id: 'admin', icon: '⚙️', key: 'tab.admin' },
+  { id: 'home', icon: '🏠', key: 'tab.home' },
 ];
+
+/** 홈에서 연 화면의 제목 — 어디에 있는지 화면 위에 항상 보인다 */
+const SCREEN_TITLE: Record<Screen, string> = {
+  raid: 'tab.raid',
+  me: 'tab.me',
+  board: 'tab.board',
+  admin: 'tab.admin',
+};
 
 export default function App() {
   const { t, srv } = useT();
   const [tab, setTab] = useState<Tab>('balance');
+  const [screen, setScreen] = useState<Screen | null>(null);
+  const [langOpen, setLangOpen] = useState(false);
   const [state, setState] = useState<GuildState | null>(null);
   const [admin, setAdmin] = useState(false);
   const [master, setMaster] = useState(false);
@@ -67,6 +82,8 @@ export default function App() {
   const [distTarget, setDistTarget] = useState<LedgerItem | null>(null);
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** "홈이 아닌 곳에 있다"는 표식 하나 — 뒤로가기가 홈으로 데려온다 */
+  const awayRef = useRef(0);
 
   const toast = useCallback((text: string, err = false) => {
     setToastMsg({ text, err });
@@ -109,6 +126,8 @@ export default function App() {
    */
   const refreshNow = useCallback(
     (res?: ApiResult) => {
+      // 홈의 연합·레이드 숫자도 낡았을 수 있다 (등록·삭제 직후)
+      dropHomeMemo();
       const fresh = res?.state as GuildState | undefined;
       if (fresh) {
         setState(fresh);
@@ -145,6 +164,27 @@ export default function App() {
     }, POLL_MS);
     return () => clearInterval(id);
   }, [refresh]);
+
+  /**
+   * 홈이 아닌 탭에 있는 동안 뒤로가기는 **홈으로** 보낸다 (v11.2.1).
+   *
+   * 표식은 언제나 하나뿐이다 — 잔액↔아이템처럼 탭을 여러 번 옮겨도
+   * 쌓이지 않는다. 그래서 홈에서 누른 뒤로가기 한 번이면 앱을 나간다.
+   * 화면(레이드·게시판…)이 덮여 있으면 그것이 위에 쌓여 있으므로
+   * 먼저 닫히고, 그다음 뒤로가기가 홈으로 온다.
+   */
+  useEffect(() => {
+    if (tab !== 'home' && awayRef.current === 0) {
+      awayRef.current = pushBack(() => {
+        awayRef.current = 0;
+        setScreen(null);
+        setTab('home');
+      });
+    } else if (tab === 'home' && awayRef.current !== 0) {
+      releaseBack(awayRef.current);
+      awayRef.current = 0;
+    }
+  }, [tab]);
 
   // "n초 전" 표시를 살아 있게 한다 (표시용 — 네트워크 호출과 무관)
   useEffect(() => {
@@ -245,7 +285,7 @@ export default function App() {
         <button
           className="notice-bar"
           onClick={() => {
-            setTab('board');
+            setScreen('board');
             setFocusPostId(state.notice?.id ?? null);
           }}
         >
@@ -284,10 +324,50 @@ export default function App() {
         </div>
       ) : (
         <main>
-          {tab === 'balance' ? (
+          {/* 홈에서 연 화면은 탭 위를 덮는다 — [✕]·뒤로가기로 닫으면 있던 탭으로 돌아온다 */}
+          {screen ? (
+            <Screen title={t(SCREEN_TITLE[screen])} onClose={() => setScreen(null)}>
+              {screen === 'raid' ? <RaidTab admin={admin} toast={toast} setBusy={setBusy} /> : null}
+              {screen === 'me' ? <MeTab state={state} toast={toast} /> : null}
+              {screen === 'board' ? (
+                <BoardTab
+                  admin={admin}
+                  focusPostId={focusPostId}
+                  onFocusHandled={() => setFocusPostId(null)}
+                  toast={toast}
+                  onChanged={refreshNow}
+                />
+              ) : null}
+              {screen === 'admin' ? (
+                <AdminTab
+                  admin={admin}
+                  master={master}
+                  unit={state.unit}
+                  servers={state.serverList ?? []}
+                  appName={title}
+                  onAuthChange={refreshNow}
+                  toast={toast}
+                />
+              ) : null}
+            </Screen>
+          ) : null}
+
+          {!screen && tab === 'home' ? (
+            <HomeTab
+              state={state}
+              admin={admin}
+              onGo={(to) => {
+                if (to === 'balance' || to === 'items' || to === 'alliance') setTab(to);
+                else setScreen(to);
+              }}
+              onLang={() => setLangOpen(true)}
+            />
+          ) : null}
+
+          {!screen && tab === 'balance' ? (
             <BalanceTab state={state} admin={admin} onPayout={setPayTarget} toast={toast} />
           ) : null}
-          {tab === 'items' ? (
+          {!screen && tab === 'items' ? (
             <ItemsTab
               state={state}
               admin={admin}
@@ -298,16 +378,7 @@ export default function App() {
               setBusy={setBusy}
             />
           ) : null}
-          {tab === 'board' ? (
-            <BoardTab
-              admin={admin}
-              focusPostId={focusPostId}
-              onFocusHandled={() => setFocusPostId(null)}
-              toast={toast}
-              onChanged={refreshNow}
-            />
-          ) : null}
-          {tab === 'alliance' ? (
+          {!screen && tab === 'alliance' ? (
             // 연합 정산은 혈맹운영비 잔액을 실제로 늘리고 줄인다 — 잔액 탭도 같이 맞춰야 한다
             <AllianceTab
               admin={admin}
@@ -318,35 +389,31 @@ export default function App() {
               onWrote={refreshNow}
             />
           ) : null}
-          {tab === 'raid' ? <RaidTab admin={admin} toast={toast} setBusy={setBusy} /> : null}
-          {tab === 'me' ? <MeTab state={state} toast={toast} /> : null}
-          {tab === 'admin' ? (
-            <AdminTab
-              admin={admin}
-              master={master}
-              unit={state.unit}
-              servers={state.serverList ?? []}
-              appName={title}
-              onAuthChange={refreshNow}
-              toast={toast}
-            />
-          ) : null}
         </main>
       )}
 
       <nav className="nav">
-        {TABS.map((tb) => (
-          <button
-            key={tb.id}
-            className={tab === tb.id ? 'on' : ''}
-            onClick={() => setTab(tb.id)}
-            aria-current={tab === tb.id ? 'page' : undefined}
-          >
-            <span className="ico">{tb.icon}</span>
-            {t(tb.key)}
-          </button>
-        ))}
+        {TABS.map((tb) => {
+          // 화면이 덮여 있는 동안에는 어느 탭도 "지금 여기"가 아니다
+          const on = !screen && tab === tb.id;
+          return (
+            <button
+              key={tb.id}
+              className={on ? 'on' : ''}
+              onClick={() => {
+                setScreen(null);
+                setTab(tb.id);
+              }}
+              aria-current={on ? 'page' : undefined}
+            >
+              <span className="ico">{tb.icon}</span>
+              {t(tb.key)}
+            </button>
+          );
+        })}
       </nav>
+
+      {langOpen ? <LangSheet onClose={() => setLangOpen(false)} /> : null}
 
       {seasonOpen && state ? <SeasonSheet current={state.season} onClose={() => setSeasonOpen(false)} /> : null}
 

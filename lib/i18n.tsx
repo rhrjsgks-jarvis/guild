@@ -102,6 +102,28 @@ const DICT: Record<string, Entry> = {
   'c.fundName': ['혈맹운영비', '血盟运营费', 'Guild fund'],
   'c.edit': ['수정', '修改', 'Edit'],
   'tab.raid': ['레이드', '副本', 'Raids'],
+  'tab.home': ['홈', '主页', 'Home'],
+
+  /* ── 홈 (v11.2.1) ── */
+  'home.todo': ['지금 처리할 일', '现在要处理的事', 'Needs attention'],
+  'home.now': ['지금 상황', '当前情况', 'Right now'],
+  'home.clear': [
+    '지금 처리할 일이 없습니다.',
+    '目前没有待处理的事项。',
+    'Nothing needs attention right now.',
+  ],
+  'home.items': ['미분배 아이템', '未分配物品', 'Undistributed items'],
+  'home.ally': ['연합 금액 대기', '联盟待填金额', 'Alliance awaiting amount'],
+  'home.owed': ['지급할 사람', '待发放人数', 'Awaiting payout'],
+  'home.raidToday': ['오늘 보스', '今日首领', 'Bosses today'],
+  'home.all': ['모든 화면', '全部页面', 'All screens'],
+  'home.raidSub': ['보스 시간표', '首领时间表', 'Boss schedule'],
+  'home.raidCount': ['오늘 {n}개', '今日{n}个', '{n} today'],
+  'home.meSub': ['내 잔액', '我的余额', 'My balance'],
+  'home.boardSub': ['공지·글', '公告·帖子', 'Notices & posts'],
+  'home.adminSub': ['PIN·도구', 'PIN·工具', 'PIN & tools'],
+  'home.lang': ['언어', '语言', 'Language'],
+  'home.langSub': ['한·中·EN', '韩·中·英', 'KO·ZH·EN'],
 
   /* ── 공유 버튼 (v10.8) ── */
   'sh.share': ['공유', '分享', 'Share'],
