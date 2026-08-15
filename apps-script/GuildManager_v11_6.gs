@@ -5143,10 +5143,30 @@ function _ensureAllianceHeaders(sheet) {
  *   혈맹원이 루팅했을 때 등록 자체가 멈춘다 (규칙 6-4 와 같은 이유).
  * ★ 루팅서버만 01~12 로 제한한다 — 서버는 닫힌 집합이고, 틀리면 집계가 갈린다.
  */
+/**
+ * 레이드일 표시용 — **날짜만** 남긴다 (v11.6).
+ *
+ * 앱은 `2026-08-14` 를 보내지만 구글시트가 이를 날짜값으로 저장해 읽을 때
+ * `2026-08-14 00:00` 이 된다. 목록 한 줄에 시각까지 붙으면 자리만 먹고,
+ * 레이드일에 "몇 시"는 애초에 뜻이 없다.
+ * ★ 알아볼 수 없는 값은 **그대로** 돌려준다 — 사람이 손으로 적어둔 메모를
+ *   우리가 지우지 않는다 (규칙 7).
+ */
+function _dateOnly(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const s = String(v == null ? '' : v).trim();
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : s;
+}
+
 function _lootMeta(meta) {
   const m = meta || {};
   const sv = _normServer(m.lootSv);
   return {
+    // 아이템명도 여기서 고친다 (v11.6) — 몰아 적은 것을 칸으로 옮기려면
+    // 이름 자체를 정리할 길이 있어야 한다. 이름은 돈을 움직이지 않는다.
+    // 빈 문자열이면 **안 바꾼다** (지우는 길은 두지 않는다 — 이름 없는 기록은 못 찾는다)
+    item: String(m.item == null ? '' : m.item).trim(),
     raid: String(m.raid == null ? '' : m.raid).trim(),
     boss: String(m.boss == null ? '' : m.boss).trim(),
     lootSv: SERVER_LIST.indexOf(sv) >= 0 ? sv : '',
@@ -5340,7 +5360,9 @@ function api_getAlliance() {
         done: status === ST_DONE,
         // v11.6 — 옛 행은 이 칸들이 비어 있다. 비어 있는 것이 정상이고,
         // 아이템명에 적혀 있던 내용을 우리가 쪼개 넣지 않는다 (규칙 7).
-        raid: _cellText(r[ALLY_COL.RAID - 1]),
+        // ★ 레이드일은 **날짜만** 쓴다. 구글시트가 '2026-08-14' 를 날짜값으로 저장해
+        //   `2026-08-14 00:00` 으로 읽히는데, 목록에 시각이 붙으면 자리만 먹는다.
+        raid: _dateOnly(r[ALLY_COL.RAID - 1]),
         boss: String(r[ALLY_COL.BOSS - 1] == null ? '' : r[ALLY_COL.BOSS - 1]).trim(),
         lootSv: _normServer(r[ALLY_COL.LOOTSV - 1]),
         lootCh: String(r[ALLY_COL.LOOTCH - 1] == null ? '' : r[ALLY_COL.LOOTCH - 1]).trim()
@@ -5364,7 +5386,11 @@ function api_getAlliance() {
       byGroup[r.group] = {
         group: r.group, date: r.date, item: r.item, by: r.by,
         amount: 0, fund: 0, people: 0, credited: 0,
-        photos: [], servers: [], rows: [], done: r.done
+        photos: [], servers: [], rows: [], done: r.done,
+        // 🐛 v11.6 — 이 네 칸을 여기서 옮기지 않으면 시트에는 값이 있는데
+        //    화면에는 영영 안 보인다. 화면은 언제나 **묶음 단위**로 그리기 때문이다.
+        //    한 건에 하나인 값이라 줄마다 같다 — 첫 줄 것을 그대로 쓴다.
+        raid: r.raid, boss: r.boss, lootSv: r.lootSv, lootCh: r.lootCh
       };
       order.push(r.group);
     }
@@ -5567,6 +5593,7 @@ function api_setItemMeta(row, meta, email) {
 
     ledger.getRange(row, LG.LOOTSV).setNumberFormat('@');
     ledger.getRange(row, LG.RAID, 1, 4).setValues([[m.raid, m.boss, m.lootSv, m.lootCh]]);
+    if (m.item) ledger.getRange(row, LG.ITEM).setValue(m.item);
 
     const name = String(ledger.getRange(row, LG.ITEM).getValue()).trim();
     _logAction(ss, '아이템정보수정', name, _getActorEmail(email),
@@ -5615,6 +5642,8 @@ function api_setAllianceMeta(group, meta, email) {
     rows.forEach(function (row) {
       sheet.getRange(row, ALLY_COL.LOOTSV).setNumberFormat('@');
       sheet.getRange(row, ALLY_COL.RAID, 1, 4).setValues([[m.raid, m.boss, m.lootSv, m.lootCh]]);
+      // 아이템명은 준 경우에만 바꾼다 — 빈 값으로 지우면 기록을 못 찾게 된다
+      if (m.item) sheet.getRange(row, ALLY_COL.ITEM).setValue(m.item);
     });
 
     _logAction(ss, '연합정보수정', group, _getActorEmail(email),

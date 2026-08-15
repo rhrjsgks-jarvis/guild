@@ -59,6 +59,7 @@ export function parseEntries(raw: unknown, emptyMsg: string): { entries: AllyEnt
  *   일이 생기는데, 그러면 목록 한 줄이 화면을 덮는다.
  */
 export function lootMeta(raw: unknown): {
+  item: string;
   raid: string;
   boss: string;
   lootSv: string;
@@ -67,6 +68,8 @@ export function lootMeta(raw: unknown): {
   const o = (raw ?? {}) as Record<string, unknown>;
   const s = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max);
   return {
+    // 아이템명도 함께 — 빈 문자열이면 시트가 안 바꾼다 (지우는 길은 두지 않는다)
+    item: s(o.item, 40),
     raid: s(o.raid, 10),
     boss: s(o.boss, 40),
     lootSv: s(o.lootSv, 2),

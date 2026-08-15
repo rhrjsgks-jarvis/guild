@@ -483,7 +483,7 @@ export default function ItemsTab({
         <LootEditSheet
           title={t('loot.editTitle')}
           source={metaOf.item}
-          initial={{ raid: metaOf.raid ?? '', boss: metaOf.boss ?? '', lootSv: metaOf.lootSv ?? '', lootCh: metaOf.lootCh ?? '' }}
+          initial={{ item: metaOf.item, raid: metaOf.raid ?? '', boss: metaOf.boss ?? '', lootSv: metaOf.lootSv ?? '', lootCh: metaOf.lootCh ?? '' }}
           servers={state.serverList ?? []}
           members={state.members}
           target={{ kind: 'item', row: metaOf.row }}

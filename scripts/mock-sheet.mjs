@@ -27,6 +27,7 @@ function lootMeta(m) {
   const o = m || {};
   const sv = String(o.lootSv ?? '').trim();
   return {
+    item: String(o.item ?? '').trim(),
     raid: String(o.raid ?? '').trim(),
     boss: String(o.boss ?? '').trim(),
     lootSv: SERVER_LIST.includes(sv) ? sv : '',
@@ -418,10 +419,13 @@ const handlers = {
     const pics = ((photoLinks && photoLinks.length ? photoLinks : [photoLink]) || [])
       .map((u) => String(u || '').trim())
       .filter(Boolean);
+    // ★ item 은 빼고 펼친다 — lootMeta 의 빈 item 이 방금 넣은 이름을 덮어쓴다.
+    //   (펼치기는 뒤에 오는 것이 이긴다 — 조용히)
+    const { item: _ignore, ...lm } = lootMeta(meta);
     S.items.push({
       row: S.nextRow++,
       item: itemName,
-      ...lootMeta(meta),
+      ...lm,
       date: new Date().toISOString().slice(5, 10).replace('-', '/'),
       cnt: list.length,
       names: list,
@@ -944,6 +948,9 @@ const handlers = {
           group: r.group, date: r.date, item: r.item, by: '',
           amount: 0, fund: 0, people: 0, credited: 0,
           photos: [], servers: [], rows: [], done: r.done,
+          // v11.6 — 묶음으로 옮기지 않으면 시트에는 있는데 화면에 안 보인다.
+          // 화면은 언제나 묶음 단위로 그린다 (.gs 와 같은 규칙)
+          raid: r.raid ?? '', boss: r.boss ?? '', lootSv: r.lootSv ?? '', lootCh: r.lootCh ?? '',
         });
       }
       const g = byGroup.get(r.group);
@@ -995,7 +1002,7 @@ const handlers = {
     list.forEach((e, i) => {
       S.alliance.push({
         row: S.nextAllianceRow++, group, date: '08/05 09:00', server: e.server, item: nm,
-        ...lootMeta(meta),
+        ...(() => { const { item: _drop, ...rest } = lootMeta(meta); return rest; })(),
         // ★ 사진은 줄마다 그 서버의 것 (v11.3). 묶음 공용(옛 앱)은 첫 줄에 함께
         amount: 0, pct: 0, people: e.people, credited: 0,
         photos: i === 0 ? [...e.photos, ...pics] : [...e.photos], fund: 0, done: false,
@@ -1018,14 +1025,16 @@ const handlers = {
     const hit = S.alliance.filter((r) => r.group === group);
     if (hit.length === 0) return rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
     const m = lootMeta(meta);
-    hit.forEach((r) => Object.assign(r, m));
+    // 이름은 준 경우에만 바꾼다 (.gs 와 같은 규칙)
+    hit.forEach((r) => Object.assign(r, m, m.item ? { item: m.item } : { item: r.item }));
     return rc({ ok: true, msg: '✅ 저장했습니다.' }, 'meta.saveOk');
   },
 
   setItemMeta: ({ row, meta }) => {
     const hit = S.items.find((i) => i.row === Number(row));
     if (!hit) return rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
-    Object.assign(hit, lootMeta(meta));
+    const mm = lootMeta(meta);
+    Object.assign(hit, mm, mm.item ? { item: mm.item } : { item: hit.item });
     return rc({ ok: true, msg: '✅ 저장했습니다.' }, 'meta.saveOk');
   },
 

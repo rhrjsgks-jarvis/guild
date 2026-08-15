@@ -370,7 +370,7 @@ export default function AllianceTab({
         <LootEditSheet
           title={t('loot.editTitle')}
           source={metaOf.item}
-          initial={{ raid: metaOf.raid ?? '', boss: metaOf.boss ?? '', lootSv: metaOf.lootSv ?? '', lootCh: metaOf.lootCh ?? '' }}
+          initial={{ item: metaOf.item, raid: metaOf.raid ?? '', boss: metaOf.boss ?? '', lootSv: metaOf.lootSv ?? '', lootCh: metaOf.lootCh ?? '' }}
           servers={data.serverList}
           members={members}
           target={{ kind: 'alliance', group: metaOf.group }}

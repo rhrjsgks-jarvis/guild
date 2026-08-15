@@ -415,6 +415,12 @@ const DICT: Record<string, Entry> = {
     '把寫在道具名稱裡的內容分到各欄，就能依首領或人員查詢。',
     'Split what you packed into the item name so you can search by boss or looter.',
   ],
+  'loot.origin': ['지금 아이템명 (원문)', '目前道具名稱（原文）', 'Current item name (as is)'],
+  'loot.itemHint': [
+    '사전에서 고르면 등급 테두리와 티어가 붙습니다. 비워두면 지금 이름 그대로 둡니다.',
+    '從字典選擇後會顯示等級外框與階級。留空則保持現有名稱。',
+    'Pick from the dictionary to get the grade frame and tier. Leave blank to keep the current name.',
+  ],
   'loot.none': ['아직 없음', '尚未填寫', 'Not set'],
   'ali.records': ['🧾 정산 완료', '🧾 已结算', '🧾 Settled'],
   'ali.register': ['연합 등록', '登记联盟', 'Register'],

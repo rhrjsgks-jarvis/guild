@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { api, getStoredEmail } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
+import ItemNameInput from './ItemNameInput';
 import LootFields, { type Loot } from './LootFields';
 import Sheet from './Sheet';
 
@@ -60,11 +61,26 @@ export default function LootEditSheet({
 
   return (
     <Sheet title={`🏷️ ${title}`} subtitle={t('loot.editSub')} onClose={onClose}>
-      {/* 원문을 그대로 띄운다 — 여기서 보고 아래 칸에 옮겨 적는 것이 이 창의 일이다 */}
-      <div className="fl">{t('c.itemName')}</div>
-      <div className="note" style={{ marginBottom: 4, whiteSpace: 'pre-wrap' }}>
+      {/* 원문을 그대로 띄운다 — 여기서 보고 아래 칸에 옮겨 적는 것이 이 창의 일이다.
+          ★ 지우지 않고 남겨둔다. 아이템명을 정리하고 나면 원문이 사라지므로,
+            무엇을 옮겼는지 확인할 마지막 근거가 이 줄이다. */}
+      <div className="fl">{t('loot.origin')}</div>
+      <div className="note" style={{ marginBottom: 10, whiteSpace: 'pre-wrap' }}>
         {source}
       </div>
+
+      {/* ★ 아이템명도 여기서 고친다 — 몰아 적은 것을 칸으로 옮기려면 이름 자체를
+          정리할 길이 있어야 한다. 사전에서 고르면 등급 테두리·티어가 붙는다.
+          비워두면 **안 바꾼다** (지우는 길은 두지 않는다 — 이름 없는 기록은 못 찾는다). */}
+      <label className="fl" htmlFor="lootedit-item">
+        {t('c.itemName')}
+      </label>
+      <ItemNameInput
+        id="lootedit-item"
+        value={loot.item ?? ''}
+        onChange={(v) => setLoot({ ...loot, item: v })}
+      />
+      <p className="hint">{t('loot.itemHint')}</p>
 
       <LootFields value={loot} onChange={setLoot} servers={servers} members={members} idPrefix="lootedit" />
 

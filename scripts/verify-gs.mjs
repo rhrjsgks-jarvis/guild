@@ -3187,11 +3187,18 @@ check('레이드·루팅 정보는 돈을 만지지 못한다 (v11.6)', () => {
   for (const fn of ['api_setAllianceMeta', 'api_setItemMeta']) {
     const body = extractFn(gs, fn);
     // 쓰기는 새 4칸(RAID~LOOTCH)과 서식 지정만 허용한다
+    // 쓸 수 있는 것: 새 4칸(RAID~LOOTCH)과 **아이템명**뿐이다.
+    // 아이템명을 허용하는 이유 — 몰아 적은 것을 칸으로 옮기려면 이름 자체를
+    // 정리할 길이 있어야 하고, 이름은 다이아를 움직이지 않는다.
     const writes = [...body.matchAll(/getRange\(([^)]*)\)\s*\.\s*setValues?\(/g)].map((m) => m[1]);
     for (const w of writes) {
-      if (!/\.(RAID|LOOTSV)\b/.test(w)) {
-        throw new Error(`${fn} 이 새 4칸 밖에 씁니다: getRange(${w})`);
+      if (!/\.(RAID|LOOTSV|ITEM)\b/.test(w)) {
+        throw new Error(`${fn} 이 허용되지 않은 칸에 씁니다: getRange(${w})`);
       }
+    }
+    // 이름은 **준 경우에만** 바꾼다 — 빈 값으로 지우면 기록을 영영 못 찾는다
+    if (!/if \(m\.item\)/.test(body)) {
+      throw new Error(`${fn} 이 빈 아이템명으로도 덮어씁니다 — 이름이 지워집니다.`);
     }
     for (const forbidden of ['AMOUNT', 'CREDITED', 'FUND', 'STATUS', 'PEOPLE', 'CHECK']) {
       if (new RegExp(`\\.${forbidden}\\b`).test(body)) {
@@ -3210,7 +3217,20 @@ check('레이드·루팅 정보는 돈을 만지지 못한다 (v11.6)', () => {
   if (!/SERVER_LIST\.indexOf\(sv\) >= 0 \? sv : ''/.test(extractFn(gs, '_lootMeta'))) {
     throw new Error('_lootMeta 가 루팅서버를 01~12 로 제한하지 않습니다.');
   }
-  return '금액·적립액·상태 접근 0 · 락 있음 · 관리자 경계 · 루팅서버 제한';
+  // 🐛 실제로 있었던 사고: 행(rows)에는 새 칸을 담았는데 **묶음(groups)** 으로
+  //    옮기지 않아, 시트에는 값이 있는데 화면에는 영영 안 보였다.
+  //    화면은 언제나 묶음 단위로 그리므로(v11.0) 여기서 빠지면 끝이다.
+  const get = extractFn(gs, 'api_getAlliance');
+  const init = (get.match(/byGroup\[r\.group\] = \{([\s\S]*?)\};/) ?? [])[1] ?? '';
+  for (const f of ['raid', 'boss', 'lootSv', 'lootCh']) {
+    if (!new RegExp(`${f}:\\s*r\\.${f}`).test(init)) {
+      throw new Error(`묶음이 ${f} 를 안 옮깁니다 — 시트에는 있는데 화면에 안 보입니다.`);
+    }
+  }
+  // 레이드일은 날짜만 — 시각이 붙으면 목록 한 줄이 자리를 먹는다
+  if (!/raid: _dateOnly\(/.test(get)) throw new Error('레이드일에 시각이 붙습니다 (_dateOnly 를 쓰세요).');
+
+  return '금액·적립액·상태 접근 0 · 락 있음 · 관리자 경계 · 루팅서버 제한 · 묶음 전달 4칸';
 });
 
 check('용어 수정은 모든 칸을 시트까지 전달한다 (v11.5)', () => {

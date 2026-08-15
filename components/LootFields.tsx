@@ -20,7 +20,7 @@ import ServerPicker from './ServerPicker';
  * ★ 티어 입력칸은 두지 않는다. 아이템명을 고르면 사전에서 따라온다 —
  *   손으로 적게 하면 사전과 어긋나는 순간 어느 쪽이 맞는지 알 수 없다.
  */
-export type Loot = { raid: string; boss: string; lootSv: string; lootCh: string };
+export type Loot = { item?: string; raid: string; boss: string; lootSv: string; lootCh: string };
 
 export const EMPTY_LOOT: Loot = { raid: '', boss: '', lootSv: '', lootCh: '' };
 
