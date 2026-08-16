@@ -1,2 +1,14 @@
-설명서 이미지 — docs/*.md 에서 자동 생성됩니다 (npm run manual).
-문서를 고치면 이 폴더를 지우고 다시 만드세요. 손으로 고치지 마세요.
+설명서 이미지 — 폰에서 그대로 보내면 됩니다.
+
+  member-01.png
+  member-02.png
+  member-03.png
+  admin-01.png
+  admin-02.png
+  admin-03.png
+  admin-04.png
+  admin-05.png
+
+원본은 docs/manual/member.html · docs/manual/admin.html 이고
+색은 docs/manual/style.css 한 곳에서 정합니다.
+고친 뒤에는 npm run manual 을 다시 돌리세요.

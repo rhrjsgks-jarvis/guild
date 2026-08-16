@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>리니지W 길드매니저 — 관리 설명서</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ════════ 1 / 5 ════════ -->
+<div class="page">
+<div class="pnum"><span class="n">1 / 5</span><span>권한 · 화면 구조</span><span class="ln"></span><span>v11.6.1</span></div>
+
+<div class="head">
+  <img src="icon.png" alt="">
+  <h1>리니지W 길드매니저</h1>
+  <div class="ver">관리 설명서 · v11.6.1</div>
+  <div class="url">
+    폰 홈 화면에 추가해서 앱처럼 쓰세요<br>
+    <b>lineagewguildmanager.vercel.app</b>
+  </div>
+</div>
+
+<h2>권한은 세 단계<small>기준은 하나 — 되돌릴 수 있는가</small></h2>
+
+<div class="card">
+  <div class="role">
+    <div class="ic">👥</div>
+    <div>
+      <h3>혈맹원</h3>
+      <div class="who">링크만 있으면 누구나 · PIN 없음</div>
+      <ul>
+        <li>잔액 · 아이템 · 연합 · 레이드 · 용어 보기</li>
+        <li>내 정보에서 내 잔액 확인</li>
+        <li>게시판 글쓰기 (공지는 못 씀)</li>
+        <li style="color:var(--faint)">자세한 사용법은 <b style="color:var(--teal)">혈맹원용 안내</b>에</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="role">
+    <div class="ic a">🔑</div>
+    <div>
+      <h3>관리자 <span style="color:var(--teal);font-size:11.5px">ADMIN PIN</span></h3>
+      <div class="who">위의 모든 것 + 아래</div>
+      <ul>
+        <li>아이템 등록 · 분배 · 지급</li>
+        <li>🏷️ <b style="color:var(--teal)">레이드일 · 보스 · 루팅 · 아이템명</b> 고치기 (v11.6)</li>
+        <li>연합 등록 · 금액 넣기 · <kbd>＋</kbd> 서버 추가 · 삭제</li>
+        <li>연합 <b style="color:var(--teal)">수정</b> — <b>아직 금액을 안 넣은 건만</b></li>
+        <li>혈맹원 추가 · 서버 · 클래스 · 비중 · 레이드 시간표</li>
+        <li>📚 용어 사전 채우기 · 공지 쓰기 · 글 삭제</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="role">
+    <div class="ic m">👑</div>
+    <div>
+      <h3>마스터관리자 <span style="color:var(--gold);font-size:11.5px">MASTER PIN</span></h3>
+      <div class="who">위의 모든 것 + 되돌리는 일 전부</div>
+      <ul>
+        <li>아이템 <b style="color:var(--gold)">수정</b> — 참여자 · 분배금액</li>
+        <li>연합 <b style="color:var(--gold)">수정</b> — <b>이미 정산된 건</b>의 인원 · 판매금액</li>
+        <li>정정 · 삭제 · 지급취소</li>
+        <li>시즌 종료 · 데이터 이관 · 초기화</li>
+        <li>앱 이름 · 관리자 PIN 변경</li>
+      </ul>
+    </div>
+  </div>
+</div>
+<div class="cap" style="margin-top:8px">
+  PIN 을 한 번 풀면 <b>이 기기에서 30일</b> 유지됩니다. 공용 PC라면 쓰고 나서 꼭 [잠그기].<br>
+  <b>공유 링크는 그대로 뿌려도 됩니다</b> — 링크만 받은 사람은 조회만 됩니다.
+</div>
+
+<h2>화면 구조<small>하단 탭바가 없어지고 홈 아이콘 하나로</small></h2>
+<div class="tabs">
+  <div><span class="em">💰</span><b>잔액</b><span>받을 다이아</span></div>
+  <div><span class="em">📦</span><b>아이템</b><span>등록·분배</span></div>
+  <div><span class="em">🤝</span><b>연합</b><span>서버별 정산</span></div>
+  <div><span class="em">🗡️</span><b>레이드</b><span>보스 시간표</span></div>
+  <div><span class="em">🙋</span><b>내 정보</b><span>내 잔액</span></div>
+  <div><span class="em">📋</span><b>게시판</b><span>공지·글</span></div>
+  <div><span class="em">🌏</span><b>언어</b><span>한·中·EN</span></div>
+  <div><span class="em">⚙️</span><b>관리</b><span>PIN·도구</span></div>
+</div>
+<div class="cap" style="margin-top:7px">
+  앱을 열면 <b>홈</b>입니다. 아이콘을 눌러 화면을 열고, <kbd>✕</kbd> 나 폰 뒤로가기로 돌아옵니다.<br>
+  아이콘 글자가 <b>8.8px → 13px</b> 로 커졌습니다 — 탭이 일곱 개일 때는 영문
+  ("Balance"·"Alliance")이 잘리지 않게 그만큼 줄여야 했습니다.<br>
+  <b>관리는 언제나 맨 마지막</b>입니다 — 엄지가 닿기 쉬운 자리에 두면 잘못 눌립니다.
+</div>
+<div class="cap" style="margin-top:8px">
+  아이콘의 <b>배지 숫자</b> = 지금 기다리는 건수 (미분배 · 연합 대기 · 지급할 사람 · 오늘 보스).
+  홈 위쪽 <b>지금 처리할 일</b> 줄을 누르면 그 화면으로 바로 갑니다 —
+  <b>여기만 봐도 할 일을 놓치지 않습니다.</b>
+</div>
+
+<div class="warn" style="margin-top:10px">
+  <h4>⬅️ 폰 뒤로가기 · 아래 [🏠 홈으로]</h4>
+  <ul>
+    <li>팝업이 열려 있으면 <b>그 팝업만</b> 닫힙니다 — 참여자를 스무 명 체크한 것이 날아가지 않습니다</li>
+    <li>화면(잔액·아이템·연합·레이드…)에서는 <b>홈으로</b> 돌아옵니다</li>
+    <li>홈에서 한 번 더 누르면 앱을 나갑니다</li>
+    <li><b>모든 화면 아래에 [🏠 홈으로]</b> 가 있습니다 — 목록을 한참 내린 뒤에도 손이 닿는 자리입니다</li>
+  </ul>
+</div>
+
+<div class="pend">▸ 다음 장에 계속</div>
+</div>
+
+<!-- ════════ 2 / 5 ════════ -->
+<div class="page">
+<div class="pnum"><span class="n">2 / 5</span><span>아이템 · 분배 산식</span><span class="ln"></span><span>v11.6.1</span></div>
+
+<h2>📦 아이템 — 등록부터 지급까지<small>레이드 직후엔 금액을 모르는 게 정상입니다</small></h2>
+<div class="card">
+  <div class="flow">
+    <div class="step">
+      <div class="rail"><div class="dot">1</div><div class="bar"></div></div>
+      <div class="body">
+        <h4>등록 <span class="tag a">관리자</span></h4>
+        <p>아이템명 + 참여자를 체크합니다. 인증샷을 넣으면 사진 속 이름을 읽어
+        자동으로 체크해줍니다 — <b>여러 장</b> 넣을 수 있고, 장마다 찾은 사람이 <b>더해집니다</b>
+        (직접 체크한 것은 안 지웁니다). 상태는 <kbd>⏳미분배</kbd>.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="rail"><div class="dot">2</div><div class="bar"></div></div>
+      <div class="body">
+        <h4>분배 <span class="tag a">관리자</span></h4>
+        <p>팔린 뒤 판매금액을 넣습니다. 누가 얼마 받는지 <b>그 자리에서 미리 보여줍니다</b> —
+        이 숫자가 실제 결과와 같습니다. 상태는 <kbd>✅분배완료</kbd>.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="rail"><div class="dot">3</div></div>
+      <div class="body">
+        <h4>지급 <span class="tag a">관리자</span></h4>
+        <p>실제로 다이아를 보낸 뒤 [💰 잔액] 화면에서 지급 처리합니다 (금액을 비우면 전액).
+        잘못 눌렀으면 <kbd>↩️ 최근 지급 취소</kbd>.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2>등록 칸<small>급하면 아이템명과 참여자만 넣어도 됩니다</small></h2>
+<table class="grid">
+  <tr><th style="width:34%">칸</th><th>이렇게</th></tr>
+  <tr><td>아이템명</td><td>자동완성 — <b>中文 · English 로 쳐도</b> 찾아집니다.
+    고르면 저장되는 이름은 <b>언제나 한국어</b>입니다</td></tr>
+  <tr><td>레이드 날짜</td><td>잡은 날. 등록일과 같으면 비워도 됩니다</td></tr>
+  <tr><td>보스</td><td>자동완성 — <b>보스만</b> 제안됩니다 (아이템에 안 묻힙니다)</td></tr>
+  <tr><td>루팅 서버 / 캐릭터</td><td>떨어진 서버와 먹은 사람</td></tr>
+  <tr><td>참여자</td><td>칩을 눌러 체크. 서버·클래스로 좁혀도
+    <b>이미 체크한 사람은 절대 안 숨습니다</b></td></tr>
+  <tr><td>인증샷</td><td>여러 장 가능. <b>없어도 등록됩니다</b></td></tr>
+</table>
+<div class="warn info" style="margin-top:9px">
+  <h4>티어 칸은 없습니다</h4>
+  <p>사전에서 고르면 등급 테두리·티어·아이콘이 알아서 붙습니다.
+  <b>사전에 없는 이름도 그냥 칠 수 있습니다</b> — 새 아이템 때문에 등록이 멈추면 안 되니까요.</p>
+</div>
+<div class="warn" style="margin-top:9px">
+  <h4>미루지 말고 먼저 등록하세요</h4>
+  <p>급하면 <b>아이템명과 참여자만</b> 넣고 [등록]하세요. 나머지는 나중에 🏷️ 로 채우면 됩니다.
+  미루다 인증샷을 잃는 게 훨씬 큰 손해입니다.</p>
+</div>
+
+<h2>분배 산식<small>다이아는 사라지지도 생겨나지도 않습니다</small></h2>
+<div class="calc">
+운영비   = 총액 × <b>10%</b>  <i>(버림)</i><br>
+분배가능 = 총액 − 운영비<br>
+기본1인당 = 분배가능 ÷ 인원  <i>(버림)</i><br>
+각자     = 기본1인당 × <b>비중%</b>  <i>(버림)</i><br>
+잔여     = 남은 몫 → <b>전액 운영비</b>
+</div>
+<div class="ex">
+  <div class="t">10,000 다이아를 10명이 · 그중 한 명은 비중 50%</div>
+  <table>
+    <tr><td>🏦 혈맹운영비 (10%)</td><td>1,000</td></tr>
+    <tr><td>기본 1인당 (9명)</td><td>900</td></tr>
+    <tr><td>비중 50% 인 사람</td><td>450</td></tr>
+    <tr><td>남은 450 → 운영비로</td><td>+450</td></tr>
+    <tr class="sum"><td>혈맹운영비 최종</td><td>1,450</td></tr>
+  </table>
+</div>
+<div class="warn" style="margin-top:9px">
+  <h4>비중은 [관리] → 혈맹원에서</h4>
+  <p>기본값은 100%입니다. 남는 몫은 <b>참여자 누구에게도 얹지 않고</b> 전액
+  혈맹운영비로 갑니다 — 한 사람만 금액이 달라지면 버그로 오해받기 때문입니다.</p>
+</div>
+
+<div class="pend">▸ 다음 장에 계속</div>
+</div>
+
+<!-- ════════ 3 / 5 ════════ -->
+<div class="page">
+<div class="pnum"><span class="n">3 / 5</span><span>연합 · 인증샷</span><span class="ln"></span><span>v11.6.1</span></div>
+
+<h2>🤝 연합 — 아이템 하나 = 여러 서버<small>화면은 언제나 묶음(=아이템) 단위</small></h2>
+<div class="card">
+  <div class="flow">
+    <div class="step">
+      <div class="rail"><div class="dot">1</div><div class="bar"></div></div>
+      <div class="body">
+        <h4>등록 <span class="tag a">관리자</span></h4>
+        <p>아이템명 + <b>참여 서버별 인원</b>을 한 번에 넣습니다.<br>
+        예) 01서버 10명 · 02서버 5명 · 05서버 3명<br>
+        인증샷은 <b>서버 줄마다</b> 붙입니다 — 줄 안의
+        <kbd>📷 01서버 사진 추가</kbd>. 여러 장 가능하고 없어도 됩니다.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="rail"><div class="dot">＋</div><div class="bar"></div></div>
+      <div class="body">
+        <h4>서버 추가 <span class="tag a">관리자</span></h4>
+        <p>"우리 서버도 갔었다"는 이야기가 늦게 와도 <kbd>＋</kbd> 로 서버·인원·사진을
+        <b>더할 수 있습니다.</b> 사진은 더한 그 서버 줄에 붙습니다.<br>
+        이미 넣은 줄을 고치려면 <kbd>수정</kbd> 을 쓰세요 (금액 넣기 전이면 관리자도 가능).</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="rail"><div class="dot">2</div></div>
+      <div class="body">
+        <h4>금액 넣기 <span class="tag a">관리자</span></h4>
+        <p>팔린 뒤 판매금액을 넣으면 혈비를 뗀 나머지가 <b>인원수 비례</b>로
+        각 서버에 나뉩니다.</p>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="ex" style="margin-top:9px">
+  <div class="t">100,000 다이아 · 01서버 10명 + 02서버 5명</div>
+  <table>
+    <tr><td>🏦 혈맹운영비 (10% + 잔여)</td><td>10,000</td></tr>
+    <tr><td>01 서버 · 10명</td><td>60,000</td></tr>
+    <tr><td>02 서버 · 5명</td><td>30,000</td></tr>
+    <tr class="sum"><td>합계 = 판매금액</td><td>100,000</td></tr>
+  </table>
+</div>
+<div class="warn" style="margin-top:9px">
+  <h4>연합은 개인 잔액을 건드리지 않습니다</h4>
+  <ul>
+    <li>연합 인원은 우리 멤버DB에 없어서 <b>몇 명인지만</b> 셉니다</li>
+    <li>움직이는 것은 <b>혈맹운영비 한 계정</b>뿐입니다 (혈비 10% + 잔여)</li>
+    <li>참여횟수도 오르지 않습니다 — 우리 레이드 출석이 아니니까요</li>
+    <li>금액을 넣기 전에는 서버별 누적에 안 잡히고 <kbd>⏳ 대기 N명</kbd> 으로만 보입니다</li>
+  </ul>
+</div>
+
+<h2>📷 인증샷<small>연합은 서버별 · 앱 안에서 바로 보기</small></h2>
+<div class="card">
+  <div class="lead">
+    아이템명이나 연합 아이템을 <b>누르면</b> 참여자 명단과 인증샷이 열립니다.
+    사진을 누르면 앱 안에서 크게 보입니다 — 새 탭으로 나가지 않습니다.<br><br>
+    연합은 <b>서버마다 그 서버의 사진</b>이 나옵니다.
+    v11.2 이전에 등록한 건은 사진이 첫 서버 줄에 몰려 있는데, 그대로 보입니다.
+  </div>
+</div>
+<div class="warn danger" style="margin-top:9px">
+  <h4>인원수는 사람이 넣은 값이 우선입니다</h4>
+  <ul>
+    <li>사진이 읽은 인원수는 <b>제안</b>일 뿐입니다</li>
+    <li>숫자를 <b>한 번이라도 직접 고치면</b> 사진이 그 값을 덮어쓰지 않습니다</li>
+    <li>사진을 붙인 <b>그 줄에만</b> 채워집니다 — 다른 서버 줄은 건드리지 않습니다</li>
+    <li>읽은 값은 <kbd>📷1 13명</kbd> 처럼 그 줄에 함께 보여줍니다</li>
+    <li>사진 속 인원과 다르면 <b>직접 고쳐 넣으세요</b></li>
+  </ul>
+</div>
+
+<h2>👥 혈맹원 관리</h2>
+<table class="grid">
+  <tr><th style="width:36%">기능</th><th>이렇습니다</th></tr>
+  <tr><td>추가</td><td>한 명도, 명단 사진으로 여러 명도</td></tr>
+  <tr><td>아이디 변경</td><td>이미 있는 이름으로는 못 바꿉니다</td></tr>
+  <tr><td>이전 아이디에서 가져오기</td><td>개명 전 기록을 이어붙입니다</td></tr>
+  <tr><td>탈퇴</td><td><b>지우는 게 아니라 명단에서 빼기</b></td></tr>
+  <tr><td>서버 일괄 지정</td><td>40명을 한 화면에서</td></tr>
+</table>
+<div class="cap" style="margin-top:8px">
+  한 사람에 지정하는 값 — <b>분배비중</b>(1~100%, 기본 100) · <b>서버</b>(01~12) ·
+  <b>한자표기</b>(눈으로 확인한 것만) · <b>클래스</b>(공식 13종).<br>
+  서버·클래스가 비어 있으면 나중에 <b>좁혀 보기가 안 됩니다.</b>
+  화면 위 주황색 알림이 몇 명 비었는지 알려줍니다.
+</div>
+
+<div class="pend">▸ 다음 장에 계속</div>
+</div>
+
+<!-- ════════ 4 / 5 ════════ -->
+<div class="page">
+<div class="pnum"><span class="n">4 / 5</span><span>용어 사전 · 고치기 · 게시판</span><span class="ln"></span><span>v11.6.1</span></div>
+
+<h2>📚 용어 사전<small>이게 앱의 절반입니다 (v11.4)</small></h2>
+<div class="card">
+  <div class="lead">
+    아이템 · 보스 이름을 <b>한국어 / 中文 / English</b> 로 모아두는 표입니다.
+    채우는 만큼 앱이 똑똑해집니다.
+  </div>
+</div>
+<table class="grid" style="margin-top:9px">
+  <tr><th style="width:34%">채우면</th><th>이렇게 됩니다</th></tr>
+  <tr><td>등록할 때</td><td><b>어느 언어로 쳐도</b> 자동완성됩니다</td></tr>
+  <tr><td>목록에</td><td>등급 테두리(🟣전설 · 🟡신화) · 티어 배지 · 공식 아이콘이 붙습니다</td></tr>
+  <tr><td>언어를 바꾸면</td><td>아이템 · 보스 이름이 함께 번역됩니다</td></tr>
+</table>
+<div class="warn info" style="margin-top:9px">
+  <h4>헷갈리는 것</h4>
+  <ul>
+    <li>저장되는 이름은 <b>언제나 한국어</b>입니다 — 「不變項鍊」을 골라도 기록엔 '불변의 목걸이'</li>
+    <li>中文·English 빈칸은 <b>"아직 확인 못 했다"</b>는 뜻 — 한국어 그대로 보여줍니다</li>
+    <li>사전에 없는 이름도 그대로 입력됩니다 (막으면 새 아이템 등록이 멈춥니다)</li>
+    <li>티어 <b>빈칸과 <kbd>0티어</kbd> 는 다릅니다</b> —
+    빈칸 = 티어 개념 없음(마법서·정수) / 0티어 = 장비인데 표기 없음</li>
+    <li><kbd>📋 붙여넣기로 여러 개</kbd> — 표를 복사해 한 번에. 탭·쉼표·슬래시를 다 받습니다.
+    <b>이미 있는 한국어는 건드리지 않습니다</b></li>
+  </ul>
+</div>
+
+<h2>✏️ 잘못 넣었을 때<small>지우고 다시 만들 필요 없습니다</small></h2>
+<table class="grid">
+  <tr><th style="width:33%">무엇을</th><th style="width:21%">누가</th><th>어디서</th></tr>
+  <tr>
+    <td>레이드일 · 보스<br>루팅 · 아이템명</td>
+    <td><span style="color:var(--teal)">관리자</span></td>
+    <td>[아이템] 줄의 <kbd>🏷️</kbd><br><b>분배가 끝난 건에도</b> 됩니다</td>
+  </tr>
+  <tr>
+    <td>미분배 아이템<br>이름 · 참여자</td>
+    <td><span style="color:var(--gold)">마스터</span></td>
+    <td>[아이템] 미분배 줄의 <kbd>수정</kbd></td>
+  </tr>
+  <tr>
+    <td>분배완료 아이템<br>참여자 · 금액</td>
+    <td><span style="color:var(--gold)">마스터</span></td>
+    <td>[아이템] 아래 목록 →<br><kbd>👥 참여 인원·금액 고치기</kbd></td>
+  </tr>
+  <tr>
+    <td>연합 <b>미정산</b> 건<br>이름·서버·인원·사진</td>
+    <td><span style="color:var(--teal)">관리자</span></td>
+    <td>[연합] ⏳ 줄의 <kbd>수정</kbd></td>
+  </tr>
+  <tr>
+    <td>연합 <b>정산된</b> 건<br>인원 · 판매금액</td>
+    <td><span style="color:var(--gold)">마스터</span></td>
+    <td>[연합] 아래 기록의 <kbd>수정</kbd></td>
+  </tr>
+  <tr>
+    <td>연합 서버 추가</td>
+    <td><span style="color:var(--teal)">관리자</span></td>
+    <td>[연합] 줄의 <kbd>＋</kbd></td>
+  </tr>
+  <tr>
+    <td>지급 취소</td>
+    <td><span style="color:var(--gold)">마스터</span></td>
+    <td>[관리] → 관리 도구</td>
+  </tr>
+</table>
+<div class="warn good" style="margin-top:9px">
+  <h4>🏷️ 는 왜 관리자에게 열려 있나요</h4>
+  <p>레이드일 · 보스 · 루팅서버 · 루팅캐릭터 · 아이템명은 <b>다이아를 한 톨도 안 만집니다.</b>
+  그냥 이름표라 잘못 적으면 다시 적으면 됩니다 — 그래서 분배가 끝난 건에도 쓸 수 있습니다.<br>
+  맨 위 주황색 칸이 <b>지금 저장된 원문</b>입니다.
+  <kbd>8/14 수룡 / 불변의 목걸이 / 차무식루팅</kbd> 처럼 한 칸에 몰아 적던 것을 옮겨 담으면
+  보스별 · 사람별로 찾을 수 있는 자료가 됩니다.</p>
+</div>
+<div class="warn info" style="margin-top:9px">
+  <h4>왜 정산 전만 관리자에게 열려 있나요</h4>
+  <p>아직 금액을 안 넣은 건은 <b>다이아가 하나도 안 움직인 상태</b>라 틀려도 고치면 그만입니다.
+  반대로 정산된 건은 고칠 때마다 <b>혈맹운영비 잔액이 실제로 움직입니다</b> — 그래서 마스터 전용입니다.
+  이 판정은 <b>구글시트가</b> 합니다. 앱을 고쳐도 뚫리지 않습니다.</p>
+</div>
+<div class="warn" style="margin-top:9px">
+  <h4>돈이 움직이는 수정은 두 번 물어봅니다</h4>
+  <p>이미 나눠준 다이아를 <b>분배 시점 금액 그대로 회수</b>한 뒤 새 명단·새 금액으로
+  다시 나눕니다. 저장하기 전에 <b>바뀔 숫자</b>(혈비 얼마 → 얼마)를 보여주니 확인하고 누르세요.<br>
+  이미 <kbd>지급✓</kbd> 된 사람이 있으면 회수할 잔액이 없어 <b>아예 막힙니다.</b></p>
+</div>
+
+<h2>📋 공지 올리기 · 글 삭제</h2>
+<div class="card">
+  <div class="lead">
+    게시판은 <b>앱에서 유일하게 PIN 없이 열려 있는 쓰기 경로</b>입니다.
+    관리자는 두 가지가 더 됩니다.
+  </div>
+</div>
+<table class="grid" style="margin-top:9px">
+  <tr><th style="width:34%">기능</th><th>이렇습니다</th></tr>
+  <tr><td>📌 공지로 올리기</td><td>글쓰기 창에 <b>관리자에게만</b> 보이는 체크칸.
+    목록 맨 위에 고정되고 앱 윗줄에 띠로 뜹니다</td></tr>
+  <tr><td>삭제</td><td>글을 펼치면 [삭제] 가 보입니다. 혈맹원에게는 안 보입니다</td></tr>
+</table>
+<div class="cap" style="margin-top:8px">
+  공지 권한은 <b>PIN 을 푼 이 기기인지</b>로만 정해집니다 — 체크칸을 흉내 내서 보내도
+  공지가 되지 않습니다. 혈맹원 글은 <b>한 기기에서 10분에 5건</b>으로 제한됩니다.
+</div>
+
+<div class="pend">▸ 다음 장에 계속</div>
+</div>
+
+<!-- ════════ 5 / 5 ════════ -->
+<div class="page">
+<div class="pnum"><span class="n">5 / 5</span><span>주의 · 도구 · 버전</span><span class="ln"></span><span>v11.6.1</span></div>
+
+<h2>⚠️ 꼭 알아두실 것</h2>
+<div class="warn">
+  <h4>팝업은 바깥을 눌러도 안 닫힙니다</h4>
+  <p>실수로 닫혀 입력하던 내용이 날아가는 일을 막기 위해서입니다.
+  닫으려면 <kbd>✕</kbd>(오른쪽 위) 또는 아래쪽 <kbd>취소</kbd>·<kbd>저장</kbd>·<kbd>닫기</kbd>,
+  그리고 폰 뒤로가기.</p>
+</div>
+<div class="warn">
+  <h4>참여횟수와 다이아는 다른 숫자입니다</h4>
+  <p><b>참여횟수</b>는 등록할 때 확정되는 레이드 출석 기록입니다.
+  분배 금액과는 아무 상관이 없고, 참여자를 고치면 등록 이력 전체를 다시 세어 맞춥니다.</p>
+</div>
+<div class="warn">
+  <h4>기록은 지워지지 않습니다</h4>
+  <p>혈맹원을 탈퇴시켜도 잔액·참여 이력이 있으면 <kbd>이름 (미등록)</kbd> 으로 남습니다.
+  분배대기중·지급기록·작업기록은 어떤 경우에도 건드리지 않습니다.</p>
+</div>
+<div class="warn danger">
+  <h4>제목 옆 ⚠️ 가 보이면</h4>
+  <p>앱과 구글시트의 버전이 다르다는 뜻입니다.
+  시트에 새 코드를 붙여넣고 <b>[배포]→[배포 관리]→편집(✏️)→새 버전</b>으로 배포해야 사라집니다.
+  <b style="color:var(--danger)">[새 배포]로 하면 주소가 바뀌어 앱이 시트를 못 찾습니다.</b><br>
+  붙여넣기만 하고 <b>새 버전으로 재배포하지 않는 것</b>이 가장 흔한 실수입니다.</p>
+</div>
+<div class="warn danger">
+  <h4>시트를 손대기 전에 사본을 떠두세요</h4>
+  <p>되돌릴 수 없는 도구는 <b>진짜로 되돌릴 수 없습니다.</b></p>
+</div>
+
+<h2>🛠️ 관리 도구 — 위험도<small>막는 대신 확인 강도를 올립니다</small></h2>
+<table class="grid">
+  <tr><th style="width:14%">등급</th><th style="width:42%">예</th><th>확인 절차</th></tr>
+  <tr>
+    <td><span class="ok">1</span></td>
+    <td>참여횟수 재계산 · 시트 정돈<br>디스코드 알림 · 시즌 서버</td>
+    <td>앱에서 한 번 확인</td>
+  </tr>
+  <tr>
+    <td style="color:var(--pending)">2</td>
+    <td>정정 · 삭제 · 지급취소<br>아이디 변경 · 탈퇴</td>
+    <td>바뀔 숫자를 보여준 뒤<br>한 번 더 확인</td>
+  </tr>
+  <tr>
+    <td style="color:var(--danger)">3</td>
+    <td>시즌 종료 · 데이터 이관<br>최초 설치 · 공장 초기화</td>
+    <td><b>정해진 문구를 정확히</b><br>입력해야 실행 · 마스터 전용</td>
+  </tr>
+</table>
+<div class="cap" style="margin-top:8px">
+  위험도 3의 확인 문구는 <b>어느 언어에서도 한국어 그대로</b>입니다 —
+  번역되면 서버 비교가 영원히 실패합니다.
+</div>
+
+<h2>🗡️ 레이드 시간표</h2>
+<div class="card">
+  <div class="lead">
+    요일 · 시간 · 보스입니다. 한 보스가 여러 요일에 나오면 <b>요일마다 한 줄</b>입니다 —
+    한 칸에 「월,수,금」처럼 몰아 넣으면 "오늘 것만 보여주기"가 불가능해집니다.<br><br>
+    처음이라면 <kbd>🗡️ 보스 시간표 기본값 채우기</kbd> 를 한 번 실행하세요.
+    편집은 <b>관리자 이상</b>입니다 — 잘못 지워도 한 줄 다시 넣으면 끝이라
+    되돌릴 수 없는 작업이 아닙니다.
+  </div>
+</div>
+
+<h2>🔢 버전 두 개를 맞춰 두세요</h2>
+<table class="grid">
+  <tr><th style="width:33%">무엇</th><th style="width:30%">어떻게 올리나</th><th>걸리는 시간</th></tr>
+  <tr><td>앱 (화면)</td><td>자동 배포</td><td>1~2분</td></tr>
+  <tr><td>구글시트 (.gs)</td><td><b>직접 붙여넣고</b><br>새 버전 배포</td><td>즉시</td></tr>
+</table>
+<div class="card" style="margin-top:9px">
+  <div class="lead">
+    화면만 바뀌는 수정은 시트를 건드리지 않습니다. 정산 규칙·시트 구조가 바뀌면
+    <b>반드시 두 곳 다</b> 해야 하고, 안 하면 제목 옆에 ⚠️ 가 뜹니다.<br><br>
+    버전이 <kbd>11.6.1</kbd> 처럼 <b>세 자리</b>면 세 번째 자리는 앱에만 있는 것입니다 —
+    화면만 바뀐 것이라 <b>.gs 를 다시 붙여넣을 필요가 없습니다.</b>
+  </div>
+</div>
+
+<h2>🧯 증상별 원인</h2>
+<table class="grid">
+  <tr><th style="width:46%">증상</th><th>원인</th></tr>
+  <tr><td>.gs 를 고쳤는데 그대로</td><td>[배포 관리] → 새 버전을 안 함</td></tr>
+  <tr><td>앱이 로그인 화면을 받음</td><td>Apps Script 배포 액세스가 "모든 사용자"가 아님</td></tr>
+  <tr><td>환경변수를 바꿨는데 그대로</td><td>Vercel 은 <b>Redeploy</b> 해야 반영됨</td></tr>
+  <tr><td>등급 테두리가 검정</td><td>아이템명이 사전과 다름 (🏷️ 로 공식명 선택)</td></tr>
+  <tr><td>언어를 바꿔도 이름이 한국어</td><td>위와 같은 원인 — 사전에 있는 것만 번역됨</td></tr>
+  <tr><td>아이콘이 안 나옴</td><td>사전 <b>이미지</b> 칸이 빈 것 (보스는 원래 없음)</td></tr>
+  <tr><td>같은 사람이 두 줄</td><td>아이디 변경 후 안 이어붙임</td></tr>
+  <tr><td>운영비 계정이 두 개</td><td>도구 <b>[🏦 혈비 계정을 혈맹운영비로 통일]</b> 실행</td></tr>
+  <tr><td>사람이 안 보임</td><td>서버 칩 · 클래스 드롭다운이 켜져 있는지 확인</td></tr>
+</table>
+
+<div class="foot">
+  <b>리니지W 길드매니저 v11.6.1</b><br>
+  구글시트 = 진짜 데이터 · 앱 = 화면<br>
+  브라우저는 구글시트를 직접 부르지 않습니다 (PIN·토큰 보호)
+</div>
+</div>
+
+</body>
+</html>

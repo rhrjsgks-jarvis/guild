@@ -1,0 +1,708 @@
+/*
+ * 설명서 공통 스타일 — **밝은 바탕**
+ *
+ * ★ 색은 앱의 밝은 테마(app/globals.css 의 :root)에서 가져왔다. 설명서와 앱이
+ *   다른 색을 쓰면 "이 화면이 그 화면인가"를 매번 다시 확인하게 된다.
+ * ★ 한 장은 460px 이다. 폰에서 보는 그림이라 ×3 해상도로 찍어 1380px 이 된다 —
+ *   확대하지 않고 읽히는 것이 목적이다.
+ * ★ 혈맹원용·관리자용이 이 파일 하나를 같이 쓴다. 두 벌로 두면 한쪽만 고쳐진다.
+ */
+:root {
+  --bg: #f1ede4;
+  --card: #fdfbf6;
+  --card2: #f4f0e6;
+  --line: #ddd6c7;
+
+  --text: #1a1815;
+  --dim: #55504a;
+  --faint: #8a8377;
+  --pale: #a9a294;
+
+  --teal: #1f6d8a;
+  --teal-soft: #e2edf2;
+  --teal-line: rgba(31, 109, 138, 0.32);
+
+  --gold: #a5761a;
+  --gold-soft: #f8f0dd;
+  --gold-line: rgba(165, 118, 26, 0.34);
+
+  --pending: #c25a08;
+  --pending-soft: #fdefe1;
+  --pending-line: rgba(194, 90, 8, 0.3);
+
+  --paid: #1c7f4a;
+  --paid-soft: #e4f3ea;
+  --paid-line: rgba(28, 127, 74, 0.3);
+
+  --danger: #bf2a3a;
+  --danger-soft: #fbe6e8;
+  --danger-line: rgba(191, 42, 58, 0.3);
+
+  --purple: #7b3fc4;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #ffffff;
+  color: var(--text);
+  font-family: 'Noto Sans CJK KR', 'Noto Sans KR', 'Malgun Gothic', system-ui, sans-serif;
+  font-size: 14.5px;
+  line-height: 1.62;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── 한 장 ── */
+.page {
+  width: 460px;
+  background: var(--bg);
+  padding: 22px 22px 26px;
+}
+.pnum {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 16px;
+  color: var(--faint);
+  font-size: 11.5px;
+  letter-spacing: 0.3px;
+}
+.pnum .n {
+  background: var(--card);
+  border: 1px solid var(--gold-line);
+  border-radius: 7px;
+  padding: 2px 9px;
+  color: var(--gold);
+  font-weight: 800;
+  font-size: 11.5px;
+}
+.pnum .ln {
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+.pend {
+  margin-top: 22px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+  color: var(--pale);
+  font-size: 11px;
+}
+
+/* ── 표지 ── */
+.head {
+  padding: 22px;
+  border-radius: 20px;
+  text-align: center;
+  background: radial-gradient(130% 150% at 50% 0%, rgba(31, 109, 138, 0.16), transparent 62%),
+    linear-gradient(150deg, #ffffff, #f7f3ea 55%, #eee7d6);
+  border: 1px solid var(--gold-line);
+  margin-bottom: 18px;
+  box-shadow: 0 1px 2px rgba(40, 32, 16, 0.05), 0 6px 18px rgba(40, 32, 16, 0.06);
+}
+.head img {
+  width: 78px;
+  height: 78px;
+  border-radius: 19px;
+  box-shadow: 0 0 0 1px var(--gold-line);
+}
+.head h1 {
+  font-size: 25px;
+  letter-spacing: -0.9px;
+  margin-top: 12px;
+}
+.head .ver {
+  color: var(--gold);
+  font-size: 14px;
+  font-weight: 700;
+  margin-top: 5px;
+}
+.head .url {
+  color: var(--dim);
+  font-size: 12.5px;
+  margin-top: 10px;
+  line-height: 1.6;
+}
+.head .url b {
+  color: var(--teal);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+h2 {
+  font-size: 17px;
+  margin: 26px 0 11px;
+  padding-left: 11px;
+  letter-spacing: -0.4px;
+  border-left: 4px solid var(--gold);
+}
+h2 small {
+  display: block;
+  font-size: 12px;
+  color: var(--faint);
+  font-weight: 400;
+  letter-spacing: 0;
+  margin-top: 2px;
+}
+h2.t {
+  border-left-color: var(--teal);
+}
+.page > h2:first-of-type {
+  margin-top: 0;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  padding: 15px 16px;
+  box-shadow: 0 1px 2px rgba(40, 32, 16, 0.04);
+}
+.card + .card {
+  margin-top: 9px;
+}
+.lead {
+  color: var(--dim);
+  font-size: 13px;
+  line-height: 1.68;
+}
+.lead b {
+  color: var(--text);
+}
+
+/* ── 권한 ── */
+.role {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+}
+.role .ic {
+  flex: 0 0 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+  background: var(--card2);
+  border: 1px solid var(--line);
+}
+.role .ic.a {
+  background: var(--teal-soft);
+  border-color: var(--teal-line);
+}
+.role .ic.m {
+  background: var(--gold-soft);
+  border-color: var(--gold-line);
+}
+.role h3 {
+  font-size: 14.5px;
+  margin-bottom: 2px;
+}
+.role .who {
+  font-size: 11.5px;
+  color: var(--faint);
+  margin-bottom: 6px;
+}
+.role ul {
+  list-style: none;
+  font-size: 12.8px;
+  color: var(--dim);
+  line-height: 1.75;
+}
+.role li::before {
+  content: '· ';
+  color: var(--faint);
+}
+
+/* ── 아이콘 격자 ── */
+.cap {
+  font-size: 11.5px;
+  color: var(--faint);
+  line-height: 1.62;
+}
+.cap b {
+  color: var(--dim);
+}
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 7px;
+}
+.tabs.c3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+.tabs > div {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 11px 5px;
+  text-align: center;
+  box-shadow: 0 1px 2px rgba(40, 32, 16, 0.04);
+}
+.tabs .em {
+  font-size: 19px;
+  display: block;
+  margin-bottom: 3px;
+}
+.tabs b {
+  font-size: 12.5px;
+  display: block;
+}
+.tabs span {
+  font-size: 10.5px;
+  color: var(--faint);
+  display: block;
+  margin-top: 1px;
+  line-height: 1.35;
+}
+
+/* ── 순서 ── */
+.flow {
+  display: flex;
+  flex-direction: column;
+}
+.step {
+  display: flex;
+  gap: 11px;
+}
+.step .rail {
+  flex: 0 0 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.step .dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--teal-soft);
+  border: 1.5px solid var(--teal);
+  color: var(--teal);
+  font-size: 12.5px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 26px;
+}
+.step .bar {
+  width: 2px;
+  flex: 1;
+  background: var(--line);
+  margin: 3px 0;
+}
+.step .body {
+  padding-bottom: 14px;
+  flex: 1;
+}
+.step h4 {
+  font-size: 14px;
+  margin-bottom: 3px;
+}
+.step p {
+  font-size: 12.6px;
+  color: var(--dim);
+  line-height: 1.62;
+}
+.step p b {
+  color: var(--text);
+}
+.step .tag {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1.5px 7px;
+  border-radius: 6px;
+  background: var(--card2);
+  color: var(--faint);
+  border: 1px solid var(--line);
+  margin-left: 5px;
+  vertical-align: 1.5px;
+}
+.step .tag.a {
+  color: var(--teal);
+  border-color: var(--teal-line);
+  background: var(--teal-soft);
+}
+.step .tag.m {
+  color: var(--gold);
+  border-color: var(--gold-line);
+  background: var(--gold-soft);
+}
+.step:last-child .bar {
+  display: none;
+}
+.step:last-child .body {
+  padding-bottom: 0;
+}
+
+/* ── 두 상자 ── */
+.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+.box {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  padding: 15px 14px;
+  text-align: center;
+}
+.box.p {
+  border-color: var(--pending-line);
+  background: var(--pending-soft);
+}
+.box.d {
+  border-color: var(--paid-line);
+  background: var(--paid-soft);
+}
+.box .big {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.box.p .big {
+  color: var(--pending);
+}
+.box.d .big {
+  color: var(--paid);
+}
+.box .num {
+  font-size: 22px;
+  font-weight: 800;
+  margin-top: 8px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+}
+.box .sub {
+  font-size: 11.5px;
+  color: var(--faint);
+  margin-top: 5px;
+  line-height: 1.5;
+}
+
+/* ── 화면 흉내 ── */
+.demo {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.demo .r {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 13px;
+  border-bottom: 1px solid var(--line);
+}
+.demo .r:last-child {
+  border-bottom: 0;
+}
+.demo .svr {
+  background: var(--teal-soft);
+  color: var(--teal);
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-size: 10.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.demo .nm {
+  font-size: 14px;
+  font-weight: 600;
+  flex: 1;
+}
+.demo .nm i {
+  font-style: normal;
+  color: var(--dim);
+  font-size: 12.5px;
+  margin-left: 5px;
+}
+.demo .nm em {
+  display: block;
+  font-style: normal;
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 400;
+  margin-top: 1px;
+}
+.demo .amt {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.demo .amt b {
+  display: block;
+  font-size: 15px;
+  color: var(--pending);
+}
+.demo .amt s {
+  display: block;
+  font-size: 11px;
+  color: var(--paid);
+  text-decoration: none;
+  margin-top: 1px;
+}
+
+/* 아이템 이름의 등급 테두리 (v11.5) */
+.iname {
+  display: inline-block;
+  border: 2px solid #1a1815;
+  border-radius: 8px;
+  padding: 1px 8px;
+  font-weight: 700;
+  font-size: 13.5px;
+  background: var(--card);
+}
+.iname.leg {
+  border-color: #a855f7;
+  color: #6b21a8;
+  background: #f8f0ff;
+}
+.iname.myth {
+  border-color: #d9a740;
+  color: #8a5f0d;
+  background: #fdf6e4;
+}
+.tier {
+  display: inline-block;
+  border: 1px solid var(--gold-line);
+  border-radius: 6px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--gold);
+  background: var(--gold-soft);
+  margin-left: 5px;
+  vertical-align: 2px;
+}
+
+/* ── 계산식 ── */
+.calc {
+  background: var(--card2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 13px 14px;
+  font-size: 12.4px;
+  line-height: 1.95;
+  font-family: 'DejaVu Sans Mono', ui-monospace, monospace;
+  color: var(--dim);
+}
+.calc b {
+  color: var(--gold);
+  font-weight: 700;
+}
+.calc i {
+  color: var(--teal);
+  font-style: normal;
+}
+.ex {
+  margin-top: 9px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.ex .t {
+  font-size: 11.5px;
+  color: var(--faint);
+  margin-bottom: 7px;
+}
+.ex table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.6px;
+}
+.ex td {
+  padding: 3.5px 0;
+  color: var(--dim);
+}
+.ex td:last-child {
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.ex tr.sum td {
+  border-top: 1px solid var(--line);
+  padding-top: 7px;
+  color: var(--gold);
+}
+
+/* ── 표 ── */
+table.grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.4px;
+  background: var(--card);
+}
+table.grid th {
+  background: var(--card2);
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 7px 8px;
+  text-align: left;
+  border: 1px solid var(--line);
+}
+table.grid td {
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  color: var(--dim);
+  vertical-align: top;
+}
+table.grid td:first-child {
+  color: var(--text);
+  font-weight: 600;
+}
+.ok {
+  color: var(--paid);
+  font-weight: 700;
+}
+
+/* ── 주의 상자 ── */
+.warn {
+  background: var(--pending-soft);
+  border: 1px solid var(--pending-line);
+  border-radius: 13px;
+  padding: 13px 15px;
+}
+.warn h4 {
+  font-size: 13.5px;
+  color: var(--pending);
+  margin-bottom: 5px;
+}
+.warn p,
+.warn li {
+  font-size: 12.5px;
+  color: var(--dim);
+  line-height: 1.65;
+}
+.warn p b,
+.warn li b {
+  color: var(--text);
+}
+.warn ul {
+  list-style: none;
+  margin-top: 4px;
+}
+.warn li {
+  padding-left: 12px;
+  position: relative;
+}
+.warn li::before {
+  content: '·';
+  position: absolute;
+  left: 2px;
+  color: var(--pending);
+}
+.warn + .warn {
+  margin-top: 9px;
+}
+.danger {
+  background: var(--danger-soft);
+  border-color: var(--danger-line);
+}
+.danger h4 {
+  color: var(--danger);
+}
+.danger li::before {
+  color: var(--danger);
+}
+.info {
+  background: var(--teal-soft);
+  border-color: var(--teal-line);
+}
+.info h4 {
+  color: var(--teal);
+}
+.info li::before {
+  color: var(--teal);
+}
+.good {
+  background: var(--paid-soft);
+  border-color: var(--paid-line);
+}
+.good h4 {
+  color: var(--paid);
+}
+.good li::before {
+  color: var(--paid);
+}
+
+/* ── 자주 묻는 것 ── */
+.qa {
+  border-top: 1px solid var(--line);
+  padding-top: 11px;
+  margin-top: 11px;
+}
+.qa:first-child {
+  border-top: 0;
+  padding-top: 0;
+  margin-top: 0;
+}
+.qa .q {
+  font-size: 13.5px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.qa .q::before {
+  content: 'Q. ';
+  color: var(--teal);
+}
+.qa .a {
+  font-size: 12.6px;
+  color: var(--dim);
+  line-height: 1.65;
+}
+.qa .a b {
+  color: var(--text);
+}
+.qa .a::before {
+  content: 'A. ';
+  color: var(--faint);
+  font-weight: 700;
+}
+
+kbd {
+  background: var(--card2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-size: 11.8px;
+  font-family: inherit;
+  color: var(--text);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.k-warn {
+  color: var(--pending);
+  border-color: var(--pending-line);
+  background: var(--pending-soft);
+}
+.k-gold {
+  color: var(--gold);
+  border-color: var(--gold-line);
+  background: var(--gold-soft);
+}
+
+.foot {
+  margin-top: 24px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  color: var(--faint);
+  font-size: 11.5px;
+  text-align: center;
+  line-height: 1.7;
+}
+.foot b {
+  color: var(--gold);
+}
