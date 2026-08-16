@@ -119,6 +119,11 @@ await page.getByRole('button', { name: '조회하기' }).click();
 await page.waitForTimeout(800);
 await shot('me');
 
+/* 게시판 — 혈맹원이 직접 쓸 수 있는 유일한 화면이라 설명서에 꼭 들어가야 한다 */
+await tab('게시판');
+await page.waitForTimeout(600);
+await shot('board');
+
 /* 언어 — 中文 으로 바꾼 화면을 보여주면 "이름도 바뀐다"가 한눈에 이해된다 */
 await tab('언어');
 await page.waitForTimeout(300);
@@ -166,6 +171,19 @@ const scrollShot = async (text, name) => {
   await shot(name);
 };
 
+/**
+ * 글쓰기 창 — **관리자에게만** 보이는 `📌 공지로 올리기` 체크칸을 보여준다.
+ * 혈맹원 화면과 같은 창인데 칸 하나가 더 있다는 것이 설명보다 그림이 빠르다.
+ */
+await tab('게시판');
+await page.getByRole('button', { name: /글쓰기/ }).first().click();
+await page.waitForTimeout(600);
+await shot('board-write');
+await page.locator('.sheet-x').last().click();
+await page.waitForTimeout(400);
+
+await tab('관리');
+await page.waitForTimeout(400);
 await scrollShot('혈맹원 관리', 'admin-roster');
 await scrollShot('용어', 'admin-terms');
 await scrollShot('관리 도구', 'admin-tools');

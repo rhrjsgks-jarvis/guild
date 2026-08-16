@@ -284,7 +284,13 @@ for (const f of readdirSync(OUT)) {
   if (/^(member|admin)-\d+\.png$/.test(f)) rmSync(resolve(OUT, f));
 }
 
-const browser = await chromium.launch();
+// 브라우저 위치는 다른 촬영 스크립트와 같은 방법으로 찾는다 — 없으면 기본값으로
+// 떨어지므로 윈도우(직접 설치한 경우)에서도 그대로 돌아간다
+const browser = await chromium.launch({
+  executablePath: [process.env.CHROMIUM_PATH, '/opt/pw-browsers/chromium']
+    .filter(Boolean)
+    .find((p) => existsSync(p)),
+});
 // 2배 해상도 — 폰에서 확대하지 않고 읽히게 한다.
 // 높이를 작게 두는 이유: fullPage 는 뷰포트보다 작아지지 않아, 짧은 장에 빈 공간이 남는다
 const ctx = await browser.newContext({ viewport: { width: 960, height: 200 }, deviceScaleFactor: 2 });
