@@ -8,4 +8,8 @@ build/
 *.tsbuildinfo
 next-env.d.ts
 .DS_Store
+# 촬영본 — E2E 확인용(shots/)과 설명서용(manual/shots/) 모두.
+# 언제든 다시 찍을 수 있고 화면을 조금만 손봐도 16장이 통째로 바뀌어 저장소가 지저분해진다.
+# 설명서를 다시 만들려면 `npm run manual:shots` 를 먼저 돌리면 된다
+# (안 돌리고 `npm run manual` 을 하면 어느 화면이 없는지 알려주고 멈춘다).
 shots/

@@ -142,9 +142,55 @@ await page.getByRole('button', { name: /잠금 해제/ }).click();
 await page.waitForTimeout(1200);
 await shot('admin-unlocked');
 
+/**
+ * 절 제목을 화면 맨 위로 올려놓고 찍는다 — 관리 화면은 길어서 스크롤해야 나온다.
+ *
+ * ★ `getByText` 로 아무 글자나 집으면 안 된다. '혈맹원 관리' 는 위쪽 안내문
+ *   ("혈맹원 한자 표기는 [혈맹원 관리]에서…") 안에도 있어서, 화면 맨 위를
+ *   집고는 아무 데도 안 움직인 채 같은 그림을 또 찍는다. **절 제목(.sect)만** 본다.
+ * ★ `scrollIntoViewIfNeeded()` 는 이 화면에서 **아무 일도 하지 않는다** (scrollY 가
+ *   0 그대로였다). 직접 `scrollIntoView` 를 부른다 — 안 그러면 조용히 같은
+ *   그림이 여러 장 나오고, 다 만들고 나서야 알게 된다.
+ */
+const HEADER_PX = 110; // 고정 헤더 + 화면 제목줄이 덮는 높이
+const scrollShot = async (text, name) => {
+  const h = page.locator('.sect').filter({ hasText: text }).first();
+  if ((await h.count()) === 0) throw new Error(`절 제목을 찾지 못했습니다: ${text}`);
+  const top = await h.evaluate((el, pad) => {
+    el.scrollIntoView({ block: 'start' });
+    window.scrollBy(0, -pad); // 제목이 헤더에 가리지 않게 조금 위로
+    return Math.round(window.scrollY);
+  }, HEADER_PX);
+  if (top === 0) throw new Error(`"${text}" 로 스크롤되지 않았습니다 — 같은 그림이 또 찍힙니다.`);
+  await page.waitForTimeout(400);
+  await shot(name);
+};
+
+await scrollShot('혈맹원 관리', 'admin-roster');
+await scrollShot('용어', 'admin-terms');
+await scrollShot('관리 도구', 'admin-tools');
+
+/* 아이템 — 관리자만 보이는 것들 */
 await tab('아이템');
 await page.waitForTimeout(600);
 await shot('items-admin');
+
+// 🏷️ 레이드·루팅 정보 — 분배가 끝난 건에도 쓸 수 있다 (돈을 안 만지기 때문)
+await page.locator('.btn').filter({ hasText: '🏷' }).first().click();
+await page.waitForTimeout(700);
+await shot('loot-edit');
+// 팝업은 바깥(backdrop)을 눌러도 닫히지 않는 것이 이 앱의 규칙이다 —
+// 뒤에 있는 `.screen-x` 를 집으면 backdrop 에 막혀 영영 못 닫는다. 맨 위 ✕ 를 누른다
+await page.locator('.sheet-x').last().click();
+await page.waitForTimeout(500);
+
+// 분배 — 판매금액을 넣으면 미리보기가 나온다
+await tab('아이템');
+await page.getByRole('button', { name: '분배' }).first().click();
+await page.waitForTimeout(700);
+await page.locator('input[type="number"], input[inputmode="numeric"]').first().fill('30000').catch(() => {});
+await page.waitForTimeout(700);
+await shot('distribute');
 
 await browser.close();
 console.log(`\n→ ${OUT}`);

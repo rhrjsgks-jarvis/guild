@@ -156,11 +156,13 @@ function freshState() {
     terms: [
       { row: 2, cat: '보스', ko: '안타라스', zh: '安塔瑞斯', en: 'Antharas', img: '', note: '' },
       { row: 3, cat: '보스', ko: '발라카스', zh: '巴拉卡斯', en: 'Valakas', img: '', note: '' },
-      { row: 4, cat: '전설', ko: '용의 심장', zh: '龙之心', en: 'Dragon Heart', img: '', note: '', tier: '3티어' },
+      // 그림 주소가 들어 있는 줄 — 공식 게임정보가 주는 주소다 (npm run icons:official).
+      // 목록에서 이름 앞에 아이콘이 붙는 것을 실제로 보기 위한 표본이다.
+      { row: 4, cat: '전설', ko: '용의 심장', zh: '龙之心', en: 'Dragon Heart', img: 'https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_Eva.png', note: '', tier: '3티어' },
       // 中文·English 를 아직 못 채운 줄 — 앱이 지어내지 않고 그대로 둔다
       { row: 5, cat: '스킬북', ko: '기란 마법서', zh: '', en: '', img: '', note: '확인 필요', tier: '' },
       // 장비인데 티어 표기가 없는 것 — 빈칸이 아니라 0티어다
-      { row: 6, cat: '신화', ko: '드래곤 슬레이어', zh: '屠龍劍', en: 'Dragon Slayer', img: '', note: '', tier: '0티어' },
+      { row: 6, cat: '신화', ko: '드래곤 슬레이어', zh: '屠龍劍', en: 'Dragon Slayer', img: 'https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Bow_saiha.png', note: '', tier: '0티어' },
     ],
     nextTermRow: 7,
     adminPinOverride: '',
@@ -871,7 +873,9 @@ const handlers = {
     data: { terms: S.terms, cats: ['전설', '신화', '스킬북', '보스', '서버', '기타'], tiers: ['0티어', '1티어', '2티어', '3티어'] },
   }),
 
-  saveTerm: ({ row, cat, ko, zh, en, img, note }) => {
+  // ★ 실제 시트가 받는 칸을 **하나도 빠짐없이** 받는다. 여기서 하나를 빠뜨리면
+  //   그 칸이 지워지는 버그를 E2E 가 영영 못 잡는다 — 실제로 img·tier 가 그랬다.
+  saveTerm: ({ row, cat, ko, zh, en, img, note, tier }) => {
     const name = String(ko || '').trim();
     if (!name) return rc({ ok: false, msg: '한국어 표기를 넣어주세요.' }, 'e.termKo');
     const at = Number(row) || 0;
@@ -887,6 +891,8 @@ const handlers = {
       en: String(en || '').trim(),
       img: String(img || '').trim(),
       note: String(note || '').trim(),
+      // 빈칸과 0티어는 다르다 — `|| ''` 로 뭉개면 0티어가 통째로 사라진다
+      tier: String(tier ?? '').trim(),
     };
     const hit = S.terms.find((t) => t.row === at);
     if (hit) Object.assign(hit, next);

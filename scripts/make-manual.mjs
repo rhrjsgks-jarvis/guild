@@ -10,7 +10,7 @@
  * ★ 글씨는 크게(17px 기준 × 2배 해상도) — 폰에서 확대하지 않고 읽히는 것이 목적이다.
  */
 import { chromium } from 'playwright';
-import { mkdirSync, readFileSync, readdirSync, writeFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -32,13 +32,38 @@ function inline(s) {
 }
 
 /**
+ * 촬영본을 **data URI 로 박아 넣는다.**
+ *
+ * `page.setContent()` 로 그리기 때문에 페이지에 주소(base URL)가 없다 —
+ * `shots/home.png` 같은 상대 경로는 아무것도 가리키지 못해 깨진 그림이 된다.
+ * ★ 파일이 없으면 **바로 멈춘다.** 조용히 넘어가면 그림 없는 설명서가
+ *   아무 말 없이 만들어져, 다 만들고 나서야 알게 된다.
+ */
+function dataUri(rel) {
+  const full = resolve(ROOT, 'manual', rel);
+  if (!existsSync(full)) {
+    throw new Error(`설명서가 부르는 화면이 없습니다: ${rel}\n     먼저 npm run manual:shots 로 찍으세요.`);
+  }
+  return `data:image/png;base64,${readFileSync(full).toString('base64')}`;
+}
+
+/**
+ * 폰 화면 한 줄이 차지하는 **세로 무게** (글자 수 환산).
+ *
+ * pack() 은 글자 수로 장을 나눈다. data URI 는 한 장에 1MB 가 넘어서 그대로
+ * 세면 그림 하나 있는 절이 다른 절 전체보다 무거워져 배치가 망가진다.
+ * 그림은 실제로 차지하는 **높이**만큼만 세게 한다.
+ */
+const SHOT_WEIGHT = 900;
+
+/**
  * 문서를 `##` 기준으로 잘라 HTML 조각 목록으로.
- * 표·코드블록·목록·인용을 다룬다 (설명서가 쓰는 문법만).
+ * 표·코드블록·목록·인용·화면을 다룬다 (설명서가 쓰는 문법만).
  */
 function toPages(md, title) {
   const lines = md.split('\n');
   const pages = [];
-  let cur = { head: title, html: [] };
+  let cur = { head: title, html: [], wt: 0 };
   let i = 0;
 
   const push = () => {
@@ -53,13 +78,31 @@ function toPages(md, title) {
 
     if (ln.startsWith('## ')) {
       push();
-      cur = { head: ln.slice(3).trim(), html: [] };
+      cur = { head: ln.slice(3).trim(), html: [], wt: 0 };
       i++;
       continue;
     }
     if (ln.startsWith('### ')) {
       cur.html.push(`<h3>${inline(ln.slice(4))}</h3>`);
       i++;
+      continue;
+    }
+
+    /* 화면 — 이어진 줄은 **나란히** 놓는다 (①②③ 단계를 한눈에 보여주기 위해).
+       `![설명](shots/home.png)` 형태만 받는다. */
+    if (/^!\[[^\]]*\]\([^)]+\)\s*$/.test(ln)) {
+      const figs = [];
+      while (i < lines.length && /^!\[[^\]]*\]\([^)]+\)\s*$/.test(lines[i])) {
+        const [, alt, src] = lines[i++].match(/^!\[([^\]]*)\]\(([^)]+)\)/);
+        figs.push(
+          `<figure><img src="${dataUri(src)}" alt="">` +
+            (alt ? `<figcaption>${inline(alt)}</figcaption>` : '') +
+            '</figure>',
+        );
+      }
+      cur.html.push(`<div class="shots">${figs.join('')}</div>`);
+      // 나란히 놓인 것들은 한 줄을 차지하므로 **줄 단위로** 센다 (장수가 아니라)
+      cur.wt += SHOT_WEIGHT;
       continue;
     }
 
@@ -159,6 +202,19 @@ const CSS = `
   th, td { border: 1px solid #ddd5c6; padding: 9px 12px; text-align: left; vertical-align: top; }
   th { background: #12313f; color: #fff; font-weight: 700; }
   tr:nth-child(even) td { background: #f7f4ed; }
+  /* 폰 화면 촬영본 — 실제 폰처럼 모서리를 둥글리고 그림자를 준다.
+     여러 장이 이어지면 나란히 놓여 ①②③ 단계가 한눈에 들어온다. */
+  .shots { display: flex; flex-wrap: wrap; gap: 18px; margin: 18px 0 22px; }
+  .shots figure { flex: 0 0 auto; }
+  .shots img {
+    width: 268px; display: block;
+    border: 1px solid #ddd5c6; border-radius: 18px;
+    box-shadow: 0 2px 6px rgba(40,32,16,.10), 0 10px 28px rgba(40,32,16,.13);
+  }
+  .shots figcaption {
+    width: 268px; margin-top: 8px; text-align: center;
+    font-size: 14px; line-height: 1.45; color: #6a6559;
+  }
   h2.more { margin-top: 46px; }
   .foot { margin-top: 26px; font-size: 14px; color: #9a9488; text-align: right; }
 `;
@@ -184,7 +240,12 @@ const DOCS = [
  */
 function pack(sections, want) {
   if (sections.length <= want) return sections.map((s) => [s]);
-  const size = (s) => s.head.length + s.html.join('').length;
+  // 그림의 base64 길이를 그대로 세면 그림 하나가 절 전체보다 무거워진다 —
+  // 글자는 글자 수로, 그림은 차지하는 높이(wt)로 센다
+  const size = (s) =>
+    s.head.length +
+    s.html.filter((h) => !h.startsWith('<div class="shots">')).join('').length +
+    (s.wt ?? 0);
   const out = [];
   let cur = [];
   let curSize = 0;
@@ -198,7 +259,11 @@ function pack(sections, want) {
     // ★ 마지막 장이면 무조건 여기에 다 담는다. 이 가드를 빼면 끝에서 한 장이
     //   더 생겨 "2장 · 4장" 이 "3장 · 5장" 이 된다 (실제로 그랬다).
     const canBreak = openPages > 1 && cur.length > 0 && rest >= openPages;
-    if (canBreak && curSize >= left / openPages) {
+    // ★ 반대쪽 사고도 있다. 남은 절이 남은 장과 **딱 같아지면 지금 끊어야 한다** —
+    //   여기서 그냥 넘기면 다음부터는 rest < openPages 라 영영 못 끊고, 원하던
+    //   2장이 1장으로 뭉친다 (혈맹원 설명서가 실제로 8900px 한 장이 됐다).
+    const mustBreak = canBreak && rest === openPages;
+    if (canBreak && (mustBreak || curSize >= left / openPages)) {
       out.push(cur);
       cur = [];
       curSize = 0;

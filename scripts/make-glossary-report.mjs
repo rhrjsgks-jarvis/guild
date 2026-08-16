@@ -47,6 +47,8 @@ for (const t of terms) {
   byTier[k] = (byTier[k] ?? 0) + 1;
 }
 const noZh = count((t) => !clean(t.zh));
+const withImg = count((t) => clean(t.img));
+const itemCnt = count((t) => t.cat !== '보스');
 const noEn = count((t) => !clean(t.en));
 const dup = terms.length - new Set(terms.map((t) => t.ko)).size;
 
@@ -93,9 +95,12 @@ ${['보스', '전설', '신화'].filter((k) => byCat[k]).map((k) => row(k, `${by
 ${row('中文 빈칸', noZh === 0 ? '없음 ✅' : `${noZh}건`, noZh > 0)}
 ${row('English 빈칸', noEn === 0 ? '없음 ✅' : `${noEn}건`, noEn > 0)}
 ${row('한국어 중복', dup === 0 ? '없음 ✅' : `${dup}건`, dup > 0)}
+${row('아이템 그림', withImg === itemCnt ? `${withImg}건 전부 ✅` : `${withImg}/${itemCnt}건`, withImg < itemCnt)}
 </table>
 
 <div class="note">
+  <b>보스에 그림이 없는 것은 정상입니다.</b> 공식 게임정보가 NPC 그림을 주지 않습니다.<br>
+  아이템 그림은 공식 주소를 그대로 씁니다 (npm run icons:official).<br><br>
   <b>(없음) 티어는 정상입니다.</b> 보스와 마법서·정수·비법서는 티어라는 개념이 없습니다.<br>
   장비인데 표기가 없는 것만 <b>0티어</b>로 넣었습니다.
 </div>
