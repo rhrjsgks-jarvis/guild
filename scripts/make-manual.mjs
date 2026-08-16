@@ -15,7 +15,9 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const OUT = resolve(ROOT, '설명서-이미지');
+// 폴더·파일명을 영문으로 두는 이유: 한글이 들어가면 GitHub·카톡에서 링크가
+// 퍼센트 인코딩으로 3배 길어져 200자 제한에 걸리고, 도구에 따라 깨지기도 한다.
+const OUT = resolve(ROOT, 'manual');
 
 /** 마크다운 인라인 — 굵게 · 코드 · 링크(글자만 남김) */
 function inline(s) {
@@ -161,8 +163,8 @@ const CSS = `
 `;
 
 const DOCS = [
-  { file: 'docs/혈맹원-설명서.md', title: '혈맹원 설명서', slug: '혈맹원' },
-  { file: 'docs/관리자-설명서.md', title: '관리자 설명서', slug: '관리자' },
+  { file: 'docs/혈맹원-설명서.md', title: '혈맹원 설명서', slug: 'member' },
+  { file: 'docs/관리자-설명서.md', title: '관리자 설명서', slug: 'admin' },
 ];
 
 rmSync(OUT, { recursive: true, force: true });
