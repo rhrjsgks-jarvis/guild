@@ -3279,6 +3279,42 @@ check('클래스 목록은 앱과 시트가 같다 (v11.5)', () => {
   return `${a.length}종 · 순서까지 일치`;
 });
 
+check('아이템 → 보스 제안은 애매하면 정하지 않는다 (v11.6.2)', () => {
+  const drops = readFileSync(resolve(ROOT, 'lib/drops.ts'), 'utf8');
+  const lf = readFileSync(resolve(ROOT, 'components/LootFields.tsx'), 'utf8');
+
+  // ① 이름 비교는 사전과 같은 규칙(규칙 4). 직접 색인하면 공백 하나에 빗나간다
+  if (!/export function bossesOf\(/.test(drops)) throw new Error('lib/drops.ts 에 bossesOf 가 없습니다.');
+  if (!/replace\(\/\\s\+\/g, ''\)/.test(drops)) throw new Error('보스를 찾을 때 이름을 정규화하지 않습니다 (규칙 4).');
+  if (/ITEM_BOSSES\[/.test(lf)) throw new Error('화면이 표를 직접 색인합니다 — bossesOf 를 쓰세요.');
+
+  // ② **하나뿐일 때만** 자동으로 넣는다. 둘 이상에서 하나를 고르면 그건 추측이다
+  const eff = (lf.match(/useEffect\(\(\) => \{[\s\S]*?\}, \[item\]\);/) ?? [''])[0];
+  if (!eff) throw new Error('아이템이 바뀔 때 도는 코드를 찾지 못했습니다.');
+  if (!/bosses\.length !== 1/.test(eff)) {
+    throw new Error('보스가 여럿일 때도 자동으로 정합니다 — 고를 근거가 없으면 정하지 않습니다 (규칙 5-4).');
+  }
+  // ③ 사람이 넣어둔 값을 덮어쓰지 않는다. 고칠 때마다 되돌아오면 칸을 못 쓴다
+  if (!/value\.boss\.trim\(\)/.test(eff)) {
+    throw new Error('보스 칸이 이미 차 있는지 보지 않습니다 — 관리자가 고친 값을 덮어씁니다.');
+  }
+  // ④ 아이템이 바뀔 때만 돈다. value/onChange 를 넣으면 매 렌더 다시 돌아 무한 루프다
+  if (!/\}, \[item\]\);/.test(eff)) throw new Error('아이템 말고 다른 것에도 반응합니다.');
+
+  // ⑤ 자동으로 넣었으면 **넣었다고 말한다.** 말없이 채우면 관리자가 자기가 넣은 줄 안다
+  for (const k of ['loot.bossAuto', 'loot.bossFrom']) {
+    if (!new RegExp(`'${k}':`).test(readFileSync(resolve(ROOT, 'lib/i18n.tsx'), 'utf8'))) {
+      throw new Error(`사전에 ${k} 가 없습니다.`);
+    }
+  }
+
+  // ⑥ 표가 비어 있으면 기능이 통째로 죽은 것이다 — 조용히 넘어가지 않는다
+  const n = (drops.match(/^  "/gm) ?? []).length;
+  if (n < 50) throw new Error(`아이템 → 보스 표가 ${n}종뿐입니다 — npm run drops 를 돌리세요.`);
+
+  return `${n}종 · 하나뿐일 때만 자동 · 사람이 넣은 값 보존 · 3개 언어`;
+});
+
 check('참여자 칩: 클래스가 한자를 밀어내지 않는다 (v11.6.1)', () => {
   /*
    * 실제로 있었던 문제 (v11.5): 칩 둘째 줄을 `한자 · 클래스` 한 문자열로 합쳐

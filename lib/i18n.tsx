@@ -396,6 +396,18 @@ const DICT: Record<string, Entry> = {
   'ali.filterServer': ['서버로 좁혀 보기', '按服务器筛选', 'Filter by server'],
   /* 레이드일·보스·루팅 (v11.6) — 연합·아이템이 같은 문구를 쓴다 */
   'loot.raidDate': ['레이드 날짜', '突襲日期', 'Raid date'],
+  /* 아이템을 주는 보스 제안 (v11.6.2) — 보스 이름은 vars 로 그대로 넘긴다 (규칙 6-1) */
+  'loot.bossAuto': [
+    '✅ 공식 정보에 따르면 이 아이템은 {boss} 만 줍니다 — 자동으로 넣었습니다. 아니면 고치세요.',
+    '✅ 根据官方资料，此道具仅由 {boss} 掉落 — 已自动填入。不对请修改。',
+    '✅ Officially this item drops only from {boss} — filled in for you. Change it if wrong.',
+  ],
+  'loot.bossFrom': [
+    '이 아이템을 주는 보스 {n}종 — 눌러서 넣으세요 (여기 없는 보스도 직접 칠 수 있습니다)',
+    '掉落此道具的首领共 {n} 种 — 点击填入（也可自行输入其他首领）',
+    '{n} bosses drop this item — tap to fill (you can also type another)',
+  ],
+
   'loot.raidHint': [
     '비워두면 등록한 날로만 남습니다. 잡은 날과 등록한 날이 다르면 채워주세요.',
     '留空則只記錄登錄日期。若打倒日與登錄日不同請填寫。',

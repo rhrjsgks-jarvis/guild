@@ -319,7 +319,7 @@ export default function ItemsTab({
               {/* 용어 사전 자동완성 (v11.4) — 세 언어로 찾아 고르면 국문이 들어간다 */}
               <ItemNameInput id="fItem" value={itemName} onChange={setItemName} />
 
-              <LootFields value={loot} onChange={setLoot} servers={state.serverList ?? []} members={state.members} idPrefix="ireg" />
+              <LootFields value={loot} onChange={setLoot} servers={state.serverList ?? []} members={state.members} idPrefix="ireg" item={itemName} />
             </div>
 
             <div className="field">

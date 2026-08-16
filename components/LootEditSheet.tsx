@@ -82,7 +82,7 @@ export default function LootEditSheet({
       />
       <p className="hint">{t('loot.itemHint')}</p>
 
-      <LootFields value={loot} onChange={setLoot} servers={servers} members={members} idPrefix="lootedit" />
+      <LootFields value={loot} onChange={setLoot} servers={servers} members={members} idPrefix="lootedit" item={loot.item ?? ''} />
 
       <div className="sheet-actions" style={{ marginTop: 18 }}>
         <button className="btn ghost" onClick={onClose}>

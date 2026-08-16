@@ -163,8 +163,18 @@ function freshState() {
       { row: 5, cat: '스킬북', ko: '기란 마법서', zh: '', en: '', img: '', note: '확인 필요', tier: '' },
       // 장비인데 티어 표기가 없는 것 — 빈칸이 아니라 0티어다
       { row: 6, cat: '신화', ko: '드래곤 슬레이어', zh: '屠龍劍', en: 'Dragon Slayer', img: 'https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Bow_saiha.png', note: '', tier: '0티어' },
+      /* ── 아이템 → 보스 제안(lib/drops.ts)을 실제로 볼 표본 (v11.6.2) ──
+         이름은 공식 표기 그대로여야 한다. 지어낸 이름을 넣으면 drops.ts 와
+         짝이 안 맞아, 기능이 멀쩡한데 검사만 실패하는 상황이 된다. */
+      // 보스가 하나뿐 → 아이템을 고르면 보스 칸이 자동으로 채워진다
+      { row: 7, cat: '전설', ko: '군단의 대검', zh: '軍團大劍', en: 'Legion Greatsword', img: '', note: '', tier: '' },
+      { row: 8, cat: '보스', ko: '망령 크리퍼스', zh: '亡靈克里佩斯', en: 'Revenant Creepers', img: '', note: '' },
+      // 보스가 둘 → 자동으로 정하지 않고 칩으로 늘어놓아 사람이 고른다
+      { row: 9, cat: '전설', ko: '검은 망령의 투구', zh: '黑色亡靈頭盔', en: "Black Revenant's Helm", img: '', note: '', tier: '3티어' },
+      { row: 10, cat: '보스', ko: '명법군왕 헬바인', zh: '冥法君王赫爾拜恩', en: 'Hellvine', img: '', note: '' },
+      { row: 11, cat: '보스', ko: '일렉카둠', zh: '伊萊卡頓', en: 'Elecadum', img: '', note: '' },
     ],
-    nextTermRow: 7,
+    nextTermRow: 12,
     adminPinOverride: '',
     renames: [
       { at: '07/12 09:30', before: '옛닉네임', after: '가이', by: 'admin@example.com', merged: false, detail: '"옛닉네임" → "가이"' },

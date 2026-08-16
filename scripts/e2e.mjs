@@ -2791,6 +2791,50 @@ await t('용어 자동완성: 中文을 쳐도 나오고 국문이 입력된다 
   eq(await page.locator('#fItem').inputValue(), '처음 보는 아이템', '사전에 없는 이름');
 });
 
+await t('아이템을 고르면 그것을 주는 보스가 따라온다 (v11.6.2, 화면)', async () => {
+  await reset();
+  await page.reload({ waitUntil: 'networkidle' });
+  await go(page, 'items');
+  await page.waitForTimeout(700);
+
+  const boss = page.locator('#ireg-boss');
+
+  /* ① 보스가 하나뿐인 아이템 — 자동으로 채워진다 */
+  await page.locator('#fItem').fill('군단의 대검');
+  await page.waitForTimeout(600);
+  eq(await boss.inputValue(), '망령 크리퍼스', '보스가 하나뿐일 때 자동 입력');
+  if (!(await page.getByText(/자동으로 넣었습니다/).count())) {
+    throw new Error('자동으로 넣었다는 안내가 없습니다 — 관리자가 자기가 넣은 줄 압니다.');
+  }
+
+  /* ② 관리자가 고쳐둔 값은 덮어쓰지 않는다 — 고칠 때마다 되돌아오면 못 쓴다 */
+  await boss.fill('직접 적은 보스');
+  await page.waitForTimeout(300);
+  await page.locator('#fItem').fill('군단의 대검');
+  await page.waitForTimeout(500);
+  eq(await boss.inputValue(), '직접 적은 보스', '사람이 넣은 값은 그대로');
+
+  /* ③ 보스가 여럿이면 **정하지 않는다** — 칩으로 늘어놓고 사람이 고른다 */
+  await boss.fill('');
+  await page.locator('#fItem').fill('검은 망령의 투구');
+  await page.waitForTimeout(600);
+  eq(await boss.inputValue(), '', '보스가 여럿일 때는 자동으로 정하지 않는다');
+  const chips = page.locator('.svpick .svchip').filter({ hasText: /헬바인|일렉카둠/ });
+  eq(await chips.count(), 2, '고를 수 있는 보스 칩');
+  await chips.filter({ hasText: '일렉카둠' }).first().click();
+  await page.waitForTimeout(300);
+  eq(await boss.inputValue(), '일렉카둠', '칩을 눌러 넣은 보스');
+
+  /* ④ 모르는 아이템에는 아무 말도 하지 않는다 (지어내지 않는다) */
+  await boss.fill('');
+  await page.locator('#fItem').fill('처음 보는 아이템');
+  await page.waitForTimeout(600);
+  eq(await boss.inputValue(), '', '모르는 아이템이면 비운 채로');
+  if (await page.getByText(/주는 보스/).count()) {
+    throw new Error('모르는 아이템인데 보스를 제안합니다.');
+  }
+});
+
 await t('용어 화면: 세 언어로 찾고, 못 채운 항목을 감추지 않는다 (v11.4, 화면)', async () => {
   await page.reload({ waitUntil: 'networkidle' });
   // ★ 용어 사전은 홈 격자에 없다 (v11.4) — 관리 화면에서 연다

@@ -1,6 +1,8 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { byName } from '@/lib/client';
+import { bossesOf } from '@/lib/drops';
 import { useT } from '@/lib/i18n';
 import ItemNameInput from './ItemNameInput';
 import ServerPicker from './ServerPicker';
@@ -30,6 +32,7 @@ export default function LootFields({
   servers,
   members,
   idPrefix,
+  item,
 }: {
   value: Loot;
   onChange: (next: Loot) => void;
@@ -37,10 +40,39 @@ export default function LootFields({
   /** 루팅캐릭터 제안용 — 명단에 없는 이름도 칠 수 있다 */
   members: string[];
   idPrefix: string;
+  /** 지금 고른 아이템명 — 이걸 주는 보스를 제안한다 (v11.6.2). 없으면 제안 없음 */
+  item?: string;
 }) {
   const { t } = useT();
   const set = (patch: Partial<Loot>) => onChange({ ...value, ...patch });
   const listId = `${idPrefix}-chars`;
+
+  /**
+   * 이 아이템을 주는 보스 (공식 게임정보). 모르면 빈 배열이고, 그러면
+   * 화면에 아무것도 안 나온다 — 모를 때 지어내지 않는다 (규칙 7).
+   */
+  const bosses = bossesOf(item ?? '');
+
+  /**
+   * 보스가 **하나뿐이면** 자동으로 채운다 (v11.6.2).
+   *
+   * ★ 아이템이 바뀐 순간에만, 그리고 **보스 칸이 비어 있을 때만** 넣는다.
+   *   관리자가 지우거나 고쳐 둔 값을 다시 덮어쓰면, 고칠 때마다 되돌아오는
+   *   칸이 되어 아예 못 쓰게 된다.
+   * ★ 둘 이상이면 채우지 않는다. 고를 근거가 없는데 하나를 고르면 그건 추측이고,
+   *   기록에 남은 뒤에는 아무도 못 알아챈다 (규칙 5-4 — 애매한 것을 확정하지 않는다).
+   */
+  const filledFor = useRef<string | null>(null);
+  useEffect(() => {
+    const key = String(item ?? '').trim();
+    if (filledFor.current === key) return;
+    filledFor.current = key;
+    if (!key || bosses.length !== 1 || value.boss.trim()) return;
+    onChange({ ...value, boss: bosses[0] });
+    // value·onChange 는 매 렌더 새로 만들어진다 — 넣으면 무한 루프가 된다.
+    // 아이템이 바뀔 때만 도는 것이 이 훅의 뜻이다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item]);
 
   return (
     <>
@@ -65,6 +97,31 @@ export default function LootFields({
         value={value.boss}
         onChange={(v) => set({ boss: v })}
       />
+      {/* 이 아이템을 주는 보스 — 눌러서 넣는다 (v11.6.2).
+          하나뿐이면 위에서 이미 채웠으므로 "이걸로 채웠다"고 알려주기만 하고,
+          여럿이면 칩으로 늘어놓아 사람이 고른다. 여기 없는 보스도 그냥 칠 수 있다. */}
+      {bosses.length === 1 && value.boss.trim() === bosses[0] ? (
+        <p className="hint">{t('loot.bossAuto', { boss: bosses[0] })}</p>
+      ) : bosses.length > 0 ? (
+        <>
+          <p className="hint" style={{ marginBottom: 6 }}>
+            {t('loot.bossFrom', { n: bosses.length })}
+          </p>
+          <div className="svpick">
+            {bosses.map((b) => (
+              <button
+                key={b}
+                type="button"
+                className={'svchip wide' + (value.boss.trim() === b ? ' on' : '')}
+                aria-pressed={value.boss.trim() === b}
+                onClick={() => set({ boss: value.boss.trim() === b ? '' : b })}
+              >
+                {b}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : null}
 
       <label className="fl" style={{ marginTop: 12 }}>
         {t('loot.lootServer')}

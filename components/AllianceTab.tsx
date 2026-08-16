@@ -752,7 +752,7 @@ function RegisterSheet({
       {/* 용어 사전 자동완성 (v11.4) — 中文으로 쳐도 찾아지고, 저장은 국문이다 */}
       <ItemNameInput id="ait" value={item} onChange={setItem} />
 
-      <LootFields value={loot} onChange={setLoot} servers={servers} members={members} idPrefix="areg" />
+      <LootFields value={loot} onChange={setLoot} servers={servers} members={members} idPrefix="areg" item={item} />
 
       <ServerRows
         servers={servers}
