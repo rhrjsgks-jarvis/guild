@@ -17,8 +17,7 @@
     "manual": "node scripts/make-manual.mjs",
     "glossary": "node scripts/make-glossary-report.mjs",
     "manual:shots": "node scripts/make-manual-shots.mjs",
-    "icons:official": "node scripts/fetch-official-icons.mjs",
-    "webtoon": "node scripts/make-webtoon.mjs"
+    "icons:official": "node scripts/fetch-official-icons.mjs"
   },
   "dependencies": {
     "next": "^15.5.22",
