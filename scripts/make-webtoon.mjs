@@ -277,8 +277,51 @@ const browser = await chromium.launch({
     .filter(Boolean)
     .find((p) => existsSync(p)),
 });
-const ctx = await browser.newContext({ viewport: { width: W, height: 900 }, deviceScaleFactor: 2 });
+// 뷰포트를 낮게 둔다 — fullPage 는 뷰포트보다 작아지지 않아, 짧은 장에 빈 공간이 남는다
+const ctx = await browser.newContext({ viewport: { width: W, height: 200 }, deviceScaleFactor: 2 });
 const tab = await ctx.newPage();
+
+/**
+ * 한 화가 너무 길면 나눈다.
+ *
+ * 세로로 긴 것 자체는 웹툰이라 괜찮지만, 메신저·업로더가 **아주 긴 그림을
+ * 거부**한다 (실제로 9,000px 짜리가 되돌아왔다). 받는 사람이 못 여는 설명서는
+ * 없는 것과 같으므로 여기서 미리 나눈다.
+ *
+ * 자르는 자리는 **덩어리 사이**다 — 말풍선이나 표를 반으로 자르면 읽을 수 없다.
+ * 그래서 한 번 그려서 실제 높이를 재고, 그 경계로만 나눈다.
+ */
+const MAX_H = 3100; // CSS px (×2 해상도라 6,200px 그림이 된다)
+
+async function split(ep, doc, i, total) {
+  await tab.setContent(page(doc, ep, i, total), { waitUntil: 'load' });
+  const [h, sizes] = await tab.evaluate(() => [
+    document.body.scrollHeight,
+    [...document.querySelectorAll('.body > *')].map((el) => el.getBoundingClientRect().height),
+  ]);
+  if (h <= MAX_H) return [ep.html];
+
+  // 머리글·꼬리말이 매 장에 다시 붙으므로 그만큼 뺀 예산으로 나눈다
+  const content = sizes.reduce((a, b) => a + b, 0);
+  const room = Math.max(900, MAX_H - (h - content));
+
+  /*
+   * ★ 앞에서부터 예산이 찰 때까지 담는 방식(greedy)은 **마지막 장이 한 줄짜리로**
+   *   남는다 (실제로 900px 짜리 꼬리가 나왔다). 몇 장이 필요한지 먼저 정하고,
+   *   각 덩어리의 **한가운데가 어느 장에 속하는지**로 배정하면 고르게 나뉜다.
+   */
+  const n = Math.ceil(content / room);
+  const per = content / n;
+  const parts = Array.from({ length: n }, () => []);
+  let acc = 0;
+  for (let k = 0; k < ep.html.length; k++) {
+    const size = sizes[k] ?? 0;
+    const at = Math.min(n - 1, Math.floor((acc + size / 2) / per));
+    parts[at].push(ep.html[k]);
+    acc += size;
+  }
+  return parts.filter((p) => p.length > 0);
+}
 
 console.log('\n🎬 웹툰 설명서\n');
 const made = [];
@@ -289,12 +332,19 @@ for (const book of BOOKS) {
   if (eps.length === 0) throw new Error(`화가 하나도 없습니다 (## 로 시작하는 줄이 필요합니다): ${book.md}`);
 
   for (let i = 0; i < eps.length; i++) {
-    await tab.setContent(page(book.doc, eps[i], i, eps.length), { waitUntil: 'load' });
-    const name = `${book.out}-${String(i + 1).padStart(2, '0')}.png`;
-    await tab.screenshot({ path: resolve(OUT, name), fullPage: true });
-    const h = await tab.evaluate(() => document.body.scrollHeight);
-    console.log(`  🎞️  ${name}  ${eps[i].title}  (${h}px)`);
-    made.push(name);
+    const parts = await split(eps[i], book.doc, i, eps.length);
+    for (let k = 0; k < parts.length; k++) {
+      const ep = parts.length === 1 ? eps[i] : { ...eps[i], title: `${eps[i].title} (${k + 1}/${parts.length})`, html: parts[k] };
+      await tab.setContent(page(book.doc, ep, i, eps.length), { waitUntil: 'load' });
+      const name =
+        parts.length === 1
+          ? `${book.out}-${String(i + 1).padStart(2, '0')}.png`
+          : `${book.out}-${String(i + 1).padStart(2, '0')}${'abcdefgh'[k]}.png`;
+      await tab.screenshot({ path: resolve(OUT, name), fullPage: true });
+      const h = await tab.evaluate(() => document.body.scrollHeight);
+      console.log(`  🎞️  ${name}  ${ep.title}  (${h}px)`);
+      made.push(name);
+    }
   }
 }
 

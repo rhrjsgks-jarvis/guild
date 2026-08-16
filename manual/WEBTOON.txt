@@ -1,14 +1,21 @@
 웹툰 설명서 — 세로로 내리며 읽습니다.
 
-  webtoon-member-01.png
+  webtoon-member-01a.png
+  webtoon-member-01b.png
   webtoon-member-02.png
   webtoon-member-03.png
-  webtoon-member-04.png
+  webtoon-member-04a.png
+  webtoon-member-04b.png
   webtoon-admin-01.png
-  webtoon-admin-02.png
+  webtoon-admin-02a.png
+  webtoon-admin-02b.png
   webtoon-admin-03.png
-  webtoon-admin-04.png
-  webtoon-admin-05.png
+  webtoon-admin-04a.png
+  webtoon-admin-04b.png
+  webtoon-admin-04c.png
+  webtoon-admin-05a.png
+  webtoon-admin-05b.png
+  webtoon-admin-05c.png
 
 원고는 docs/웹툰-혈맹원.md · docs/웹툰-관리자.md 입니다.
 고친 뒤에는 npm run manual:shots && npm run webtoon 을 돌리세요.
