@@ -5,9 +5,10 @@ import BulkMemberSheet from './BulkMemberSheet';
 import ServerBulkSheet from './ServerBulkSheet';
 import ServerPicker from './ServerPicker';
 import ServerFilter from './ServerFilter';
+import ClassFilter, { ANY_CLASS } from './ClassFilter';
 import Sheet from './Sheet';
 import type { RenameRecord, RosterEntry } from '@/lib/types';
-import { CLASS_LIST, api, byName, classLabel, fmt, fullName, fundFirst, getStoredEmail, mergeName, normName, normServer } from '@/lib/client';
+import { CLASS_LIST, api, byName, classLabel, fmt, fullName, fundFirst, getStoredEmail, mergeName, normName, normServer, tally } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
@@ -38,6 +39,8 @@ export default function RosterCard({
   const [busy, setBusy] = useState(false);
   /** 서버로 좁혀 보기 (v11.5) */
   const [svPick, setSvPick] = useState<string[]>([]);
+  /** 클래스로 좁혀 보기 (v11.6.1) — 서버와 AND 로 겹친다 */
+  const [clsPick, setClsPick] = useState<string>(ANY_CLASS);
 
   const load = useCallback(async () => {
     const res = await api('/api/admin/roster');
@@ -78,8 +81,15 @@ export default function RosterCard({
     if (sv) svCounts[sv] = (svCounts[sv] ?? 0) + 1;
     else svNone += 1;
   });
+  // 클래스별 인원 — 잔액·아이템과 같은 세는 규칙 한 벌 (lib/client 의 tally)
+  const { counts: clsCounts, none: clsNone } = tally(
+    (roster ?? []).filter((m) => !m.isFund).map((m) => String(m.cls ?? '')),
+  );
   const shownRoster = (roster ?? []).filter(
-    (m) => m.isFund || svPick.length === 0 || svPick.includes(normServer(m.server)),
+    (m) =>
+      m.isFund ||
+      ((svPick.length === 0 || svPick.includes(normServer(m.server))) &&
+        (clsPick === ANY_CLASS || String(m.cls ?? '').trim() === clsPick)),
   );
 
   const done = (res?: ApiResult) => {
@@ -138,6 +148,10 @@ export default function RosterCard({
                 value={svPick}
                 onChange={setSvPick}
               />
+              {/* 클래스는 드롭다운 하나 — 13종을 칩으로 깔면 명단이 화면 밖으로 밀린다 */}
+              <div style={{ marginTop: 8 }}>
+                <ClassFilter counts={clsCounts} noneCount={clsNone} value={clsPick} onChange={setClsPick} />
+              </div>
             </div>
             {shownRoster.map((m) => (
               <div className="row" key={m.name}>

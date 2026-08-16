@@ -733,6 +733,26 @@ button {
   gap: 6px;
 }
 
+/* 클래스로 좁혀 보기 (v11.6.1) — 서버는 칩 12개, 클래스는 드롭다운 하나다.
+   13종을 칩으로 깔면 필터가 화면 절반을 먹고 명단이 밀려난다.
+   ★ 고른 상태(전체가 아님)를 색으로 알린다 — 필터가 켜진 줄 모르고
+     "왜 사람이 없지?" 하는 일을 막는다. */
+.clsfilter {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.clsfilter.on {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
 .svchip {
   min-width: 44px;
   padding: 9px 12px;
@@ -1104,7 +1124,8 @@ select:focus {
   min-width: 0;
   /* 두 줄(국문 / 한문)이 들어가도 칩 높이가 들쭉날쭉하지 않게.
      v10.8 에서 한자를 국문보다 크게 키우면서 함께 올렸다. */
-  min-height: 62px;
+  /* 세 줄(국문 / 한자 / 클래스)이 들어가도 높이가 들쭉날쭉하지 않게 (v11.6.1) */
+  min-height: 74px;
 }
 
 /* 이름은 국문 위 · 한문 아래 두 줄.
@@ -1161,6 +1182,20 @@ select:focus {
 
 .mchip.sel .nm i {
   color: var(--paid);
+}
+
+/* 클래스 줄 (v11.6.1) — 한자 아래, 작게. 한자와 같은 줄에 두면 fitIn 이
+   합친 길이만큼 한자를 줄여 국문보다 작아진다 (v11.5 에서 실제로 그랬다). */
+.mchip .nm em {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--text-faint);
+  overflow-wrap: anywhere;
+}
+
+.mchip.sel .nm em {
+  color: var(--paid);
+  opacity: 0.85;
 }
 
 .mchip.sel {

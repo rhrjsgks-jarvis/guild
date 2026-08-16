@@ -2648,13 +2648,19 @@ check('아이템 등록: 서버로 좁혀도 체크한 사람은 절대 숨지 �
   //    확인 화면과 결과가 어긋난다. 체크된 사람은 서버와 무관하게 언제나 보인다.
   const vis = (items.match(/const visible = useMemo\(\(\) => \{[\s\S]*?\}, \[[^\]]*\]\);/) ?? [''])[0];
   if (!vis) throw new Error('참여자 목록을 좁히는 코드를 찾지 못했습니다.');
-  if (!/\|\|\s*picked\.has\(m\)/.test(vis)) {
-    throw new Error('체크한 사람이 서버 필터에 걸려 사라질 수 있습니다 — 등록 결과가 화면과 달라집니다.');
+  // 서버 앞이든 뒤든 상관없다 — `picked.has(m)` 가 OR 로 걸려 있기만 하면 된다
+  if (!/picked\.has\(m\)\s*\|\||\|\|\s*picked\.has\(m\)/.test(vis)) {
+    throw new Error('체크한 사람이 필터에 걸려 사라질 수 있습니다 — 등록 결과가 화면과 달라집니다.');
   }
-  // ② 아무 서버도 안 골랐으면 예전처럼 전원이 나와야 한다. 서버 칸이 비어 있는
+  // ② 아무것도 안 골랐으면 예전처럼 전원이 나와야 한다. 서버·클래스 칸이 비어 있는
   //    상태에서 목록이 텅 비면 등록 자체가 막힌다.
-  if (!/svPick\.length === 0\) return selectable/.test(vis)) {
-    throw new Error('서버를 고르지 않았을 때 전원을 보여주지 않습니다.');
+  if (!/svPick\.length === 0[\s\S]{0,60}?\)\s*return selectable/.test(vis)) {
+    throw new Error('아무 필터도 고르지 않았을 때 전원을 보여주지 않습니다.');
+  }
+  // ②-1 클래스 필터(v11.6.1)도 같은 규칙을 지켜야 한다. 서버만 지키면 클래스로 좁혔을 때
+  //      체크된 사람이 사라져 같은 사고가 그대로 재현된다.
+  if (/clsPick/.test(items) && !/clsPick === ANY_CLASS/.test(vis)) {
+    throw new Error('클래스 필터가 참여자 목록에 반영되지 않았습니다.');
   }
   // ③ 나머지는 **감추는 것이 아니라 접어두는 것**이다 (사용자가 명시적으로 요청)
   if (!/items\.svUnfold/.test(items) || !/folded\.length > 0/.test(items)) {
@@ -3271,6 +3277,87 @@ check('클래스 목록은 앱과 시트가 같다 (v11.5)', () => {
   }
   if (a.length !== 13) throw new Error(`공식 클래스는 13종입니다 (현재 ${a.length}종).`);
   return `${a.length}종 · 순서까지 일치`;
+});
+
+check('참여자 칩: 클래스가 한자를 밀어내지 않는다 (v11.6.1)', () => {
+  /*
+   * 실제로 있었던 문제 (v11.5): 칩 둘째 줄을 `한자 · 클래스` 한 문자열로 합쳐
+   * 크기를 정했다. fitIn 은 글자가 길수록 줄이므로, 클래스를 넣은 순간 한자가
+   * 12px 로 쪼그라들어 국문(14px)보다 작아졌다. 중국 혈맹원에게는 한자가 본명이라
+   * v10.8 부터 "한자가 국문보다 커야 한다"가 규칙이었는데 조용히 깨져 있었다.
+   * 칩 폭은 64px 이라 큰 한자와 클래스를 한 줄에 담을 방법은 없다 — 줄을 나눈다.
+   */
+  const items = readFileSync(resolve(ROOT, 'components/ItemsTab.tsx'), 'utf8');
+  const css = readFileSync(resolve(ROOT, 'app/globals.css'), 'utf8');
+
+  // ① 한자 크기는 **한자만 보고** 정한다. 합친 문자열을 넘기면 다시 같은 일이 난다
+  if (!/<i style=\{\{ fontSize: fitIn\(sub,/.test(items)) {
+    throw new Error('한자 줄의 크기를 한자만으로 정하지 않습니다 — 클래스 길이에 한자가 끌려갑니다.');
+  }
+  if (/fitIn\(\s*line2/.test(items) || /\[sub, cl\]\.filter\(Boolean\)\.join/.test(items)) {
+    throw new Error('한자와 클래스를 한 문자열로 합쳐 크기를 정합니다 (v11.5 의 버그입니다).');
+  }
+  // ② 클래스는 자기 줄에서 **한자보다 작게**. 크면 부가 정보가 본명을 이긴다
+  const cl = (items.match(/<em style=\{\{ fontSize: fitIn\(cl, [^)]*\)/) ?? [''])[0];
+  if (!cl) throw new Error('클래스 줄(<em>)이 없습니다.');
+  const nums = (cl.match(/,\s*([\d.]+),\s*([\d.]+)\)/) ?? []).slice(1).map(Number);
+  if (nums.length !== 2 || nums[0] >= 19) {
+    throw new Error(`클래스 글씨(${nums[0]}px)가 한자(19px)보다 작지 않습니다.`);
+  }
+  // ③ 줄이 셋이 됐으니 칩 높이도 따라와야 한다. 안 늘리면 세 줄이 눌려 겹친다
+  const h = Number((css.match(/\.mchip \{[\s\S]*?min-height: (\d+)px/) ?? [])[1] ?? 0);
+  if (h < 70) throw new Error(`칩 최소 높이가 ${h}px 입니다 — 세 줄이 겹칩니다.`);
+  if (!/\.mchip \.nm em \{/.test(css)) throw new Error('클래스 줄의 스타일이 없습니다.');
+
+  return `한자는 한자만 보고 · 클래스 ${nums[0]}px < 한자 19px · 칩 높이 ${h}px`;
+});
+
+check('클래스로 좁혀 보기는 사람 명단이 있는 화면 어디에나 있다 (v11.6.1)', () => {
+  const cf = readFileSync(resolve(ROOT, 'components/ClassFilter.tsx'), 'utf8');
+  const clientSrc = readFileSync(resolve(ROOT, 'lib/client.ts'), 'utf8');
+
+  // ① **드롭다운 하나**여야 한다 (사용자가 명시적으로 요청). 13종을 칩으로 깔면
+  //    서버 칩 아래에 또 13개가 붙어 필터가 화면 절반을 먹고 명단이 밀려난다.
+  if (!/<select/.test(cf)) throw new Error('클래스 필터가 드롭다운이 아닙니다 — 칩으로 깔면 명단이 밀려납니다.');
+  if (/aria-pressed|\.map\([^)]*\) =>[\s\S]{0,80}<button/.test(cf)) {
+    throw new Error('클래스 필터가 칩(복수 선택)으로 되어 있습니다 — 한 번에 하나만 고릅니다.');
+  }
+
+  // ② 사람 명단이 있는 세 화면에 모두 있어야 한다. 한 곳만 빠지면 "여기선 되는데
+  //    저기선 안 되는" 화면이 생겨, 인터페이스를 통일한 뜻이 없어진다.
+  const screens = [
+    ['components/BalanceTab.tsx', '잔액'],
+    ['components/ItemsTab.tsx', '아이템'],
+    ['components/RosterCard.tsx', '관리 명단'],
+  ];
+  for (const [file, label] of screens) {
+    const src = readFileSync(resolve(ROOT, file), 'utf8');
+    if (!/<ClassFilter/.test(src)) throw new Error(`${label} 화면에 클래스 필터가 없습니다 (${relPath(file)}).`);
+    if (!/ANY_CLASS/.test(src)) throw new Error(`${label} 화면이 "전체"를 기본값으로 두지 않았습니다.`);
+  }
+
+  // ③ 세는 규칙은 한 벌이다. 화면마다 따로 세면 같은 명단인데 숫자가 달라져
+  //    어느 쪽이 맞는지 아무도 모르게 된다 (foldServers 를 한 벌로 둔 것과 같은 이유).
+  if (!/export function tally\(/.test(clientSrc)) throw new Error('lib/client.ts 에 tally 가 없습니다.');
+  for (const [file, label] of screens) {
+    const src = readFileSync(resolve(ROOT, file), 'utf8');
+    if (!/tally\(/.test(src)) throw new Error(`${label} 화면이 인원을 따로 셉니다 — tally 한 벌을 쓰세요.`);
+  }
+
+  // ④ "전체"와 "클래스 미지정"은 다른 값이다. 뭉개면 클래스를 안 넣은 사람만
+  //    보려 할 때 전원이 나온다.
+  if (!/ANY_CLASS = '\*'/.test(cf) || !/NO_CLASS = ''/.test(cf)) {
+    throw new Error('"전체"와 "클래스 미지정"이 구분되지 않습니다.');
+  }
+
+  // ⑤ 세 언어로 나와야 한다 — 클래스 이름은 CLASS_I18N, 필터 문구는 사전에 있다
+  const i18n = readFileSync(resolve(ROOT, 'lib/i18n.tsx'), 'utf8');
+  for (const k of ['cls.filter', 'cls.all', 'cls.none']) {
+    if (!new RegExp(`'${k}':`).test(i18n)) throw new Error(`사전에 ${k} 가 없습니다.`);
+  }
+  if (!/classLabel\(/.test(cf)) throw new Error('클래스 이름을 화면 언어로 보여주지 않습니다.');
+
+  return `드롭다운 · 화면 ${screens.length}곳 · 세는 규칙 1벌 · 전체≠미지정 · 3개 언어`;
 });
 
 check('티어는 빈칸과 0티어를 구분한다 (v11.5)', () => {

@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from 'react';
 import type { BalanceRow, GuildState } from '@/lib/types';
-import { byName, classLabel, classOf, fmt, fundFirst, nameParts, normName, normServer } from '@/lib/client';
+import { byName, classLabel, classOf, fmt, fundFirst, nameParts, normName, normServer, tally } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 import ShareBtn from './ShareBtn';
 import ServerFilter, { NO_SERVER } from './ServerFilter';
+import ClassFilter, { ANY_CLASS } from './ClassFilter';
 
 export default function BalanceTab({
   state,
@@ -29,6 +30,13 @@ export default function BalanceTab({
    * 기본이 "다 보기"여야 처음 여는 사람이 놀라지 않는다.
    */
   const [svPick, setSvPick] = useState<string[]>([]);
+  /**
+   * 클래스로 좁혀 보기 (v11.6.1) — 서버 칩과 **AND** 로 겹친다 (01서버의 기사).
+   *
+   * 서버는 칩이고 여러 개, 클래스는 드롭다운이고 하나다. 13종을 칩으로 깔면
+   * 필터가 화면 절반을 차지해 정작 봐야 할 명단이 밀려난다.
+   */
+  const [clsPick, setClsPick] = useState<string>(ANY_CLASS);
 
   const u = unit(state.unit);
 
@@ -57,6 +65,14 @@ export default function BalanceTab({
     return { svCounts: counts, svNone: none };
   }, [state.rows, state.fundName, serverOf]);
 
+  // 클래스별 인원 — 서버와 같은 규칙(혈맹운영비는 사람이 아니므로 빼고 센다)
+  const { counts: clsCounts, none: clsNone } = useMemo(() => {
+    const fundKey = normName(state.fundName);
+    return tally(
+      state.rows.filter((r) => normName(r.name) !== fundKey).map((r) => classOf(state, r.name)),
+    );
+  }, [state]);
+
   const { list, totalPending, totalPaid, owedCount } = useMemo(() => {
     let tp = 0;
     let td = 0;
@@ -79,6 +95,12 @@ export default function BalanceTab({
         const sv = serverOf.get(normName(r.name)) ?? '';
         return sv ? svPick.includes(sv) : svPick.includes(NO_SERVER);
       })
+      // 클래스 드롭다운 — 서버와 AND. 혈맹운영비는 여기서도 언제나 남는다
+      .filter((r) => {
+        if (clsPick === ANY_CLASS) return true;
+        if (normName(r.name) === fundName) return true;
+        return classOf(state, r.name) === clsPick;
+      })
       // 이름순(ㄱ~ㅎ) — 금액순으로 두면 분배할 때마다 자리가 바뀌어 눈으로 찾을 수가 없다.
       // "받을 사람만 보기"와 이름 검색이 있으므로 지급할 때도 불편하지 않다 (v10.9.2)
       .sort((a, b) => byName(a.name, b.name));
@@ -88,7 +110,7 @@ export default function BalanceTab({
     const pinned = fundFirst(filtered, (r) => normName(r.name) === fundKey);
 
     return { list: pinned, totalPending: tp, totalPaid: td, owedCount: owed };
-  }, [state.rows, state.fundName, q, onlyOwed, svPick, serverOf]);
+  }, [state, q, onlyOwed, svPick, clsPick, serverOf]);
 
   /**
    * 공유용 글 — 지금 화면에 보이는 목록 그대로 내보낸다.
@@ -168,12 +190,16 @@ export default function BalanceTab({
             value={svPick}
             onChange={setSvPick}
           />
+          {/* 클래스는 드롭다운 하나로 — 칩으로 깔면 13개가 서버 칩 아래 또 붙는다 */}
+          <div style={{ marginTop: 8 }}>
+            <ClassFilter counts={clsCounts} noneCount={clsNone} value={clsPick} onChange={setClsPick} />
+          </div>
         </div>
       </div>
 
       <div className="card" style={{ marginTop: 12 }}>
         {list.length === 0 ? (
-          <div className="empty">{q || onlyOwed || svPick.length > 0 ? t('bal.noMatch') : t('bal.noMember')}</div>
+          <div className="empty">{q || onlyOwed || svPick.length > 0 || clsPick !== ANY_CLASS ? t('bal.noMatch') : t('bal.noMember')}</div>
         ) : (
           list.map((r) => {
             // 한자는 멤버DB G열이 먼저, 없으면 이름 괄호 (lib/client 의 nameParts 한 곳에서만 정한다)

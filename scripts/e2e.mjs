@@ -1509,6 +1509,9 @@ await t('참여자 칩이 국문·한문 두 줄로 나오고 이름이 잘리�
   eq(koLine, '잠단', '첫 줄 (국문, 배지 제외)');
   eq(await chip.locator('.nm b .svr').innerText(), '02', '첫 줄의 서버 배지');
   eq(await chip.locator('.nm i').innerText(), '斬斷', '둘째 줄 (한문)');
+  // 클래스는 **자기 줄**에 온다 (v11.6.1). 한자와 한 줄에 합치면 합친 길이만큼
+  // 한자가 줄어 국문보다 작아진다 — 아래 크기 검사가 그것을 잡는다.
+  eq(await chip.locator('.nm em').innerText(), '요정', '셋째 줄 (클래스)');
 
   // ★ 잘린 이름은 다른 사람으로 오인돼 엉뚱한 사람이 참여자로 체크된다.
   //   실제로 그려진 폭이 칩 안에 들어가는지 본다.
@@ -1578,15 +1581,16 @@ await t('멤버DB 한자표기가 잔액·아이템·내정보에 함께 나온�
   await go(page, 'items');
   await page.waitForTimeout(700);
   const chip = page.locator('.mchip').filter({ hasText: 'TC무식' }).first();
-  // 둘째 줄은 `한자 · 클래스` 다 (v11.5). 클래스가 붙어도 **한자가 맨 앞**이어야 한다 —
-  // `포함`만 보면 나중에 한자가 빠지고 클래스만 남아도 통과해버린다.
+  // 둘째 줄은 **한자만**, 셋째 줄이 클래스다 (v11.6.1). 한 줄에 합치면 합친 길이만큼
+  // fitIn 이 줄여 한자가 국문보다 작아진다 — 중국 혈맹원에게는 한자가 본명이다.
   const line2 = await chip.locator('.nm i').innerText();
   if (!line2.startsWith('车武植')) {
     throw new Error(`칩 둘째 줄이 G열 한자로 시작하지 않습니다: "${line2}"`);
   }
   // 클래스를 넣어둔 사람이므로 함께 나와야 한다 (관리에서 넣은 값이 화면마다 같이 보인다)
-  if (!line2.includes('마법사')) {
-    throw new Error(`칩 둘째 줄에 클래스가 없습니다: "${line2}"`);
+  const line3 = await chip.locator('.nm em').innerText();
+  if (!line3.includes('마법사')) {
+    throw new Error(`칩 셋째 줄에 클래스가 없습니다: "${line3}"`);
   }
 
   // 내 정보 드롭다운
@@ -2691,6 +2695,55 @@ await t('잔액을 서버 칩으로 좁혀 본다 (v11.3, 화면)', async () => 
   await page.locator('.svchip').filter({ hasText: /^01/ }).first().click();
   await page.waitForTimeout(400);
   eq((await names()).length, all.length, '칩을 풀면 전원');
+});
+
+await t('잔액을 클래스로 좁혀 본다 — 드롭다운 하나 (v11.6.1, 화면)', async () => {
+  await reset();
+  await page.reload({ waitUntil: 'networkidle' });
+  await go(page, 'balance');
+
+  const names = async () => (await page.locator('.row-name').allInnerTexts()).map((x) => x.trim());
+  const all = await names();
+
+  const sel = page.locator('select.clsfilter');
+  if ((await sel.count()) === 0) throw new Error('클래스 드롭다운이 없습니다.');
+
+  // 칩이 아니라 드롭다운이어야 한다 — 13종을 칩으로 깔면 명단이 화면 밖으로 밀린다
+  const opts = await sel.locator('option').allInnerTexts();
+  if (opts.length < 3) throw new Error(`클래스 선택지가 너무 적습니다: ${opts.join(' / ')}`);
+  if (!/전체 클래스/.test(opts[0])) throw new Error(`기본값이 "전체"가 아닙니다: ${opts[0]}`);
+  // 인원이 0인 클래스는 아예 나오지 않는다 — 고를 이유가 없다
+  if (opts.some((o) => /\(0\)/.test(o))) throw new Error(`인원 0인 클래스가 목록에 있습니다: ${opts.join(' / ')}`);
+
+  await sel.selectOption('기사');
+  await page.waitForTimeout(400);
+  const knights = await names();
+  if (knights.length >= all.length) throw new Error('클래스를 골랐는데 목록이 그대로입니다.');
+  // ★ 혈맹운영비는 사람이 아니라 금고다 — 서버 칩과 같은 규칙으로 언제나 남는다
+  if (!knights.some((n) => n.includes('혈맹운영비'))) throw new Error('클래스로 좁히니 혈맹운영비가 사라졌습니다.');
+  if (!knights.some((n) => n.includes('가이'))) throw new Error('기사인 가이가 빠졌습니다.');
+  if (knights.some((n) => n.includes('TC무식'))) throw new Error('마법사 TC무식이 기사 목록에 남았습니다.');
+
+  // "클래스 미지정"은 "전체"와 다른 값이다 — 뭉개면 전원이 나온다
+  await sel.selectOption('');
+  await page.waitForTimeout(400);
+  const none = await names();
+  if (none.some((n) => n.includes('가이'))) throw new Error('"미지정"을 골랐는데 클래스가 있는 사람이 남았습니다.');
+  if (none.length >= all.length) throw new Error('"미지정"이 "전체"처럼 동작합니다.');
+
+  // 서버 칩과 AND 로 겹친다 — 01 서버의 기사
+  await sel.selectOption('기사');
+  await page.locator('.svchip').filter({ hasText: /^01/ }).first().click();
+  await page.waitForTimeout(400);
+  for (const n of await names()) {
+    if (n.includes('혈맹운영비')) continue;
+    if (!n.startsWith('01')) throw new Error(`서버·클래스가 AND 로 겹치지 않습니다: ${n}`);
+  }
+
+  await sel.selectOption('*');
+  await page.locator('.svchip').filter({ hasText: /^01/ }).first().click();
+  await page.waitForTimeout(400);
+  eq((await names()).length, all.length, '필터를 풀면 전원');
 });
 
 await t('용어 사전: 中文으로 찾아 고르면 국문이 들어간다 (v11.4)', async () => {

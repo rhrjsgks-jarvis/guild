@@ -1,7 +1,7 @@
 'use client';
 
 import { useT } from '@/lib/i18n';
-import { GRADE_UNKNOWN, gradeColor, termDisplay, tierOf, useTerms } from '@/lib/terms';
+import { GRADE_UNKNOWN, gradeColor, imgOf, termDisplay, tierOf, useTerms } from '@/lib/terms';
 
 /**
  * 아이템 이름 한 벌 (v11.5) — 등급 테두리 · 티어 배지 · 아이콘.
@@ -34,7 +34,7 @@ export default function ItemName({
    * 대만 혈맹원에게 '3티어' 는 읽히지 않는다.
    */
   const tierNo = (tierOf(terms, name).match(/([0-3])/) ?? [])[1] ?? '';
-  const img = terms.find((t) => t.ko === name)?.img?.trim() ?? '';
+  const img = imgOf(terms, name);
   const known = color !== GRADE_UNKNOWN;
 
   return (

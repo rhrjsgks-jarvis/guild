@@ -353,6 +353,27 @@ export function classOf(state: ClassSource | null | undefined, name: string): st
 }
 
 /**
+ * 값별 인원 세기 — 필터에 붙는 숫자를 한 벌로 만든다 (v11.6.1).
+ *
+ * 클래스 필터가 [잔액]·[아이템]·[관리] 세 곳에 붙는데, 화면마다 세는 코드를
+ * 따로 두면 같은 명단인데 화면마다 숫자가 다르게 나온다 — 어느 쪽이 맞는지
+ * 아무도 모르게 된다. 서버 칩이 `foldServers` 한 벌을 쓰는 것과 같은 이유다.
+ *
+ * ★ 빈 값은 `none` 으로 따로 센다. `counts['']` 에 섞으면 "클래스 미지정"이
+ *   13종 사이에 끼어 하나의 클래스처럼 보인다.
+ */
+export function tally(values: Iterable<string>): { counts: Record<string, number>; none: number } {
+  const counts: Record<string, number> = {};
+  let none = 0;
+  for (const v of values) {
+    const k = String(v ?? '').trim();
+    if (!k) none += 1;
+    else counts[k] = (counts[k] ?? 0) + 1;
+  }
+  return { counts, none };
+}
+
+/**
  * 안 쓰는 서버를 접는 규칙 — 한 벌만 둔다 (v10.8.6).
  *
  * [혈맹원 관리]의 한 개 고르기(`ServerPicker`)와 [아이템 등록]의 여러 개

@@ -1,0 +1,3372 @@
+[
+ {
+  "row": 2,
+  "cat": "신화",
+  "ko": "구원의 향로",
+  "zh": "救援香爐",
+  "en": "Redemption Incense Burner",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_PA_M_Salvation.png"
+ },
+ {
+  "row": 3,
+  "cat": "신화",
+  "ko": "귀혼서 (요기 낙뢰)",
+  "zh": "鬼魂書 (妖氣落雷)",
+  "en": "Phantom Scroll (Spirit Energy Lightning)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_DemonBladerSpellbook_6_Mythic.png"
+ },
+ {
+  "row": 4,
+  "cat": "신화",
+  "ko": "근원의 성배",
+  "zh": "根源聖杯",
+  "en": "Primal Chalice",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_BC_F_Noble.png"
+ },
+ {
+  "row": 5,
+  "cat": "신화",
+  "ko": "기술서 (쇼크 스턴 : 강화 베테랑)",
+  "zh": "技術書 (衝擊之暈 : 強化專家)",
+  "en": "Vanguard's Spellbook (Shock Stun: Enhanced Veteran)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/skillbook_Mythic.png"
+ },
+ {
+  "row": 6,
+  "cat": "신화",
+  "ko": "대전사의 울림",
+  "zh": "大戰士的迴響",
+  "en": "Great Warrior's Echo",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_WA_Mythic_1.png"
+ },
+ {
+  "row": 7,
+  "cat": "신화",
+  "ko": "대지의 발자국",
+  "zh": "大地的腳印",
+  "en": "Footprints of the Earth",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Foot_AncientGiant.png"
+ },
+ {
+  "row": 8,
+  "cat": "신화",
+  "ko": "돌파석 결정",
+  "zh": "突破石結晶",
+  "en": "Breakthrough Stone Crystal",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Material_Stone_Base.png"
+ },
+ {
+  "row": 9,
+  "cat": "신화",
+  "ko": "린드비오르의 마력",
+  "zh": "林德拜爾的魅惑",
+  "en": "Lindvior's Mana",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Torso_LindviorInt.png"
+ },
+ {
+  "row": 10,
+  "cat": "신화",
+  "ko": "린드비오르의 마력 각반",
+  "zh": "林德拜爾的魅惑脛甲",
+  "en": "Lindvior's Mana Gaiters",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Leg_LindviorInt.png"
+ },
+ {
+  "row": 11,
+  "cat": "신화",
+  "ko": "린드비오르의 완력",
+  "zh": "林德拜爾的力量",
+  "en": "Lindvior's Might",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Torso_LindviorStr.png"
+ },
+ {
+  "row": 12,
+  "cat": "신화",
+  "ko": "린드비오르의 완력 각반",
+  "zh": "林德拜爾的力量脛甲",
+  "en": "Lindvior's Might Gaiters",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Leg_LindviorStr.png"
+ },
+ {
+  "row": 13,
+  "cat": "신화",
+  "ko": "린드비오르의 인내력",
+  "zh": "林德拜爾的泉源",
+  "en": "Lindvior's Endurance",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Torso_LindviorDex.png"
+ },
+ {
+  "row": 14,
+  "cat": "신화",
+  "ko": "린드비오르의 인내력 각반",
+  "zh": "林德拜爾的泉源脛甲",
+  "en": "Lindvior's Endurance Gaiters",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Leg_LindviorDex.png"
+ },
+ {
+  "row": 15,
+  "cat": "신화",
+  "ko": "마격서 (데스 필드)",
+  "zh": "魔鬥書 (死亡領域)",
+  "en": "Book of Mana Strike (Death Field)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Fistskillbook_GU_6.png"
+ },
+ {
+  "row": 16,
+  "cat": "신화",
+  "ko": "마법서 (데스 둠)",
+  "zh": "魔法書 (死亡厄運)",
+  "en": "Magic Spellbook (Death Doom)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/spellbook_Mythic.png"
+ },
+ {
+  "row": 17,
+  "cat": "신화",
+  "ko": "병법서 (임페리얼 로드)",
+  "zh": "兵法書 (帝國之路)",
+  "en": "Ruler's Spellbook (Imperial Road)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/strategybook_Mythic.png"
+ },
+ {
+  "row": 18,
+  "cat": "신화",
+  "ko": "블루디카의 맹독",
+  "zh": "布魯迪卡的猛毒",
+  "en": "Vladika's Venom",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_DA_Bluedika.png"
+ },
+ {
+  "row": 19,
+  "cat": "신화",
+  "ko": "사신의 투구",
+  "zh": "死神頭盔",
+  "en": "God of Death's Helm",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Head_GrimReaper.png"
+ },
+ {
+  "row": 20,
+  "cat": "신화",
+  "ko": "섬광의 장갑",
+  "zh": "閃光手套",
+  "en": "Gloves of Flash",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Hand_HellFire.png"
+ },
+ {
+  "row": 21,
+  "cat": "신화",
+  "ko": "성서 (크루세이더)",
+  "zh": "聖書 (十字軍)",
+  "en": "Scripture (Crusader)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Holyknightskillbook_GU_6.png"
+ },
+ {
+  "row": 22,
+  "cat": "신화",
+  "ko": "수행서 (천도재)",
+  "zh": "修行書 (超渡)",
+  "en": "Tome (Reincarnation Ritual)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_PathfinderSpellbook_6_Mythic.png"
+ },
+ {
+  "row": 23,
+  "cat": "신화",
+  "ko": "신성의 헤일로",
+  "zh": "神聖的光暈",
+  "en": "Halo of Divinity",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_Holy.png"
+ },
+ {
+  "row": 24,
+  "cat": "신화",
+  "ko": "신화 제작 비법서",
+  "zh": "神話製作秘笈",
+  "en": "Mythic Craft Recipe",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/precious_manual_04.png"
+ },
+ {
+  "row": 25,
+  "cat": "신화",
+  "ko": "실렌의 부츠",
+  "zh": "席琳長靴",
+  "en": "Shilen's Boots",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Boots_Silen.png"
+ },
+ {
+  "row": 26,
+  "cat": "신화",
+  "ko": "안타라스의 마력",
+  "zh": "安塔瑞斯的魅惑",
+  "en": "Antharas' Mana",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Torso_AntarasInt.png"
+ },
+ {
+  "row": 27,
+  "cat": "신화",
+  "ko": "안타라스의 마력 각반",
+  "zh": "安塔瑞斯的魅惑脛甲",
+  "en": "Antharas' Mana Gaiters",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Leg_AntarasInt.png"
+ },
+ {
+  "row": 28,
+  "cat": "신화",
+  "ko": "안타라스의 완력",
+  "zh": "安塔瑞斯的力量",
+  "en": "Antharas' Might",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Torso_AntarasStr.png"
+ },
+ {
+  "row": 29,
+  "cat": "신화",
+  "ko": "안타라스의 완력 각반",
+  "zh": "安塔瑞斯的力量脛甲",
+  "en": "Antharas' Might Gaiters",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Leg_AntarasStr.png"
+ },
+ {
+  "row": 30,
+  "cat": "신화",
+  "ko": "안타라스의 인내력",
+  "zh": "安塔瑞斯的泉源",
+  "en": "Antharas' Endurance",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Torso_AntarasDex.png"
+ },
+ {
+  "row": 31,
+  "cat": "신화",
+  "ko": "안타라스의 인내력 각반",
+  "zh": "安塔瑞斯的泉源脛甲",
+  "en": "Antharas' Endurance Gaiters",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Leg_AntarasDex.png"
+ },
+ {
+  "row": 32,
+  "cat": "신화",
+  "ko": "얼음 여왕의 장갑",
+  "zh": "冰之女王手套",
+  "en": "Ice Queen's Gloves",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Hand_IceQueen.png"
+ },
+ {
+  "row": 33,
+  "cat": "신화",
+  "ko": "염왕의 진언",
+  "zh": "閻王真言",
+  "en": "King of the Underworld's Mantra",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Cha_Yama.png"
+ },
+ {
+  "row": 34,
+  "cat": "신화",
+  "ko": "영혼 결정 (카오스 블레이드)",
+  "zh": "靈魂結晶 (渾沌之刃)",
+  "en": "Soul Crystal (Chaos Blade)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/SoulCrystal_SU_6_Mythic.png"
+ },
+ {
+  "row": 35,
+  "cat": "신화",
+  "ko": "오시리스의 벨트",
+  "zh": "歐西里斯皮帶",
+  "en": "Osiris' Belt",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Waist_Osiris_01.png"
+ },
+ {
+  "row": 36,
+  "cat": "신화",
+  "ko": "요귀의 주인",
+  "zh": "妖怪之主",
+  "en": "Master of the Wicked Spirit",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Dbla_Demonlord.png"
+ },
+ {
+  "row": 37,
+  "cat": "신화",
+  "ko": "우그누스의 충절",
+  "zh": "烏格奴斯的忠貞",
+  "en": "Ugnus' Ardor",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_Ugnus_Myth.png"
+ },
+ {
+  "row": 38,
+  "cat": "신화",
+  "ko": "이실로테의 보호",
+  "zh": "依詩蒂的保護",
+  "en": "Ishilotte's Protection",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Cloak_Ishilotte.png"
+ },
+ {
+  "row": 39,
+  "cat": "신화",
+  "ko": "재앙의 마력포",
+  "zh": "災殃魔力砲",
+  "en": "Magic Cannon of Calamity",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_Calamity.png"
+ },
+ {
+  "row": 40,
+  "cat": "신화",
+  "ko": "전사의 인장 (뱅가드)",
+  "zh": "戰士印章 (先鋒)",
+  "en": "Warrior's Emblem (Vanguard)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Signetstone_WA_6_Mythic.png"
+ },
+ {
+  "row": 41,
+  "cat": "신화",
+  "ko": "전술 교본 (버닝 실루엣)",
+  "zh": "戰術教本 (燃燒影魔)",
+  "en": "Tactics Manual (Burning Silhouette)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Gunskillbook_GU_6.png"
+ },
+ {
+  "row": 42,
+  "cat": "신화",
+  "ko": "정령의 수정 (셰이프 체인지)",
+  "zh": "精靈水晶 (變形術)",
+  "en": "Spirit Crystal (Shape Shift)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/spellcrystal_normal_Mythic.png"
+ },
+ {
+  "row": 43,
+  "cat": "신화",
+  "ko": "제브 레퀴의 송곳니",
+  "zh": "杰弗雷庫的尖牙",
+  "en": "Zebb Requis' Fang",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Neck_Zebrequi_01.png"
+ },
+ {
+  "row": 44,
+  "cat": "신화",
+  "ko": "천귀의 보주",
+  "zh": "天鬼寶珠",
+  "en": "Heavenly Spirit's Orb",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_CelestialFiendOrb.png"
+ },
+ {
+  "row": 45,
+  "cat": "신화",
+  "ko": "칠흑의 투구",
+  "zh": "漆黑的頭盔",
+  "en": "Pitch-Black Helm",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Head_PitchDarkness.png"
+ },
+ {
+  "row": 46,
+  "cat": "신화",
+  "ko": "타이탄의 분노",
+  "zh": "泰坦的憤怒",
+  "en": "Titan's Wrath",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Daxe_Anger.png"
+ },
+ {
+  "row": 47,
+  "cat": "신화",
+  "ko": "파푸리온의 마력",
+  "zh": "法利昂的魅惑",
+  "en": "Fafurion's Mana",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Torso_FafurionInt.png"
+ },
+ {
+  "row": 48,
+  "cat": "신화",
+  "ko": "파푸리온의 마력 각반",
+  "zh": "法利昂的魅惑脛甲",
+  "en": "Fafurion's Mana Gaiters",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Leg_FafurionInt.png"
+ },
+ {
+  "row": 49,
+  "cat": "신화",
+  "ko": "파푸리온의 완력",
+  "zh": "法利昂的力量",
+  "en": "Fafurion's Might",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Torso_FafurionStr.png"
+ },
+ {
+  "row": 50,
+  "cat": "신화",
+  "ko": "파푸리온의 완력 각반",
+  "zh": "法利昂的力量脛甲",
+  "en": "Fafurion's Might Gaiters",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Leg_FafurionStr.png"
+ },
+ {
+  "row": 51,
+  "cat": "신화",
+  "ko": "파푸리온의 인내력",
+  "zh": "法利昂的泉源",
+  "en": "Fafurion's Endurance",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Torso_FafurionDex.png"
+ },
+ {
+  "row": 52,
+  "cat": "신화",
+  "ko": "파푸리온의 인내력 각반",
+  "zh": "法利昂的泉源脛甲",
+  "en": "Fafurion's Endurance Gaiters",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Leg_FafurionDex.png"
+ },
+ {
+  "row": 53,
+  "cat": "신화",
+  "ko": "포식자의 사이드",
+  "zh": "捕食者鐮刀",
+  "en": "Predator's Scythe",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Scythe_Noblesse.png"
+ },
+ {
+  "row": 54,
+  "cat": "신화",
+  "ko": "혈법서 (서먼 가디언 : 크림슨)",
+  "zh": "血法書 (召喚守護者 : 赤血)",
+  "en": "Blood Magic Spellbook (Summon Guardian: Crimson)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_BloodCasterSpellbook_6_Mythic.png"
+ },
+ {
+  "row": 55,
+  "cat": "신화",
+  "ko": "흑정령의 수정 (일루젼 스텝)",
+  "zh": "黑暗精靈水晶 (幻影之步)",
+  "en": "Dark Spirit Crystal (Illusion Step)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/SpellCrystal_DA_6_Mythic.png"
+ },
+ {
+  "row": 223,
+  "cat": "전설",
+  "ko": "갈망의 헤일로",
+  "zh": "渴望的光暈",
+  "en": "Halo of Longing",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_Yearning.png"
+ },
+ {
+  "row": 224,
+  "cat": "전설",
+  "ko": "감시자의 반지",
+  "zh": "監視者戒指",
+  "en": "Watchman's Ring",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Finger_WatcherReaper.png"
+ },
+ {
+  "row": 225,
+  "cat": "전설",
+  "ko": "검은 망령의 갑옷",
+  "zh": "黑色亡靈盔甲",
+  "en": "Black Revenant's Armor",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Torso_KN_M_Father_Boss.png"
+ },
+ {
+  "row": 226,
+  "cat": "전설",
+  "ko": "검은 망령의 부츠",
+  "zh": "黑色亡靈長靴",
+  "en": "Black Revenant's Boots",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Foot_KN_M_Father_Boss.png"
+ },
+ {
+  "row": 227,
+  "cat": "전설",
+  "ko": "검은 망령의 장갑",
+  "zh": "黑色亡靈手套",
+  "en": "Black Revenant's Gloves",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Hand_KN_M_Father_Boss.png"
+ },
+ {
+  "row": 228,
+  "cat": "전설",
+  "ko": "검은 망령의 투구",
+  "zh": "黑色亡靈頭盔",
+  "en": "Black Revenant's Helm",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Head_KN_M_Father_Boss.png"
+ },
+ {
+  "row": 229,
+  "cat": "전설",
+  "ko": "격류의 부츠",
+  "zh": "激流長靴",
+  "en": "Boots of Torrent",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Foot_TC.png"
+ },
+ {
+  "row": 230,
+  "cat": "전설",
+  "ko": "격류의 장갑",
+  "zh": "激流手套",
+  "en": "Gloves of Torrent",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Hand_TC.png"
+ },
+ {
+  "row": 231,
+  "cat": "전설",
+  "ko": "격분의 장갑",
+  "zh": "激憤手套",
+  "en": "Wrath Gloves",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Hand_Fury.png"
+ },
+ {
+  "row": 232,
+  "cat": "전설",
+  "ko": "고대 신의 도끼",
+  "zh": "古代神之斧頭",
+  "en": "Ancient God's Axe",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Daxe_God.png"
+ },
+ {
+  "row": 233,
+  "cat": "전설",
+  "ko": "고대 신의 성검",
+  "zh": "古代神之聖劍",
+  "en": "Ancient God's Holy Sword",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Hswd_Elder.png"
+ },
+ {
+  "row": 234,
+  "cat": "전설",
+  "ko": "고대 신의 챠크람",
+  "zh": "古代神之環刃",
+  "en": "Ancient God's Chakram",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Cha_Elder.png"
+ },
+ {
+  "row": 235,
+  "cat": "전설",
+  "ko": "공포의 귀걸이",
+  "zh": "恐懼耳環",
+  "en": "Earrings of Fear",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Ear_Fear.png"
+ },
+ {
+  "row": 236,
+  "cat": "전설",
+  "ko": "공허의 활",
+  "zh": "空虛之弓",
+  "en": "Void Bow",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Bow_VoidBow.png"
+ },
+ {
+  "row": 237,
+  "cat": "전설",
+  "ko": "광폭의 성검",
+  "zh": "狂暴聖劍",
+  "en": "Holy Sword of Berserk",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Hswd_Berserk.png"
+ },
+ {
+  "row": 238,
+  "cat": "전설",
+  "ko": "군단의 대검",
+  "zh": "軍團大劍",
+  "en": "Legion's Greatsword",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_LSwd_LASLegend.png"
+ },
+ {
+  "row": 239,
+  "cat": "전설",
+  "ko": "군왕의 활",
+  "zh": "軍王之弓",
+  "en": "King's Bow",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Bow_LASLegend.png"
+ },
+ {
+  "row": 240,
+  "cat": "전설",
+  "ko": "권능의 각반",
+  "zh": "權能脛甲",
+  "en": "Gaiters of Almighty Force",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Leg_Power.png"
+ },
+ {
+  "row": 241,
+  "cat": "전설",
+  "ko": "권능의 투구",
+  "zh": "權能頭盔",
+  "en": "Helm of Almighty Force",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Head_Power.png"
+ },
+ {
+  "row": 242,
+  "cat": "전설",
+  "ko": "귀혼서 (강령술 : 극)",
+  "zh": "鬼魂書 (降靈術 : 極)",
+  "en": "Phantom Scroll (Spectral Wraith: Ultimate)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_DemonBladerSpellbook_5_Legend.png"
+ },
+ {
+  "row": 243,
+  "cat": "전설",
+  "ko": "귀혼서 (강림)",
+  "zh": "鬼魂書 (降臨)",
+  "en": "Phantom Scroll (Advent)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_DemonBladerSpellbook_5_Legend.png"
+ },
+ {
+  "row": 244,
+  "cat": "전설",
+  "ko": "귀혼서 (반기 : 극)",
+  "zh": "鬼魂書 (反技 : 極)",
+  "en": "Phantom Scroll (Opposing Energy: Ultimate)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_DemonBladerSpellbook_5_Legend.png"
+ },
+ {
+  "row": 245,
+  "cat": "전설",
+  "ko": "귀혼서 (양기 호흡 : 극)",
+  "zh": "鬼魂書 (陽氣吸收 : 極)",
+  "en": "Phantom Scroll (Yang Energy Breathing: Ultimate)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_DemonBladerSpellbook_5_Legend.png"
+ },
+ {
+  "row": 246,
+  "cat": "전설",
+  "ko": "귀혼서 (요기 개방)",
+  "zh": "鬼魂書 (妖氣開放)",
+  "en": "Phantom Scroll (Spirit Energy Unleashed)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_DemonBladerSpellbook_5_Legend.png"
+ },
+ {
+  "row": 247,
+  "cat": "전설",
+  "ko": "귀혼서 (월혼격 : 극)",
+  "zh": "鬼魂書 (月魂擊 : 極)",
+  "en": "Phantom Scroll (Moonlit Strike: Ultimate)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_DemonBladerSpellbook_5_Legend.png"
+ },
+ {
+  "row": 248,
+  "cat": "전설",
+  "ko": "귀혼서 (적월경)",
+  "zh": "鬼魂書 (赤月鏡)",
+  "en": "Phantom Scroll (Red Moon)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_DemonBladerSpellbook_5_Legend.png"
+ },
+ {
+  "row": 249,
+  "cat": "전설",
+  "ko": "귀혼서 (화형술)",
+  "zh": "鬼魂書 (化形術)",
+  "en": "Phantom Scroll (Transformation)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_DemonBladerSpellbook_5_Legend.png"
+ },
+ {
+  "row": 250,
+  "cat": "전설",
+  "ko": "균열의 마수",
+  "zh": "裂痕魔手",
+  "en": "Manahand of the Rift",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Fist_Chaos.png"
+ },
+ {
+  "row": 251,
+  "cat": "전설",
+  "ko": "그림자단의 가더",
+  "zh": "影子團臂甲",
+  "en": "Shadows' Guard",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_DA_Shadow.png"
+ },
+ {
+  "row": 252,
+  "cat": "전설",
+  "ko": "극한의 갑옷",
+  "zh": "極寒盔甲",
+  "en": "Frozen Armor",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Torso_IntenseCold.png"
+ },
+ {
+  "row": 253,
+  "cat": "전설",
+  "ko": "극한의 부츠",
+  "zh": "極寒長靴",
+  "en": "Frozen Boots",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Foot_IntenseCold.png"
+ },
+ {
+  "row": 254,
+  "cat": "전설",
+  "ko": "극한의 장갑",
+  "zh": "極寒手套",
+  "en": "Frozen Gloves",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Hand_IntenseCold.png"
+ },
+ {
+  "row": 255,
+  "cat": "전설",
+  "ko": "극한의 투구",
+  "zh": "極寒頭盔",
+  "en": "Frozen Helm",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Head_IntenseCold.png"
+ },
+ {
+  "row": 256,
+  "cat": "전설",
+  "ko": "긍지의 각반",
+  "zh": "自豪脛甲",
+  "en": "Gaiters of Pride",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Leg_Pride.png"
+ },
+ {
+  "row": 257,
+  "cat": "전설",
+  "ko": "기간테스의 가더",
+  "zh": "巨人族臂甲",
+  "en": "Gigantes' Guarder",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_WA_Legend_0.png"
+ },
+ {
+  "row": 258,
+  "cat": "전설",
+  "ko": "기술서 (드래곤 로어 : 베테랑)",
+  "zh": "技術書 (龍嘯 : 專家)",
+  "en": "Vanguard's Spellbook (Dragon's Roar: Veteran)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/skillbook_3.png"
+ },
+ {
+  "row": 259,
+  "cat": "전설",
+  "ko": "기술서 (드래곤 로어)",
+  "zh": "技術書 (龍嘯)",
+  "en": "Vanguard's Spellbook (Dragon's Roar)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/skillbook_3.png"
+ },
+ {
+  "row": 260,
+  "cat": "전설",
+  "ko": "기술서 (어웨이크닝)",
+  "zh": "技術書 (喚醒術)",
+  "en": "Vanguard's Spellbook (Awakening)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/skillbook_3.png"
+ },
+ {
+  "row": 261,
+  "cat": "전설",
+  "ko": "기술서 (오러 가드)",
+  "zh": "技術書 (氣場護甲)",
+  "en": "Vanguard's Spellbook (Aura Guard)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/skillbook_3.png"
+ },
+ {
+  "row": 262,
+  "cat": "전설",
+  "ko": "기술서 (오러 블레이드)",
+  "zh": "技術書 (氣場之刃)",
+  "en": "Vanguard's Spellbook (Aura Blade)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/skillbook_3.png"
+ },
+ {
+  "row": 263,
+  "cat": "전설",
+  "ko": "기술서 (인듀어런스 : 베테랑)",
+  "zh": "技術書 (忍耐 : 專家)",
+  "en": "Vanguard's Spellbook (Endurance: Veteran)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/skillbook_3.png"
+ },
+ {
+  "row": 264,
+  "cat": "전설",
+  "ko": "기술서 (카운터 배리어 : 베테랑)",
+  "zh": "技術書 (反擊屏障 : 專家)",
+  "en": "Vanguard's Spellbook (Counter Barrier: Veteran)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/skillbook_3.png"
+ },
+ {
+  "row": 265,
+  "cat": "전설",
+  "ko": "기술서 (풀링)",
+  "zh": "技術書 (牽引)",
+  "en": "Vanguard's Spellbook (Pulling)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/skillbook_3.png"
+ },
+ {
+  "row": 266,
+  "cat": "전설",
+  "ko": "나이트 발드의 양손검",
+  "zh": "騎士范德雙手劍",
+  "en": "Knight Vald's Two-Handed Sword",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Lswd_Black.png"
+ },
+ {
+  "row": 267,
+  "cat": "전설",
+  "ko": "네크로맨서의 정수",
+  "zh": "巫師的精髓",
+  "en": "Necromancer's Essence",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/essence_middle_04.png"
+ },
+ {
+  "row": 268,
+  "cat": "전설",
+  "ko": "단죄의 기관포",
+  "zh": "斷罪機關砲",
+  "en": "Autocannon of Conviction",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Gun_Punish.png"
+ },
+ {
+  "row": 269,
+  "cat": "전설",
+  "ko": "대지의 마수",
+  "zh": "大地魔手",
+  "en": "Gravel Manahand",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Fist_Earth.png"
+ },
+ {
+  "row": 270,
+  "cat": "전설",
+  "ko": "대학살의 사이드",
+  "zh": "大屠殺鐮刀",
+  "en": "Carnage Scythe",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Scythe_Carnage.png"
+ },
+ {
+  "row": 271,
+  "cat": "전설",
+  "ko": "데몬의 지팡이",
+  "zh": "惡魔魔杖",
+  "en": "Demon's Staff",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Stf_Demon.png"
+ },
+ {
+  "row": 272,
+  "cat": "전설",
+  "ko": "데스나이트의 갑옷",
+  "zh": "死亡騎士盔甲",
+  "en": "Death Knight's Armor",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/armor_of_deathknight.png"
+ },
+ {
+  "row": 273,
+  "cat": "전설",
+  "ko": "데스나이트의 부츠",
+  "zh": "死亡騎士長靴",
+  "en": "Death Knight's Boots",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/boots_of_deathknight.png"
+ },
+ {
+  "row": 274,
+  "cat": "전설",
+  "ko": "데스나이트의 불검",
+  "zh": "死亡騎士烈炎之劍",
+  "en": "Death Knight's Flaming Sword",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/sword_of_death_knight.png"
+ },
+ {
+  "row": 275,
+  "cat": "전설",
+  "ko": "데스나이트의 장갑",
+  "zh": "死亡騎士手套",
+  "en": "Death Knight's Gloves",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/gloves_of_deathknight.png"
+ },
+ {
+  "row": 276,
+  "cat": "전설",
+  "ko": "데스나이트의 정수",
+  "zh": "死亡騎士的精髓",
+  "en": "Death Knight's Essence",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/essence_high_05.png"
+ },
+ {
+  "row": 277,
+  "cat": "전설",
+  "ko": "데스나이트의 투구",
+  "zh": "死亡騎士頭盔",
+  "en": "Death Knight's Helm",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/helm_of_deathknight.png"
+ },
+ {
+  "row": 278,
+  "cat": "전설",
+  "ko": "드래곤 슬레이어",
+  "zh": "屠龍劍",
+  "en": "Dragon Slayer",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/dragon_slayer.png"
+ },
+ {
+  "row": 279,
+  "cat": "전설",
+  "ko": "드래곤 슬레이어 검 조각",
+  "zh": "屠龍劍碎片",
+  "en": "Dragon Slayer Sword Fragment",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Material_dragonslayer_shard.png"
+ },
+ {
+  "row": 280,
+  "cat": "전설",
+  "ko": "드레이크 킹의 가죽 장갑",
+  "zh": "飛龍王皮手套",
+  "en": "Drake King's Leather Gloves",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Hand_Drakeking.png"
+ },
+ {
+  "row": 281,
+  "cat": "전설",
+  "ko": "라돈의 정수",
+  "zh": "拉敦的精髓",
+  "en": "Rahdon's Essence",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/essence_high_02.png"
+ },
+ {
+  "row": 282,
+  "cat": "전설",
+  "ko": "라이아의 반지",
+  "zh": "蕾雅戒指",
+  "en": "Leia's Ring",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Finger_LASLegend.png"
+ },
+ {
+  "row": 283,
+  "cat": "전설",
+  "ko": "리치 로브",
+  "zh": "巫妖長袍",
+  "en": "Lich Robe",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Torso_Rich.png"
+ },
+ {
+  "row": 284,
+  "cat": "전설",
+  "ko": "리치의 반지",
+  "zh": "巫妖的戒指",
+  "en": "Lich's Ring",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Finger_Rich.png"
+ },
+ {
+  "row": 285,
+  "cat": "전설",
+  "ko": "린드비오르의 정수",
+  "zh": "林德拜爾的精髓",
+  "en": "Lindvior's Essence",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/essence_high_07.png"
+ },
+ {
+  "row": 286,
+  "cat": "전설",
+  "ko": "마격서 (라이즈 : 오디엄)",
+  "zh": "魔鬥書 (增強 : 仇恨)",
+  "en": "Book of Mana Strike (Rise: Odium)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Fistskillbook_GU_5.png"
+ },
+ {
+  "row": 287,
+  "cat": "전설",
+  "ko": "마격서 (리뎀션)",
+  "zh": "魔鬥書 (救贖)",
+  "en": "Book of Mana Strike (Redemption)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Fistskillbook_GU_5.png"
+ },
+ {
+  "row": 288,
+  "cat": "전설",
+  "ko": "마격서 (카운터 베인 : 오디엄)",
+  "zh": "魔鬥書 (反擊之禍 : 仇恨)",
+  "en": "Mana Striker (Counter Vane: Odium)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Fistskillbook_GU_5.png"
+ },
+ {
+  "row": 289,
+  "cat": "전설",
+  "ko": "마격서 (파로스 : 오디엄)",
+  "zh": "魔鬥書 (立標 : 仇恨)",
+  "en": "Book of Mana Strike (Faros: Odium)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Fistskillbook_GU_5.png"
+ },
+ {
+  "row": 290,
+  "cat": "전설",
+  "ko": "마격서 (프로즌 대쉬 : 오디엄)",
+  "zh": "魔鬥書 (寒冰衝刺 : 仇恨)",
+  "en": "Book of Mana Strike (Frozen Dash: Odium)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Fistskillbook_GU_5.png"
+ },
+ {
+  "row": 291,
+  "cat": "전설",
+  "ko": "마격서 (프로즌 스톱 : 오디엄)",
+  "zh": "魔鬥書 (寒冰靜止 : 仇恨)",
+  "en": "Book of Mana Strike (Frozen Stop: Odium)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Fistskillbook_GU_5.png"
+ },
+ {
+  "row": 292,
+  "cat": "전설",
+  "ko": "마격서 (프로즌 필드)",
+  "zh": "魔鬥書 (寒冰領域)",
+  "en": "Book of Mana Strike (Frozen Field)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Fistskillbook_GU_5.png"
+ },
+ {
+  "row": 293,
+  "cat": "전설",
+  "ko": "마법서 (데스힐: 에이션트)",
+  "zh": "魔法書 (治癒逆行 : 古代)",
+  "en": "Magic Spellbook (Death Heal: Ancient)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/spellbook_3.png"
+ },
+ {
+  "row": 294,
+  "cat": "전설",
+  "ko": "마법서 (디스인티그레이트)",
+  "zh": "魔法書 (究極光裂術)",
+  "en": "Magic Spellbook (Disintegrate)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/spellbook_3.png"
+ },
+ {
+  "row": 295,
+  "cat": "전설",
+  "ko": "마법서 (리커버리 배리어)",
+  "zh": "魔法書 (恢復屏障)",
+  "en": "Magic Spellbook (Recovery Barrier)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/spellbook_3.png"
+ },
+ {
+  "row": 296,
+  "cat": "전설",
+  "ko": "마법서 (릴리즈)",
+  "zh": "魔法書 (釋放)",
+  "en": "Magic Spellbook (Release)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/spellbook_3.png"
+ },
+ {
+  "row": 297,
+  "cat": "전설",
+  "ko": "마법서 (미티어 스트라이크)",
+  "zh": "魔法書 (流星雨)",
+  "en": "Magic Spellbook (Meteor Strike)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/spellbook_3.png"
+ },
+ {
+  "row": 298,
+  "cat": "전설",
+  "ko": "마법서 (스톱)",
+  "zh": "魔法書 (時間靜止)",
+  "en": "Magic Spellbook (Stop)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/spellbook_3.png"
+ },
+ {
+  "row": 299,
+  "cat": "전설",
+  "ko": "마법서 (스펙터)",
+  "zh": "魔法書 (幽靈)",
+  "en": "Magic Spellbook (Specter)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/spellbook_3.png"
+ },
+ {
+  "row": 300,
+  "cat": "전설",
+  "ko": "마법서 (앱솔루트 배리어)",
+  "zh": "魔法書 (絕對屏障)",
+  "en": "Magic Spellbook (Absolute Barrier)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/spellbook_3.png"
+ },
+ {
+  "row": 301,
+  "cat": "전설",
+  "ko": "마법서 (이뮨 투 함 : 에이션트)",
+  "zh": "魔法書 (聖結界 : 古代)",
+  "en": "Magic Spellbook (Immune to Harm : Ancient)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/spellbook_3.png"
+ },
+ {
+  "row": 302,
+  "cat": "전설",
+  "ko": "마법서 (캔슬레이션 : 에이션트)",
+  "zh": "魔法書 (魔法相消術 : 古代)",
+  "en": "Magic Spellbook (Cancellation: Ancient)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/spellbook_3.png"
+ },
+ {
+  "row": 303,
+  "cat": "전설",
+  "ko": "마프르의 망토",
+  "zh": "梅芙斗篷",
+  "en": "Maphr's Cloak",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Cloak_Mapr.png"
+ },
+ {
+  "row": 304,
+  "cat": "전설",
+  "ko": "망령의 태도",
+  "zh": "亡靈太刀",
+  "en": "Revenant's Hwando",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_LongBlade_LASLegend.png"
+ },
+ {
+  "row": 305,
+  "cat": "전설",
+  "ko": "망자의 챠크람",
+  "zh": "亡者環刃",
+  "en": "Chakram of the Dead",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Cha_Immortal.png"
+ },
+ {
+  "row": 306,
+  "cat": "전설",
+  "ko": "머미 로드의 벨트",
+  "zh": "木乃伊王的腰帶",
+  "en": "Mummy Lord's Belt",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Waist_MummyLord.png"
+ },
+ {
+  "row": 307,
+  "cat": "전설",
+  "ko": "머미 로드의 왕관",
+  "zh": "木乃伊王的王冠",
+  "en": "Mummy Lord's Crown",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Head_MummyLord.png"
+ },
+ {
+  "row": 308,
+  "cat": "전설",
+  "ko": "모욕의 지팡이",
+  "zh": "侮辱魔杖",
+  "en": "Staff of Ridicule",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Stf_LASLegend.png"
+ },
+ {
+  "row": 309,
+  "cat": "전설",
+  "ko": "몽환의 반지",
+  "zh": "夢幻戒指",
+  "en": "Phantasm Ring",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Finger_PD.png"
+ },
+ {
+  "row": 310,
+  "cat": "전설",
+  "ko": "미노타우르스의 가죽 갑옷",
+  "zh": "牛人皮革盔甲",
+  "en": "Minotaur's Leather Armor",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Torso_Minotaur.png"
+ },
+ {
+  "row": 311,
+  "cat": "전설",
+  "ko": "미노타우르스의 가죽 투구",
+  "zh": "牛人皮革頭盔",
+  "en": "Minotaur's Leather Helm",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Head_Minotaur.png"
+ },
+ {
+  "row": 312,
+  "cat": "전설",
+  "ko": "반역자의 방패",
+  "zh": "叛徒盾牌",
+  "en": "Traitor's Shield",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/shield_of_traitor.png"
+ },
+ {
+  "row": 313,
+  "cat": "전설",
+  "ko": "뱀파이어의 망토",
+  "zh": "吸血鬼斗篷",
+  "en": "Vampire's Cloak",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Cloak_Vampire.png"
+ },
+ {
+  "row": 314,
+  "cat": "전설",
+  "ko": "베레스의 각반",
+  "zh": "巴列斯脛甲",
+  "en": "Vereth's Gaiters",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Leg_Beleth.png"
+ },
+ {
+  "row": 315,
+  "cat": "전설",
+  "ko": "병법서 (글로잉 가디언)",
+  "zh": "兵法書 (灼熱守護者)",
+  "en": "Ruler's Spellbook (Glowing Guardian)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/strategybook_3.png"
+ },
+ {
+  "row": 316,
+  "cat": "전설",
+  "ko": "병법서 (글로잉 소드)",
+  "zh": "兵法書 (灼熱之劍)",
+  "en": "Ruler's Spellbook (Glowing Sword)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/strategybook_3.png"
+ },
+ {
+  "row": 317,
+  "cat": "전설",
+  "ko": "병법서 (블러드 유니온)",
+  "zh": "兵法書 (血之聯合)",
+  "en": "Ruler's Spellbook (Blood Union)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/strategybook_3.png"
+ },
+ {
+  "row": 318,
+  "cat": "전설",
+  "ko": "병법서 (빅토리 오더)",
+  "zh": "兵法書 (勝利指揮)",
+  "en": "Ruler's Spellbook (Victory Order)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/strategybook_3.png"
+ },
+ {
+  "row": 319,
+  "cat": "전설",
+  "ko": "병법서 (엑스칼리버 : 마스터)",
+  "zh": "兵法書 (王者之劍 : 大師)",
+  "en": "Ruler's Spellbook (Excalibur: Master)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/strategybook_3.png"
+ },
+ {
+  "row": 320,
+  "cat": "전설",
+  "ko": "병법서 (엑스칼리버)",
+  "zh": "兵法書 (王者之劍)",
+  "en": "Ruler's Spellbook (Excalibur)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/strategybook_3.png"
+ },
+ {
+  "row": 321,
+  "cat": "전설",
+  "ko": "병법서 (임페리얼 카운터)",
+  "zh": "兵法書 (帝國反擊)",
+  "en": "Ruler's Spellbook (Imperial Counter)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/strategybook_3.png"
+ },
+ {
+  "row": 322,
+  "cat": "전설",
+  "ko": "복종의 비수",
+  "zh": "服從匕首",
+  "en": "Yedo of Obedience",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_ShortBlade_Obey.png"
+ },
+ {
+  "row": 323,
+  "cat": "전설",
+  "ko": "복종의 태도",
+  "zh": "服從太刀",
+  "en": "Hwando of Obedience",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_LongBlade_Obey.png"
+ },
+ {
+  "row": 324,
+  "cat": "전설",
+  "ko": "분노의 목걸이",
+  "zh": "憤怒項鍊",
+  "en": "Rage Necklace",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Neck_Fury.png"
+ },
+ {
+  "row": 325,
+  "cat": "전설",
+  "ko": "분쇄의 크로우",
+  "zh": "粉碎鋼爪",
+  "en": "Crushing Claws",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Cla_LASLegend.png"
+ },
+ {
+  "row": 326,
+  "cat": "전설",
+  "ko": "불굴의 흉갑",
+  "zh": "不屈胸甲",
+  "en": "Indomitable Breastplate",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Torso_Indomitable.png"
+ },
+ {
+  "row": 327,
+  "cat": "전설",
+  "ko": "불꽃의 가더",
+  "zh": "火花臂甲",
+  "en": "Guarder of Ember",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_Phoenix.png"
+ },
+ {
+  "row": 328,
+  "cat": "전설",
+  "ko": "불멸의 성검",
+  "zh": "不滅聖劍",
+  "en": "Holy Sword of Immortality",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Hswd_Immortal.png"
+ },
+ {
+  "row": 329,
+  "cat": "전설",
+  "ko": "불변의 목걸이",
+  "zh": "不變項鍊",
+  "en": "Necklace of Immutability",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Neck_Immutability.png"
+ },
+ {
+  "row": 330,
+  "cat": "전설",
+  "ko": "불신의 각반",
+  "zh": "不信脛甲",
+  "en": "Gaiters of Distrust",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Leg_Distrust.png"
+ },
+ {
+  "row": 331,
+  "cat": "전설",
+  "ko": "빛나는 마프르의 반지",
+  "zh": "閃耀的梅芙戒指",
+  "en": "Shining Maphr's Ring",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Finger_Maphr.png"
+ },
+ {
+  "row": 332,
+  "cat": "전설",
+  "ko": "빛나는 에바의 목걸이",
+  "zh": "閃耀的伊娃項鍊",
+  "en": "Shining Eva's Necklace",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Neck_Eva.png"
+ },
+ {
+  "row": 333,
+  "cat": "전설",
+  "ko": "빛바랜 오시리스의 반지",
+  "zh": "褪色的歐西里斯戒指",
+  "en": "Faded Osiris' Ring",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Finger_Osiris_03.png"
+ },
+ {
+  "row": 334,
+  "cat": "전설",
+  "ko": "빛바랜 오시리스의 벨트",
+  "zh": "褪色的歐西里斯皮帶",
+  "en": "Faded Osiris' Belt",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Waist_Osiris_02.png"
+ },
+ {
+  "row": 335,
+  "cat": "전설",
+  "ko": "빛바랜 제브 레퀴의 귀걸이",
+  "zh": "褪色的杰弗雷庫耳環",
+  "en": "Faded Zebb Requis' Earrings",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Ear_Zebrequi_02.png"
+ },
+ {
+  "row": 336,
+  "cat": "전설",
+  "ko": "사막의 벨트",
+  "zh": "沙漠皮帶",
+  "en": "Belt of Desert",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Waist_Desert_01.png"
+ },
+ {
+  "row": 337,
+  "cat": "전설",
+  "ko": "사이하의 활",
+  "zh": "沙哈之弓",
+  "en": "Sayha's Bow",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Bow_saiha.png"
+ },
+ {
+  "row": 338,
+  "cat": "전설",
+  "ko": "삭풍의 기관포",
+  "zh": "朔風機關砲",
+  "en": "Northern Wind Autocannon",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Gun_Boreas.png"
+ },
+ {
+  "row": 339,
+  "cat": "전설",
+  "ko": "샌드웜의 정수",
+  "zh": "沙蟲的精髓",
+  "en": "Sandworm's Essence",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/essence_high_01.png"
+ },
+ {
+  "row": 340,
+  "cat": "전설",
+  "ko": "선광의 향로",
+  "zh": "閃光香爐",
+  "en": "Merciful Incense Burner",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_PA_M_Forelight.png"
+ },
+ {
+  "row": 341,
+  "cat": "전설",
+  "ko": "선별자의 암갑",
+  "zh": "篩選者暗甲",
+  "en": "The Chosen's Arm Pack",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_Arbiter.png"
+ },
+ {
+  "row": 342,
+  "cat": "전설",
+  "ko": "성서 (루미너스 : 디바인)",
+  "zh": "聖書 (光輝 : 神聖)",
+  "en": "Scripture (Luminous: Divine)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Holyknightskillbook_GU_5.png"
+ },
+ {
+  "row": 343,
+  "cat": "전설",
+  "ko": "성서 (블레이드 : 디바인)",
+  "zh": "聖書 (聖之刃 : 神聖)",
+  "en": "Scripture (Blade: Divine)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Holyknightskillbook_GU_5.png"
+ },
+ {
+  "row": 344,
+  "cat": "전설",
+  "ko": "성서 (이노센트 배리어)",
+  "zh": "聖書 (聖潔屏障)",
+  "en": "Scripture (Innocent Barrier)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Holyknightskillbook_GU_5.png"
+ },
+ {
+  "row": 345,
+  "cat": "전설",
+  "ko": "성서 (저지먼트 스턴 : 강화 디바인)",
+  "zh": "聖書 (審判之暈 : 強化神聖)",
+  "en": "Scripture (Judgment Stun: Enhanced Divine)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Holyknightskillbook_GU_5.png"
+ },
+ {
+  "row": 346,
+  "cat": "전설",
+  "ko": "성서 (퍼니셔 : 디바인)",
+  "zh": "聖書 (制裁者 : 神聖)",
+  "en": "Scripture (Punisher: Divine)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Holyknightskillbook_GU_5.png"
+ },
+ {
+  "row": 347,
+  "cat": "전설",
+  "ko": "성서 (헬 프레셔)",
+  "zh": "聖書 (地獄壓制)",
+  "en": "Scripture (Hell Pressure)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Holyknightskillbook_GU_5.png"
+ },
+ {
+  "row": 348,
+  "cat": "전설",
+  "ko": "성서 (홀리 부스터 : 디바인)",
+  "zh": "聖書 (神聖增幅 : 神聖)",
+  "en": "Scripture (Holy Booster: Divine)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Holyknightskillbook_GU_5.png"
+ },
+ {
+  "row": 349,
+  "cat": "전설",
+  "ko": "성전의 가더",
+  "zh": "聖戰臂甲",
+  "en": "Guarder of the Divine War",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_Metatron.png"
+ },
+ {
+  "row": 350,
+  "cat": "전설",
+  "ko": "성전의 갑옷",
+  "zh": "聖戰盔甲",
+  "en": "Armor of the Divine War",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Torso_Metatron.png"
+ },
+ {
+  "row": 351,
+  "cat": "전설",
+  "ko": "성전의 투구",
+  "zh": "聖戰頭盔",
+  "en": "Helm of the Divine War",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Head_Metatron.png"
+ },
+ {
+  "row": 352,
+  "cat": "전설",
+  "ko": "세계수의 갑옷",
+  "zh": "世界樹盔甲",
+  "en": "Mother Tree's Armor",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Torso_Elm.png"
+ },
+ {
+  "row": 353,
+  "cat": "전설",
+  "ko": "세계수의 손길",
+  "zh": "世界樹之手",
+  "en": "Mother Tree's Touch",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/gloves_of_elm.png"
+ },
+ {
+  "row": 354,
+  "cat": "전설",
+  "ko": "세계수의 장화",
+  "zh": "世界樹短靴",
+  "en": "Mother Tree's Boots",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Foot_Elm.png"
+ },
+ {
+  "row": 355,
+  "cat": "전설",
+  "ko": "세계수의 투구",
+  "zh": "世界樹頭盔",
+  "en": "Mother Tree's Helm",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Head_Elm.png"
+ },
+ {
+  "row": 356,
+  "cat": "전설",
+  "ko": "수행서 (망자 걸음 : 탄트라)",
+  "zh": "修行書 (亡者之步 : 教典)",
+  "en": "Tome (Spirit Walk: Tantra)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_PathfinderSpellbook_5_Legend.png"
+ },
+ {
+  "row": 357,
+  "cat": "전설",
+  "ko": "수행서 (명부 사자)",
+  "zh": "修行書 (冥府使者)",
+  "en": "Tome (Emissary of the Underworld)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_PathfinderSpellbook_5_Legend.png"
+ },
+ {
+  "row": 358,
+  "cat": "전설",
+  "ko": "수행서 (무상)",
+  "zh": "修行書 (無常)",
+  "en": "Tome (Impermanence)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_PathfinderSpellbook_5_Legend.png"
+ },
+ {
+  "row": 359,
+  "cat": "전설",
+  "ko": "수행서 (선고 : 탄트라)",
+  "zh": "修行書 (宣告 : 教典)",
+  "en": "Tome (Condemn: Tantra)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_PathfinderSpellbook_5_Legend.png"
+ },
+ {
+  "row": 360,
+  "cat": "전설",
+  "ko": "수행서 (영체 묶기)",
+  "zh": "修行書 (靈體綁縛)",
+  "en": "Tome (Bind Spirit)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_PathfinderSpellbook_5_Legend.png"
+ },
+ {
+  "row": 361,
+  "cat": "전설",
+  "ko": "수행서 (영체 타격 : 탄트라)",
+  "zh": "修行書 (靈體打擊 : 教典)",
+  "en": "Tome (Spiritual Strike: Tantra)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_PathfinderSpellbook_5_Legend.png"
+ },
+ {
+  "row": 362,
+  "cat": "전설",
+  "ko": "수행서 (영체화 : 탄트라)",
+  "zh": "修行書 (靈體化 : 教典)",
+  "en": "Tome (Spiritualization: Tantra)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_PathfinderSpellbook_5_Legend.png"
+ },
+ {
+  "row": 363,
+  "cat": "전설",
+  "ko": "수행서 (처단 : 강화 탄트라)",
+  "zh": "修行書 (處決 : 強化教典)",
+  "en": "Tome (Damnation: Enhanced Tantra)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_PathfinderSpellbook_5_Legend.png"
+ },
+ {
+  "row": 364,
+  "cat": "전설",
+  "ko": "스피리드의 정수",
+  "zh": "樹精的精髓",
+  "en": "Spirid's Essence",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/essence_high_04.png"
+ },
+ {
+  "row": 365,
+  "cat": "전설",
+  "ko": "시어의 심안",
+  "zh": "幻象眼魔的心眼",
+  "en": "Seer's Mind Eye",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_SeersEye.png"
+ },
+ {
+  "row": 366,
+  "cat": "전설",
+  "ko": "신념의 가더",
+  "zh": "信念臂甲",
+  "en": "Guarder of Faith",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_Creed.png"
+ },
+ {
+  "row": 367,
+  "cat": "전설",
+  "ko": "신념의 귀걸이",
+  "zh": "信念耳環",
+  "en": "Earrings of Faith",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Ear_Patience.png"
+ },
+ {
+  "row": 368,
+  "cat": "전설",
+  "ko": "심연의 사이드",
+  "zh": "深淵鐮刀",
+  "en": "Abyssal Scythe",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Scythe_Abyss.png"
+ },
+ {
+  "row": 369,
+  "cat": "전설",
+  "ko": "심연의 향로",
+  "zh": "深淵香爐",
+  "en": "Abyssal Incense Burner",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_PA_M_Abyss.png"
+ },
+ {
+  "row": 370,
+  "cat": "전설",
+  "ko": "심판관의 정수",
+  "zh": "審判官的精髓",
+  "en": "Essence of Judgement",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/essence_middle_01.png"
+ },
+ {
+  "row": 371,
+  "cat": "전설",
+  "ko": "심판자의 챠크람",
+  "zh": "審判者環刃",
+  "en": "Punisher's Chakram",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Cha_Executor.png"
+ },
+ {
+  "row": 372,
+  "cat": "전설",
+  "ko": "아이리스의 목걸이",
+  "zh": "艾莉絲項鍊",
+  "en": "Iris' Necklace",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Neck_Iris.png"
+ },
+ {
+  "row": 373,
+  "cat": "전설",
+  "ko": "아이리스의 부츠",
+  "zh": "艾莉絲長靴",
+  "en": "Iris' Boots",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Foot_Iris.png"
+ },
+ {
+  "row": 374,
+  "cat": "전설",
+  "ko": "안식의 향로",
+  "zh": "安息香爐",
+  "en": "Incense Burner of Respite",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_Sanctuary.png"
+ },
+ {
+  "row": 375,
+  "cat": "전설",
+  "ko": "안타라스의 정수",
+  "zh": "安塔瑞斯的精髓",
+  "en": "Antharas' Essence",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/essence_high_06.png"
+ },
+ {
+  "row": 376,
+  "cat": "전설",
+  "ko": "알스카리아의 목걸이",
+  "zh": "阿爾斯卡利亞項鍊",
+  "en": "Alscaria's Necklace",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_nec_DoppelgangerNecklace.png"
+ },
+ {
+  "row": 377,
+  "cat": "전설",
+  "ko": "암야의 가더",
+  "zh": "暗夜臂甲",
+  "en": "Guarder of the Dark Nights",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_Nightfall.png"
+ },
+ {
+  "row": 378,
+  "cat": "전설",
+  "ko": "어둠의 귀걸이",
+  "zh": "黑暗耳環",
+  "en": "Earrings of Darkness",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Ear_Darkness.png"
+ },
+ {
+  "row": 379,
+  "cat": "전설",
+  "ko": "에바의 방패",
+  "zh": "伊娃盾牌",
+  "en": "Eva's Shield",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_Eva.png"
+ },
+ {
+  "row": 380,
+  "cat": "전설",
+  "ko": "에번트의 망토",
+  "zh": "埃柏特斗篷",
+  "en": "Evant's Cloak",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Cloak_HouseEvant.png"
+ },
+ {
+  "row": 381,
+  "cat": "전설",
+  "ko": "에이션트 가디언의 망토",
+  "zh": "古代守護者的斗篷",
+  "en": "Ancient Guardian's Cloak",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Cloak_AcientGuardian.png"
+ },
+ {
+  "row": 382,
+  "cat": "전설",
+  "ko": "에이션트 자이언트의 반지",
+  "zh": "古代巨人戒指",
+  "en": "Ancient Giant's Ring",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Waist_AncientGiant.png"
+ },
+ {
+  "row": 383,
+  "cat": "전설",
+  "ko": "여왕의 암갑",
+  "zh": "女王暗甲",
+  "en": "Queen's Arm Pack",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_FI_Flame.png"
+ },
+ {
+  "row": 384,
+  "cat": "전설",
+  "ko": "연옥의 장갑",
+  "zh": "煉獄手套",
+  "en": "Purgatorial Gloves",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Hand_Purgatory.png"
+ },
+ {
+  "row": 385,
+  "cat": "전설",
+  "ko": "염화의 마력포",
+  "zh": "焰火魔力砲",
+  "en": "Magic Cannon of Inferno",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_Ember.png"
+ },
+ {
+  "row": 386,
+  "cat": "전설",
+  "ko": "염화의 목걸이",
+  "zh": "業火項鍊",
+  "en": "Necklace of Blaze",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Neck_Ifrit.png"
+ },
+ {
+  "row": 387,
+  "cat": "전설",
+  "ko": "영겁의 귀검",
+  "zh": "永劫鬼劍",
+  "en": "Eternal Spirit Blade",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Dbla_Bloodsoul.png"
+ },
+ {
+  "row": 388,
+  "cat": "전설",
+  "ko": "영광의 헤일로",
+  "zh": "榮耀的光暈",
+  "en": "Halo of Glory",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_Glory.png"
+ },
+ {
+  "row": 389,
+  "cat": "전설",
+  "ko": "영생의 각반",
+  "zh": "永生脛甲",
+  "en": "Gaiters of Immortality",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Leg_Eternal.png"
+ },
+ {
+  "row": 390,
+  "cat": "전설",
+  "ko": "영혼 결정 (길로틴: 어비스)",
+  "zh": "靈魂結晶 (斷頭台 : 深淵)",
+  "en": "Soul Crystal (Guillotine: Abyss)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/SoulCrystal_SU_5_Legend.png"
+ },
+ {
+  "row": 391,
+  "cat": "전설",
+  "ko": "영혼 결정 (소울 배리어)",
+  "zh": "靈魂結晶 (靈魂屏障)",
+  "en": "Soul Crystal (Soul Barrier)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/SoulCrystal_SU_5_Legend.png"
+ },
+ {
+  "row": 392,
+  "cat": "전설",
+  "ko": "영혼 결정 (소울 아밍)",
+  "zh": "靈魂結晶 (靈魂武裝)",
+  "en": "Soul Crystal (Soul Arming)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/SoulCrystal_SU_5_Legend.png"
+ },
+ {
+  "row": 393,
+  "cat": "전설",
+  "ko": "영혼 결정 (소울 프로텍션 : 어비스)",
+  "zh": "靈魂結晶 (靈魂加護 : 深淵)",
+  "en": "Soul Crystal (Soul Protection: Abyss)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/SoulCrystal_SU_5_Legend.png"
+ },
+ {
+  "row": 394,
+  "cat": "전설",
+  "ko": "영혼 결정 (카오스 리플렉션)",
+  "zh": "靈魂結晶 (渾沌反射)",
+  "en": "Soul Crystal (Chaos Reflection)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/SoulCrystal_SU_5_Legend.png"
+ },
+ {
+  "row": 395,
+  "cat": "전설",
+  "ko": "영혼 결정 (카오스 미라쥬)",
+  "zh": "靈魂結晶 (渾沌蜃景)",
+  "en": "Soul Crystal (Chaos Mirage)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/SoulCrystal_SU_5_Legend.png"
+ },
+ {
+  "row": 396,
+  "cat": "전설",
+  "ko": "영혼 결정 (카오스 필드)",
+  "zh": "靈魂結晶 (渾沌領域)",
+  "en": "Soul Crystal (Chaos Field)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/SoulCrystal_SU_5_Legend.png"
+ },
+ {
+  "row": 397,
+  "cat": "전설",
+  "ko": "요호의 보주",
+  "zh": "妖狐寶珠",
+  "en": "Fox Demon's Orb",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_Kitsune.png"
+ },
+ {
+  "row": 398,
+  "cat": "전설",
+  "ko": "용맹함의 가더",
+  "zh": "勇猛臂甲",
+  "en": "Guarder of Valor",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_Valor.png"
+ },
+ {
+  "row": 399,
+  "cat": "전설",
+  "ko": "용염의 갑옷",
+  "zh": "龍炎盔甲",
+  "en": "Dragon Flame Armor",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Torso_Targon.png"
+ },
+ {
+  "row": 400,
+  "cat": "전설",
+  "ko": "우그누스의 부츠",
+  "zh": "烏格奴斯的長靴",
+  "en": "Ugnus' Boots",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Foot_Ugnus.png"
+ },
+ {
+  "row": 401,
+  "cat": "전설",
+  "ko": "원한의 검",
+  "zh": "怨恨之劍",
+  "en": "Sword of Resentment",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Swd_LASLegend.png"
+ },
+ {
+  "row": 402,
+  "cat": "전설",
+  "ko": "전사의 인장 (데스페라도)",
+  "zh": "戰士印章 (亡命之徒)",
+  "en": "Warrior's Emblem (Desperado)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Signetstone_WA_5_Legend.png"
+ },
+ {
+  "row": 403,
+  "cat": "전설",
+  "ko": "전사의 인장 (버서커 : 라이징)",
+  "zh": "戰士印章 (狂戰士 : 提升)",
+  "en": "Warrior's Emblem (Berserker: Rising)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Signetstone_WA_5_Legend.png"
+ },
+ {
+  "row": 404,
+  "cat": "전설",
+  "ko": "전사의 인장 (타이탄 락 : 라이징)",
+  "zh": "戰士印章 (泰坦岩石 : 提升)",
+  "en": "Warrior's Emblem (Titan Lock: Rising)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Signetstone_WA_5_Legend.png"
+ },
+ {
+  "row": 405,
+  "cat": "전설",
+  "ko": "전사의 인장 (타이탄 브레이크)",
+  "zh": "戰士印章 (泰坦破壞)",
+  "en": "Warrior's Emblem (Titan Break)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Signetstone_WA_5_Legend.png"
+ },
+ {
+  "row": 406,
+  "cat": "전설",
+  "ko": "전사의 인장 (타이탄 폴)",
+  "zh": "戰士印章 (泰坦降臨)",
+  "en": "Warrior's Emblem (Titan Fall)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Signetstone_WA_5_Legend.png"
+ },
+ {
+  "row": 407,
+  "cat": "전설",
+  "ko": "전사의 인장 (타이탄 필드)",
+  "zh": "戰士印章 (泰坦領域)",
+  "en": "Warrior's Emblem (Titan Field)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Signetstone_WA_5_Legend.png"
+ },
+ {
+  "row": 408,
+  "cat": "전설",
+  "ko": "전사의 인장 (타이탄 하트)",
+  "zh": "戰士印章 (泰坦之心)",
+  "en": "Warrior's Emblem (Titan Heart)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Signetstone_WA_5_Legend.png"
+ },
+ {
+  "row": 409,
+  "cat": "전설",
+  "ko": "전사의 인장 (퓨리 : 라이징)",
+  "zh": "戰士印章 (狂暴 : 提升)",
+  "en": "Warrior's Emblem (Fury: Rising)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Signetstone_WA_5_Legend.png"
+ },
+ {
+  "row": 410,
+  "cat": "전설",
+  "ko": "전설 무기 제작 비법서",
+  "zh": "傳說武器製作秘笈",
+  "en": "Legend Weapon Craft Recipe",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/precious_manual_weapon_03.png"
+ },
+ {
+  "row": 411,
+  "cat": "전설",
+  "ko": "전설 방어구 제작 비법서",
+  "zh": "傳說防具製作秘笈",
+  "en": "Legend Armor Craft Recipe",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/precious_manual_defense_03.png"
+ },
+ {
+  "row": 412,
+  "cat": "전설",
+  "ko": "전설 장신구 제작 비법서",
+  "zh": "傳說飾品製作秘笈",
+  "en": "Legend Accessory Craft Recipe",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/precious_manual_acc_03.png"
+ },
+ {
+  "row": 413,
+  "cat": "전설",
+  "ko": "전설 제작 비법서",
+  "zh": "傳說製作秘笈",
+  "en": "Legend Craft Recipe",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/precious_manual_03.png"
+ },
+ {
+  "row": 414,
+  "cat": "전설",
+  "ko": "전술 교본 (그래비티 샷 : 트루퍼)",
+  "zh": "戰術教本 (重力射擊 : 步兵)",
+  "en": "Tactics Manual (Gravity Shot: Trooper)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Gunskillbook_GU_5.png"
+ },
+ {
+  "row": 415,
+  "cat": "전설",
+  "ko": "전술 교본 (리로드)",
+  "zh": "戰術教本 (填裝子彈)",
+  "en": "Tactics Manual (Reload)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Gunskillbook_GU_5.png"
+ },
+ {
+  "row": 416,
+  "cat": "전설",
+  "ko": "전술 교본 (버닝 미스트)",
+  "zh": "戰術教本 (燃燒之霧)",
+  "en": "Tactics Manual (Burning Mist)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Gunskillbook_GU_5.png"
+ },
+ {
+  "row": 417,
+  "cat": "전설",
+  "ko": "전술 교본 (블리츠)",
+  "zh": "戰術教本 (突襲)",
+  "en": "Tactics Manual (Blitz)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Gunskillbook_GU_5.png"
+ },
+ {
+  "row": 418,
+  "cat": "전설",
+  "ko": "전술 교본 (인페르노 : 트루퍼)",
+  "zh": "戰術教本 (地獄火 : 步兵)",
+  "en": "Tactics Manual (Inferno: Trooper)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Gunskillbook_GU_5.png"
+ },
+ {
+  "row": 419,
+  "cat": "전설",
+  "ko": "전술 교본 (턴 택틱스 : 트루퍼)",
+  "zh": "戰術教本 (扭轉戰局 : 步兵)",
+  "en": "Tactics Manual (Turn Tactics: Trooper)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Gunskillbook_GU_5.png"
+ },
+ {
+  "row": 420,
+  "cat": "전설",
+  "ko": "전술 교본 (트리거 : 트루퍼)",
+  "zh": "戰術教本 (扳機 : 步兵)",
+  "en": "Tactics Manual (Trigger: Trooper)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Gunskillbook_GU_5.png"
+ },
+ {
+  "row": 421,
+  "cat": "전설",
+  "ko": "전술 교본 (피닉스 포스)",
+  "zh": "戰術教本 (不死鳥之力)",
+  "en": "Tactics Manual (Phoenix Force)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Gunskillbook_GU_5.png"
+ },
+ {
+  "row": 422,
+  "cat": "전설",
+  "ko": "절멸의 비수",
+  "zh": "絕滅匕首",
+  "en": "Dirk of Death",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_ShortBlade_Extinction.png"
+ },
+ {
+  "row": 423,
+  "cat": "전설",
+  "ko": "정령의 가더",
+  "zh": "精靈臂甲",
+  "en": "Spirit's Guarder",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_Spirit.png"
+ },
+ {
+  "row": 424,
+  "cat": "전설",
+  "ko": "정령의 수정 (소울 오브 프레임: 스피릿)",
+  "zh": "精靈水晶 (烈焰之魂 : 精神)",
+  "en": "Spirit Crystal (Soul of Flame: Spirit)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/spellcrystal_fire_5.png"
+ },
+ {
+  "row": 425,
+  "cat": "전설",
+  "ko": "정령의 수정 (스트라이커 게일: 스피릿)",
+  "zh": "精靈水晶 (精準射擊 : 精神)",
+  "en": "Spirit Crystal (Striker Gale: Spirit)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/spellcrystal_air_5.png"
+ },
+ {
+  "row": 426,
+  "cat": "전설",
+  "ko": "정령의 수정 (어스 유니온)",
+  "zh": "精靈水晶 (大地聯合)",
+  "en": "Spirit Crystal (Earth Union)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/spellcrystal_earth_5.png"
+ },
+ {
+  "row": 427,
+  "cat": "전설",
+  "ko": "정령의 수정 (엘리멘탈 마스터 : 스피릿)",
+  "zh": "精靈水晶 (精靈大師 : 精神)",
+  "en": "Spirit Crystal (Elemental Master: Spirit)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/spellcrystal_normal_5.png"
+ },
+ {
+  "row": 428,
+  "cat": "전설",
+  "ko": "정령의 수정 (엘리멘탈 배리어)",
+  "zh": "精靈水晶 (精靈屏障)",
+  "en": "Spirit Crystal (Elemental Barrier)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/spellcrystal_normal_5.png"
+ },
+ {
+  "row": 429,
+  "cat": "전설",
+  "ko": "정령의 수정 (워터 디지즈: 스피릿)",
+  "zh": "精靈水晶 (重水之疾 : 精神)",
+  "en": "Spirit Crystal (Water Disease: Spirit)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/spellcrystal_water_5.png"
+ },
+ {
+  "row": 430,
+  "cat": "전설",
+  "ko": "정령의 수정 (인탱글)",
+  "zh": "精靈水晶 (地面障礙)",
+  "en": "Spirit Crystal (Entangle)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/spellcrystal_air_5.png"
+ },
+ {
+  "row": 431,
+  "cat": "전설",
+  "ko": "정령의 수정 (폴루트 워터: 스피릿)",
+  "zh": "精靈水晶 (污濁之水 : 精神)",
+  "en": "Spirit Crystal (Polluted Water: Spirit)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/spellcrystal_water_5.png"
+ },
+ {
+  "row": 432,
+  "cat": "전설",
+  "ko": "제니스 퀸의 망토",
+  "zh": "傑尼斯女王斗篷",
+  "en": "Queen Zenith's Cloak",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Cloak_ZenithQueen.png"
+ },
+ {
+  "row": 433,
+  "cat": "전설",
+  "ko": "제니스 퀸의 반지",
+  "zh": "傑尼斯女王戒指",
+  "en": "Queen Zenith's Ring",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Finger_ZenithQueen.png"
+ },
+ {
+  "row": 434,
+  "cat": "전설",
+  "ko": "죽음의 망토",
+  "zh": "死亡斗篷",
+  "en": "Cloak of Death",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Cloak_Silen.png"
+ },
+ {
+  "row": 435,
+  "cat": "전설",
+  "ko": "죽음의 장갑",
+  "zh": "死亡手套",
+  "en": "Gloves of Death",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Hand_Silen.png"
+ },
+ {
+  "row": 436,
+  "cat": "전설",
+  "ko": "죽음의 투구",
+  "zh": "死亡頭盔",
+  "en": "Helm of Death",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Head_Silen.png"
+ },
+ {
+  "row": 437,
+  "cat": "전설",
+  "ko": "증오의 방패",
+  "zh": "憎惡之盾",
+  "en": "Shield of Hatred",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_PitchDarkness.png"
+ },
+ {
+  "row": 438,
+  "cat": "전설",
+  "ko": "지룡의 비늘",
+  "zh": "地龍鱗",
+  "en": "Earth Dragon's Scale",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_Material_Scale_Antaras.png"
+ },
+ {
+  "row": 439,
+  "cat": "전설",
+  "ko": "지룡의 비늘 각반",
+  "zh": "地龍鱗脛甲",
+  "en": "Earth Dragon's Scale Gaiters",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Leg_Antaras.png"
+ },
+ {
+  "row": 440,
+  "cat": "전설",
+  "ko": "지룡의 비늘 갑옷",
+  "zh": "地龍鱗甲",
+  "en": "Earth Dragon's Scale Armor",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Torso_Antaras.png"
+ },
+ {
+  "row": 441,
+  "cat": "전설",
+  "ko": "지휘관의 갑옷",
+  "zh": "指揮官盔甲",
+  "en": "Commander's Armor",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Torso_Zerald.png"
+ },
+ {
+  "row": 442,
+  "cat": "전설",
+  "ko": "지휘관의 망토",
+  "zh": "指揮官斗篷",
+  "en": "Commander's Cloak",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Cloak_Zerald.png"
+ },
+ {
+  "row": 443,
+  "cat": "전설",
+  "ko": "지휘관의 신발",
+  "zh": "指揮官鞋子",
+  "en": "Commander's Shoes",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Foot_Zerald.png"
+ },
+ {
+  "row": 444,
+  "cat": "전설",
+  "ko": "지휘관의 장갑",
+  "zh": "指揮官手套",
+  "en": "Commander's Gloves",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Hand_Zerald.png"
+ },
+ {
+  "row": 445,
+  "cat": "전설",
+  "ko": "지휘관의 투구",
+  "zh": "指揮官頭盔",
+  "en": "Commander's Helm",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Head_Zerald.png"
+ },
+ {
+  "row": 446,
+  "cat": "전설",
+  "ko": "진노의 크로우",
+  "zh": "震怒鋼爪",
+  "en": "Wrathful Claws",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Cla_Kalturan.png"
+ },
+ {
+  "row": 447,
+  "cat": "전설",
+  "ko": "질풍의 반지",
+  "zh": "疾風戒指",
+  "en": "Ring of Giant Winds",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Finger_Gale.png"
+ },
+ {
+  "row": 448,
+  "cat": "전설",
+  "ko": "집념의 마력포",
+  "zh": "執念魔力砲",
+  "en": "Magic Cannon of Obsession",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_Tenacity.png"
+ },
+ {
+  "row": 449,
+  "cat": "전설",
+  "ko": "차원의 마력서",
+  "zh": "次元魔力書",
+  "en": "Grimoire of Dimensions",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_Dimension.png"
+ },
+ {
+  "row": 450,
+  "cat": "전설",
+  "ko": "천귀의 귀검",
+  "zh": "天鬼鬼劍",
+  "en": "Heavenly Spirit's Spirit Blade",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Dbla_Heavenbane.png"
+ },
+ {
+  "row": 451,
+  "cat": "전설",
+  "ko": "침묵의 대검",
+  "zh": "沉默大劍",
+  "en": "Greatsword of Silence",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/great_sword_of_radon.png"
+ },
+ {
+  "row": 452,
+  "cat": "전설",
+  "ko": "칼립소의 갑옷",
+  "zh": "卡利索盔甲",
+  "en": "Calypso's Armor",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Torso_GI_Pirate_Boss.png"
+ },
+ {
+  "row": 453,
+  "cat": "전설",
+  "ko": "칼투란의 가더",
+  "zh": "卡爾圖蘭臂甲",
+  "en": "Kalturan's Guarder",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Guarder_kalturan.png"
+ },
+ {
+  "row": 454,
+  "cat": "전설",
+  "ko": "칼투란의 각반",
+  "zh": "卡爾圖蘭脛甲",
+  "en": "Kalturan's Gaiters",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/pants_of_dragon.png"
+ },
+ {
+  "row": 455,
+  "cat": "전설",
+  "ko": "칼투란의 망토",
+  "zh": "卡爾圖蘭斗篷",
+  "en": "Kalturan's Cloak",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/pants_of_kalturan.png"
+ },
+ {
+  "row": 456,
+  "cat": "전설",
+  "ko": "칼투란의 벨트",
+  "zh": "卡爾圖蘭皮帶",
+  "en": "Kalturan's Belt",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Belt_of_Contempt.png"
+ },
+ {
+  "row": 457,
+  "cat": "전설",
+  "ko": "커츠의 검",
+  "zh": "克特之劍",
+  "en": "Kurtz's Sword",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Swd_kurtz.png"
+ },
+ {
+  "row": 458,
+  "cat": "전설",
+  "ko": "케레니스의 로브",
+  "zh": "賽尼斯長袍",
+  "en": "Cerenis' Robe",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Torso_Cerenis.png"
+ },
+ {
+  "row": 459,
+  "cat": "전설",
+  "ko": "케레니스의 부츠",
+  "zh": "賽尼斯長靴",
+  "en": "Cerenis' Boots",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Foot_Cerenis.png"
+ },
+ {
+  "row": 460,
+  "cat": "전설",
+  "ko": "케레니스의 서클릿",
+  "zh": "賽尼斯頭箍",
+  "en": "Cerenis' Circlet",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Head_Cerenis.png"
+ },
+ {
+  "row": 461,
+  "cat": "전설",
+  "ko": "케레니스의 장갑",
+  "zh": "賽尼斯手套",
+  "en": "Cerenis' Gloves",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Hand_Cerenis.png"
+ },
+ {
+  "row": 462,
+  "cat": "전설",
+  "ko": "코카트리스 킹의 비늘 부츠",
+  "zh": "亞力安王鱗片長靴",
+  "en": "Cockatrice King's Scale Boots",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Foot_Cockatriceking.png"
+ },
+ {
+  "row": 463,
+  "cat": "전설",
+  "ko": "쿠거의 가죽 부츠",
+  "zh": "黑豹皮長靴",
+  "en": "Cougar's Leather Boots",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Foot_CougarLeather.png"
+ },
+ {
+  "row": 464,
+  "cat": "전설",
+  "ko": "타락한 추종자의 귀걸이",
+  "zh": "墮落的追隨者耳環",
+  "en": "Tainted Follower's Earrings",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Ear_FallenSage.png"
+ },
+ {
+  "row": 465,
+  "cat": "전설",
+  "ko": "타이탄의 각반",
+  "zh": "泰坦脛甲",
+  "en": "Titan's Gaiters",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/pants_of_Leg_Titan.png"
+ },
+ {
+  "row": 466,
+  "cat": "전설",
+  "ko": "태풍의 도끼",
+  "zh": "食人巨魔的斧頭",
+  "en": "Hurricane Axe",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Daxe_Typhoon.png"
+ },
+ {
+  "row": 467,
+  "cat": "전설",
+  "ko": "테케르의 가더",
+  "zh": "特克爾的臂甲",
+  "en": "Teker's Guarder",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_Teker.png"
+ },
+ {
+  "row": 468,
+  "cat": "전설",
+  "ko": "파아그리오의 대검",
+  "zh": "帕格立歐大劍",
+  "en": "Pa'agrio's Greatsword",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Lswd_Paagrio.png"
+ },
+ {
+  "row": 469,
+  "cat": "전설",
+  "ko": "파푸리온의 정수",
+  "zh": "法利昂的精髓",
+  "en": "Fafurion's Essence",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/essence_high_09.png"
+ },
+ {
+  "row": 470,
+  "cat": "전설",
+  "ko": "포효의 이도류",
+  "zh": "咆哮雙刀",
+  "en": "Howling Dual Blades",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Dswd_Slave.png"
+ },
+ {
+  "row": 471,
+  "cat": "전설",
+  "ko": "폭풍의 가더",
+  "zh": "暴風臂甲",
+  "en": "Storm Guarder",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_Typhoon.png"
+ },
+ {
+  "row": 472,
+  "cat": "전설",
+  "ko": "폭풍의 비수",
+  "zh": "暴風匕首",
+  "en": "Storm Yedo",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_ShortBlade_Typhoon.png"
+ },
+ {
+  "row": 473,
+  "cat": "전설",
+  "ko": "풍룡의 비늘",
+  "zh": "風龍鱗",
+  "en": "Wind Dragon's Scale",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_Material_Scale_Lindvior.png"
+ },
+ {
+  "row": 474,
+  "cat": "전설",
+  "ko": "풍룡의 비늘 각반",
+  "zh": "風龍鱗脛甲",
+  "en": "Wind Dragon's Scale Gaiters",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Leg_Lindvior.png"
+ },
+ {
+  "row": 475,
+  "cat": "전설",
+  "ko": "풍룡의 비늘 갑옷",
+  "zh": "風龍鱗甲",
+  "en": "Wind Dragon's Scale Armor",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Torso_Lindvior.png"
+ },
+ {
+  "row": 476,
+  "cat": "전설",
+  "ko": "하그마의 벨트",
+  "zh": "哈格瑪皮帶",
+  "en": "Hagma's Belt",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Waist_EverntBandit_Boss.png"
+ },
+ {
+  "row": 477,
+  "cat": "전설",
+  "ko": "하딘의 지팡이",
+  "zh": "哈汀法杖",
+  "en": "Hardin's Staff",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Stf_HadinStaff.png"
+ },
+ {
+  "row": 478,
+  "cat": "전설",
+  "ko": "해방의 망토",
+  "zh": "解放斗篷",
+  "en": "Cloak of Release",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Cloak_Liberation.png"
+ },
+ {
+  "row": 479,
+  "cat": "전설",
+  "ko": "혈령의 태도",
+  "zh": "血靈太刀",
+  "en": "Bloody Wraith's Hwando",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_LongBlade_Blood.png"
+ },
+ {
+  "row": 480,
+  "cat": "전설",
+  "ko": "혈법서 (베인 엔드 : 강화 크림슨)",
+  "zh": "血法書 (禍源 : 強化赤血)",
+  "en": "Blood Magic Spellbook (Vane End: Enhanced Crimson)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_BloodCasterSpellbook_5_Legend.png"
+ },
+ {
+  "row": 481,
+  "cat": "전설",
+  "ko": "혈법서 (베인 인사이트)",
+  "zh": "血法書 (禍害洞察)",
+  "en": "Blood Magic Spellbook (Vane Insight)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_BloodCasterSpellbook_5_Legend.png"
+ },
+ {
+  "row": 482,
+  "cat": "전설",
+  "ko": "혈법서 (블러드 레퀴엠)",
+  "zh": "血法書 (血之安魂曲)",
+  "en": "Blood Magic Spellbook (Blood Requiem)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_BloodCasterSpellbook_5_Legend.png"
+ },
+ {
+  "row": 483,
+  "cat": "전설",
+  "ko": "혈법서 (블러드 배리어)",
+  "zh": "血法書 (血之屏障)",
+  "en": "Blood Magic Spellbook (Blood Barrier)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_BloodCasterSpellbook_5_Legend.png"
+ },
+ {
+  "row": 484,
+  "cat": "전설",
+  "ko": "혈법서 (블러드 퀸)",
+  "zh": "血法書 (血之女王)",
+  "en": "Blood Magic Spellbook (Blood Queen)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_BloodCasterSpellbook_5_Legend.png"
+ },
+ {
+  "row": 485,
+  "cat": "전설",
+  "ko": "혈법서 (블러드 포스 : 크림슨)",
+  "zh": "血法書 (赤血之力 : 赤血)",
+  "en": "Blood Magic Spellbook (Blood Force: Crimson)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_BloodCasterSpellbook_5_Legend.png"
+ },
+ {
+  "row": 486,
+  "cat": "전설",
+  "ko": "혈법서 (블러드 핸드 : 크림슨)",
+  "zh": "血法書 (血之手 : 赤血)",
+  "en": "Blood Magic Spellbook (Blood Hand: Crimson)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_BloodCasterSpellbook_5_Legend.png"
+ },
+ {
+  "row": 487,
+  "cat": "전설",
+  "ko": "혈법서 (서먼 가디언)",
+  "zh": "血法書 (召喚守護者)",
+  "en": "Blood Magic Spellbook (Summon Guardian)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/Item_BloodCasterSpellbook_5_Legend.png"
+ },
+ {
+  "row": 488,
+  "cat": "전설",
+  "ko": "혈옥의 성배",
+  "zh": "血獄聖杯",
+  "en": "Bloodstone Chalice",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_BC_F_Bloodruby.png"
+ },
+ {
+  "row": 489,
+  "cat": "전설",
+  "ko": "혈요의 보주",
+  "zh": "血妖寶珠",
+  "en": "Blood Demon's Orb",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_BloodfiendOrb.png"
+ },
+ {
+  "row": 490,
+  "cat": "전설",
+  "ko": "혈익의 사이드",
+  "zh": "血翼鐮刀",
+  "en": "Blood-Wing Scythe",
+  "tier": "3티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Scythe_DeathWing.png"
+ },
+ {
+  "row": 491,
+  "cat": "전설",
+  "ko": "혈혼의 귀검",
+  "zh": "血魂鬼劍",
+  "en": "Bloodsoul's Spirit Blade",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Dbla_Frostfang.png"
+ },
+ {
+  "row": 492,
+  "cat": "전설",
+  "ko": "혈화의 성배",
+  "zh": "血花聖杯",
+  "en": "Bloodblossom Chalice",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_BC_F_Bloodflower.png"
+ },
+ {
+  "row": 493,
+  "cat": "전설",
+  "ko": "홍염의 마수",
+  "zh": "紅炎魔手",
+  "en": "Flame Manahand",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Fist_Flame.png"
+ },
+ {
+  "row": 494,
+  "cat": "전설",
+  "ko": "화마의 마력포",
+  "zh": "火魔魔力砲",
+  "en": "Mana Cannon of Wildfire",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_Flame.png"
+ },
+ {
+  "row": 495,
+  "cat": "전설",
+  "ko": "화염의 기관포",
+  "zh": "火焰機關砲",
+  "en": "Flaming Autocannon",
+  "tier": "2티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Gun_Flame.png"
+ },
+ {
+  "row": 496,
+  "cat": "전설",
+  "ko": "흑령의 보주",
+  "zh": "黑靈寶珠",
+  "en": "Dark Soul's Orb",
+  "tier": "1티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_ShadowOrb.png"
+ },
+ {
+  "row": 497,
+  "cat": "전설",
+  "ko": "흑정령의 가더",
+  "zh": "黑暗精靈臂甲",
+  "en": "Dark Spirit's Guard",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_DA_Assassin.png"
+ },
+ {
+  "row": 498,
+  "cat": "전설",
+  "ko": "흑정령의 수정 (다크 커튼)",
+  "zh": "黑暗精靈水晶 (黑暗之幕)",
+  "en": "Dark Spirit Crystal (Dark Curtain)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/SpellCrystal_DA_5_Legend.png"
+ },
+ {
+  "row": 499,
+  "cat": "전설",
+  "ko": "흑정령의 수정 (더블 브레이크 : 데스티니)",
+  "zh": "黑暗精靈水晶 (雙重破壞 : 命運)",
+  "en": "Dark Spirit Crystal (Double Break: Destiny)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/SpellCrystal_DA_5_Legend.png"
+ },
+ {
+  "row": 500,
+  "cat": "전설",
+  "ko": "흑정령의 수정 (쉐도우 대시 : 데스티니)",
+  "zh": "黑暗精靈水晶 (暗影衝刺 : 命運)",
+  "en": "Dark Spirit Crystal (Shadow Dash: Destiny)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/SpellCrystal_DA_5_Legend.png"
+ },
+ {
+  "row": 501,
+  "cat": "전설",
+  "ko": "흑정령의 수정 (쉐도우 이베이젼 : 데스티니)",
+  "zh": "黑暗精靈水晶 (影之迴避 : 命運)",
+  "en": "Dark Spirit Crystal (Shadow Evasion: Destiny)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/SpellCrystal_DA_5_Legend.png"
+ },
+ {
+  "row": 502,
+  "cat": "전설",
+  "ko": "흑정령의 수정 (아머 브레이크)",
+  "zh": "黑暗精靈水晶 (破壞盔甲)",
+  "en": "Dark Spirit Crystal (Armor Break)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/SpellCrystal_DA_5_Legend.png"
+ },
+ {
+  "row": 503,
+  "cat": "전설",
+  "ko": "흑정령의 수정 (언케니 닷지: 데스티니)",
+  "zh": "黑暗精靈水晶 (暗影閃避 : 命運)",
+  "en": "Dark Spirit Crystal (Uncanny Dodge: Destiny)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/SpellCrystal_DA_5_Legend.png"
+ },
+ {
+  "row": 504,
+  "cat": "전설",
+  "ko": "흑정령의 수정 (파이널 번)",
+  "zh": "黑暗精靈水晶 (會心一撃)",
+  "en": "Dark Spirit Crystal (Final Burn)",
+  "tier": "",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/SpellCrystal_DA_5_Legend.png"
+ },
+ {
+  "row": 505,
+  "cat": "전설",
+  "ko": "흑혈의 성배",
+  "zh": "黑血聖杯",
+  "en": "Black-Blood Chalice",
+  "tier": "0티어",
+  "note": "",
+  "img": "https://assets.playnccdn.com/gamedata/powerbook/linw/Item/item_Shield_BC_F_Blackblood.png"
+ }
+]

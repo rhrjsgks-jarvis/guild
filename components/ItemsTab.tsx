@@ -16,6 +16,7 @@ import {
   personLabel,
   prepPhoto,
   serverOf,
+  tally,
 } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
@@ -26,6 +27,7 @@ import LootEditSheet from './LootEditSheet';
 import LootFields, { EMPTY_LOOT, type Loot } from './LootFields';
 import LedgerCard from './LedgerCard';
 import ServerFilter, { NO_SERVER } from './ServerFilter';
+import ClassFilter, { ANY_CLASS } from './ClassFilter';
 import ShareBtn from './ShareBtn';
 import Sheet from './Sheet';
 import PhotoStrip from './PhotoStrip';
@@ -70,6 +72,8 @@ export default function ItemsTab({
   const [editing, setEditing] = useState<LedgerItem | null>(null);
   const [viewing, setViewing] = useState<LedgerItem | null>(null);
   const [svPick, setSvPick] = useState<string[]>([]);
+  /** 클래스로 좁혀 보기 (v11.6.1) — 서버와 AND. 체크된 사람은 여기서도 안 숨는다 */
+  const [clsPick, setClsPick] = useState<string>(ANY_CLASS);
   const [showRest, setShowRest] = useState(false);
   /** 레이드일·보스·루팅 (v11.6) — 연합 등록과 같은 한 벌 */
   const [loot, setLoot] = useState<Loot>(EMPTY_LOOT);
@@ -101,6 +105,12 @@ export default function ItemsTab({
     return { counts: c, noneCount: none };
   }, [svOf]);
 
+  // 클래스별 인원 — 잔액·관리와 같은 세는 규칙 한 벌 (lib/client 의 tally)
+  const { counts: clsCounts, none: clsNone } = useMemo(
+    () => tally(selectable.map((m) => classOf(state, m))),
+    [selectable, state],
+  );
+
   /**
    * 보이는 사람 = 고른 서버의 사람 **∪ 이미 체크된 사람**.
    *
@@ -110,9 +120,14 @@ export default function ItemsTab({
    *   체크된 사람은 서버와 무관하게 언제나 보인다.
    */
   const visible = useMemo(() => {
-    if (svPick.length === 0) return selectable;
-    return selectable.filter((m) => svPick.includes(svOf.get(m) ?? NO_SERVER) || picked.has(m));
-  }, [selectable, svPick, svOf, picked]);
+    if (svPick.length === 0 && clsPick === ANY_CLASS) return selectable;
+    return selectable.filter(
+      (m) =>
+        picked.has(m) ||
+        ((svPick.length === 0 || svPick.includes(svOf.get(m) ?? NO_SERVER)) &&
+          (clsPick === ANY_CLASS || classOf(state, m) === clsPick)),
+    );
+  }, [selectable, svPick, clsPick, svOf, picked, state]);
 
   // 접어둔 나머지 — 숨기지 않는다. 예외 상황에서 아무나 고를 수 있어야 한다
   const folded = useMemo(() => selectable.filter((m) => !visible.includes(m)), [selectable, visible]);
@@ -393,7 +408,11 @@ export default function ItemsTab({
                 value={svPick}
                 onChange={setSvPick}
               />
-              {svPick.length > 0 ? (
+              {/* 클래스는 드롭다운 하나 — 서버 칩 아래에 13개를 더 깔 자리가 없다 */}
+              <div style={{ marginTop: 8 }}>
+                <ClassFilter counts={clsCounts} noneCount={clsNone} value={clsPick} onChange={setClsPick} />
+              </div>
+              {svPick.length > 0 || clsPick !== ANY_CLASS ? (
                 <p className="hint" style={{ marginTop: 6 }}>
                   {t('items.svShowing', { n: visible.length, total: selectable.length })}
                 </p>
@@ -422,12 +441,19 @@ export default function ItemsTab({
                   // 누구인지 가릴 수 없다. 배지가 먹는 폭은 예산에서 뺀다.
                   const sv = svOf.get(m) ?? '';
                   const budget = CHIP_NAME_PX - (sv ? CHIP_SVR_PX : 0);
-                  // 둘째 줄 = 한자 · 클래스 (v11.5). 한자가 없으면 클래스만 온다.
-                  // ★ 이름 옆(첫 줄)에는 붙이지 않는다 — 서버 배지가 이미 예산을 먹고 있어
-                  //   하나 더 얹으면 이름이 잘리고, 잘린 이름은 다른 사람으로 오인된다.
-                  //   둘째 줄도 **합친 문자열 기준**으로 크기를 정해야 삐져나가지 않는다.
+                  /**
+                   * 둘째 줄 = 한자, 셋째 줄 = 클래스 (v11.6.1).
+                   *
+                   * 🐛 v11.5 에서 `한자 · 클래스` 를 **한 문자열로 합쳐** 크기를 정했다.
+                   *    글자가 길어진 만큼 fitIn 이 줄여서, 클래스를 넣은 순간 한자가
+                   *    12px 로 쪼그라들어 국문(14px)보다 작아졌다 — 중국 혈맹원에게는
+                   *    한자가 본명이라 v10.8 부터 "한자가 더 커야 한다"가 규칙이었는데
+                   *    그게 조용히 깨져 있었다. 칩 폭은 64px 이라 큰 한자와 클래스를
+                   *    한 줄에 같이 담을 수는 없다. 줄을 나누고 크기도 따로 정한다.
+                   * ★ 이름 옆(첫 줄)에는 여전히 붙이지 않는다 — 서버 배지가 이미 예산을
+                   *   먹고 있어 하나 더 얹으면 이름이 잘린다.
+                   */
                   const cl = classLabel(classOf(state, m), lang);
-                  const line2 = [sub, cl].filter(Boolean).join(' · ');
                   return (
                     <label key={m} className={'mchip' + (picked.has(m) ? ' sel' : '')}>
                       <input type="checkbox" checked={picked.has(m)} onChange={() => toggle(m)} />
@@ -436,7 +462,9 @@ export default function ItemsTab({
                           {sv ? <span className="svr">{sv}</span> : null}
                           {main}
                         </b>
-                        {line2 ? <i style={{ fontSize: fitIn(line2, CHIP_NAME_PX, 19, 12) }}>{line2}</i> : null}
+                        {sub ? <i style={{ fontSize: fitIn(sub, CHIP_NAME_PX, 19, 12) }}>{sub}</i> : null}
+                        {/* 클래스는 부가 정보다 — 한자를 밀어내지 않게 작은 고정 크기로 둔다 */}
+                        {cl ? <em style={{ fontSize: fitIn(cl, CHIP_NAME_PX, 11, 8.5) }}>{cl}</em> : null}
                       </span>
                     </label>
                   );

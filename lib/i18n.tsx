@@ -700,6 +700,11 @@ const DICT: Record<string, Entry> = {
     '只显示未设置服务器的人（{n} 人）',
     'Only those without a server ({n})',
   ],
+  /* 클래스로 좁혀 보기 (v11.6.1) — 클래스 이름 13종은 CLASS_I18N 에 있다 */
+  'cls.filter': ['클래스로 좁혀 보기', '按职业筛选', 'Filter by class'],
+  'cls.all': ['전체 클래스 ({n})', '全部职业（{n}）', 'All classes ({n})'],
+  'cls.none': ['클래스 미지정 ({n})', '未设职业（{n}）', 'No class ({n})'],
+
   'sv.none': ['미지정', '未设置', 'none'],
   'sv.noneChip': ['서버 미지정', '未设服务器', 'No server'],
 

@@ -87,18 +87,18 @@ function freshState() {
     // '대서과Z' 를 50% 로 두어 비중 계산이 화면까지 이어지는지 볼 수 있게 한다.
     rows: [
       { name: '가이', pending: 12400, paid: 88000, cnt: 31, weight: 100, server: '01', hanja: '', cls: '기사' },
-      { name: '잠단(斬斷)', pending: 0, paid: 45200, cnt: 19, weight: 100, server: '02', hanja: '斬斷' },
+      { name: '잠단(斬斷)', pending: 0, paid: 45200, cnt: 19, weight: 100, server: '02', hanja: '斬斷', cls: '요정' },
       { name: 'TC무식', pending: 33150, paid: 120400, cnt: 44, weight: 100, server: '01', hanja: '车武植', cls: '마법사' },
       { name: FUND_NAME, pending: 51000, paid: 0, cnt: 12, weight: 100, server: '', hanja: '' },
-      { name: 'PlusS', pending: 7700, paid: 15000, cnt: 8, weight: 100, server: '03', hanja: '' },
+      { name: 'PlusS', pending: 7700, paid: 15000, cnt: 8, weight: 100, server: '03', hanja: '', cls: '기사' },
       { name: '향로셔틀', pending: 0, paid: 9800, cnt: 5, weight: 100, server: '', hanja: '' },
-      { name: '대서과Z', pending: 4500, paid: 0, cnt: 3, weight: 50, server: '04', hanja: '大西瓜Z' },
+      { name: '대서과Z', pending: 4500, paid: 0, cnt: 3, weight: 50, server: '04', hanja: '大西瓜Z', cls: '다크엘프' },
       { name: '팩맨', pending: 0, paid: 0, cnt: 0, weight: 100, server: '', hanja: '' },
       // ★ 서버가 '2' 다 — 앞의 0 이 빠진 채 저장된 사람. 사람이 손으로 넣는 칸이라
       //   실제로 생긴다. 모든 화면이 이걸 '02' 로 같게 읽는지 보는 표본이다 (v10.8.7)
-      { name: '詹阿呆', pending: 2100, paid: 3300, cnt: 6, weight: 100, server: '2', hanja: '詹阿呆' },
+      { name: '詹阿呆', pending: 2100, paid: 3300, cnt: 6, weight: 100, server: '2', hanja: '詹阿呆', cls: '군주' },
       // 긴 이름 — 좁은 칩에서 글자 크기가 실제로 줄어드는지 확인하기 위한 표본
-      { name: '선륙소농포 (鮮肉小籠包)', pending: 0, paid: 0, cnt: 0, weight: 100, server: '06', hanja: '鮮肉小籠包' },
+      { name: '선륙소농포 (鮮肉小籠包)', pending: 0, paid: 0, cnt: 0, weight: 100, server: '06', hanja: '鮮肉小籠包', cls: '기사' },
     ],
     items: [
       // 인증샷 두 장 — 아이템명을 누르면 앱 안에서 바로 보인다 (v11.1)

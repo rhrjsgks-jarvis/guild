@@ -126,6 +126,18 @@ export function tierOf(terms: Term[], name: string): string {
   return findTerm(terms, name)?.tier?.trim() ?? '';
 }
 
+/**
+ * 사전에 들어 있는 그림 주소 (v11.6.1). 없으면 빈 문자열 — 어디선가 긁어오지 않는다.
+ *
+ * 🐛 예전에는 화면에서 `terms.find(t => t.ko === name)` 로 직접 찾았다. 등급·티어는
+ *    `findTerm`(규칙 4의 이름 정규화)을 쓰는데 그림만 정확 일치라, 이름에 공백이
+ *    하나 끼면 **테두리는 뜨는데 아이콘만 안 뜨는** 이상한 상태가 됐다.
+ *    셋 다 같은 길로 찾게 한다.
+ */
+export function imgOf(terms: Term[], name: string): string {
+  return findTerm(terms, name)?.img?.trim() ?? '';
+}
+
 /** 용어 목록 — 화면 여러 곳에서 쓰므로 훅 하나로 모은다 */
 export function useTerms(): { terms: Term[]; cats: string[]; tiers: string[]; reload: () => void } {
   const fresh0 = memo && Date.now() - memo.at < MEMO_MS ? memo : null;
