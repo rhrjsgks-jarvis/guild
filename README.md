@@ -14,6 +14,8 @@
 - 혈맹원 → [`docs/혈맹원-설명서.md`](docs/혈맹원-설명서.md)
 - 관리자 → [`docs/관리자-설명서.md`](docs/관리자-설명서.md)
 - **폰에서 볼 이미지** → `manual/` (`npm run manual` 로 문서에서 다시 만듭니다)
+- **용어집 등록 현황** → `manual/glossary.tsv` (표·검색) · `manual/glossary.png` (요약)
+  `npm run glossary` — **운영 시트에서 지금 값을 읽어** 만듭니다
 쓰던 스프레드시트는 건드리지 않고, 새 파일에서 전부 준비한 뒤 마지막에 데이터만 옮깁니다.
 
 ---

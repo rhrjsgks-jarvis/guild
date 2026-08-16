@@ -10,7 +10,7 @@
  * ★ 글씨는 크게(17px 기준 × 2배 해상도) — 폰에서 확대하지 않고 읽히는 것이 목적이다.
  */
 import { chromium } from 'playwright';
-import { mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, writeFileSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -159,16 +159,65 @@ const CSS = `
   th, td { border: 1px solid #ddd5c6; padding: 9px 12px; text-align: left; vertical-align: top; }
   th { background: #12313f; color: #fff; font-weight: 700; }
   tr:nth-child(even) td { background: #f7f4ed; }
+  h2.more { margin-top: 46px; }
   .foot { margin-top: 26px; font-size: 14px; color: #9a9488; text-align: right; }
 `;
 
+/**
+ * `pages` = 최종 장수.
+ *
+ * ★ `##` 마다 한 장으로 끊으면 19장이 되어 **너무 잘게 쪼개진다.**
+ *   폰은 어차피 스크롤하는 물건이라, 한 장이 조금 길어도 넘기는 것보다 낫다.
+ *   혈맹원 2장 · 관리자 4장은 예전에 쓰던 구성이다.
+ */
 const DOCS = [
-  { file: 'docs/혈맹원-설명서.md', title: '혈맹원 설명서', slug: 'member' },
-  { file: 'docs/관리자-설명서.md', title: '관리자 설명서', slug: 'admin' },
+  { file: 'docs/혈맹원-설명서.md', title: '혈맹원 설명서', slug: 'member', pages: 2 },
+  { file: 'docs/관리자-설명서.md', title: '관리자 설명서', slug: 'admin', pages: 4 },
 ];
 
-rmSync(OUT, { recursive: true, force: true });
+/**
+ * 절(##)들을 목표 장수로 묶는다 — **글 양이 고르게** 되도록.
+ *
+ * 개수로만 나누면 표가 많은 절이 몰린 장만 유난히 길어진다. 그래서 글자 수를
+ * 재서, 남은 장수로 남은 분량을 나눈 몫을 넘어서면 다음 장으로 넘긴다.
+ * ★ 절을 쪼개지는 않는다. 한 절이 두 장에 걸치면 표가 중간에서 잘려 못 읽는다.
+ */
+function pack(sections, want) {
+  if (sections.length <= want) return sections.map((s) => [s]);
+  const size = (s) => s.head.length + s.html.join('').length;
+  const out = [];
+  let cur = [];
+  let curSize = 0;
+  let left = sections.reduce((a, s) => a + size(s), 0);
+
+  for (let i = 0; i < sections.length; i++) {
+    const s = sections[i];
+    const rest = sections.length - i; // 아직 안 넣은 절 (지금 것 포함)
+    const openPages = want - out.length; // 아직 안 닫은 장 (지금 것 포함)
+
+    // ★ 마지막 장이면 무조건 여기에 다 담는다. 이 가드를 빼면 끝에서 한 장이
+    //   더 생겨 "2장 · 4장" 이 "3장 · 5장" 이 된다 (실제로 그랬다).
+    const canBreak = openPages > 1 && cur.length > 0 && rest >= openPages;
+    if (canBreak && curSize >= left / openPages) {
+      out.push(cur);
+      cur = [];
+      curSize = 0;
+    }
+    cur.push(s);
+    curSize += size(s);
+    left -= size(s);
+  }
+  if (cur.length) out.push(cur);
+  return out;
+}
+
+// ★ 폴더를 통째로 지우지 않는다. 같은 폴더에 용어집 리포트(glossary.*)가 함께
+//   들어 있어서, 통째로 지우면 설명서를 다시 만들 때마다 그것이 사라진다.
+//   내가 만드는 것만 지운다.
 mkdirSync(OUT, { recursive: true });
+for (const f of readdirSync(OUT)) {
+  if (/^(member|admin)-\d+\.png$/.test(f)) rmSync(resolve(OUT, f));
+}
 
 const browser = await chromium.launch();
 // 2배 해상도 — 폰에서 확대하지 않고 읽히게 한다.
@@ -179,18 +228,22 @@ const page = await ctx.newPage();
 let total = 0;
 for (const doc of DOCS) {
   const md = readFileSync(resolve(ROOT, doc.file), 'utf8');
-  const pages = toPages(md, doc.title);
-  for (let n = 0; n < pages.length; n++) {
-    const p = pages[n];
+  const groups = pack(toPages(md, doc.title), doc.pages);
+  for (let n = 0; n < groups.length; n++) {
+    const g = groups[n];
+    // 한 장에 여러 절이 들어가므로 절마다 제목을 다시 그린다 —
+    // 스크롤하다 보면 지금 어디를 읽고 있는지가 사라진다
+    const body = g
+      .map((s, k) => `<h2 class="${k ? 'more' : ''}">${inline(s.head)}</h2>${s.html.join('\n')}`)
+      .join('\n');
     const html =
       `<!doctype html><meta charset="utf-8"><style>${CSS}</style>` +
-      `<body><div class="doc">${doc.title}</div><h2>${inline(p.head)}</h2>` +
-      p.html.join('\n') +
-      `<div class="foot">${n + 1} / ${pages.length}</div></body>`;
+      `<body><div class="doc">${doc.title}</div>${body}` +
+      `<div class="foot">${n + 1} / ${groups.length}</div></body>`;
     await page.setContent(html, { waitUntil: 'load' });
     const name = `${doc.slug}-${String(n + 1).padStart(2, '0')}.png`;
     await page.screenshot({ path: resolve(OUT, name), fullPage: true });
-    process.stdout.write(`  ${name}  ${p.head}\n`);
+    process.stdout.write(`  ${name}  ${g.map((s) => s.head).join(' / ')}\n`);
     total++;
   }
 }

@@ -14,7 +14,8 @@
     "verify": "npm run typecheck && npm run lint && npm run verify:gs && npm run build && npm run e2e",
     "icons": "node scripts/make-icons.mjs",
     "shots": "node scripts/screenshots.mjs",
-    "manual": "node scripts/make-manual.mjs"
+    "manual": "node scripts/make-manual.mjs",
+    "glossary": "node scripts/make-glossary-report.mjs"
   },
   "dependencies": {
     "next": "^15.5.22",
