@@ -1,0 +1,66 @@
+<!-- @dsCard group="Foundations" -->
+<meta charset="utf-8" />
+<title>색</title>
+<link rel="stylesheet" href="../_base.css" />
+<style>
+  .sw {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    font-size: 12px;
+  }
+  .sw i {
+    width: 28px;
+    height: 28px;
+    border-radius: 3px;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+  }
+  .sw b {
+    font-weight: 700;
+  }
+  .sw code {
+    color: var(--text-faint);
+    font-size: 11px;
+  }
+  .grid2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+</style>
+
+<div class="ds-label">바탕 · 글자</div>
+<div class="grid2">
+  <div class="sw"><i style="background: var(--bg)"></i><b>bg</b><code>바탕</code></div>
+  <div class="sw"><i style="background: var(--surface)"></i><b>surface</b><code>카드</code></div>
+  <div class="sw"><i style="background: var(--surface-2)"></i><b>surface-2</b><code>칸 안</code></div>
+  <div class="sw"><i style="background: var(--line)"></i><b>line</b><code>선</code></div>
+  <div class="sw"><i style="background: var(--text)"></i><b>text</b><code>본문</code></div>
+  <div class="sw"><i style="background: var(--text-dim)"></i><b>text-dim</b><code>보조</code></div>
+</div>
+
+<div class="ds-label">브랜드 · 금</div>
+<div class="grid2">
+  <div class="sw"><i style="background: var(--brand)"></i><b>brand</b><code>누르는 것</code></div>
+  <div class="sw"><i style="background: var(--brand-deep)"></i><b>brand-deep</b><code>헤더</code></div>
+  <div class="sw"><i style="background: var(--gold)"></i><b>gold</b><code>돈 · 장식</code></div>
+  <div class="sw"><i style="background: var(--gold-bright)"></i><b>gold-bright</b><code>어두운 면 위</code></div>
+</div>
+
+<div class="ds-label">상태</div>
+<div class="grid2">
+  <div class="sw"><i style="background: var(--pending)"></i><b>pending</b><code>못 받은 돈</code></div>
+  <div class="sw"><i style="background: var(--paid)"></i><b>paid</b><code>받은 돈</code></div>
+  <div class="sw"><i style="background: var(--danger)"></i><b>danger</b><code>되돌릴 수 없음</code></div>
+</div>
+
+<div class="ds-note">
+  <b>금색은 버튼에 쓰지 않습니다.</b> 금색 버튼은 「분배 전」(주황)과 구분이 안 돼
+  받을 돈이 묻힙니다. 금은 <b>테두리 · 구분선 · 금액</b>에만 씁니다.<br />
+  누르는 것은 언제나 청록(brand)입니다.
+</div>

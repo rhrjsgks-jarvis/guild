@@ -1,6 +1,6 @@
 {
   "name": "guild-settlement-app",
-  "version": "11.6.2",
+  "version": "11.6.3",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -18,7 +18,8 @@
     "glossary": "node scripts/make-glossary-report.mjs",
     "manual:shots": "node scripts/make-manual-shots.mjs",
     "icons:official": "node scripts/fetch-official-icons.mjs",
-    "drops": "node scripts/make-drops.mjs"
+    "drops": "node scripts/make-drops.mjs",
+    "design": "node scripts/make-design.mjs"
   },
   "dependencies": {
     "next": "^15.5.22",

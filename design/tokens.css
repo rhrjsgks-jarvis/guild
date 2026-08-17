@@ -1,0 +1,78 @@
+:root {
+  /* 따뜻한 돌·양피지 계열 — 예전의 푸른 회색보다 그림에 가깝다 */
+  --bg: #e7e0d0;
+  --surface: #fcf8ef;
+  --surface-2: #f2ebdb;
+  --line: #d8cdb4;
+  --text: #1a1815;
+  --text-dim: #6a6559;
+  --text-faint: #9a9488;
+
+  /* 룬의 청록 — 흰 글씨를 얹어도 읽히는 깊이까지 낮췄다 */
+  --brand: #1f6d8a;
+  --on-brand: #ffffff;
+  --brand-deep: #12313f;
+  --brand-soft: #dfeaef;
+  /* 금화 — 밝은 바탕에서도 글씨로 읽히도록 어둡게 */
+  --gold: #8a6114;
+  --gold-line: rgba(166, 124, 42, 0.45);
+  /* 어두운 면(헤더·시트 손잡이) 위에 얹는 금 — 밝은 바탕용 금색은 거기서 묻힌다 */
+  --gold-bright: #d9b45c;
+
+  --pending: #d1620a;
+  --pending-soft: #fdefe0;
+  --paid: #1c7f4a;
+  --paid-soft: #e4f3ea;
+  --danger: #bf2a3a;
+  /* 잘못된 값을 표시하는 배지 바탕 (v10.8.9) */
+  --danger-soft: #fbe4e6;
+
+  /* 각진 모서리 (v11.7) — 게임 UI 는 둥글지 않다. 금속 판을 잘라 붙인 모양이다.
+     완전한 직각은 폰에서 날카로워 보여 4~6px 만 남긴다. */
+  --radius: 6px;
+  --radius-sm: 4px;
+
+  /* 제목용 세리프 (v11.7) — 게임의 명조 계열 제목을 흉내낸다.
+     ★ 폰트 파일을 싣지 않는다. 한국어 세리프는 5MB 가 넘어 폰에서 첫 화면이
+       그만큼 늦어지고, 게임 폰트를 복사해 오는 것도 아니다. 기기에 있는 것만 쓴다.
+     ★ 없는 기기에서는 본문 글꼴로 떨어진다. 굵기·자간·금색이 남아 있어
+       그 상태로도 제목으로 읽힌다 — 세리프가 있으면 더 좋아지는 정도다. */
+  --font-display: 'Nanum Myeongjo', 'Noto Serif KR', 'AppleMyungjo', Batang, serif;
+  --shadow: 0 1px 2px rgba(40, 32, 16, 0.06), 0 4px 16px rgba(40, 32, 16, 0.07);
+
+  /* 하단 탭바가 사라져 0 이다. 안전영역(홈 인디케이터)만 따로 챙긴다 (v11.2.1) */
+  --nav-h: 0px;
+  --header-h: 52px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* 그림의 밤 전장 — 푸른빛이 도는 짙은 돌색 */
+    --bg: #0d1014;
+    --surface: #161b22;
+    --surface-2: #1e242e;
+    --line: #2b323d;
+    --text: #ecebe5;
+    --text-dim: #a3a79f;
+    --text-faint: #6e747c;
+
+    /* 어두운 바탕에서는 청록을 밝게 쓰고 글씨를 어둡게 뒤집는다 —
+       흰 글씨를 얹으면 대비가 모자라 버튼 글씨가 흐릿해진다 */
+    --brand: #5ec3e6;
+    --on-brand: #08222c;
+    --brand-deep: #0a2632;
+    --brand-soft: #12313d;
+    --gold: #e0b153;
+    --gold-line: rgba(224, 177, 83, 0.4);
+    --gold-bright: #f0cd86;
+
+    --pending: #ffa04d;
+    --pending-soft: #2e2317;
+    --paid: #55d38b;
+    --paid-soft: #16281f;
+    --danger: #ff6b7a;
+    --danger-soft: #3a1c20;
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 4px 16px rgba(0, 0, 0, 0.35);
+  }
+}

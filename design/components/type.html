@@ -1,0 +1,52 @@
+<!-- @dsCard group="Foundations" -->
+<meta charset="utf-8" />
+<title>글자</title>
+<link rel="stylesheet" href="../_base.css" />
+<link rel="stylesheet" href="../app.css" />
+<style>
+  .spec {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .spec .k {
+    font-size: 10.5px;
+    letter-spacing: 0.4px;
+    color: var(--text-faint);
+  }
+  .disp {
+    font-family: var(--font-display);
+  }
+</style>
+
+<div class="spec">
+  <div class="k">제목 — var(--font-display) · 자간 +0.2~0.3</div>
+  <div class="disp" style="font-size: 21px; font-weight: 700; letter-spacing: 0.3px">길드정산 · 잔액 · 아이템</div>
+</div>
+
+<div class="spec">
+  <div class="k">금액 — 제목과 같은 글꼴 · tabular-nums</div>
+  <div class="disp" style="font-size: 21px; font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums">
+    110,850
+  </div>
+</div>
+
+<div class="spec">
+  <div class="k">본문 15px / 1.5</div>
+  <div>혈맹운영비 10%를 뗀 뒤 남은 금액을 참여자에게 인원수 비례로 나눕니다.</div>
+</div>
+
+<div class="spec">
+  <div class="k">보조 13px · text-dim</div>
+  <div style="font-size: 13px; color: var(--text-dim)">기사 · 참여 31회</div>
+</div>
+
+<div class="spec">
+  <div class="k">힌트 12px · text-faint</div>
+  <div class="hint" style="margin: 0">비워두면 등록한 날로만 남습니다.</div>
+</div>
+
+<div class="ds-note">
+  제목 글꼴은 <b>기기에 있는 명조 계열만</b> 씁니다. 한국어 세리프 폰트 파일은 5MB가 넘어
+  폰에서 첫 화면이 그만큼 늦어지고, 게임 폰트를 복사해 오는 것도 아닙니다.<br />
+  없는 기기에서는 본문 글꼴로 떨어집니다 — <b>굵기 · 자간 · 금색이 남아 그대로도 제목으로 읽힙니다.</b>
+</div>

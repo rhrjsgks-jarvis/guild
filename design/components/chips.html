@@ -1,0 +1,54 @@
+<!-- @dsCard group="Components" -->
+<meta charset="utf-8" />
+<title>칩 · 좁혀 보기</title>
+<link rel="stylesheet" href="../_base.css" />
+<link rel="stylesheet" href="../app.css" />
+
+<div class="ds-label">서버 — 여러 개를 같이 고른다</div>
+<div class="svpick" style="margin-bottom: 16px">
+  <button class="svchip on">01<em>2</em></button>
+  <button class="svchip">02<em>2</em></button>
+  <button class="svchip">03<em>1</em></button>
+  <button class="svchip vacant">05<em>0</em></button>
+  <button class="svchip more">+ 다른 서버 7개</button>
+  <button class="svchip wide">서버 미지정<em>2</em></button>
+</div>
+
+<div class="ds-label">클래스 — 한 번에 하나 (13종이라 칩으로 깔면 명단이 밀린다)</div>
+<div style="margin-bottom: 16px">
+  <select class="clsfilter on">
+    <option>기사 (3)</option>
+  </select>
+</div>
+
+<div class="ds-label">참여자 — 국문 / 한자 / 클래스 세 줄</div>
+<div class="mgrid" style="margin-bottom: 16px">
+  <label class="mchip sel">
+    <input type="checkbox" checked />
+    <span class="nm">
+      <b style="font-size: 14px"><span class="svr">02</span>잠단</b>
+      <i style="font-size: 19px">斬斷</i>
+      <em style="font-size: 11px">요정</em>
+    </span>
+  </label>
+  <label class="mchip">
+    <input type="checkbox" />
+    <span class="nm">
+      <b style="font-size: 14px"><span class="svr">01</span>가이</b>
+      <em style="font-size: 11px">기사</em>
+    </span>
+  </label>
+</div>
+
+<div class="ds-label">배지</div>
+<div class="ds-row">
+  <span class="badge">운영비</span>
+  <span class="badge">3티어</span>
+</div>
+
+<div class="ds-note">
+  <b>고른 칩에는 금테가 붙습니다.</b> 게임에서 「지금 선택된 것」은 언제나 금입니다.<br />
+  <b>참여자 칩의 한자는 국문보다 큽니다.</b> 중국 혈맹원에게는 그쪽이 본명이라, 작게 두면
+  자기 칸을 못 찾습니다. 클래스를 한자와 같은 줄에 합치면 자동 축소가 한자까지 줄여
+  이 규칙이 깨집니다 — 그래서 <b>줄을 나눕니다.</b>
+</div>

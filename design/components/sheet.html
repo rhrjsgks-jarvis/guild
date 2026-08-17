@@ -1,0 +1,54 @@
+<!-- @dsCard group="Components" -->
+<meta charset="utf-8" />
+<title>팝업 (시트)</title>
+<link rel="stylesheet" href="../_base.css" />
+<link rel="stylesheet" href="../app.css" />
+<style>
+  /* 미리보기라 화면에 고정하지 않고 그 자리에 눕혀 보여준다 */
+  .ds-stage {
+    background: var(--bg);
+    padding-top: 24px;
+  }
+  .ds-stage .sheet {
+    position: static;
+    max-height: none;
+    animation: none;
+    box-shadow: var(--shadow), inset 0 2px 0 rgba(217, 167, 64, 0.18);
+  }
+</style>
+
+<div class="ds-stage">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <button class="sheet-x" aria-label="닫기">✕</button>
+    <h2>📦 기란 세금</h2>
+    <p class="hint">참여 3명 · 혈맹운영비 10% 공제 후 1/N 분배</p>
+
+    <label class="fl" style="margin-top: 12px">판매금액 (다이아)</label>
+    <input type="text" inputmode="numeric" value="30,000" />
+
+    <div class="card" style="margin-top: 12px">
+      <div class="row">
+        <div class="row-main"><div class="row-name">🏛️ 혈맹운영비 (10%)</div></div>
+        <div class="row-amt"><div class="amt-paid">3,000</div></div>
+      </div>
+      <div class="row">
+        <div class="row-main"><div class="row-name">➕ 잔여분 → 혈맹운영비</div></div>
+        <div class="row-amt"><div class="amt-paid">4,500</div></div>
+      </div>
+    </div>
+
+    <div class="sheet-actions" style="margin-top: 18px">
+      <button class="btn ghost">취소</button>
+      <button class="btn warn">분배하기</button>
+    </div>
+  </div>
+</div>
+
+<div class="ds-note">
+  <b>바깥을 눌러서는 닫히지 않습니다.</b> 폰에서는 시트가 화면을 거의 다 채워, 스크롤하려다
+  가장자리를 스치면 그대로 닫혔고 <b>입력하던 내용이 통째로 사라졌습니다.</b>
+  참여자를 스무 명 체크한 뒤라면 손해가 큽니다.<br />
+  닫는 길은 <b>오른쪽 위 ✕ · 아래 버튼 · 폰 뒤로가기</b> 셋입니다.<br />
+  위쪽 금 두 줄과 금색 손잡이는 <b>두루마리를 펼친 머리</b>를 뜻합니다.
+</div>

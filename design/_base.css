@@ -1,0 +1,67 @@
+/*
+ * 미리보기 공통 껍데기 — 클로드 디자인 카드에서만 쓴다.
+ *
+ * ★ 부품의 **모양을 여기서 정하지 않는다.** 모양은 언제나 app/globals.css 가
+ *   원본이고, 이 폴더는 그것을 잘라 보여주기만 한다. 여기서 색이나 모서리를
+ *   손대면 디자인 시스템과 실제 앱이 조용히 갈라진다 — 그러면 보여줄 값어치가 없다.
+ */
+@import url('./tokens.css');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Pretendard',
+    'Noto Sans KR', 'Malgun Gothic', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.5;
+  padding: 20px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+/* 카드 안에서 항목을 나란히 늘어놓기 위한 것 — 부품이 아니다 */
+.ds-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.ds-label {
+  width: 100%;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+
+.ds-note {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--gold);
+  background: var(--surface-2);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
