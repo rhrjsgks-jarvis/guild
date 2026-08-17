@@ -15,7 +15,7 @@
  * (`setContent()` 로 그리면 페이지에 주소가 없어 전부 깨진다.)
  */
 import { chromium } from 'playwright';
-import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -24,6 +24,7 @@ const SRC = resolve(ROOT, 'docs/manual');
 // 폴더·파일명을 영문으로 두는 이유: 한글이 들어가면 GitHub·카톡에서 링크가
 // 퍼센트 인코딩으로 3배 길어져 200자 제한에 걸리고, 도구에 따라 깨지기도 한다.
 const OUT = resolve(ROOT, 'manual');
+const VERSION = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf8')).version;
 
 const BOOKS = [
   { file: 'member.html', out: 'member', label: '혈맹원 안내' },
@@ -55,6 +56,17 @@ const made = [];
 
 for (const book of BOOKS) {
   await page.goto(pathToFileURL(resolve(SRC, book.file)).href, { waitUntil: 'networkidle' });
+
+  /*
+   * 머리글의 버전은 **여기서 채운다.**
+   * HTML 에 손으로 적어 두면 앱 버전을 올릴 때마다 같이 고쳐야 하고, 잊으면
+   * 설명서만 옛 버전을 가리킨다 (실제로 v11.6.1 → 11.6.7 두 번 밀렸다).
+   */
+  await page.evaluate((v) => {
+    document.querySelectorAll('.pnum span').forEach((el) => {
+      if (/^vd+.d+(.d+)?$/.test(el.textContent.trim())) el.textContent = 'v' + v;
+    });
+  }, VERSION);
 
   const pages = await page.locator('.page').all();
   if (pages.length === 0) throw new Error(`장이 하나도 없습니다 (.page 가 필요합니다): ${book.file}`);

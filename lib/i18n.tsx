@@ -723,10 +723,16 @@ const DICT: Record<string, Entry> = {
     '切換畫面語言時，本說明也會跟著改變。管理員專用內容只在管理員模式下顯示。',
     'This guide follows your language. Admin sections appear only in admin mode.',
   ],
+  /*
+   * 🐛 예전에는 "혈맹 채팅방 링크에서 볼 수 있습니다" 라고 적어 두었다.
+   *    그런데 **앱 어디에도 그 링크가 없다** — 앱만 보는 사람은 없는 것을 찾게 된다.
+   *    설명서를 문서형으로 바꾼 뒤로는 내용도 사실과 달라졌다 (여기가 이미 정본이다).
+   *    없는 곳을 가리키지 말고, **실제로 갈 수 있는 곳**을 알려준다.
+   */
   'man.more': [
-    '더 자세한 그림 설명서는 혈맹 채팅방에 올려둔 링크에서 볼 수 있습니다.',
-    '更詳細的圖解說明，請見血盟聊天室分享的連結。',
-    'A fuller illustrated guide is linked in the guild chat.',
+    '궁금한 것이나 이상한 점은 📋 게시판에 남겨주세요. 관리자가 보고 답합니다.',
+    '有疑問或發現異常，請在留言板留言，管理員會查看並回覆。',
+    'Questions or anything odd? Post on the board — an admin will answer.',
   ],
   'cls.filter': ['클래스로 좁혀 보기', '按職業篩選', 'Filter by class'],
   /* 고르지 않은 상태의 문구다 — 인원수는 넣지 않는다. 각 클래스 줄에 이미 붙어 있고,

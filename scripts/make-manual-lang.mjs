@@ -33,10 +33,15 @@ const body = src.slice(src.indexOf('export const MANUAL'));
 const arr = body.slice(body.indexOf('['), body.lastIndexOf('];') + 1);
 const MANUAL = new Function(`return ${arr}`)();
 
+/*
+ * 꼬리말은 **없는 곳을 가리키지 않는다.** 예전에는 "채팅방 링크에서 볼 수 있습니다"
+ * 라고 적었는데, 이 그림 자체가 그 링크로 오는 물건이라 제자리를 맴도는 말이었다.
+ * 앱 안에 같은 설명서가 있다는 것만 알려준다 — 거기는 언제나 최신이다.
+ */
 const TITLE = {
-  ko: ['길드정산 — 설명서', '관리자용', '더 자세한 그림 설명서는 혈맹 채팅방 링크에서 볼 수 있습니다.'],
-  zh: ['血盟結算 — 使用說明', '管理員專用', '更詳細的圖解說明，請見血盟聊天室分享的連結。'],
-  en: ['Guild Ledger — Guide', 'Admin only', 'A fuller illustrated guide is linked in the guild chat.'],
+  ko: ['길드정산 — 설명서', '관리자용', '같은 내용을 앱 안 [설명서] 에서도 볼 수 있습니다 — 그쪽이 언제나 최신입니다.'],
+  zh: ['血盟結算 — 使用說明', '管理員專用', '相同內容也可在 App 內的「使用說明」查看 — 那裡永遠是最新版。'],
+  en: ['Guild Ledger — Guide', 'Admin only', 'The same guide lives inside the app under "Guide" — always up to date.'],
 }[LANG];
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

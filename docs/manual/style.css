@@ -716,3 +716,36 @@ kbd {
 .foot b {
   color: var(--gold);
 }
+
+/* ── 실제 앱 화면 (v11.7) ──
+   CSS 로 흉내 낸 그림은 언젠가 실제와 어긋나는데 어긋난 줄 아무도 모른다.
+   진짜 촬영본을 넣으면 화면이 바뀔 때 다시 찍기만 하면 된다.
+   ★ 촬영본은 모의 데이터다 — 혈맹원 실명·실제 금액이 문서에 박히지 않는다. */
+.shots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 10px 0 16px;
+  justify-content: center;
+}
+
+.shots figure {
+  flex: 0 0 auto;
+  max-width: 190px;
+}
+
+.shots img {
+  width: 190px;
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 2px 5px rgba(40, 32, 16, 0.1), 0 8px 22px rgba(40, 32, 16, 0.12);
+}
+
+.shots figcaption {
+  margin-top: 6px;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--faint);
+}
