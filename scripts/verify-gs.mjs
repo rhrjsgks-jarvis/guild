@@ -125,6 +125,80 @@ check('버전이 다섯 곳에서 같다 (.gs · 파일명 · package.json · �
   return `v${gsVer} (5곳 일치, 앱 v${appVer}) · 패치 자리는 경고 없음`;
 });
 
+check('변경 이력이 지금 버전까지 와 있고 순서가 안 무너졌다', () => {
+  /*
+   * ★ 실제로 겪은 사고다 (v11.6.7~v11.6.10).
+   *
+   *   ① 이력이 네 판 동안 갱신되지 않았는데 검사 87건이 전부 통과했다.
+   *      이 파일이 CHANGELOG 를 한 번도 읽지 않았기 때문이다. 규칙을
+   *      문서로만 적어두면 반드시 이렇게 된다.
+   *
+   *   ② v11.6.8 항목이 파일 **끝**의 HTML 주석 닫는 줄에 한 줄로 달라붙어
+   *      `-->## v11.6.8 …` 이 됐다. 마크다운 제목으로 렌더되지 않고,
+   *      위에서부터 읽는 사람에게는 그 판이 아예 없는 것으로 보인다.
+   *      `>>` 로 파일 끝에 덧붙이면 이렇게 된다.
+   */
+  const cl = readFileSync(resolve(ROOT, 'CHANGELOG.md'), 'utf8');
+  const appVer = readFileSync(resolve(ROOT, 'lib/version.ts'), 'utf8')
+    .match(/APP_VERSION = '([\d.]+)'/)?.[1];
+
+  // 제목이 다른 것에 달라붙어 있으면 안 된다 — 줄 맨 앞에서 시작해야 제목이다
+  const glued = cl.split('\n').filter((l) => /^.+##\s*v[\d.]/.test(l));
+  if (glued.length) {
+    throw new Error(
+      `제목이 다른 글자에 붙어 있습니다 (마크다운 제목으로 안 읽힙니다) → ${glued[0].slice(0, 60)}`,
+    );
+  }
+
+  const heads = [...cl.matchAll(/^## v([\d.]+)/gm)].map((m) => m[1]);
+  if (!heads.length) throw new Error('CHANGELOG.md 에서 판 제목을 하나도 찾지 못했습니다.');
+
+  // 이 파일은 최신이 맨 위다. 맨 위가 지금 앱 버전이어야 한다.
+  if (heads[0] !== appVer) {
+    throw new Error(
+      `이력 맨 위가 v${heads[0]} 인데 앱은 v${appVer} 입니다 — 이번 판의 항목을 CHANGELOG.md 맨 위에 넣으세요.`,
+    );
+  }
+
+  // 위에서 아래로 내림차순이어야 한다 (항목이 엉뚱한 자리에 끼면 잡힌다)
+  const num = (v) => v.split('.').map(Number);
+  const cmp = (a, b) => {
+    const [x, y] = [num(a), num(b)];
+    for (let i = 0; i < Math.max(x.length, y.length); i++) {
+      if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) - (y[i] ?? 0);
+    }
+    return 0;
+  };
+  for (let i = 1; i < heads.length; i++) {
+    if (cmp(heads[i - 1], heads[i]) <= 0) {
+      throw new Error(
+        `이력 차례가 뒤집혔습니다 → v${heads[i - 1]} 다음에 v${heads[i]} (최신이 위여야 합니다)`,
+      );
+    }
+  }
+
+  /*
+   * ★ 내림차순만으로는 "중간 판이 통째로 빠진 것"을 못 잡는다.
+   *   v11.6.11 · v11.6.12 를 내고 12 것만 적어도 맨 위는 앱 버전과 같고
+   *   차례도 안 뒤집힌다. 이번에 걸린 것은 항목을 하나도 안 썼기 때문이다.
+   *
+   *   그래서 같은 major.minor 안에서는 세 번째 자리가 1씩 줄어야 한다.
+   *   minor 가 바뀌는 자리(v11.6.1 → v11.6 → v11.5)는 건너뛴다.
+   */
+  for (let i = 1; i < heads.length; i++) {
+    const a = num(heads[i - 1]);
+    const b = num(heads[i]);
+    if (a[0] !== b[0] || a[1] !== b[1]) continue;
+    if ((a[2] ?? 0) - (b[2] ?? 0) !== 1) {
+      throw new Error(
+        `이력에 빠진 판이 있습니다 → v${heads[i - 1]} 다음이 v${heads[i]} 입니다`,
+      );
+    }
+  }
+
+  return `맨 위 v${heads[0]} = 앱 버전 · 판 ${heads.length}개 내림차순·빠진 판 없음 · 붙은 제목 0`;
+});
+
 check('doGet 이 내주는 화면은 아무것도 바꿀 수 없다', () => {
   // ★ v9.0 에서 실제로 뚫렸던 지점이다.
   //
