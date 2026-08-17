@@ -3,3 +3,4 @@
   guide-zh-01.png
   guide-zh-02.png
   guide-zh-03.png
+  guide-zh-04.png

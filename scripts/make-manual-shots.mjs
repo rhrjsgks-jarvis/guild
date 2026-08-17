@@ -124,18 +124,28 @@ await tab('게시판');
 await page.waitForTimeout(600);
 await shot('board');
 
-/* 언어 — 中文 으로 바꾼 화면을 보여주면 "이름도 바뀐다"가 한눈에 이해된다 */
-await tab('언어');
-await page.waitForTimeout(300);
+/**
+ * 언어 — 헤더의 언어 버튼으로 연다 (v11.7).
+ * 홈 아이콘에 있던 것을 헤더로 옮겼다 — 화면을 보다가 언어를 바꾸려고 매번
+ * 홈까지 나갔다 오는 것이 불편했기 때문이다.
+ */
+const setLang = async (name) => {
+  await page.locator('.header .chip.lang').click();
+  await page.waitForTimeout(400);
+  await page.getByRole('button', { name }).click();
+  await page.waitForTimeout(600);
+};
+
+await home();
+await page.locator('.header .chip.lang').click();
+await page.waitForTimeout(400);
 await shot('lang');
 await page.getByRole('button', { name: '中文' }).click();
-await page.waitForTimeout(500);
+await page.waitForTimeout(600);
 await tab('아이템');
 await page.waitForTimeout(500);
 await shot('items-zh');
-await tab('언어');
-await page.getByRole('button', { name: '한국어' }).click();
-await page.waitForTimeout(500);
+await setLang('한국어');
 
 /* ── 관리자 화면 ── */
 await tab('관리');

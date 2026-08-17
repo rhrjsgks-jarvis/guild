@@ -42,8 +42,8 @@ const TITLE = {
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const bold = (s) => esc(s).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
 
-/* 한 장에 절 4개씩 — 폰에서 한 장이 너무 길면 스크롤하다 어디였는지 잃는다 */
-const PER_PAGE = 4;
+/* 한 장에 절 3개씩 — 표와 흐름이 들어가 절 하나가 길어졌다 */
+const PER_PAGE = 3;
 const pages = [];
 for (let i = 0; i < MANUAL.length; i += PER_PAGE) pages.push(MANUAL.slice(i, i + PER_PAGE));
 
@@ -56,21 +56,76 @@ const CSS = `
   .top .n{background:#574227;color:#f7edd6;border-radius:99px;padding:2px 9px;font-weight:700}
   .top .ln{flex:1;height:1px;background:rgba(166,124,42,.4)}
   h2{display:flex;align-items:center;gap:7px;font-size:15px;font-weight:800;color:#1a1815;
-    margin:20px 0 8px;letter-spacing:-.2px}
+    margin:20px 0 3px;letter-spacing:-.2px}
   h2::before{content:"";width:3px;height:13px;border-radius:1px;
     background:linear-gradient(180deg,#8a6114,transparent)}
   h2 .tag{margin-left:auto;font-size:9.5px;font-weight:700;color:#574227;
     background:#ece2cb;border-radius:3px;padding:2px 7px;letter-spacing:0}
+  .sub{margin:0 0 8px 10px;font-size:11.5px;color:#8a8377}
   .card{background:#fcf8ef;border:1px solid #d8cdb4;border-radius:6px;
     box-shadow:0 1px 2px rgba(40,32,16,.06);padding:13px 15px;position:relative;overflow:hidden}
   .card::before{content:"";position:absolute;inset:0 0 auto;height:2px;
     background:linear-gradient(90deg,transparent,rgba(166,124,42,.7) 16%,rgba(166,124,42,.7) 84%,transparent)}
-  p{margin:0 0 9px;font-size:13.5px;line-height:1.7;color:#55504a}
+  p{margin:0 0 10px;font-size:13.5px;line-height:1.7;color:#55504a}
   p:last-child{margin-bottom:0}
   b{color:#1a1815}
+  .flow{display:flex;flex-direction:column;margin:2px 0 4px}
+  .step{display:flex;gap:11px}
+  .step .rail{flex:0 0 26px;display:flex;flex-direction:column;align-items:center}
+  .step .dot{width:26px;height:26px;border-radius:50%;border:1.5px solid #574227;
+    background:#ece2cb;color:#574227;font-size:12.5px;font-weight:800;
+    display:flex;align-items:center;justify-content:center}
+  .step .bar{width:2px;flex:1;background:#d8cdb4;margin:3px 0}
+  .step .body{flex:1;padding-bottom:14px}
+  .step h4{font-size:14px;font-weight:700;margin-bottom:3px}
+  .step p{font-size:13px;line-height:1.65}
+  table{border-collapse:collapse;width:100%;font-size:13px;margin:4px 0 12px}
+  th,td{border:1px solid #d8cdb4;padding:8px 10px;text-align:left;vertical-align:top;line-height:1.6}
+  th{background:#574227;color:#f7edd6;font-weight:700;white-space:nowrap}
+  td{color:#55504a}
+  tbody tr:nth-child(even) td{background:#f2ebdb}
+  .note{margin:4px 0 12px;padding:11px 13px;border-left:3px solid #8a6114;background:#f2ebdb;
+    border-radius:0 4px 4px 0}
+  .note.warn{border-left-color:#d1620a;background:#fdefe0}
+  .note h4{font-size:13.5px;font-weight:700;margin-bottom:4px}
+  .note p{font-size:13px}
+  .note :last-child,.flow:last-child,table:last-child{margin-bottom:0}
   .foot{margin-top:20px;padding:11px 14px;border-left:3px solid #8a6114;background:#f2ebdb;
     font-size:12px;line-height:1.6;color:#55504a}
 `;
+
+/** 블록 하나를 HTML 로. 앱 화면(ManualTab)과 같은 구조다 */
+const blockHtml = (b) => {
+  if ('p' in b) return `<p>${bold(b.p[IDX])}</p>`;
+  if ('steps' in b) {
+    return (
+      '<div class="flow">' +
+      b.steps
+        .map(
+          (st, i) =>
+            '<div class="step"><div class="rail"><div class="dot">' + (i + 1) + '</div>' +
+            (i < b.steps.length - 1 ? '<div class="bar"></div>' : '') +
+            '</div><div class="body"><h4>' + bold(st.h[IDX]) + '</h4><p>' + bold(st.d[IDX]) + '</p></div></div>',
+        )
+        .join('') +
+      '</div>'
+    );
+  }
+  if ('table' in b) {
+    return (
+      '<table><thead><tr>' +
+      b.table.head.map((h) => `<th>${bold(h[IDX])}</th>`).join('') +
+      '</tr></thead><tbody>' +
+      b.table.rows.map((r) => '<tr>' + r.map((c) => `<td>${bold(c[IDX])}</td>`).join('') + '</tr>').join('') +
+      '</tbody></table>'
+    );
+  }
+  return (
+    `<div class="note${b.warn ? ' warn' : ''}">` +
+    (b.h ? `<h4>${bold(b.h[IDX])}</h4>` : '') +
+    `<p>${bold(b.note[IDX])}</p></div>`
+  );
+};
 
 mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch();
@@ -83,9 +138,10 @@ const made = [];
 for (let i = 0; i < pages.length; i++) {
   const secs = pages[i]
     .map(
-      (s) =>
-        `<h2>${esc(s.title[IDX])}${s.admin ? `<span class="tag">${esc(TITLE[1])}</span>` : ''}</h2>` +
-        `<div class="card">${s.lines.map((l) => `<p>${bold(l[IDX])}</p>`).join('')}</div>`,
+      (sec) =>
+        `<h2>${esc(sec.title[IDX])}${sec.admin ? `<span class="tag">${esc(TITLE[1])}</span>` : ''}</h2>` +
+        (sec.sub ? `<div class="sub">${esc(sec.sub[IDX])}</div>` : '') +
+        `<div class="card">${sec.blocks.map(blockHtml).join('')}</div>`,
     )
     .join('');
   const last = i === pages.length - 1;

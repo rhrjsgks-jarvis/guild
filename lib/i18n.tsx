@@ -127,6 +127,8 @@ const DICT: Record<string, Entry> = {
   'home.goHome': ['홈으로', '返回主頁', 'Home'],
   'home.termSub': ['한·中·EN 이름', '韓·中·英 名稱', 'KO·ZH·EN names'],
   'home.lang': ['언어', '語言', 'Language'],
+  /* 헤더에 들어가는 짧은 표시 — 좁은 폰에서 제목을 밀어내지 않아야 한다 */
+  'lang.short': ['한', '中', 'EN'],
   'home.langSub': ['한·中·EN', '韓·中·英', 'KO·ZH·EN'],
 
   /* ── 공유 버튼 (v10.8) ── */

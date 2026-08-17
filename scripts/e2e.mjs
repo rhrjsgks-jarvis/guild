@@ -119,7 +119,7 @@ function eq(actual, expected, what) {
  *   넣었을 때 go('admin') 이 설명서를 열어 시험 27건이 한꺼번에 무너졌다.
  *   **홈 격자 순서를 바꿀 때는 여기도 같이 고칠 것.**
  */
-const TILE = { balance: 0, items: 1, alliance: 2, raid: 3, me: 4, board: 5, lang: 6, manual: 7, admin: 8 };
+const TILE = { balance: 0, items: 1, alliance: 2, raid: 3, me: 4, board: 5, manual: 6, admin: 7 };
 
 /**
  * 지금 열려 있는 화면을 닫고 홈으로 (이미 홈이면 아무것도 안 한다).
@@ -131,6 +131,18 @@ async function goHome(page, wait = 400) {
     await home.click();
     await page.waitForTimeout(wait);
   }
+}
+
+/**
+ * 언어 바꾸기 — **헤더 버튼**으로 (v11.7).
+ * 홈 아이콘에 있던 것을 헤더로 옮겼다. 화면을 보다가 언어를 바꾸려고 매번
+ * 홈까지 나갔다 오는 것이 불편했기 때문이다.
+ */
+async function setLang(page, name) {
+  await page.locator('.header .chip.lang').click();
+  await page.waitForTimeout(400);
+  await page.getByRole('button', { name }).click();
+  await page.waitForTimeout(600);
 }
 
 async function go(page, which, wait = 700) {
@@ -2907,24 +2919,18 @@ await t('설명서: 화면 언어를 따라가고, 관리자용은 관리자에�
   }
 
   /* ③ 화면 언어를 따라간다 — 대만 혈맹원이 읽을 수 있어야 앱 안에 둔 뜻이 산다 */
-  await go(page, 'lang');
-  await page.getByRole('button', { name: '中文' }).click();
-  await page.waitForTimeout(500);
+  await setLang(page, '中文');
   const zh = await open();
   if (!zh.includes('開始使用')) throw new Error(`中文 설명서가 안 나옵니다: ${zh.slice(0, 80)}`);
   if (/[가-힣]/.test(zh.replace(/[⚙️]/g, ''))) {
     throw new Error(`中文 설명서에 한국어가 남아 있습니다: ${(zh.match(/[가-힣]+/g) ?? []).slice(0, 5).join(' ')}`);
   }
 
-  await go(page, 'lang');
-  await page.getByRole('button', { name: 'English' }).click();
-  await page.waitForTimeout(500);
+  await setLang(page, 'English');
   const en = await open();
   if (!en.includes('Getting started')) throw new Error(`English 설명서가 안 나옵니다: ${en.slice(0, 80)}`);
 
-  await go(page, 'lang');
-  await page.getByRole('button', { name: '한국어' }).click();
-  await page.waitForTimeout(400);
+  await setLang(page, '한국어');
 });
 
 await t('첫 화면은 홈이고, 모든 화면이 아이콘으로 있다 (v11.2.1, 화면)', async () => {
@@ -2937,7 +2943,7 @@ await t('첫 화면은 홈이고, 모든 화면이 아이콘으로 있다 (v11.2
   // 라벨은 `.tile b` 에서 직접 읽는다. 예전에는 줄 번호로 집었는데(0=이모지, 1=라벨),
   // 이모지를 직접 그린 글리프(SVG)로 바꾸자 글자가 한 줄씩 밀려 어긋났다 (v11.7).
   const tiles = await page.locator('.tile b').allInnerTexts();
-  const want = ['잔액', '아이템', '연합', '레이드', '내 정보', '게시판', '언어', '설명서', '관리'];
+  const want = ['잔액', '아이템', '연합', '레이드', '내 정보', '게시판', '설명서', '관리'];
   if (tiles.join(' ') !== want.join(' ')) {
     throw new Error(`홈 아이콘: ${tiles.join(' ')} (기대 ${want.join(' ')})`);
   }
@@ -2988,7 +2994,7 @@ await t('폰 뒤로가기: 화면에서 누르면 홈으로 온다 (v11.2.1)', a
   await page.goBack();
   await page.waitForTimeout(500);
   eq(await page.locator('.screen-bar').count(), 0, '뒤로가기 뒤 홈');
-  eq(await page.locator('.tile').count(), 9, '홈 아이콘 개수');
+  eq(await page.locator('.tile').count(), 8, '홈 아이콘 개수');
 });
 
 await t('화면은 [✕] 로도 닫히고, 겹친 것은 위에서부터 닫힌다 (v11.2.1)', async () => {
@@ -3009,7 +3015,7 @@ await t('화면은 [✕] 로도 닫히고, 겹친 것은 위에서부터 닫힌�
   await page.locator('.screen-x').click();
   await page.waitForTimeout(500);
   eq(await page.locator('.screen-bar').count(), 0, '[✕] 로 닫기');
-  eq(await page.locator('.tile').count(), 9, '홈으로 돌아왔는가');
+  eq(await page.locator('.tile').count(), 8, '홈으로 돌아왔는가');
 
   // 아래쪽 [🏠 홈] 버튼으로도 나온다 — 목록을 한참 내린 뒤에도 손이 닿는 자리다
   await page.locator('.tile').nth(TILE.board).click();
@@ -3018,7 +3024,7 @@ await t('화면은 [✕] 로도 닫히고, 겹친 것은 위에서부터 닫힌�
   await page.locator('.home-btn').click();
   await page.waitForTimeout(500);
   eq(await page.locator('.screen-bar').count(), 0, '[홈] 으로 닫기');
-  eq(await page.locator('.tile').count(), 9, '홈으로 돌아왔는가');
+  eq(await page.locator('.tile').count(), 8, '홈으로 돌아왔는가');
 
   // 뒤로가기 두 번으로도 같은 순서로 닫힌다
   await page.locator('.notice-bar').click();
@@ -3028,7 +3034,7 @@ await t('화면은 [✕] 로도 닫히고, 겹친 것은 위에서부터 닫힌�
   await page.goBack();
   await page.waitForTimeout(500);
   eq(await page.locator('.screen-bar').count(), 0, '뒤로가기로 닫기');
-  eq(await page.locator('.tile').count(), 9, '뒤로가기 뒤 홈');
+  eq(await page.locator('.tile').count(), 8, '뒤로가기 뒤 홈');
 });
 
 await t('홈: 지금 처리할 일을 누르면 그 화면으로 간다 (v11.2.1)', async () => {

@@ -50,12 +50,10 @@ export default function HomeTab({
   state,
   admin,
   onGo,
-  onLang,
 }: {
   state: GuildState;
   admin: boolean;
   onGo: (to: Dest) => void;
-  onLang: () => void;
 }) {
   const { t } = useT();
   const [extra, setExtra] = useState<Extra | null>(memo && Date.now() - memo.at < MEMO_MS ? memo.extra : null);
@@ -149,7 +147,6 @@ export default function HomeTab({
     },
     { key: 'me', label: t('tab.me'), sub: t('home.meSub'), go: () => onGo('me') },
     { key: 'board', label: t('tab.board'), sub: t('home.boardSub'), go: () => onGo('board') },
-    { key: 'lang', label: t('home.lang'), sub: t('home.langSub'), go: onLang },
     // ★ 관리는 언제나 맨 마지막이다 — 엄지가 닿기 쉬운 자리에 두면 잘못 눌린다
     { key: 'manual', label: t('tab.manual'), sub: t('home.manualSub'), go: () => onGo('manual') },
     { key: 'admin', label: t('tab.admin'), sub: t('home.adminSub'), go: () => onGo('admin') },

@@ -256,10 +256,23 @@ export default function App() {
           </span>
         </h1>
         <div className="meta">
+          {/*
+            지금 무슨 권한인지 알리는 칩.
+            ★ 좁은 폰에서는 **글자를 접고 그림만** 남긴다 (CSS). 칩 넷이 붙으면
+              제목이 밀려 "길드정 / 산" 처럼 끊기는데, 어느 앱인지 못 읽는 것이
+              권한 글자를 못 읽는 것보다 나쁘다. 그림만 남아도 뜻은 통한다.
+            ★ 그래도 이름은 남는다 — aria-label 로 낭독기에는 그대로 읽힌다.
+          */}
           {master ? (
-            <span className="chip"><Glyph name="crown" size={13} /> {t('c.master')}</span>
+            <span className="chip role" aria-label={t('c.master')}>
+              <Glyph name="crown" size={13} />
+              <span className="txt">{t('c.master')}</span>
+            </span>
           ) : admin ? (
-            <span className="chip"><Glyph name="unlock" size={13} /> {t('c.admin')}</span>
+            <span className="chip role" aria-label={t('c.admin')}>
+              <Glyph name="unlock" size={13} />
+              <span className="txt">{t('c.admin')}</span>
+            </span>
           ) : null}
           {state ? (
             <button
@@ -268,10 +281,24 @@ export default function App() {
               aria-label={t('season.title')}
               style={{ color: '#fff' }}
             >
-              {t('c.season')} {state.season}
+              {/* '시즌' 이라는 말은 아주 좁은 폰에서 접는다 — 숫자와 서버만 남아도
+                  무엇인지 알 수 있고, 그 자리를 제목에 내주는 편이 낫다 */}
+              <span className="txt">{t('c.season')} </span>
+              {state.season}
               {state.seasonServer ? ` · ${state.seasonServer}` : ''} ▾
             </button>
           ) : null}
+          {/*
+            언어 바꾸기는 **헤더에 상시** 둔다 (v11.7).
+            홈 아이콘에만 있으면 화면을 보다가 언어를 바꾸려고 매번 홈까지 나갔다
+            와야 했다 — 대만·영어권 혈맹원은 그걸 자주 한다.
+            ★ 지금 언어를 글자로 보여준다(한/中/EN). 지구본만 두면 눌러 보기 전에는
+              지금 무슨 언어인지 알 수 없다.
+          */}
+          <button className="chip lang" onClick={() => setLangOpen(true)} aria-label={t('home.lang')}>
+            <Glyph name="lang" size={13} />
+            {t('lang.short')}
+          </button>
           <button
             className={'sync' + (syncing ? ' on' : '')}
             onClick={() => void refresh(true)}
@@ -388,7 +415,7 @@ export default function App() {
               ) : null}
             </Screen>
           ) : (
-            <HomeTab state={state} admin={admin} onGo={setScreen} onLang={() => setLangOpen(true)} />
+            <HomeTab state={state} admin={admin} onGo={setScreen} />
           )}
         </main>
       )}

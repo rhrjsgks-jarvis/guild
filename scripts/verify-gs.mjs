@@ -2203,7 +2203,7 @@ check('하단 탭이 없고 모든 화면은 홈 아이콘에서 연다 (v11.2.1
    *   관리 화면에서 연다 (아래에서 그 길이 있는지 확인한다).
    */
   // 설명서(v11.7)는 언어 다음, 관리 앞이다 — 관리는 언제나 맨 마지막이다
-  const expected = ['balance', 'items', 'alliance', 'raid', 'me', 'board', 'lang', 'manual', 'admin'];
+  const expected = ['balance', 'items', 'alliance', 'raid', 'me', 'board', 'manual', 'admin'];
   if (order.join(',') !== expected.join(',')) {
     throw new Error(`아이콘 순서가 다릅니다: ${order.join(' ')} (기대 ${expected.join(' ')})`);
   }
