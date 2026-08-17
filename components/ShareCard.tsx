@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import IconText from './IconText';
 import { useT } from '@/lib/i18n';
 
 /**
@@ -56,7 +57,7 @@ export default function ShareCard({
 
   return (
     <>
-      <div className="sect">{t('share.sect')}</div>
+      <div className="sect"><IconText text={t('share.sect')} /></div>
       <div className="card">
         <div className="field" style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
           <div
@@ -90,12 +91,12 @@ export default function ShareCard({
             <div style={{ display: 'flex', gap: 6 }}>
               {canShare ? (
                 <button className="btn" style={{ flex: 1, padding: '10px 8px' }} onClick={share}>
-                  {t('share.share')}
-                </button>
+            <IconText text={t('share.share')} />
+          </button>
               ) : null}
               <button className="btn ghost" style={{ flex: 1, padding: '10px 8px' }} onClick={copy}>
-                {t('share.copy')}
-              </button>
+            <IconText text={t('share.copy')} />
+          </button>
             </div>
           </div>
         </div>

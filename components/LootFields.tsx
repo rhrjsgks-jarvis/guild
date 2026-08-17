@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import IconText from './IconText';
 import { byName } from '@/lib/client';
 import { bossesOf } from '@/lib/drops';
 import { useT } from '@/lib/i18n';
@@ -77,7 +78,7 @@ export default function LootFields({
   return (
     <>
       <label className="fl" htmlFor={`${idPrefix}-raid`}>
-        {t('loot.raidDate')}
+        <IconText text={t('loot.raidDate')} />
       </label>
       <input
         id={`${idPrefix}-raid`}
@@ -88,7 +89,7 @@ export default function LootFields({
       <p className="hint">{t('loot.raidHint')}</p>
 
       <label className="fl" htmlFor={`${idPrefix}-boss`} style={{ marginTop: 12 }}>
-        {t('loot.boss')}
+        <IconText text={t('loot.boss')} />
       </label>
       {/* 제안을 보스로 좁힌다 — 337개 아이템에 묻히면 167개 보스가 안 보인다 */}
       <ItemNameInput
@@ -124,7 +125,7 @@ export default function LootFields({
       ) : null}
 
       <label className="fl" style={{ marginTop: 12 }}>
-        {t('loot.lootServer')}
+        <IconText text={t('loot.lootServer')} />
       </label>
       {/* 참여 서버와 다른 것이다 — 여기는 **떨어진 곳** 하나다 */}
       <ServerPicker
@@ -136,7 +137,7 @@ export default function LootFields({
       />
 
       <label className="fl" htmlFor={`${idPrefix}-lch`} style={{ marginTop: 12 }}>
-        {t('loot.lootChar')}
+        <IconText text={t('loot.lootChar')} />
       </label>
       {/* datalist 는 **제안**일 뿐 입력을 막지 않는다 — 연합은 타 혈맹원이 먹기도 한다 */}
       <input

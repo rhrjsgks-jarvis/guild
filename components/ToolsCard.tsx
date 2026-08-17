@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import IconText from './IconText';
 import Sheet from './Sheet';
 import type { PayoutRecord, Tool } from '@/lib/types';
 import { api, fmt, getStoredEmail } from '@/lib/client';
@@ -71,7 +72,7 @@ export default function ToolsCard({
           "왜 안 되냐"를 묻게 되고, 그 자체가 불필요한 마찰이다. */}
       {master ? (
         <>
-      <div className="sect">{t('tool.undoSect')}</div>
+      <div className="sect"><IconText text={t('tool.undoSect')} /></div>
       <div className="card">
         <div className="field">
           {lastPayout ? (
@@ -101,7 +102,7 @@ export default function ToolsCard({
         </>
       ) : null}
 
-      <div className="sect">{t('tool.sect')}</div>
+      <div className="sect"><IconText text={t('tool.sect')} /></div>
       <div className="card">
         {!tools ? (
           <div className="field">
@@ -150,8 +151,8 @@ export default function ToolsCard({
               {t('c.cancel')}
             </button>
             <button className="btn warn" disabled={busy} onClick={undoPayout}>
-              {t('led.revert')}
-            </button>
+            <IconText text={t('led.revert')} />
+          </button>
           </div>
         </Sheet>
       ) : null}
@@ -244,8 +245,8 @@ function ToolSheet({
 
       <div className="sheet-actions">
         <button className="btn ghost" onClick={onClose}>
-          {t('c.cancel')}
-        </button>
+            <IconText text={t('c.cancel')} />
+          </button>
         <button className={needsPhrase ? 'btn warn' : 'btn'} disabled={!phraseOk || busy} onClick={run}>
           {busy ? t('c.running') : t('c.run')}
         </button>

@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import Glyph from './Glyph';
+import IconText from './IconText';
 import Sheet from './Sheet';
 import type { GuildState, LedgerItem } from '@/lib/types';
 import { api, calcSplit, fmt, getStoredEmail, personLabel, weightsOf } from '@/lib/client';
@@ -93,7 +95,7 @@ export default function DistributeSheet({
             return (
               <div className="calc-line" key={nm + i}>
                 <span>
-                  ⚖️ {personLabel(state, nm)} ({weightList[idx]}%)
+                  <Glyph name="scale" size={16} /> {personLabel(state, nm)} ({weightList[idx]}%)
                 </span>
                 <strong>{fmt(split.shares[idx])}</strong>
               </div>
@@ -118,11 +120,11 @@ export default function DistributeSheet({
 
       <div className="sheet-actions">
         <button className="btn ghost" onClick={onClose}>
-          {t('c.cancel')}
-        </button>
+            <IconText text={t('c.cancel')} />
+          </button>
         <button className="btn warn" disabled={!valid} onClick={run}>
-          {t('dist.do')}
-        </button>
+            <IconText text={t('dist.do')} />
+          </button>
       </div>
     </Sheet>
   );

@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Glyph from './Glyph';
+import IconText from './IconText';
 import Sheet from './Sheet';
 import ServerPicker from './ServerPicker';
 import ServerFilter from './ServerFilter';
@@ -229,14 +231,14 @@ export default function AllianceTab({
 
       {admin ? (
         <button className="btn block" onClick={() => setAdding(true)}>
-          🤝 {t('ali.register')}
+          <Glyph name="alliance" size={16} /> {t('ali.register')}
         </button>
       ) : null}
 
       {/* 서버로 좁혀 보기 — 잔액·아이템 화면과 같은 칩 한 벌 (v11.5) */}
       <div className="card" style={{ marginTop: 12 }}>
         <div className="field" style={{ paddingBottom: 0 }}>
-          <label className="fl">{t('ali.filterServer')}</label>
+          <label className="fl"><IconText text={t('ali.filterServer')} /></label>
           <ServerFilter
             servers={data?.serverList ?? []}
             counts={svCounts}
@@ -249,7 +251,7 @@ export default function AllianceTab({
 
       {/* ① 등록만 된 건 — 금액을 넣으면 서버에 나뉜다 */}
       <div className="sect" style={{ marginTop: 14 }}>
-        ⏳ {t('ali.waitingSect')} {waiting.length > 0 ? `(${waiting.length})` : ''}
+        <Glyph name="pending" size={16} /> {t('ali.waitingSect')} {waiting.length > 0 ? `(${waiting.length})` : ''}
       </div>
       <div className="card">
         {!data ? (
@@ -289,7 +291,7 @@ export default function AllianceTab({
                     {t('items.edit')}
                   </button>
                   <button className="btn ghost" onClick={() => setMetaOf(g)}>
-                    🏷️ {t('loot.editTitle')}
+                    <Glyph name="tag" size={16} /> {t('loot.editTitle')}
                   </button>
                   {/* 레이드 뒤에 "우리 서버도 갔었다" 는 이야기가 늦게 온다.
                       그때마다 마스터를 부르면 등록이 미뤄지므로 관리자에게 연다.
@@ -316,7 +318,7 @@ export default function AllianceTab({
       </div>
 
       <div className="sect" style={{ marginTop: 14 }}>
-        📊 {t('ali.byServer')} — {t('c.total')} {fmt(grand)} {u}
+        <Glyph name="chart" size={16} /> {t('ali.byServer')} — {t('c.total')} {fmt(grand)} {u}
       </div>
       <div className="card">
         {!data ? (
@@ -384,7 +386,7 @@ export default function AllianceTab({
                 <div className="row-acts">
                   {/* 🏷️ 는 정산완료여도 관리자가 누를 수 있다 — 새 4칸은 돈을 안 움직인다 */}
                   <button className="btn ghost" onClick={() => setMetaOf(g)}>
-                    🏷️ {t('loot.editTitle')}
+                    <Glyph name="tag" size={16} /> {t('loot.editTitle')}
                   </button>
                   {master ? (
                     <button className="btn ghost" onClick={() => setEditing(g)}>
@@ -747,7 +749,7 @@ function RegisterSheet({
   return (
     <Sheet title={`🤝 ${t('ali.register')}`} subtitle={t('ali.registerSub')} onClose={onClose}>
       <label className="fl" htmlFor="ait">
-        {t('c.itemName')}
+        <IconText text={t('c.itemName')} />
       </label>
       {/* 용어 사전 자동완성 (v11.4) — 中文으로 쳐도 찾아지고, 저장은 국문이다 */}
       <ItemNameInput id="ait" value={item} onChange={setItem} />
@@ -770,8 +772,8 @@ function RegisterSheet({
 
       <div className="sheet-actions">
         <button className="btn ghost" onClick={onClose}>
-          {t('c.cancel')}
-        </button>
+            <IconText text={t('c.cancel')} />
+          </button>
         <button className="btn" disabled={!valid} onClick={() => void submit()}>
           {t('ali.register')}
         </button>
@@ -864,8 +866,8 @@ function CreditSheet({
 
       <div className="sheet-actions">
         <button className="btn ghost" onClick={onClose}>
-          {t('c.cancel')}
-        </button>
+            <IconText text={t('c.cancel')} />
+          </button>
         <button className="btn warn" disabled={!valid} onClick={() => void submit()}>
           {t('ali.credit')}
         </button>
@@ -947,8 +949,8 @@ function AddServersSheet({
 
       <div className="sheet-actions">
         <button className="btn ghost" onClick={onClose}>
-          {t('c.cancel')}
-        </button>
+            <IconText text={t('c.cancel')} />
+          </button>
         <button className="btn" disabled={!valid} onClick={() => void submit()}>
           {t('ali.addSv')}
         </button>
@@ -1053,7 +1055,7 @@ function EditSheet({
       onClose={onClose}
     >
       <label className="fl" htmlFor="eai">
-        {t('c.itemName')}
+        <IconText text={t('c.itemName')} />
       </label>
       <ItemNameInput id="eai" value={item} onChange={setItem} />
 
@@ -1108,8 +1110,8 @@ function EditSheet({
 
       <div className="sheet-actions">
         <button className="btn ghost" onClick={onClose}>
-          {t('c.cancel')}
-        </button>
+            <IconText text={t('c.cancel')} />
+          </button>
         {/* 미분배 건은 돈이 안 움직이므로 바로 저장한다 */}
         <button
           className={entry.done ? 'btn warn' : 'btn'}
@@ -1195,8 +1197,8 @@ function DetailSheet({
 
       <div className="sheet-actions">
         <button className="btn ghost" onClick={onClose}>
-          {t('c.close')}
-        </button>
+            <IconText text={t('c.close')} />
+          </button>
       </div>
     </Sheet>
   );

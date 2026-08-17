@@ -2058,3 +2058,46 @@ select:focus {
 .iname + .lootpart {
   margin-left: 6px;
 }
+
+/* ───────── 글리프 라벨 (v11.7) ─────────
+   제목·버튼의 앞머리 이모지를 직접 그린 글리프로 바꾼 자리 (components/IconText.tsx).
+   ★ 글리프는 절대 줄어들지 않는다(flex: none). 글자가 길어질 때 그림이 눌리면
+     무슨 그림인지 알 수 없게 되고, 그럴 바에는 글자가 줄바꿈되는 편이 낫다. */
+.glyph {
+  flex: none;
+}
+
+.itx {
+  min-width: 0;
+}
+
+/* 절 제목의 글리프는 금색 — 앞의 금 표식과 한 벌로 읽힌다 */
+.sect .glyph {
+  color: var(--gold);
+}
+
+/* 버튼 안에서는 글자와 같은 색이다. 버튼은 이미 한 덩어리로 눌리는 것이라
+   그림만 다른 색이면 두 개가 있는 것처럼 보인다 */
+.btn .glyph,
+.home-btn .glyph,
+.filebtn .glyph {
+  color: inherit;
+}
+
+/* 큰 버튼에서는 글리프도 같이 커진다 — 작은 그림 옆의 큰 글자는 균형이 깨진다 */
+.btn.block .glyph {
+  width: 19px;
+  height: 19px;
+}
+
+/* 입력칸 라벨에도 글리프가 붙는다 (v11.7).
+   ★ flex 로 두지 않으면 그림과 글자가 딱 붙어 한 덩어리로 읽힌다. */
+.fl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fl .glyph {
+  color: var(--gold);
+}

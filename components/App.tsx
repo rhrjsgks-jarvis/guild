@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Glyph from './Glyph';
 import type { BalanceRow, GuildState, LedgerItem } from '@/lib/types';
 import { api, getStoredAppName, setStoredAppName } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
@@ -196,10 +197,16 @@ export default function App() {
 
   const title = fromSheet || cachedName || t('app.title');
 
-  // 브라우저 탭·앱 전환 화면에도 같은 이름이 뜨게 한다 — 거기만 옛 이름이면 다른 앱으로 보인다
-  useEffect(() => {
-    if (title) document.title = title;
-  }, [title]);
+  /**
+   * 브라우저 탭·앱 전환 화면의 이름 — 거기만 옛 이름이면 다른 앱으로 보인다.
+   *
+   * 🐛 처음에는 `document.title = title` 을 효과에서 넣었는데 **되돌아왔다.**
+   *    Next 의 metadata 가 그린 `<title>` 요소가 다시 렌더될 때마다 제 값을
+   *    덮어쓰기 때문이다. React 19 는 `<title>` 을 head 로 올려주므로
+   *    **요소로 그리면** 그 싸움 자체가 없어진다.
+   * ★ 이름에 마스터가 넣은 줄바꿈이 들어 있다 — 탭 제목에서는 한 줄로 편다.
+   */
+  const tabTitle = title.replace(/\s+/g, ' ').trim();
 
   // 시트(.gs)는 사용자가 직접 붙여넣고 재배포해야 해서, 앱만 새 버전인 상태가 되기 쉽다.
   // 그 어긋남을 제목 옆에서 바로 보이게 한다.
@@ -223,6 +230,8 @@ export default function App() {
 
   return (
     <>
+      {/* React 19 가 head 로 올려준다 — metadata 의 기본 제목을 이긴다 */}
+      <title>{tabTitle}</title>
       <header className="header">
         <h1>
           {/* 앱 아이콘과 같은 그림. 이모지 대신 마스코트를 쓰면 홈 화면 아이콘과
@@ -246,9 +255,9 @@ export default function App() {
         </h1>
         <div className="meta">
           {master ? (
-            <span className="chip">👑 {t('c.master')}</span>
+            <span className="chip"><Glyph name="crown" size={13} /> {t('c.master')}</span>
           ) : admin ? (
-            <span className="chip">🔓 {t('c.admin')}</span>
+            <span className="chip"><Glyph name="unlock" size={13} /> {t('c.admin')}</span>
           ) : null}
           {state ? (
             <button
@@ -269,7 +278,7 @@ export default function App() {
             title={t('c.refresh')}
           >
             <span className="ico" aria-hidden="true">
-              ↻
+              <Glyph name="refresh" size={14} />
             </span>
             {syncing ? t('c.syncing') : ago}
           </button>
@@ -285,7 +294,7 @@ export default function App() {
             setFocusPostId(state.notice?.id ?? null);
           }}
         >
-          📌 {state.notice.title}
+          <Glyph name="pin" size={16} /> {state.notice.title}
         </button>
       ) : null}
 

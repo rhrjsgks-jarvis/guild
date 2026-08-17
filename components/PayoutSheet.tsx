@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import IconText from './IconText';
 import Sheet from './Sheet';
 import type { BalanceRow, GuildState } from '@/lib/types';
 import { api, fmt, getStoredEmail, personLabel } from '@/lib/client';
@@ -107,11 +108,11 @@ export default function PayoutSheet({
 
       <div className="sheet-actions">
         <button className="btn ghost" onClick={onClose}>
-          {t('c.cancel')}
-        </button>
+            <IconText text={t('c.cancel')} />
+          </button>
         <button className="btn" disabled={!valid} onClick={run}>
-          {t('pay.do')}
-        </button>
+            <IconText text={t('pay.do')} />
+          </button>
       </div>
     </Sheet>
   );

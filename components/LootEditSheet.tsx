@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import IconText from './IconText';
 import { api, getStoredEmail } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
@@ -73,7 +74,7 @@ export default function LootEditSheet({
           정리할 길이 있어야 한다. 사전에서 고르면 등급 테두리·티어가 붙는다.
           비워두면 **안 바꾼다** (지우는 길은 두지 않는다 — 이름 없는 기록은 못 찾는다). */}
       <label className="fl" htmlFor="lootedit-item">
-        {t('c.itemName')}
+        <IconText text={t('c.itemName')} />
       </label>
       <ItemNameInput
         id="lootedit-item"
@@ -86,8 +87,8 @@ export default function LootEditSheet({
 
       <div className="sheet-actions" style={{ marginTop: 18 }}>
         <button className="btn ghost" onClick={onClose}>
-          {t('c.cancel')}
-        </button>
+            <IconText text={t('c.cancel')} />
+          </button>
         <button className="btn" onClick={() => void save()}>
           {t('c.save')}
         </button>

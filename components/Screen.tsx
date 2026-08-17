@@ -1,6 +1,7 @@
 'use client';
 
 import { useT } from '@/lib/i18n';
+import Glyph from './Glyph';
 import { useBackClose } from '@/lib/back';
 
 /**
@@ -41,7 +42,7 @@ export default function Screen({
       {/* 손이 닿는 자리에 있는 나가는 길 — 스크롤을 따라다닌다 */}
       <div className="home-bar">
         <button type="button" className="home-btn" onClick={onClose}>
-          <span aria-hidden="true">🏠</span> {t('home.goHome')}
+          <Glyph name="home" size={17} /> {t('home.goHome')}
         </button>
       </div>
     </div>

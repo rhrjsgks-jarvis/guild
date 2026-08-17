@@ -1884,8 +1884,13 @@ await t('지급 창에 서버·한자까지 나온다 (누구에게 주는지가
 
   // 서버가 갈리면서 비슷한 이름이 서버마다 생겼고, 지급은 되돌리기가 번거롭다.
   // (앞선 검사가 이 사람의 아이디·한자를 바꿔 놓으므로 모양으로 확인한다)
+  // 앞머리 그림은 이제 글자가 아니라 글리프(SVG)라 innerText 에 안 잡힌다 (v11.7).
+  // 이 검사가 볼 것은 그림이 아니라 **누구인지** 다 적혀 있는가다.
   const who = (await page.locator('.sheet h2').innerText()).trim();
-  if (!/^💰\s*01\s+TC무식\S*\s+\([^)]+\)/.test(who)) {
+  if ((await page.locator('.sheet h2 .glyph').count()) === 0) {
+    throw new Error('지급 창 제목에 그림이 없습니다.');
+  }
+  if (!/^01\s+TC무식\S*\s+\([^)]+\)/.test(who)) {
     throw new Error(`지급 창의 대상 표기가 다릅니다: "${who}" (기대 "01 이름 (한자)")`);
   }
   await shot('26-payout-who');

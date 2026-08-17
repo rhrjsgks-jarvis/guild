@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import Glyph from './Glyph';
+import IconText from './IconText';
 import Sheet from './Sheet';
 import ShareBtn from './ShareBtn';
 import { api, getStoredEmail } from '@/lib/client';
@@ -55,7 +57,7 @@ export default function TermsTab({
   return (
     <div className="page">
       <div className="sect-row">
-        <div className="sect">📚 {t('term.sect', { n: terms.length })}</div>
+        <div className="sect"><Glyph name="glossary" size={16} /> {t('term.sect', { n: terms.length })}</div>
         <ShareBtn
           title={t('term.title')}
           build={() => list.map(line).join('\n')}
@@ -105,11 +107,11 @@ export default function TermsTab({
       {admin ? (
         <div className="row-acts" style={{ marginTop: 12 }}>
           <button className="btn" style={{ flex: 1 }} onClick={() => setEditing('new')}>
-            ➕ {t('term.add')}
+            <Glyph name="plus" size={16} /> {t('term.add')}
           </button>
           {/* 홈페이지 표를 복사해 한 번에 넣는 길 — 수백 개를 손으로 칠 수는 없다 */}
           <button className="btn ghost" style={{ flex: 1 }} onClick={() => setBulk(true)}>
-            📋 {t('term.bulk')}
+            <Glyph name="board" size={16} /> {t('term.bulk')}
           </button>
         </div>
       ) : null}
@@ -233,7 +235,7 @@ function TermSheet({
 
   return (
     <Sheet title={`📚 ${entry ? t('c.edit') : t('term.add')}`} subtitle={t('term.editSub')} onClose={onClose}>
-      <label className="fl">{t('term.cat')}</label>
+      <label className="fl"><IconText text={t('term.cat')} /></label>
       <div className="svpick">
         {pick.map((c) => (
           <button
@@ -248,7 +250,7 @@ function TermSheet({
       </div>
 
       <label className="fl" htmlFor="tko" style={{ marginTop: 12 }}>
-        {t('term.ko')}
+        <IconText text={t('term.ko')} />
       </label>
       <input id="tko" type="text" maxLength={40} value={ko} onChange={(e) => setKo(e.target.value)} />
 
@@ -263,7 +265,7 @@ function TermSheet({
       <input id="ten" type="text" maxLength={60} value={en} onChange={(e) => setEn(e.target.value)} />
 
       <label className="fl" htmlFor="tim" style={{ marginTop: 12 }}>
-        {t('term.img')}
+        <IconText text={t('term.img')} />
       </label>
       <input id="tim" type="text" inputMode="url" value={img} onChange={(e) => setImg(e.target.value)} />
 
@@ -272,8 +274,8 @@ function TermSheet({
 
       <div className="sheet-actions">
         <button className="btn ghost" onClick={onClose}>
-          {t('c.cancel')}
-        </button>
+            <IconText text={t('c.cancel')} />
+          </button>
         <button className="btn" disabled={!ko.trim()} onClick={() => void submit()}>
           {t('c.save')}
         </button>
@@ -345,7 +347,7 @@ function BulkSheet({
 
   return (
     <Sheet title={`📋 ${t('term.bulk')}`} subtitle={t('term.bulkSub')} onClose={onClose}>
-      <label className="fl">{t('term.cat')}</label>
+      <label className="fl"><IconText text={t('term.cat')} /></label>
       <div className="svpick">
         {cats.map((c) => (
           <button
@@ -360,7 +362,7 @@ function BulkSheet({
       </div>
 
       <label className="fl" htmlFor="tbulk" style={{ marginTop: 12 }}>
-        {t('term.bulkLabel')}
+        <IconText text={t('term.bulkLabel')} />
       </label>
       <textarea
         id="tbulk"
@@ -374,8 +376,8 @@ function BulkSheet({
 
       <div className="sheet-actions">
         <button className="btn ghost" onClick={onClose}>
-          {t('c.cancel')}
-        </button>
+            <IconText text={t('c.cancel')} />
+          </button>
         <button className="btn" disabled={rows.length === 0} onClick={() => void submit()}>
           {t('c.save')}
         </button>

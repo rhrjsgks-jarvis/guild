@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Glyph from './Glyph';
+import IconText from './IconText';
 import Sheet from './Sheet';
 import type { BoardPost } from '@/lib/types';
 import { api, getStoredEmail, getStoredName } from '@/lib/client';
@@ -72,7 +74,7 @@ export default function BoardTab({
       <div className="sect">📋 {t('board.title')}</div>
 
       <button className="btn block" onClick={() => setWriting(true)}>
-        ✏️ {t('c.write')}
+        <Glyph name="edit" size={16} /> {t('c.write')}
       </button>
 
       <div className="card" style={{ marginTop: 12 }}>
@@ -182,12 +184,12 @@ function WriteSheet({
   return (
     <Sheet title={`✏️ ${t('c.write')}`} onClose={onClose}>
       <label className="fl" htmlFor="pt">
-        {t('board.newTitle')}
+        <IconText text={t('board.newTitle')} />
       </label>
       <input id="pt" type="text" maxLength={60} value={title} autoFocus onChange={(e) => setTitle(e.target.value)} />
 
       <label className="fl" htmlFor="pb" style={{ marginTop: 10 }}>
-        {t('board.newBody')}
+        <IconText text={t('board.newBody')} />
       </label>
       <textarea
         id="pb"
@@ -199,7 +201,7 @@ function WriteSheet({
       />
 
       <label className="fl" htmlFor="pa" style={{ marginTop: 10 }}>
-        {t('board.author')}
+        <IconText text={t('board.author')} />
       </label>
       <input id="pa" type="text" maxLength={30} value={author} onChange={(e) => setAuthor(e.target.value)} />
 
@@ -212,8 +214,8 @@ function WriteSheet({
 
       <div className="sheet-actions">
         <button className="btn ghost" onClick={onClose}>
-          {t('c.cancel')}
-        </button>
+            <IconText text={t('c.cancel')} />
+          </button>
         <button className="btn" disabled={!title.trim() || busy} onClick={() => void submit()}>
           {busy ? t('board.posting') : t('c.write')}
         </button>

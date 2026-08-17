@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Glyph from './Glyph';
+import IconText from './IconText';
 import { api, getStoredEmail, setStoredEmail } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { LANGS, useT } from '@/lib/i18n';
@@ -74,7 +76,7 @@ export default function AdminTab({
 
   return (
     <div className="page">
-      <div className="sect">{t('adm.langSect')}</div>
+      <div className="sect"><IconText text={t('adm.langSect')} /></div>
       <div className="card">
         <div className="field" style={{ display: 'flex', gap: 8 }}>
           {LANGS.map((l) => (
@@ -93,7 +95,7 @@ export default function AdminTab({
         </div>
       </div>
 
-      <div className="sect">{master ? t('adm.masterMode') : admin ? t('adm.adminMode') : t('adm.needAuth')}</div>
+      <div className="sect"><IconText text={master ? t('adm.masterMode') : admin ? t('adm.adminMode') : t('adm.needAuth')} /></div>
 
       <div className="card">
         {admin ? (
@@ -104,13 +106,13 @@ export default function AdminTab({
             </p>
             <p className="hint">{t('adm.keepHint')}</p>
             <button className="btn danger block" style={{ marginTop: 14 }} disabled={busy} onClick={logout}>
-              {t('adm.lock')}
-            </button>
+            <IconText text={t('adm.lock')} />
+          </button>
           </div>
         ) : (
           <div className="field">
             <label className="fl" htmlFor="pin">
-              {t('adm.pin')}
+              <IconText text={t('adm.pin')} />
             </label>
             {/*
               ★ inputMode 를 numeric 으로 두면 폰에서 **숫자 키패드만** 뜬다.
@@ -150,7 +152,7 @@ export default function AdminTab({
                 aria-pressed={showPin}
                 onClick={() => setShowPin((v) => !v)}
               >
-                {showPin ? '🙈' : '👁'}
+                <Glyph name={showPin ? 'eyeOff' : 'eye'} size={17} />
               </button>
             </div>
             <button className="btn block" style={{ marginTop: 12 }} disabled={busy || !pin} onClick={login}>
@@ -169,14 +171,14 @@ export default function AdminTab({
           <RosterCard unit={unitLabel(unit)} servers={servers} onChanged={onAuthChange} toast={toast} />
 
           {/* 📚 용어 사전 — 아이템명·보스명 자동완성에 쓰는 표. 평소엔 뒤에서만 동작한다 */}
-          <div className="sect">{t('adm.termSect')}</div>
+          <div className="sect"><IconText text={t('adm.termSect')} /></div>
           <div className="card">
             <div className="field">
               <p className="hint" style={{ marginTop: 0 }}>
                 {t('adm.termDesc')}
               </p>
               <button className="btn ghost block" style={{ marginTop: 10 }} onClick={onTerms}>
-                📚 {t('adm.termOpen')}
+                <Glyph name="glossary" size={16} /> {t('adm.termOpen')}
               </button>
             </div>
           </div>
@@ -185,7 +187,7 @@ export default function AdminTab({
 
           {master ? <MasterCard appName={appName} onChanged={onAuthChange} toast={toast} /> : null}
 
-          <div className="sect">{t('adm.emailSect')}</div>
+          <div className="sect"><IconText text={t('adm.emailSect')} /></div>
           <div className="card">
             <div className="field">
               <input
@@ -211,7 +213,7 @@ export default function AdminTab({
         </>
       ) : null}
 
-      <div className="sect">{t('adm.installSect')}</div>
+      <div className="sect"><IconText text={t('adm.installSect')} /></div>
       <div className="card">
         <div className="field">
           {standalone ? (
@@ -227,7 +229,7 @@ export default function AdminTab({
         </div>
       </div>
 
-      <div className="sect">{t('adm.healthSect')}</div>
+      <div className="sect"><IconText text={t('adm.healthSect')} /></div>
       <div className="card">
         <div className="field">
           <a className="btn ghost block" href="/api/health" target="_blank" rel="noreferrer">

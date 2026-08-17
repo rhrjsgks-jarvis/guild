@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import IconText from './IconText';
 import { api, getStoredEmail } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
@@ -65,11 +66,11 @@ export default function MasterCard({
 
   return (
     <>
-      <div className="sect">{t('mst.sect')}</div>
+      <div className="sect"><IconText text={t('mst.sect')} /></div>
       <div className="card">
         <div className="field">
           <label className="fl" htmlFor="appName">
-            {t('mst.appName')}
+            <IconText text={t('mst.appName')} />
           </label>
           {/*
             긴 이름은 헤더에서 저절로 두 줄이 되는데, 어디서 끊길지는 화면 폭이 정한다.
@@ -89,14 +90,14 @@ export default function MasterCard({
             disabled={busy || !name.trim() || limitLines(name).trim() === appName}
             onClick={saveName}
           >
-            {t('mst.appNameBtn')}
+            <IconText text={t('mst.appNameBtn')} />
           </button>
           <p className="hint">{t('mst.appNameHint')}</p>
         </div>
 
         <div className="field" style={{ borderTop: '1px solid var(--line)' }}>
           <label className="fl" htmlFor="newPin">
-            {t('mst.newPin')}
+            <IconText text={t('mst.newPin')} />
           </label>
           <input
             id="newPin"

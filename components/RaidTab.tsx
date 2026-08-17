@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Glyph from './Glyph';
+import IconText from './IconText';
 import Sheet from './Sheet';
 import ShareBtn from './ShareBtn';
 import type { RaidRow, RaidState } from '@/lib/types';
@@ -116,7 +118,7 @@ export default function RaidTab({
   if (error) {
     return (
       <div className="page">
-        <div className="sect">🗡️ {t('raid.title')}</div>
+        <div className="sect"><Glyph name="raid" size={16} /> {t('raid.title')}</div>
         <div className="card">
           <div className="field">
             <div className="note" style={{ whiteSpace: 'pre-wrap' }}>
@@ -138,7 +140,7 @@ export default function RaidTab({
   return (
     <div className="page">
       <div className="sect-row">
-        <div className="sect">🗡️ {t('raid.title')}</div>
+        <div className="sect"><Glyph name="raid" size={16} /> {t('raid.title')}</div>
         <ShareBtn title={t('raid.title')} build={buildShare} toast={toast} />
       </div>
 
@@ -170,7 +172,7 @@ export default function RaidTab({
 
       {admin ? (
         <button className="btn block" style={{ marginBottom: 10 }} onClick={() => setEditing('new')}>
-          ➕ {t('raid.add')}
+          <Glyph name="plus" size={16} /> {t('raid.add')}
         </button>
       ) : null}
 
@@ -335,8 +337,8 @@ function RaidSheet({
           {sending ? t('c.saving') : t('c.save')}
         </button>
         <button className="btn ghost block" style={{ marginTop: 8 }} onClick={onClose}>
-          {t('c.cancel')}
-        </button>
+            <IconText text={t('c.cancel')} />
+          </button>
       </div>
     </Sheet>
   );

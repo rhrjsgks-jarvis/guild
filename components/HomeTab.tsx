@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import IconText from './IconText';
 import Glyph, { type GlyphName } from './Glyph';
 import type { AllianceState, GuildState, RaidState } from '@/lib/types';
 import { api, fmt } from '@/lib/client';
@@ -155,7 +156,7 @@ export default function HomeTab({
 
   return (
     <div className="page">
-      <div className="sect">{admin ? t('home.todo') : t('home.now')}</div>
+      <div className="sect"><IconText text={admin ? t('home.todo') : t('home.now')} /></div>
       {todo.length > 0 ? (
         <div className="todo">
           {todo.map((r) => (
@@ -181,7 +182,7 @@ export default function HomeTab({
         </div>
       )}
 
-      <div className="sect">{t('home.all')}</div>
+      <div className="sect"><IconText text={t('home.all')} /></div>
       <div className="grid">
         {tiles.map((x) => (
           <button key={x.key} type="button" className="tile" onClick={x.go}>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import IconText from './IconText';
 import type { GuildState, LookupResult } from '@/lib/types';
 import { api, fmt, getStoredName, personLabel, setStoredName } from '@/lib/client';
 import { useT } from '@/lib/i18n';
@@ -63,12 +64,12 @@ export default function MeTab({
 
   return (
     <div className="page">
-      <div className="sect">{t('me.sect')}</div>
+      <div className="sect"><IconText text={t('me.sect')} /></div>
 
       <div className="card">
         <div className="field">
           <label className="fl" htmlFor="meName">
-            {t('me.pick')}
+            <IconText text={t('me.pick')} />
           </label>
           <select
             id="meName"

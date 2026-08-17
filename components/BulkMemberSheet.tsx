@@ -1,6 +1,8 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import Glyph from './Glyph';
+import IconText from './IconText';
 import ServerPicker from './ServerPicker';
 import Sheet from './Sheet';
 import { api, getStoredEmail, prepPhoto, splitName } from '@/lib/client';
@@ -186,7 +188,7 @@ export default function BulkMemberSheet({
       {!rows ? (
         <>
           <label className="fl" htmlFor="bulkText">
-            {t('bulk.pasteLabel')}
+            <IconText text={t('bulk.pasteLabel')} />
           </label>
           <textarea
             id="bulkText"
@@ -203,7 +205,7 @@ export default function BulkMemberSheet({
             style={{ marginTop: 10 }}
             onClick={() => fileRef.current?.click()}
           >
-            📷 {t('bulk.fromPhoto')}
+            <Glyph name="photo" size={16} /> {t('bulk.fromPhoto')}
           </button>
           <input
             ref={fileRef}
@@ -251,8 +253,8 @@ export default function BulkMemberSheet({
 
           <div className="sheet-actions">
             <button className="btn ghost" onClick={onClose}>
-              {t('c.cancel')}
-            </button>
+            <IconText text={t('c.cancel')} />
+          </button>
             <button className="btn" disabled={!text.trim()} onClick={() => void analyze({ text })}>
               {t('bulk.analyze')}
             </button>
@@ -267,7 +269,7 @@ export default function BulkMemberSheet({
           {/* 서버는 이름에서 떼어냈으니 여기서 고른다 (v10.9).
               드롭다운은 열고·굴리고·누르는 세 동작이라 칩으로 바꿨다 — 다른 화면과 같다. */}
           <label className="fl" style={{ marginTop: 12 }}>
-            {t('bulk.serverLabel')}
+            <IconText text={t('bulk.serverLabel')} />
           </label>
           <ServerPicker id="bulkSv" servers={servers} value={server} onChange={setServer} inUse={inUse} />
           <p className="hint">{t('bulk.serverHint')}</p>

@@ -194,7 +194,8 @@ await page.waitForTimeout(600);
 await shot('items-admin');
 
 // 🏷️ 레이드·루팅 정보 — 분배가 끝난 건에도 쓸 수 있다 (돈을 안 만지기 때문)
-await page.locator('.btn').filter({ hasText: '🏷' }).first().click();
+// 🏷️ 는 이제 이모지가 아니라 글리프(SVG)다 — 글자로는 못 찾는다 (v11.7)
+ await page.getByRole('button', { name: /레이드.?루팅/ }).first().click();
 await page.waitForTimeout(700);
 await shot('loot-edit');
 // 팝업은 바깥(backdrop)을 눌러도 닫히지 않는 것이 이 앱의 규칙이다 —

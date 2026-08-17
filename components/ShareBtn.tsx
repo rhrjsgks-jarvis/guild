@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Glyph from './Glyph';
 import { shareText } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
@@ -54,7 +55,7 @@ export default function ShareBtn({
 
   return (
     <button className={className} onClick={() => void go()} disabled={busy} aria-label={t('sh.share')}>
-      📤 {t('sh.share')}
+      <Glyph name="share" size={16} /> {t('sh.share')}
     </button>
   );
 }

@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Glyph from './Glyph';
+import IconText from './IconText';
 import Sheet from './Sheet';
 import type { GuildState, LedgerEntry, ReversePreview } from '@/lib/types';
 import { api, byName, calcSplit, fmt, getStoredEmail, serverOf, weightsOf } from '@/lib/client';
@@ -47,7 +49,7 @@ export default function LedgerCard({
 
   return (
     <>
-      <div className="sect">{t('led.sect')}</div>
+      <div className="sect"><IconText text={t('led.sect')} /></div>
       <div className="card">
         {!items ? (
           <div className="field">
@@ -215,7 +217,7 @@ function ItemSheet({
               </div>
               {(preview.lines ?? []).map((l, i) => (
                 <div className="calc-line" key={l.name + i}>
-                  <span>↩️ {l.name}</span>
+                  <span><Glyph name="undo" size={13} /> {l.name}</span>
                   <strong>{fmt(l.amount)}</strong>
                 </div>
               ))}
@@ -259,7 +261,7 @@ function ItemSheet({
             {t('led.delete')}
           </button>
           <button className="btn ghost block" style={{ marginTop: 8 }} onClick={onClose}>
-            {t('c.close')}
+            <IconText text={t('c.close')} />
           </button>
         </div>
       ) : mode === 'edit' ? (

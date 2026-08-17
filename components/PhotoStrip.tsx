@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import IconText from './IconText';
 import { photoView } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 import { useBackClose } from '@/lib/back';
@@ -78,8 +79,8 @@ function Lightbox({ urls, at, onClose }: { urls: string[]; at: number; onClose: 
           {at + 1} / {urls.length}
         </span>
         <button className="btn ghost" onClick={onClose}>
-          {t('c.close')}
-        </button>
+            <IconText text={t('c.close')} />
+          </button>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import IconText from './IconText';
 import type { BalanceRow, GuildState } from '@/lib/types';
 import { byName, classLabel, classOf, fmt, fundFirst, nameParts, normName, normServer, tally } from '@/lib/client';
 import { useT } from '@/lib/i18n';
@@ -182,7 +183,7 @@ export default function BalanceTab({
         </div>
         {/* 서버별 인원 — 아이템 등록 화면과 같은 칩이다 (숫자가 그 서버 인원) */}
         <div className="field" style={{ paddingTop: 0 }}>
-          <label className="fl">{t('bal.byServer')}</label>
+          <label className="fl"><IconText text={t('bal.byServer')} /></label>
           <ServerFilter
             servers={state.serverList ?? []}
             counts={svCounts}

@@ -1,6 +1,8 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import Glyph from './Glyph';
+import IconText from './IconText';
 import type { GuildState, LedgerItem, PhotoResult } from '@/lib/types';
 import {
   CHIP_NAME_PX,
@@ -237,7 +239,7 @@ export default function ItemsTab({
   return (
     <div className="page">
       <div className="sect-row">
-        <div className="sect">{admin ? t('items.sectAdmin') : t('items.sect')}</div>
+        <div className="sect"><IconText text={admin ? t('items.sectAdmin') : t('items.sect')} /></div>
         <ShareBtn
           title={t('tab.items')}
           build={() =>
@@ -286,10 +288,13 @@ export default function ItemsTab({
                   {t('items.edit')}
                 </button>
               ) : null}
-              {/* 🏷️ 는 관리자도 누른다 — 새 4칸은 다이아를 움직이지 않는다 */}
+              {/* 🏷️ 는 관리자도 누른다 — 새 4칸은 다이아를 움직이지 않는다.
+                  ★ 글자 없이 그림만 있는 버튼이다. 이모지 시절에는 그 글자가 이름을
+                    대신했지만 글리프는 aria-hidden 이라 이름이 통째로 없어진다 —
+                    낭독기에 읽힐 이름을 aria-label 로 붙인다 (v11.7). */}
               {admin ? (
-                <button className="btn ghost" onClick={() => setMetaOf(it)}>
-                  🏷️
+                <button className="btn ghost" aria-label={t('loot.editTitle')} onClick={() => setMetaOf(it)}>
+                  <Glyph name="tag" size={17} />
                 </button>
               ) : null}
               {admin ? (
@@ -310,11 +315,11 @@ export default function ItemsTab({
         </p>
       ) : (
         <>
-          <div className="sect">{t('items.newSect')}</div>
+          <div className="sect"><IconText text={t('items.newSect')} /></div>
           <div className="card">
             <div className="field">
               <label className="fl" htmlFor="fItem">
-                {t('items.name')}
+                <IconText text={t('items.name')} />
               </label>
               {/* 용어 사전 자동완성 (v11.4) — 세 언어로 찾아 고르면 국문이 들어간다 */}
               <ItemNameInput id="fItem" value={itemName} onChange={setItemName} />
@@ -323,7 +328,7 @@ export default function ItemsTab({
             </div>
 
             <div className="field">
-              <label className="fl">{t('items.photoLabel')}</label>
+              <label className="fl"><IconText text={t('items.photoLabel')} /></label>
               <label className="filebtn" htmlFor="fPhoto">
                 {t('items.photoPick')}
               </label>
@@ -353,7 +358,7 @@ export default function ItemsTab({
                   <img src={p.preview} alt={t('items.photoAlt')} />
                   <div className="photo-foot">
                     <span className="hint">
-                      📷 {i + 1} · {p.status}
+                      <Glyph name="photo" size={16} /> {i + 1} · {p.status}
                     </span>
                     <button
                       className="btn ghost"
@@ -381,7 +386,7 @@ export default function ItemsTab({
 
             <div className="field">
               <label className="fl" htmlFor="fLink">
-                {t('items.linkLabel')}
+                <IconText text={t('items.linkLabel')} />
               </label>
               <input
                 id="fLink"
@@ -611,8 +616,8 @@ function ItemDetailSheet({
 
       <div className="sheet-actions">
         <button className="btn ghost" onClick={onClose}>
-          {t('c.close')}
-        </button>
+            <IconText text={t('c.close')} />
+          </button>
       </div>
     </Sheet>
   );
@@ -670,7 +675,7 @@ function EditItemSheet({
   return (
     <Sheet title={`✏️ ${t('items.edit')}`} subtitle={t('items.editSub')} onClose={onClose}>
       <label className="fl" htmlFor="eIt">
-        {t('items.name')}
+        <IconText text={t('items.name')} />
       </label>
       <input id="eIt" type="text" value={name} onChange={(e) => setName(e.target.value)} />
 
@@ -709,8 +714,8 @@ function EditItemSheet({
 
       <div className="sheet-actions">
         <button className="btn ghost" onClick={onClose}>
-          {t('c.cancel')}
-        </button>
+            <IconText text={t('c.cancel')} />
+          </button>
         <button className="btn" disabled={!valid} onClick={() => void submit()}>
           {t('c.save')}
         </button>
@@ -760,10 +765,10 @@ function ConfirmRegister({
         </div>
         <div className="sheet-actions">
           <button className="btn ghost" onClick={onCancel}>
-            {t('c.cancel')}
+            <IconText text={t('c.cancel')} />
           </button>
           <button className="btn" onClick={onConfirm}>
-            {t('items.confirmDo')}
+            <IconText text={t('items.confirmDo')} />
           </button>
         </div>
       </div>

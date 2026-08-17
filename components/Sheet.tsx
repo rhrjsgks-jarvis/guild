@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import IconText from './IconText';
 import { useT } from '@/lib/i18n';
 import { useBackClose } from '@/lib/back';
 
@@ -56,7 +57,8 @@ export default function Sheet({
         <button type="button" className="sheet-x" aria-label={t('c.close')} onClick={onClose}>
           ✕
         </button>
-        <h2>{title}</h2>
+        {/* 제목 앞머리의 이모지도 글리프로 — 시트마다 따로 고치지 않고 여기 한 곳에서 (v11.7) */}
+        <h2><IconText text={title} size={18} /></h2>
         {subtitle ? <div className="sheet-sub">{subtitle}</div> : null}
         {children}
       </div>

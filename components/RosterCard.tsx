@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Glyph from './Glyph';
+import IconText from './IconText';
 import BulkMemberSheet from './BulkMemberSheet';
 import ServerBulkSheet from './ServerBulkSheet';
 import ServerPicker from './ServerPicker';
@@ -128,7 +130,7 @@ export default function RosterCard({
               </button>
               {/* 서버를 한 명씩 넣으려면 40번 열었다 닫아야 한다 — 한 화면에서 끝내는 길 */}
               <button className="btn ghost block" style={{ marginTop: 8 }} onClick={() => setSvBulk(true)}>
-                🗂️ {t('sv.title')}
+                <Glyph name="folder" size={16} /> {t('sv.title')}
               </button>
               <p className="hint">{t('ros.addHint')}</p>
               {/* 서버가 비어 있으면 나중에 아이템 등록을 서버로 좁힐 수 없다 — 미리 알려준다 */}
@@ -139,7 +141,7 @@ export default function RosterCard({
               ) : null}
               {/* 서버로 좁혀 보기 — 잔액·아이템·연합과 같은 칩 한 벌 (v11.5) */}
               <label className="fl" style={{ marginTop: 12 }}>
-                {t('ros.byServer')}
+                <IconText text={t('ros.byServer')} />
               </label>
               <ServerFilter
                 servers={servers}
@@ -250,7 +252,7 @@ function RenameHistoryCard() {
 
   return (
     <>
-      <div className="sect">{t('ros.histSect')}</div>
+      <div className="sect"><IconText text={t('ros.histSect')} /></div>
       <div className="card">
         {!open ? (
           <div className="field">
@@ -578,13 +580,13 @@ function MemberSheet({
           같은 사람의 두 표기인데 예전에는 분배비중·서버를 사이에 두고 떨어져 있어서,
           한자를 넣어야 한다는 것 자체를 모르고 지나가기 쉬웠다. */}
       <label className="fl" htmlFor="newName">
-        {t('ros.id')}
+        <IconText text={t('ros.id')} />
       </label>
       <input id="newName" type="text" value={newName} autoFocus onChange={(e) => setNewName(e.target.value)} />
       <p className="hint">{t('ros.idHint')}</p>
 
       <label className="fl" htmlFor="mh" style={{ marginTop: 12 }}>
-        {t('ros.hanja')}
+        <IconText text={t('ros.hanja')} />
       </label>
       <input
         id="mh"
@@ -623,12 +625,12 @@ function MemberSheet({
           "먼저 신규로 넣어두고 나중에 이어붙이는" 흐름을 그 사람 화면에서 바로 할 수 있게 한다.
           누구의 기록이 따라오는지 **고르고 눈으로 확인한 뒤** 실행한다. */}
       <button className="btn ghost block" style={{ marginTop: 8 }} onClick={() => setMode('pickFrom')}>
-        ⏪ {t('ros.pullOpen')}
+        <Glyph name="rewind" size={16} /> {t('ros.pullOpen')}
       </button>
       <p className="hint">{t('ros.pullOpenHint')}</p>
 
       <label className="fl" htmlFor="mw" style={{ marginTop: 12 }}>
-        {t('ros.weight')}
+        <IconText text={t('ros.weight')} />
       </label>
       <select id="mw" value={weight} onChange={(e) => setWeight(Number(e.target.value))}>
         {Array.from({ length: 100 }, (_, i) => 100 - i).map((n) => (
@@ -640,7 +642,7 @@ function MemberSheet({
       <p className="hint">{t('ros.weightHint')}</p>
 
       <label className="fl" style={{ marginTop: 10 }}>
-        {t('c.server')}
+        <IconText text={t('c.server')} />
       </label>
       {/* 드롭다운은 열고·굴리고·누르는 세 동작이다. 칩은 한 번 누르면 끝이다 (v10.8.5) */}
       <ServerPicker id="ms" servers={servers} value={server} onChange={setServer} inUse={inUse} />
@@ -649,7 +651,7 @@ function MemberSheet({
           자유 입력으로 두면 '마법사'와 '법사'가 갈려 클래스로 걸러 볼 때 그 사람만 빠진다.
           "고르지 않음"을 남겨둔다 — 아직 안 물어본 사람과 클래스가 없는 사람은 다르다. */}
       <label className="fl" htmlFor="mc" style={{ marginTop: 10 }}>
-        {t('ros.cls')}
+        <IconText text={t('ros.cls')} />
       </label>
       <select id="mc" value={cls} onChange={(e) => setCls(e.target.value)}>
         <option value="">{t('ros.clsNone')}</option>
@@ -665,8 +667,8 @@ function MemberSheet({
           버튼이 둘이면 어느 쪽이 저장됐는지 알 수 없고, 한쪽만 누르고 닫기도 쉽다. */}
       <div className="sheet-actions" style={{ marginTop: 18 }}>
         <button className="btn ghost" onClick={onClose}>
-          {t('c.cancel')}
-        </button>
+            <IconText text={t('c.cancel')} />
+          </button>
         <button className="btn" disabled={!dirty || busy} onClick={() => save(false)}>
           {busy ? t('c.saving') : t('c.save')}
         </button>

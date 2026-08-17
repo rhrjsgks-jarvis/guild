@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import IconText from './IconText';
 import Sheet from './Sheet';
 import ServerPicker from './ServerPicker';
 import type { RosterEntry } from '@/lib/types';
@@ -104,7 +105,7 @@ export default function ServerBulkSheet({
   return (
     <Sheet title={t('sv.title')} subtitle={t('sv.sub')} onClose={onClose}>
       <div className="field">
-        <label className="fl">{t('sv.pickServer')}</label>
+        <label className="fl"><IconText text={t('sv.pickServer')} /></label>
         <ServerPicker servers={servers} value={server} onChange={setServer} allowNone={false} inUse={inUse} />
       </div>
 
@@ -179,8 +180,8 @@ export default function ServerBulkSheet({
         </button>
         <p className="hint">{t('sv.hint')}</p>
         <button className="btn ghost block" style={{ marginTop: 8 }} disabled={busy} onClick={onClose}>
-          {t('c.close')}
-        </button>
+            <IconText text={t('c.close')} />
+          </button>
       </div>
     </Sheet>
   );
