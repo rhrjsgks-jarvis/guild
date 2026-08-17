@@ -1,5 +1,7 @@
 # 클로드 디자인에 올리는 묶음 — npm run design 이 만든다.
 #
-# app.css 는 app/globals.css 의 복사본이라 저장소에 두 벌이 남는다.
-# 사람이 고치는 곳은 언제나 app/globals.css 이고, 여기 것은 손대지 않는다.
-design/app.css
+# app.css 는 app/globals.css 의 복사본이다. 저장소에 두 벌을 두면
+# 어느 쪽이 진짜인지 흐려지므로 추적하지 않는다.
+# ★ 이 파일 안의 경로는 design/ 폴더 기준이다 — `design/app.css` 라고 쓰면
+#   `design/design/app.css` 를 뜻해 아무것도 걸러지지 않는다 (실제로 그랬다).
+app.css
