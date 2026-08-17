@@ -20,7 +20,7 @@
 
 export type GlyphName =
   /* 화면 (홈 격자) */
-  | 'balance' | 'items' | 'alliance' | 'raid' | 'me' | 'board' | 'lang' | 'admin'
+  | 'balance' | 'items' | 'alliance' | 'raid' | 'me' | 'board' | 'lang' | 'admin' | 'manual'
   /* 사물 */
   | 'photo' | 'members' | 'pending' | 'folder' | 'fund' | 'gem' | 'receipt' | 'glossary'
   | 'tools' | 'season' | 'calendar' | 'history' | 'chart' | 'scale' | 'target'
@@ -96,6 +96,15 @@ const PATHS: Record<GlyphName, React.ReactNode> = {
       <circle cx="12" cy="12" r="6.4" />
       <path d="M12 5.6V3.2M12 20.8v-2.4M18.4 12h2.4M3.2 12h2.4" />
       <path d="m16.5 7.5 1.7-1.7M5.8 18.2l1.7-1.7M16.5 16.5l1.7 1.7M5.8 5.8l1.7 1.7" />
+    </>
+  ),
+
+  /* 설명서 — 펼친 책. 닫힌 책(glossary)과 달라야 두 화면이 구분된다 */
+  manual: (
+    <>
+      <path d="M12 6.6C10.4 5.2 8.4 4.4 6 4.4H3.4v13.2H6c2.4 0 4.4.8 6 2.2" />
+      <path d="M12 6.6c1.6-1.4 3.6-2.2 6-2.2h2.6v13.2H18c-2.4 0-4.4.8-6 2.2z" />
+      <path d="M12 6.6v13.2" />
     </>
   ),
 

@@ -1,0 +1,5 @@
+血盟結算 — 使用說明 — lib/manual.ts 에서 자동 생성 (npm run manual:lang zh)
+
+  guide-zh-01.png
+  guide-zh-02.png
+  guide-zh-03.png

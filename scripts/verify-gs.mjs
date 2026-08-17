@@ -2202,7 +2202,8 @@ check('하단 탭이 없고 모든 화면은 홈 아이콘에서 연다 (v11.2.1
    *   아니라 이름을 칠 때 뒤에서 붙는 기능이다 — 아이콘을 두면 매일 쓰는 것이 밀린다.
    *   관리 화면에서 연다 (아래에서 그 길이 있는지 확인한다).
    */
-  const expected = ['balance', 'items', 'alliance', 'raid', 'me', 'board', 'lang', 'admin'];
+  // 설명서(v11.7)는 언어 다음, 관리 앞이다 — 관리는 언제나 맨 마지막이다
+  const expected = ['balance', 'items', 'alliance', 'raid', 'me', 'board', 'lang', 'manual', 'admin'];
   if (order.join(',') !== expected.join(',')) {
     throw new Error(`아이콘 순서가 다릅니다: ${order.join(' ')} (기대 ${expected.join(' ')})`);
   }
@@ -3100,7 +3101,8 @@ check('공유 버튼은 게시판·관리 탭에 없다', () => {
   // 게시판 글은 그 자체가 이미 공유물이고, 관리 탭에는 PIN·도구처럼
   // 밖으로 나가면 안 되는 것이 섞여 있다.
   const want = ['BalanceTab', 'ItemsTab', 'AllianceTab', 'RaidTab', 'MeTab'];
-  const forbid = ['BoardTab', 'AdminTab', 'ToolsCard', 'MasterCard', 'RosterCard', 'LedgerCard'];
+  // 설명서도 공유하지 않는다 — 문서 자체를 퍼뜨릴 일이 없고, 링크가 따로 있다
+  const forbid = ['BoardTab', 'AdminTab', 'ToolsCard', 'MasterCard', 'RosterCard', 'LedgerCard', 'ManualTab'];
 
   for (const name of want) {
     const src = readFileSync(resolve(ROOT, `components/${name}.tsx`), 'utf8');
@@ -3119,7 +3121,7 @@ check('공유 버튼은 게시판·관리 탭에 없다', () => {
   // 화면 목록 (v11.2.1 — 하단 탭이 없어져 App.tsx 의 제목표가 곧 전체 화면 목록이다)
   const app = readFileSync(resolve(ROOT, 'components/App.tsx'), 'utf8');
   const screens = [...app.matchAll(/^  (\w+): '[\w.]+',$/gm)].map((m) => m[1]);
-  const expected = ['balance', 'items', 'alliance', 'raid', 'me', 'board', 'terms', 'admin'];
+  const expected = ['balance', 'items', 'alliance', 'raid', 'me', 'board', 'manual', 'terms', 'admin'];
   if (screens.join(',') !== expected.join(',')) {
     throw new Error(`화면 목록이 다릅니다: ${screens.join(' ')} (기대 ${expected.join(' ')})`);
   }
@@ -3338,6 +3340,39 @@ check('색은 뜻이 있는 것에만 쓴다 (v11.7)', () => {
   }
 
   return `브랜드는 무채·청동 · 주황과 밝기차 ${gap.toFixed(2)} · 버튼 글씨 대비 확보`;
+});
+
+check('시험이 누르는 아이콘 자리가 실제 순서와 같다 (v11.7)', () => {
+  /*
+   * E2E 는 홈 아이콘을 **자리 번호**로 누른다 (목록 안에도 같은 글자의 버튼이 있어
+   * 이름으로는 못 집는다). 그래서 격자에 아이콘을 하나 끼워 넣으면 뒤쪽 번호가
+   * 전부 밀린다 — 설명서를 관리 앞에 넣었을 때 `go('admin')` 이 설명서를 열어
+   * 시험 27건이 한꺼번에 무너졌다. 한참을 환경 탓으로 헤맸다.
+   *
+   * 두 곳이 어긋나는 순간 여기서 잡는다.
+   */
+  const home = readFileSync(resolve(ROOT, 'components/HomeTab.tsx'), 'utf8');
+  const at = home.indexOf('const tiles');
+  const order = [...home.slice(at, home.indexOf('];', at)).matchAll(/key: '(\w+)'/g)].map((m) => m[1]);
+
+  const e2e = readFileSync(resolve(ROOT, 'scripts/e2e.mjs'), 'utf8');
+  const tileMap = (e2e.match(/const TILE = \{([^}]*)\}/) ?? [])[1];
+  if (!tileMap) throw new Error('scripts/e2e.mjs 에서 TILE 표를 찾지 못했습니다.');
+  const pairs = [...tileMap.matchAll(/(\w+):\s*(\d+)/g)].map((m) => [m[1], Number(m[2])]);
+
+  for (const [name, idx] of pairs) {
+    if (order[idx] !== name) {
+      throw new Error(
+        `시험은 ${name} 을 ${idx}번 자리로 누르는데, 실제 ${idx}번은 ${order[idx] ?? '(없음)'} 입니다.\n` +
+          `     홈 순서: ${order.join(' ')}`,
+      );
+    }
+  }
+  if (pairs.length !== order.length) {
+    throw new Error(`홈 아이콘은 ${order.length}개인데 시험 표에는 ${pairs.length}개뿐입니다.`);
+  }
+
+  return `아이콘 ${order.length}개 · 시험 표와 자리까지 일치`;
 });
 
 check('홈 아이콘은 직접 그린 글리프다 (v11.7)', () => {

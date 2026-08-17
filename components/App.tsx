@@ -16,6 +16,7 @@ import MeTab from './MeTab';
 import AdminTab from './AdminTab';
 import TermsTab from './TermsTab';
 import HomeTab, { dropHomeMemo } from './HomeTab';
+import ManualTab from './ManualTab';
 import Screen from './Screen';
 import LangSheet from './LangSheet';
 import DistributeSheet from './DistributeSheet';
@@ -41,7 +42,7 @@ const POLL_MS = 25_000;
  * 아이콘 격자는 글자를 줄일 이유가 없고, 화면이 늘어도 한 칸만 더 놓으면 된다.
  * 첫 화면은 **홈**이다 — 열자마자 "지금 처리할 일"이 숫자로 보인다.
  */
-type Screen = 'balance' | 'items' | 'alliance' | 'raid' | 'me' | 'board' | 'terms' | 'admin';
+type Screen = 'balance' | 'items' | 'alliance' | 'raid' | 'me' | 'board' | 'manual' | 'terms' | 'admin';
 
 /** 화면 제목 — 지금 어디에 있고 어떻게 나가는지가 위에 항상 보인다 */
 const SCREEN_TITLE: Record<Screen, string> = {
@@ -51,6 +52,7 @@ const SCREEN_TITLE: Record<Screen, string> = {
   raid: 'tab.raid',
   me: 'tab.me',
   board: 'tab.board',
+  manual: 'tab.manual',
   terms: 'term.title',
   admin: 'tab.admin',
 };
@@ -369,6 +371,8 @@ export default function App() {
                   onChanged={refreshNow}
                 />
               ) : null}
+              {/* 관리자용 절은 관리자 모드일 때만 그린다 — 접어두는 것이 아니라 아예 만들지 않는다 */}
+              {screen === 'manual' ? <ManualTab admin={admin} /> : null}
               {screen === 'terms' ? <TermsTab admin={admin} toast={toast} setBusy={setBusy} /> : null}
               {screen === 'admin' ? (
                 <AdminTab

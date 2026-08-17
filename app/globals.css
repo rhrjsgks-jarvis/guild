@@ -2111,3 +2111,26 @@ select:focus {
 .fl .glyph {
   color: var(--gold);
 }
+
+/* 앱 안 설명서 (v11.7) — 글자만 있는 화면이라 줄 간격이 전부다.
+   폰에서 한 문단이 빽빽하면 읽다가 줄을 놓친다. */
+.man-line {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.68;
+  color: var(--text-dim);
+}
+
+.man-line:last-child {
+  margin-bottom: 0;
+}
+
+.man-line b {
+  color: var(--text);
+}
+
+/* 관리자용 절이라는 표시 — 제목 오른쪽에 조용히 */
+.sect .badge {
+  margin-left: auto;
+  font-size: 9.5px;
+}

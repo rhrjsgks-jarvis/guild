@@ -1,6 +1,6 @@
 {
   "name": "guild-settlement-app",
-  "version": "11.6.7",
+  "version": "11.6.8",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -19,7 +19,9 @@
     "manual:shots": "node scripts/make-manual-shots.mjs",
     "icons:official": "node scripts/fetch-official-icons.mjs",
     "drops": "node scripts/make-drops.mjs",
-    "design": "node scripts/make-design.mjs"
+    "design": "node scripts/make-design.mjs",
+    "zh:tw": "node scripts/to-traditional.mjs",
+    "manual:lang": "node scripts/make-manual-lang.mjs"
   },
   "dependencies": {
     "next": "^15.5.22",
@@ -36,6 +38,7 @@
     "eslint": "^9.39.5",
     "eslint-config-next": "^15.5.22",
     "jsqr": "^1.4.0",
+    "opencc-js": "^1.4.1",
     "playwright": "^1.62.1",
     "prettier": "^3.9.6",
     "typescript": "^5.7.2"

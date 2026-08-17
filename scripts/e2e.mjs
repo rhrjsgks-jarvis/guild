@@ -112,7 +112,14 @@ function eq(actual, expected, what) {
  * 자리를 검사마다 적어두면 화면을 한 번 바꿀 때 스무 곳이 깨지므로 여기 한 곳에서만 안다.
  * 이름이 아니라 **자리**로 누른다 — 中文·English 화면에서도 그대로 쓰기 위해서다.
  */
-const TILE = { balance: 0, items: 1, alliance: 2, raid: 3, me: 4, board: 5, lang: 6, admin: 7 };
+/**
+ * 홈 아이콘의 **자리 번호**. 목록 안에도 같은 글자의 버튼이 있어 이름으로는 못 집는다.
+ *
+ * ★ 아이콘을 하나 끼워 넣으면 뒤쪽 번호가 전부 밀린다 — 실제로 설명서를 관리 앞에
+ *   넣었을 때 go('admin') 이 설명서를 열어 시험 27건이 한꺼번에 무너졌다.
+ *   **홈 격자 순서를 바꿀 때는 여기도 같이 고칠 것.**
+ */
+const TILE = { balance: 0, items: 1, alliance: 2, raid: 3, me: 4, board: 5, lang: 6, manual: 7, admin: 8 };
 
 /**
  * 지금 열려 있는 화면을 닫고 홈으로 (이미 홈이면 아무것도 안 한다).
@@ -2861,6 +2868,61 @@ await t('용어 화면: 세 언어로 찾고, 못 채운 항목을 감추지 않
   if (!body2.includes('미입력')) throw new Error(`못 채운 항목을 표시하지 않습니다:\n${body2}`);
 });
 
+await t('설명서: 화면 언어를 따라가고, 관리자용은 관리자에게만 (v11.7, 화면)', async () => {
+  await reset();
+  await page.reload({ waitUntil: 'networkidle' });
+
+  /*
+   * ★ 앞 시험이 남긴 관리자 세션을 끊는다.
+   *   reset() 은 **모의 시트 자료만** 되돌리고, post('/api/admin/logout') 은
+   *   Node 쪽 fetch 라 **브라우저 쿠키와 무관하다** — 화면은 그대로 관리자였다.
+   *   화면을 혈맹원으로 만들려면 브라우저의 쿠키를 지워야 한다.
+   */
+  await page.context().clearCookies();
+  await page.reload({ waitUntil: 'networkidle' });
+
+  const open = async () => {
+    await go(page, 'manual');
+    await page.waitForTimeout(500);
+    return (await page.locator('.page').innerText()).trim();
+  };
+
+  /* ① 잠긴 상태 — 관리자용 절이 **아예 없어야** 한다 (접어두는 것이 아니다) */
+  const guest = await open();
+  if (!guest.includes('시작하기')) throw new Error(`설명서가 안 열립니다: ${guest.slice(0, 80)}`);
+  for (const secret of ['권한은 세 단계', '분배 산식', '관리 도구']) {
+    if (guest.includes(secret)) throw new Error(`혈맹원에게 관리자용 절이 보입니다: ${secret}`);
+  }
+
+  /* ② 관리자 모드 — 그때서야 나온다 */
+  eq((await post('/api/admin/login', { pin: PIN })).status, 200, '관리자 로그인');
+  await page.reload({ waitUntil: 'networkidle' });
+  const admin = await open();
+  for (const need of ['권한은 세 단계', '분배 산식', '관리 도구']) {
+    if (!admin.includes(need)) throw new Error(`관리자에게 ${need} 절이 없습니다.`);
+  }
+
+  /* ③ 화면 언어를 따라간다 — 대만 혈맹원이 읽을 수 있어야 앱 안에 둔 뜻이 산다 */
+  await go(page, 'lang');
+  await page.getByRole('button', { name: '中文' }).click();
+  await page.waitForTimeout(500);
+  const zh = await open();
+  if (!zh.includes('開始使用')) throw new Error(`中文 설명서가 안 나옵니다: ${zh.slice(0, 80)}`);
+  if (/[가-힣]/.test(zh.replace(/[⚙️]/g, ''))) {
+    throw new Error(`中文 설명서에 한국어가 남아 있습니다: ${(zh.match(/[가-힣]+/g) ?? []).slice(0, 5).join(' ')}`);
+  }
+
+  await go(page, 'lang');
+  await page.getByRole('button', { name: 'English' }).click();
+  await page.waitForTimeout(500);
+  const en = await open();
+  if (!en.includes('Getting started')) throw new Error(`English 설명서가 안 나옵니다: ${en.slice(0, 80)}`);
+
+  await go(page, 'lang');
+  await page.getByRole('button', { name: '한국어' }).click();
+  await page.waitForTimeout(400);
+});
+
 await t('첫 화면은 홈이고, 모든 화면이 아이콘으로 있다 (v11.2.1, 화면)', async () => {
   await page.reload({ waitUntil: 'networkidle' });
 
@@ -2871,7 +2933,7 @@ await t('첫 화면은 홈이고, 모든 화면이 아이콘으로 있다 (v11.2
   // 라벨은 `.tile b` 에서 직접 읽는다. 예전에는 줄 번호로 집었는데(0=이모지, 1=라벨),
   // 이모지를 직접 그린 글리프(SVG)로 바꾸자 글자가 한 줄씩 밀려 어긋났다 (v11.7).
   const tiles = await page.locator('.tile b').allInnerTexts();
-  const want = ['잔액', '아이템', '연합', '레이드', '내 정보', '게시판', '언어', '관리'];
+  const want = ['잔액', '아이템', '연합', '레이드', '내 정보', '게시판', '언어', '설명서', '관리'];
   if (tiles.join(' ') !== want.join(' ')) {
     throw new Error(`홈 아이콘: ${tiles.join(' ')} (기대 ${want.join(' ')})`);
   }
@@ -2922,7 +2984,7 @@ await t('폰 뒤로가기: 화면에서 누르면 홈으로 온다 (v11.2.1)', a
   await page.goBack();
   await page.waitForTimeout(500);
   eq(await page.locator('.screen-bar').count(), 0, '뒤로가기 뒤 홈');
-  eq(await page.locator('.tile').count(), 8, '홈 아이콘 개수');
+  eq(await page.locator('.tile').count(), 9, '홈 아이콘 개수');
 });
 
 await t('화면은 [✕] 로도 닫히고, 겹친 것은 위에서부터 닫힌다 (v11.2.1)', async () => {
@@ -2943,7 +3005,7 @@ await t('화면은 [✕] 로도 닫히고, 겹친 것은 위에서부터 닫힌�
   await page.locator('.screen-x').click();
   await page.waitForTimeout(500);
   eq(await page.locator('.screen-bar').count(), 0, '[✕] 로 닫기');
-  eq(await page.locator('.tile').count(), 8, '홈으로 돌아왔는가');
+  eq(await page.locator('.tile').count(), 9, '홈으로 돌아왔는가');
 
   // 아래쪽 [🏠 홈] 버튼으로도 나온다 — 목록을 한참 내린 뒤에도 손이 닿는 자리다
   await page.locator('.tile').nth(TILE.board).click();
@@ -2952,7 +3014,7 @@ await t('화면은 [✕] 로도 닫히고, 겹친 것은 위에서부터 닫힌�
   await page.locator('.home-btn').click();
   await page.waitForTimeout(500);
   eq(await page.locator('.screen-bar').count(), 0, '[홈] 으로 닫기');
-  eq(await page.locator('.tile').count(), 8, '홈으로 돌아왔는가');
+  eq(await page.locator('.tile').count(), 9, '홈으로 돌아왔는가');
 
   // 뒤로가기 두 번으로도 같은 순서로 닫힌다
   await page.locator('.notice-bar').click();
@@ -2962,7 +3024,7 @@ await t('화면은 [✕] 로도 닫히고, 겹친 것은 위에서부터 닫힌�
   await page.goBack();
   await page.waitForTimeout(500);
   eq(await page.locator('.screen-bar').count(), 0, '뒤로가기로 닫기');
-  eq(await page.locator('.tile').count(), 8, '뒤로가기 뒤 홈');
+  eq(await page.locator('.tile').count(), 9, '뒤로가기 뒤 홈');
 });
 
 await t('홈: 지금 처리할 일을 누르면 그 화면으로 간다 (v11.2.1)', async () => {
@@ -3117,7 +3179,7 @@ await t('中文 으로 바꾸면 화면 문구가 전부 중문이 된다', asyn
   // 홈 아이콘 이름이 전부 중문이어야 한다
   await goHome(page);
   const grid = await page.locator('.grid').innerText();
-  for (const want of ['余额', '物品', '联盟', '管理']) {
+  for (const want of ['餘額', '物品', '聯盟', '管理']) {
     if (!grid.includes(want)) throw new Error(`홈에 ${want} 이(가) 없습니다: ${grid}`);
   }
   if (/[가-힣]/.test(grid)) throw new Error(`홈에 한글이 남아 있습니다: ${grid}`);
@@ -3252,7 +3314,7 @@ await t('서버 결과 메시지가 화면 언어로 나온다 (code + vars)', a
   };
 
   for (const [label, openBtn, doBtn, want] of [
-    ['中文', '分配', '确认分配', /钻石/],
+    ['中文', '分配', '確認分配', /鑽石/],
     ['English', 'Distribute', 'Distribute', /dia/],
   ]) {
     await reset();

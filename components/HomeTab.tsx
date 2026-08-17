@@ -38,7 +38,7 @@ import { todayDay } from './RaidTab';
  *   화면이 아니라 아이템명·보스명을 칠 때 **뒤에서 붙는 기능**이다. 아이콘을 하나
  *   더 두면 매일 쓰는 것들이 그만큼 밀린다. 관리 화면에서 열어 관리한다.
  */
-export type Dest = 'balance' | 'items' | 'alliance' | 'raid' | 'me' | 'board' | 'terms' | 'admin';
+export type Dest = 'balance' | 'items' | 'alliance' | 'raid' | 'me' | 'board' | 'manual' | 'terms' | 'admin';
 
 type Extra = { ally: number; raid: number };
 
@@ -151,6 +151,7 @@ export default function HomeTab({
     { key: 'board', label: t('tab.board'), sub: t('home.boardSub'), go: () => onGo('board') },
     { key: 'lang', label: t('home.lang'), sub: t('home.langSub'), go: onLang },
     // ★ 관리는 언제나 맨 마지막이다 — 엄지가 닿기 쉬운 자리에 두면 잘못 눌린다
+    { key: 'manual', label: t('tab.manual'), sub: t('home.manualSub'), go: () => onGo('manual') },
     { key: 'admin', label: t('tab.admin'), sub: t('home.adminSub'), go: () => onGo('admin') },
   ];
 
