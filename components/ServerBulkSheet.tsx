@@ -112,7 +112,7 @@ export default function ServerBulkSheet({
       <div className="field">
         <div className="sect-row" style={{ marginBottom: 6 }}>
           <label className="fl" style={{ flex: 1, margin: 0 }}>
-            {t('sv.pickPeople', { n: pickedCount })}
+            <IconText text={t('sv.pickPeople', { n: pickedCount })} />
           </label>
           <button
             className="btn ghost tiny"

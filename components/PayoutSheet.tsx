@@ -58,7 +58,7 @@ export default function PayoutSheet({
       onClose={onClose}
     >
       <label className="fl" htmlFor="payamt">
-        {t('pay.label', { unit: u })}
+        <IconText text={t('pay.label', { unit: u })} />
       </label>
       <input
         id="payamt"

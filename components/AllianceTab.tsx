@@ -159,7 +159,7 @@ export default function AllianceTab({
   if (error) {
     return (
       <div className="page">
-        <div className="sect">🤝 {t('ali.title')}</div>
+        <div className="sect"><Glyph name="alliance" size={16} /> {t('ali.title')}</div>
         <div className="card">
           <div className="field">
             <div className="note" style={{ whiteSpace: 'pre-wrap' }}>
@@ -214,7 +214,7 @@ export default function AllianceTab({
   return (
     <div className="page">
       <div className="sect-row">
-        <div className="sect">🤝 {t('ali.title')}</div>
+        <div className="sect"><Glyph name="alliance" size={16} /> {t('ali.title')}</div>
         <ShareBtn
           title={t('tab.alliance')}
           build={() =>
@@ -277,7 +277,12 @@ export default function AllianceTab({
                       </span>
                     ))}
                     {g.date} · {t('c.people')} {g.people}
-                    {g.photos.length > 0 ? ` · ${t('ali.photoN', { n: g.photos.length })}` : ''}
+                    {g.photos.length > 0 ? (
+                      <>
+                        {' · '}
+                        <IconText text={t('ali.photoN', { n: g.photos.length })} size={13} />
+                      </>
+                    ) : null}
                   </button>
                 </div>
                 {!admin ? <span className="badge">{t('items.waiting')}</span> : null}
@@ -341,7 +346,12 @@ export default function AllianceTab({
                     <div className="row-name">{t('ali.serverN', { s: s.server })}</div>
                     <div className="row-sub">
                       {t('c.cases', { n: s.count })} · {t('c.people')} {s.people}
-                      {w ? ` · ${t('ali.pendingN', { n: w.people, k: w.count })}` : ''}
+                      {w ? (
+                        <>
+                          {' · '}
+                          <IconText text={t('ali.pendingN', { n: w.people, k: w.count })} size={13} />
+                        </>
+                      ) : null}
                     </div>
                   </div>
                   <div className="row-amt">
@@ -355,7 +365,7 @@ export default function AllianceTab({
 
       {/* ② 정산까지 끝난 건 — 마스터는 여기서도 고칠 수 있다 (금액 포함) */}
       <div className="sect" style={{ marginTop: 14 }}>
-        {t('ali.records')}
+        <IconText text={t('ali.records')} />
       </div>
       <div className="card">
         {!data ? (
@@ -377,7 +387,12 @@ export default function AllianceTab({
                       </span>
                     ))}
                     {g.date} · {fmt(g.amount)} · {t('c.people')} {g.people}
-                    {g.photos.length > 0 ? ` · ${t('ali.photoN', { n: g.photos.length })}` : ''}
+                    {g.photos.length > 0 ? (
+                      <>
+                        {' · '}
+                        <IconText text={t('ali.photoN', { n: g.photos.length })} size={13} />
+                      </>
+                    ) : null}
                   </button>
                 </div>
                 <div className="row-amt">{fmt(g.credited)}</div>
@@ -842,7 +857,7 @@ function CreditSheet({
       {calc ? (
         <div className="calc">
           <div className="calc-line">
-            <span>💎 {t('c.amount')}</span>
+            <span><Glyph name="gem" size={14} /> {t('c.amount')}</span>
             <strong>
               {fmt(calc.amount)} {unit}
             </strong>
@@ -1086,7 +1101,7 @@ function EditSheet({
       {calc ? (
         <div className="calc">
           <div className="calc-line">
-            <span>💎 {t('c.amount')}</span>
+            <span><Glyph name="gem" size={14} /> {t('c.amount')}</span>
             <strong>
               {fmt(calc.amount)} {unit}
             </strong>
@@ -1156,7 +1171,12 @@ function DetailSheet({
               </div>
               <div className="row-sub">
                 {t('c.people')} {s.people}
-                {(s.photos ?? []).length > 0 ? ` · ${t('ali.photoN', { n: (s.photos ?? []).length })}` : ''}
+                {(s.photos ?? []).length > 0 ? (
+                  <>
+                    {' · '}
+                    <IconText text={t('ali.photoN', { n: (s.photos ?? []).length })} size={13} />
+                  </>
+                ) : null}
               </div>
             </div>
             <div className="row-amt">{entry.done ? `${fmt(s.credited)} ${unit}` : '—'}</div>

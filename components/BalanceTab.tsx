@@ -135,20 +135,20 @@ export default function BalanceTab({
       <div className="dash">
         <div className="dash-item">
           <div className="dash-num warn">{state.items.length}</div>
-          <div className="dash-label">{t('bal.waitingItems')}</div>
+          <div className="dash-label"><IconText text={t('bal.waitingItems')} /></div>
         </div>
         <div className="dash-item">
           <div className="dash-num warn">{owedCount}</div>
-          <div className="dash-label">{t('bal.owedPeople')}</div>
+          <div className="dash-label"><IconText text={t('bal.owedPeople')} /></div>
         </div>
         <div className="dash-item">
           <div className="dash-num">{fmt(totalPending)}</div>
-          <div className="dash-label">{t('bal.pendingTotal')}</div>
+          <div className="dash-label"><IconText text={t('bal.pendingTotal')} /></div>
         </div>
       </div>
 
       <div className="sect-row">
-        <div className="sect">{t('bal.sect', { v: `${fmt(totalPaid)} ${u}` })}</div>
+        <div className="sect"><IconText text={t('bal.sect', { v: `${fmt(totalPaid)} ${u}` })} /></div>
         <ShareBtn title={t('tab.balance')} build={buildShare} toast={toast} />
       </div>
 

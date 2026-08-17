@@ -266,7 +266,7 @@ function ItemSheet({
         </div>
       ) : mode === 'edit' ? (
         <div style={{ marginTop: 16 }}>
-          <label className="fl">{t('items.membersLabel', { n: picked.size })}</label>
+          <label className="fl"><IconText text={t('items.membersLabel', { n: picked.size })} /></label>
           <div className="mgrid">
             {selectable.map((m) => {
               const sv = serverOf(state, m);
@@ -298,7 +298,7 @@ function ItemSheet({
           </div>
 
           <label className="fl" htmlFor="edAmt" style={{ marginTop: 12 }}>
-            {t('led.newAmount', { unit })}
+            <IconText text={t('led.newAmount', { unit })} />
           </label>
           <input
             id="edAmt"
@@ -342,7 +342,7 @@ function ItemSheet({
       ) : mode === 'correct' ? (
         <div style={{ marginTop: 16 }}>
           <label className="fl" htmlFor="newAmt">
-            {t('led.newAmount', { unit })}
+            <IconText text={t('led.newAmount', { unit })} />
           </label>
           <input
             id="newAmt"

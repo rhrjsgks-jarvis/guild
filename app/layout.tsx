@@ -43,8 +43,8 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
   // 헤더 배경(밤의 돌바닥)과 같은 색 — 상태표시줄까지 이어져 보인다
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#12313f' },
-    { media: '(prefers-color-scheme: dark)', color: '#0b1016' },
+    { media: '(prefers-color-scheme: light)', color: '#221c12' },
+    { media: '(prefers-color-scheme: dark)', color: '#0d0b07' },
   ],
 };
 

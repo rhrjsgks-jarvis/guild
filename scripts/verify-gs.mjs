@@ -3279,6 +3279,67 @@ check('클래스 목록은 앱과 시트가 같다 (v11.5)', () => {
   return `${a.length}종 · 순서까지 일치`;
 });
 
+check('색은 뜻이 있는 것에만 쓴다 (v11.7)', () => {
+  /*
+   * 이 앱에서 색은 전부 뜻을 가지고 있다 — 주황=아직 못 받은 돈, 초록=받은 돈,
+   * 빨강=되돌릴 수 없음, 금=돈의 단위. 그런데 예전 브랜드색(청록)만 아무 뜻 없이
+   * "누를 수 있다"를 말했고, 뜻 없는 색 하나가 뜻 있는 색들 사이에서 겉돌았다.
+   * 누르는 것은 색이 아니라 **재질**(짙은 청동)로 나타낸다.
+   */
+  const css = readFileSync(resolve(ROOT, 'app/globals.css'), 'utf8');
+  const tok = (name, block) => {
+    const src = block === 'dark'
+      ? (css.match(/@media \(prefers-color-scheme: dark\)[\s\S]*?\n {2}\}/) ?? [''])[0]
+      : (css.match(/^:root \{[\s\S]*?\n\}/m) ?? [''])[0];
+    return ((src.match(new RegExp(`--${name}:\\s*([^;]+);`)) ?? [])[1] ?? '').trim();
+  };
+
+  // ① 파란 계열이 브랜드로 돌아오지 않았는지 — 색상환에서 파랑 자리를 막는다
+  const hue = (hex) => {
+    const [r, g, b] = (hex.match(/[\da-f]{2}/gi) ?? []).map((h) => parseInt(h, 16) / 255);
+    if (r === undefined) return -1;
+    const mx = Math.max(r, g, b);
+    const mn = Math.min(r, g, b);
+    if (mx === mn) return -1; // 무채색은 색이 아니다
+    const d = mx - mn;
+    const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return ((h * 60) + 360) % 360;
+  };
+  for (const mode of ['light', 'dark']) {
+    const h = hue(tok('brand', mode));
+    if (h >= 170 && h <= 260) {
+      throw new Error(`${mode} 브랜드색이 파란 계열입니다 (색상 ${Math.round(h)}°) — 뜻 없는 색입니다.`);
+    }
+  }
+
+  // ② 뜻을 가진 세 색은 그대로 있어야 한다. 하나라도 없어지면 그 뜻을 나타낼 길이 사라진다
+  for (const k of ['pending', 'paid', 'danger', 'gold']) {
+    if (!tok(k, 'light')) throw new Error(`--${k} 가 없습니다 — 그 뜻을 나타낼 색이 사라집니다.`);
+  }
+
+  // ③ 브랜드는 "받을 돈"(주황)과 **명도가 충분히 달라야** 한다. 밝은 금색을 버튼에
+  //    쓰면 주황과 섞여 받을 돈이 묻힌다 — 이 저장소가 예전에 겪은 일이다.
+  const lum = (hex) => {
+    const v = (hex.match(/[\da-f]{2}/gi) ?? []).map((h) => parseInt(h, 16) / 255)
+      .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return v.length ? 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2] : 0;
+  };
+  const gap = Math.abs(lum(tok('brand', 'light')) - lum(tok('pending', 'light')));
+  if (gap < 0.08) throw new Error(`브랜드색과 "받을 돈"(주황)의 밝기가 너무 가깝습니다 (${gap.toFixed(3)}).`);
+
+  // ④ 버튼 글씨는 읽혀야 한다 (4.5:1)
+  const ratio = (a, b) => {
+    const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
+    return (x + 0.05) / (y + 0.05);
+  };
+  for (const mode of ['light', 'dark']) {
+    const r = ratio(tok('on-brand', mode), tok('brand', mode));
+    if (r < 4.5) throw new Error(`${mode} 버튼 글씨 대비가 ${r.toFixed(2)}:1 입니다 (4.5 필요).`);
+  }
+
+  return `브랜드는 무채·청동 · 주황과 밝기차 ${gap.toFixed(2)} · 버튼 글씨 대비 확보`;
+});
+
 check('홈 아이콘은 직접 그린 글리프다 (v11.7)', () => {
   /*
    * 이모지는 기기마다 다른 그림이다. 안드로이드의 💰 는 초록 지폐 뭉치,

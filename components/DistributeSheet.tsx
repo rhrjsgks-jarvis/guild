@@ -62,7 +62,7 @@ export default function DistributeSheet({
       onClose={onClose}
     >
       <label className="fl" htmlFor="amt">
-        {t('dist.amount', { unit: u })}
+        <IconText text={t('dist.amount', { unit: u })} />
       </label>
       <input
         id="amt"

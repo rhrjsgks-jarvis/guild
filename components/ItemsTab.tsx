@@ -276,9 +276,12 @@ export default function ItemsTab({
                 </button>
                 <button type="button" className="row-sub linkish" onClick={() => setViewing(it)}>
                   {it.date} · {t('c.joined')} {t('c.persons', { n: it.cnt })}
-                  {it.photos && it.photos.length > 0
-                    ? ` · ${t('ali.photoN', { n: it.photos.length })}`
-                    : ''}
+                  {it.photos && it.photos.length > 0 ? (
+                    <>
+                      {' · '}
+                      <IconText text={t('ali.photoN', { n: it.photos.length })} size={13} />
+                    </>
+                  ) : null}
                 </button>
               </div>
               {/* 아직 분배 전이라 되돌릴 것이 없다. 그래도 참여자를 고치면 참여횟수가
@@ -399,7 +402,7 @@ export default function ItemsTab({
             </div>
 
             <div className="field">
-              <label className="fl">{t('items.membersLabel', { n: pickedList.length })}</label>
+              <label className="fl"><IconText text={t('items.membersLabel', { n: pickedList.length })} /></label>
 
               {/* 서버로 좁히기 (v10.8.6). 아무것도 안 고르면 예전처럼 전원이 나온다 —
                   서버 칸이 아직 비어 있어도 등록이 막히지 않아야 한다. */}
@@ -680,7 +683,7 @@ function EditItemSheet({
       <input id="eIt" type="text" value={name} onChange={(e) => setName(e.target.value)} />
 
       <label className="fl" style={{ marginTop: 12 }}>
-        {t('items.membersLabel', { n: picked.size })}
+        <IconText text={t('items.membersLabel', { n: picked.size })} />
       </label>
       <div className="mgrid">
         {selectable.map((m) => {
