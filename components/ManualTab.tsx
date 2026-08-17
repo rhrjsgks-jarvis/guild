@@ -101,6 +101,24 @@ export default function ManualTab({ admin }: { admin: boolean }) {
             {s.admin ? <span className="badge">{t('c.admin')}</span> : null}
           </div>
           {s.sub ? <p className="man-sub">{s.sub[idx]}</p> : null}
+          {/*
+            실제 앱 화면. 글자만 있는 설명서는 "그 버튼이 어디 있는데?" 가 안 풀린다.
+            ★ next/image 를 쓰지 않는다 — 우리 서버의 고정 경로라 최적화할 것이 없고,
+              lazy 로 두면 설명서를 **열 때만** 내려온다.
+            ★ 못 불러온 그림을 조용히 숨기지 않는다. 자리가 남아 있어야 "그림이
+              있었는데 안 나온다" 는 것을 알 수 있다 (PhotoStrip 과 같은 규칙).
+          */}
+          {s.shots ? (
+            <div className="man-shots">
+              {s.shots.map((sh) => (
+                <figure key={sh.src}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`/guide/${sh.src}.png`} alt="" loading="lazy" />
+                  <figcaption>{sh.cap[idx]}</figcaption>
+                </figure>
+              ))}
+            </div>
+          ) : null}
           <div className="card">
             <div className="field">
               {s.blocks.map((b, k) => (

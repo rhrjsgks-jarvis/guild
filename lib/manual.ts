@@ -27,6 +27,15 @@ export type Block =
 export type ManualSection = {
   icon: GlyphName;
   title: Tri;
+  /**
+   * 이 절에서 보여줄 **실제 앱 화면** (public/guide/*.png 의 파일명, 확장자 없이).
+   *
+   * ★ 글자만 있는 설명서는 읽기가 힘들다 — "그 버튼이 어디 있는데?" 가 안 풀린다.
+   * ★ 그림은 `npm run guide:shots` 가 촬영본을 420px 로 줄여 만든다.
+   *   설명서를 **열 때만** 내려오므로 안 여는 사람은 한 장도 받지 않는다.
+   * ★ 두 장까지. 세 장이 되면 폰에서 한 절이 화면을 넘어가 오히려 못 읽는다.
+   */
+  shots?: { src: string; cap: Tri }[];
   /** 제목 아래 한 줄 — 이 절이 무엇에 대한 것인지 */
   sub?: Tri;
   blocks: Block[];
@@ -39,6 +48,9 @@ export const MANUAL: ManualSection[] = [
   {
     icon: 'home',
     title: ['시작하기', '開始使用', 'Getting started'],
+    shots: [
+      { src: 'home', cap: ['앱을 열면 나오는 홈', '開啟 App 後的主畫面', 'The home screen'] },
+    ],
     sub: ['로그인도 앱 설치도 없습니다', '不需要登入，也不用安裝', 'No login, no install'],
     blocks: [
       {
@@ -81,6 +93,10 @@ export const MANUAL: ManualSection[] = [
   {
     icon: 'balance',
     title: ['내 다이아 보기', '查看我的鑽石', 'Your diamonds'],
+    shots: [
+      { src: 'balance', cap: ['💰 잔액 — 주황이 못 받은 것', '餘額 — 橘色是未領取的', 'Balance — orange is unpaid'] },
+      { src: 'me', cap: ['🙋 내 정보 — 내 것만 크게', '我的資訊 — 只看自己', 'Me — just your own'] },
+    ],
     sub: ['숫자가 두 개입니다 — 뜻이 다릅니다', '有兩個數字，意思不同', 'Two numbers, two meanings'],
     blocks: [
       {
@@ -128,6 +144,9 @@ export const MANUAL: ManualSection[] = [
   {
     icon: 'search',
     title: ['좁혀 보기', '篩選檢視', 'Narrowing the list'],
+    shots: [
+      { src: 'balance', cap: ['서버 칩 아래가 클래스 선택', '伺服器標籤下方是職業選單', 'Class dropdown sits under the server chips'] },
+    ],
     sub: ['서버는 여러 개, 클래스는 하나', '伺服器可複選，職業一次一個', 'Servers multi, class single'],
     blocks: [
       {
@@ -150,6 +169,10 @@ export const MANUAL: ManualSection[] = [
   {
     icon: 'items',
     title: ['아이템 이름 읽는 법', '如何看道具名稱', 'Reading item names'],
+    shots: [
+      { src: 'items', cap: ['📦 아이템', '道具', 'Items'] },
+      { src: 'alliance', cap: ['🤝 연합', '聯盟', 'Alliance'] },
+    ],
     sub: ['테두리 색이 등급입니다', '外框顏色代表等級', 'The border is the grade'],
     blocks: [
       {
@@ -193,6 +216,9 @@ export const MANUAL: ManualSection[] = [
   {
     icon: 'board',
     title: ['게시판', '留言板', 'Board'],
+    shots: [
+      { src: 'board', cap: ['📋 게시판 — 공지는 맨 위에 고정', '留言板 — 公告固定在最上方', 'Board — notices pinned on top'] },
+    ],
     sub: ['혈맹원이 직접 쓸 수 있는 유일한 곳', '成員唯一能發文的地方', 'The only place members can post'],
     blocks: [
       {
@@ -214,6 +240,9 @@ export const MANUAL: ManualSection[] = [
   {
     icon: 'lang',
     title: ['언어 · 공유', '語言與分享', 'Language & sharing'],
+    shots: [
+      { src: 'items-zh', cap: ['中文 으로 바꾼 화면 — 아이템 이름까지 바뀝니다', '切換成中文 — 連道具名稱也會變', 'Switched to Chinese — item names follow'] },
+    ],
     sub: ['화면 위 언어 버튼에서 바꿉니다', '從畫面上方的語言鍵切換', 'Switch from the header'],
     blocks: [
       {
@@ -245,6 +274,10 @@ export const MANUAL: ManualSection[] = [
     admin: true,
     icon: 'crown',
     title: ['권한은 세 단계', '權限分三級', 'Three permission levels'],
+    shots: [
+      { src: 'admin-locked', cap: ['PIN 을 넣기 전', '輸入 PIN 之前', 'Before the PIN'] },
+      { src: 'admin-unlocked', cap: ['관리자 모드가 켜진 뒤', '管理員模式開啟後', 'After unlocking'] },
+    ],
     sub: ['나누는 기준은 하나 — 되돌릴 수 있는가', '劃分標準只有一個：能不能復原', 'One rule: can it be undone?'],
     blocks: [
       {
@@ -282,6 +315,10 @@ export const MANUAL: ManualSection[] = [
     admin: true,
     icon: 'items',
     title: ['아이템 — 등록부터 지급까지', '道具 — 從登錄到發放', 'Items: register to payout'],
+    shots: [
+      { src: 'items-admin', cap: ['등록 칸 — 위에서 아래로', '登錄欄位 — 由上往下填', 'Registration fields, top to bottom'] },
+      { src: 'distribute', cap: ['분배 — 결과가 먼저 보입니다', '分配 — 結果會先顯示', 'Distribute — the result previews first'] },
+    ],
     sub: ['레이드 직후엔 금액을 몰라도 됩니다', '剛打完團不知道金額也沒關係', 'You do not need the amount yet'],
     blocks: [
       {
@@ -378,6 +415,9 @@ export const MANUAL: ManualSection[] = [
     admin: true,
     icon: 'alliance',
     title: ['연합', '聯盟', 'Alliance'],
+    shots: [
+      { src: 'alliance', cap: ['묶음(=아이템) 단위로 보입니다', '以群組（＝道具）為單位顯示', 'Shown per item group'] },
+    ],
     sub: ['혈맹 분배와 완전히 분리된 장부', '與血盟分配完全分開的帳本', 'A completely separate ledger'],
     blocks: [
       {
@@ -407,6 +447,9 @@ export const MANUAL: ManualSection[] = [
     admin: true,
     icon: 'glossary',
     title: ['용어 사전', '詞彙表', 'Glossary'],
+    shots: [
+      { src: 'admin-terms', cap: ['세 언어를 한 표에', '三種語言在同一張表', 'Three languages in one table'] },
+    ],
     sub: ['채워질수록 앱이 똑똑해집니다', '填得越完整，App 越好用', 'The more it holds, the more the app can do'],
     blocks: [
       {
@@ -444,6 +487,9 @@ export const MANUAL: ManualSection[] = [
     admin: true,
     icon: 'tools',
     title: ['관리 도구 · 되돌리기', '管理工具與復原', 'Tools & undo'],
+    shots: [
+      { src: 'admin-tools', cap: ['위험도가 높을수록 아래에', '風險越高排越下面', 'The riskier, the further down'] },
+    ],
     sub: ['위험한 것일수록 확인이 깐깐합니다', '越危險的操作，確認越嚴格', 'The riskier it is, the more it asks'],
     blocks: [
       {

@@ -2300,3 +2300,47 @@ select:focus {
 .man-flow:last-child {
   margin-bottom: 0;
 }
+
+/* 설명서 안의 실제 앱 화면 (v11.7).
+   ★ 폰에서 두 장을 나란히 두면 한 장이 절반 폭이 되어 글자가 안 읽힌다 —
+     한 장이면 크게, 두 장이면 나란히 두되 가로로 밀어 볼 수 있게 한다. */
+.man-shots {
+  display: flex;
+  gap: 12px;
+  margin: 0 0 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.man-shots figure {
+  flex: 0 0 auto;
+  max-width: 190px;
+}
+
+.man-shots img {
+  width: 190px;
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  background: var(--surface-2);
+}
+
+.man-shots figcaption {
+  margin-top: 6px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+/* 한 장뿐이면 가운데에 두고 조금 크게 */
+.man-shots:has(figure:only-child) {
+  justify-content: center;
+}
+
+.man-shots figure:only-child img,
+.man-shots figure:only-child figcaption {
+  width: 220px;
+  max-width: 100%;
+}

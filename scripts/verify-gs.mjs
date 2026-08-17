@@ -7,7 +7,7 @@
  *
  * 검사 항목은 아래 CHECKS 배열이 전부다. 새 규칙이 생기면 여기에 추가하면 된다.
  */
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
@@ -3373,6 +3373,42 @@ check('시험이 누르는 아이콘 자리가 실제 순서와 같다 (v11.7)',
   }
 
   return `아이콘 ${order.length}개 · 시험 표와 자리까지 일치`;
+});
+
+check('설명서가 부르는 화면이 실제로 있다 (v11.7)', () => {
+  /*
+   * 설명서는 실제 앱 화면을 넣어야 읽힌다 — 글자만 있으면 "그 버튼이 어디 있는데?"
+   * 가 안 풀린다. 그런데 그림 이름을 잘못 적으면 **빈 자리만 남고 아무도 모른다.**
+   * 앱 안 설명서(public/guide)와 그림 설명서(manual/shots) 양쪽을 다 본다.
+   */
+  const manual = readFileSync(resolve(ROOT, 'lib/manual.ts'), 'utf8');
+  const wanted = [...manual.matchAll(/src: '([\w-]+)'/g)].map((m) => m[1]);
+  if (wanted.length < 8) throw new Error(`앱 안 설명서에 화면이 ${wanted.length}장뿐입니다.`);
+  for (const name of [...new Set(wanted)]) {
+    if (!existsSync(resolve(ROOT, `public/guide/${name}.png`))) {
+      throw new Error(`설명서가 부르는 화면이 없습니다: public/guide/${name}.png (npm run guide:shots)`);
+    }
+  }
+
+  // 그림 설명서(docs/manual/*.html)가 거는 상대 경로도 실제 파일이어야 한다
+  let html = 0;
+  for (const f of ['member.html', 'admin.html']) {
+    const src = readFileSync(resolve(ROOT, `docs/manual/${f}`), 'utf8');
+    for (const m of src.matchAll(/src="\.\.\/\.\.\/manual\/shots\/([\w-]+)\.png"/g)) {
+      html++;
+      if (!existsSync(resolve(ROOT, `manual/shots/${m[1]}.png`))) {
+        throw new Error(`${f} 가 부르는 화면이 없습니다: manual/shots/${m[1]}.png (npm run manual:shots)`);
+      }
+    }
+  }
+  if (html < 8) throw new Error(`그림 설명서에 실제 화면이 ${html}장뿐입니다 — 글자만 남았습니다.`);
+
+  // 서비스워커가 미리 받는 목록에 끼면 설명서를 안 여는 사람까지 몇 MB 를 받는다
+  const sw = readFileSync(resolve(ROOT, 'public/sw.js'), 'utf8');
+  const shell = (sw.match(/const SHELL = \[([^\]]*)\]/) ?? [])[1] ?? '';
+  if (/guide\//.test(shell)) throw new Error('설명서 그림이 서비스워커 선(先)캐시에 들어 있습니다.');
+
+  return `앱 안 ${new Set(wanted).size}장 · 그림 설명서 ${html}장 · 선캐시 제외`;
 });
 
 check('홈 아이콘은 직접 그린 글리프다 (v11.7)', () => {
