@@ -2894,9 +2894,13 @@ await t('설명서: 화면 언어를 따라가고, 관리자용은 관리자에�
     if (guest.includes(secret)) throw new Error(`혈맹원에게 관리자용 절이 보입니다: ${secret}`);
   }
 
-  /* ② 관리자 모드 — 그때서야 나온다 */
-  eq((await post('/api/admin/login', { pin: PIN })).status, 200, '관리자 로그인');
-  await page.reload({ waitUntil: 'networkidle' });
+  /* ② 관리자 모드 — 그때서야 나온다.
+     ★ 로그인도 **화면에서** 해야 한다. post() 는 Node 쪽 fetch 라 브라우저에
+       쿠키가 생기지 않는다 — 방금 쿠키를 지운 것과 같은 이유다. */
+  await go(page, 'admin');
+  await page.locator('#pin').fill(PIN);
+  await page.getByRole('button', { name: /잠금 해제/ }).click();
+  await page.waitForTimeout(1200);
   const admin = await open();
   for (const need of ['권한은 세 단계', '분배 산식', '관리 도구']) {
     if (!admin.includes(need)) throw new Error(`관리자에게 ${need} 절이 없습니다.`);
