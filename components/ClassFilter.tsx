@@ -46,7 +46,7 @@ export default function ClassFilter({
       onChange={(e) => onChange(e.target.value)}
       aria-label={t('cls.filter')}
     >
-      <option value={ANY_CLASS}>{t('cls.all', { n: total })}</option>
+      <option value={ANY_CLASS}>{t('cls.all')}</option>
       {CLASS_LIST.filter((c) => (counts[c] ?? 0) > 0).map((c) => (
         <option key={c} value={c}>
           {classLabel(c, lang)} ({counts[c]})

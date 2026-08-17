@@ -2716,7 +2716,7 @@ await t('잔액을 클래스로 좁혀 본다 — 드롭다운 하나 (v11.6.1, 
   // 칩이 아니라 드롭다운이어야 한다 — 13종을 칩으로 깔면 명단이 화면 밖으로 밀린다
   const opts = await sel.locator('option').allInnerTexts();
   if (opts.length < 3) throw new Error(`클래스 선택지가 너무 적습니다: ${opts.join(' / ')}`);
-  if (!/전체 클래스/.test(opts[0])) throw new Error(`기본값이 "전체"가 아닙니다: ${opts[0]}`);
+  if (!/클래스 선택/.test(opts[0])) throw new Error(`기본값이 "클래스 선택"이 아닙니다: ${opts[0]}`);
   // 인원이 0인 클래스는 아예 나오지 않는다 — 고를 이유가 없다
   if (opts.some((o) => /\(0\)/.test(o))) throw new Error(`인원 0인 클래스가 목록에 있습니다: ${opts.join(' / ')}`);
 
