@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Glyph, { type GlyphName } from './Glyph';
 import type { AllianceState, GuildState, RaidState } from '@/lib/types';
 import { api, fmt } from '@/lib/client';
 import { useT } from '@/lib/i18n';
@@ -83,15 +84,16 @@ export default function HomeTab({
   const ally = extra && extra.ally >= 0 ? extra.ally : null;
   const raid = extra && extra.raid >= 0 ? extra.raid : null;
 
-  const todo: { key: string; em: string; label: string; n: string; go: () => void; quiet?: boolean }[] = [];
+  /** 아이콘은 홈 격자와 **같은 글리프**를 쓴다 — 한 화면에 두 가지 그림체가 섞이지 않게 */
+  const todo: { key: string; icon: GlyphName; label: string; n: string; go: () => void; quiet?: boolean }[] = [];
   if (items > 0)
-    todo.push({ key: 'items', em: '⏳', label: t('home.items'), n: t('c.cases', { n: items }), go: () => onGo('items') });
+    todo.push({ key: 'items', icon: 'items', label: t('home.items'), n: t('c.cases', { n: items }), go: () => onGo('items') });
   if (ally && ally > 0)
-    todo.push({ key: 'ally', em: '🤝', label: t('home.ally'), n: t('c.cases', { n: ally }), go: () => onGo('alliance') });
+    todo.push({ key: 'ally', icon: 'alliance', label: t('home.ally'), n: t('c.cases', { n: ally }), go: () => onGo('alliance') });
   if (owed > 0)
     todo.push({
       key: 'owed',
-      em: '💰',
+      icon: 'balance',
       label: t('home.owed'),
       n: t('c.persons', { n: owed }),
       go: () => onGo('balance'),
@@ -99,7 +101,7 @@ export default function HomeTab({
   if (raid && raid > 0)
     todo.push({
       key: 'raid',
-      em: '🗡️',
+      icon: 'raid',
       label: t('home.raidToday'),
       n: t('c.cases', { n: raid }),
       go: () => onGo('raid'),
@@ -110,10 +112,13 @@ export default function HomeTab({
    * 아이콘 순서 — 자주 여는 것부터, **관리는 맨 마지막**.
    * 배지는 "지금 몇 건이 기다리는가"만 붙인다 (없으면 안 붙인다).
    */
-  const tiles: { key: string; em: string; label: string; sub: string; badge?: number; go: () => void }[] = [
+  /**
+   * ★ `key` 가 곧 글리프 이름이다 (components/Glyph.tsx). 그림 필드를 따로 두면
+   *   여덟 칸에 같은 값을 두 번 적게 되고, 언젠가 한쪽만 고쳐져 어긋난다.
+   */
+  const tiles: { key: GlyphName; label: string; sub: string; badge?: number; go: () => void }[] = [
     {
       key: 'balance',
-      em: '💰',
       label: t('tab.balance'),
       // 단위까지 넣으면 줄이 넘어가 칸 하나만 키가 커진다 — 숫자만 넣는다
       sub: t('home.balanceSub', { v: fmt(pendingTotal) }),
@@ -122,7 +127,6 @@ export default function HomeTab({
     },
     {
       key: 'items',
-      em: '📦',
       label: t('tab.items'),
       sub: t('home.itemsSub'),
       badge: items || undefined,
@@ -130,7 +134,6 @@ export default function HomeTab({
     },
     {
       key: 'alliance',
-      em: '🤝',
       label: t('tab.alliance'),
       sub: t('home.allySub'),
       badge: ally || undefined,
@@ -138,17 +141,16 @@ export default function HomeTab({
     },
     {
       key: 'raid',
-      em: '🗡️',
       label: t('tab.raid'),
       sub: raid === null ? t('home.raidSub') : t('home.raidCount', { n: raid }),
       badge: raid ?? undefined,
       go: () => onGo('raid'),
     },
-    { key: 'me', em: '🙋', label: t('tab.me'), sub: t('home.meSub'), go: () => onGo('me') },
-    { key: 'board', em: '📋', label: t('tab.board'), sub: t('home.boardSub'), go: () => onGo('board') },
-    { key: 'lang', em: '🌏', label: t('home.lang'), sub: t('home.langSub'), go: onLang },
+    { key: 'me', label: t('tab.me'), sub: t('home.meSub'), go: () => onGo('me') },
+    { key: 'board', label: t('tab.board'), sub: t('home.boardSub'), go: () => onGo('board') },
+    { key: 'lang', label: t('home.lang'), sub: t('home.langSub'), go: onLang },
     // ★ 관리는 언제나 맨 마지막이다 — 엄지가 닿기 쉬운 자리에 두면 잘못 눌린다
-    { key: 'admin', em: '⚙️', label: t('tab.admin'), sub: t('home.adminSub'), go: () => onGo('admin') },
+    { key: 'admin', label: t('tab.admin'), sub: t('home.adminSub'), go: () => onGo('admin') },
   ];
 
   return (
@@ -158,8 +160,8 @@ export default function HomeTab({
         <div className="todo">
           {todo.map((r) => (
             <button key={r.key} type="button" className="todo-row" onClick={r.go}>
-              <span className="em" aria-hidden="true">
-                {r.em}
+              <span className="em">
+                <Glyph name={r.icon} size={20} />
               </span>
               <span className="tx">{r.label}</span>
               <span className={'n' + (r.quiet ? ' q' : '')}>{r.n}</span>
@@ -183,8 +185,8 @@ export default function HomeTab({
       <div className="grid">
         {tiles.map((x) => (
           <button key={x.key} type="button" className="tile" onClick={x.go}>
-            <span className="em" aria-hidden="true">
-              {x.em}
+            <span className="em">
+              <Glyph name={x.key} />
             </span>
             <b>{x.label}</b>
             <span className="sub">{x.sub}</span>

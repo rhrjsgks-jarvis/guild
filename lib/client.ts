@@ -44,6 +44,40 @@ export function setStoredEmail(email: string): void {
   else window.localStorage.removeItem(EMAIL_KEY);
 }
 
+/* ── 앱 이름: 마지막에 본 것을 기억해 첫 화면의 깜빡임을 없앤다 (v11.7) ──
+ *
+ * 앱 이름은 시트에 있다. 그래서 첫 화면은 이름이 오기 전에 그려지고, 1초쯤 뒤
+ * 진짜 이름으로 **바뀌는 것이 눈에 보였다.** 제목이 스스로 바뀌는 화면은
+ * 잘못 들어온 것처럼 읽힌다.
+ *
+ * ★ 기억해 둔 값은 **표시용일 뿐**이다. 시트에서 온 값이 도착하면 언제나 그쪽이 이긴다 —
+ *   마스터가 이름을 바꿨는데 옛 이름이 계속 붙어 있으면 그게 더 나쁘다.
+ * ★ 처음 여는 기기에는 기억해 둔 것이 없다. 그때는 예전처럼 기본 이름이 잠깐 보인다 —
+ *   없는 값을 지어내지는 않는다.
+ */
+
+const APP_NAME_KEY = 'gm_app_name';
+
+export function getStoredAppName(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    return window.localStorage.getItem(APP_NAME_KEY) ?? '';
+  } catch {
+    return ''; // 사생활 보호 모드 등에서 막히면 그냥 기본 이름으로 간다
+  }
+}
+
+export function setStoredAppName(name: string): void {
+  if (typeof window === 'undefined') return;
+  const v = String(name ?? '').trim();
+  try {
+    if (v) window.localStorage.setItem(APP_NAME_KEY, v);
+    else window.localStorage.removeItem(APP_NAME_KEY);
+  } catch {
+    /* 못 적어도 화면은 그대로 돌아간다 */
+  }
+}
+
 /* ── 개인 조회 탭에서 마지막에 본 이름을 기억한다 ── */
 
 const NAME_KEY = 'gm_my_name';

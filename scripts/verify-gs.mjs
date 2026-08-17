@@ -3279,6 +3279,42 @@ check('클래스 목록은 앱과 시트가 같다 (v11.5)', () => {
   return `${a.length}종 · 순서까지 일치`;
 });
 
+check('홈 아이콘은 직접 그린 글리프다 (v11.7)', () => {
+  /*
+   * 이모지는 기기마다 다른 그림이다. 안드로이드의 💰 는 초록 지폐 뭉치,
+   * iOS 는 노란 주머니다 — 같은 앱을 쓰는 사람끼리 "돈 그림 눌러"가 통하지 않고,
+   * 색이 제각각이라 금색 화면에서 혼자 튄다.
+   */
+  const glyph = readFileSync(resolve(ROOT, 'components/Glyph.tsx'), 'utf8');
+  const home = readFileSync(resolve(ROOT, 'components/HomeTab.tsx'), 'utf8');
+
+  // ① 여덟 칸 전부에 그림이 있어야 한다. 하나라도 빠지면 그 칸만 빈 자리가 된다
+  const names = [...(glyph.match(/^  (\w+): \(/gm) ?? [])].map((m) => m.trim().replace(':', '').replace(' (', ''));
+  const want = ['balance', 'items', 'alliance', 'raid', 'me', 'board', 'lang', 'admin'];
+  for (const w of want) {
+    if (!names.includes(w)) throw new Error(`글리프에 ${w} 가 없습니다.`);
+  }
+
+  // ② 같은 규격이라야 한 벌로 보인다 — 24 격자 · 선으로만 · 부모 색을 받는다
+  if (!/viewBox="0 0 24 24"/.test(glyph)) throw new Error('글리프가 24 격자가 아닙니다.');
+  if (!/fill="none"/.test(glyph)) throw new Error('글리프를 채우고 있습니다 — 작은 칸에서 뭉갭니다.');
+  if (!/stroke="currentColor"/.test(glyph)) throw new Error('글리프가 부모 색을 받지 않습니다.');
+
+  // ③ 홈에 이모지가 되돌아오지 않았는지. 섞이면 한 화면에 두 가지 그림체가 된다
+  const tilesAt = home.indexOf('const tiles');
+  const tilesSrc = home.slice(tilesAt, home.indexOf('];', tilesAt));
+  // 주석은 화면에 나오지 않는다 — 빼고 본다. (이 저장소는 주석에서 ★ 를 쓰는데,
+  // 그 글자가 이모지 범위에 들어 있어 그냥 훑으면 멀쩡한 코드가 걸린다.)
+  const tilesCode = tilesSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  if (/[\u{1F300}-\u{1FAFF}\u{2700}-\u{27BF}]/u.test(tilesCode)) {
+    throw new Error('홈 아이콘에 이모지가 남아 있습니다 — 기기마다 다른 그림이 됩니다.');
+  }
+  if (!/<Glyph name=\{x\.key\}/.test(home)) throw new Error('홈 격자가 글리프를 쓰지 않습니다.');
+  if (!/<Glyph name=\{r\.icon\}/.test(home)) throw new Error('「지금 처리할 일」이 글리프를 쓰지 않습니다.');
+
+  return `${want.length}종 · 24격자 · 선만 · 홈 격자와 처리할 일 공용`;
+});
+
 check('아이템 → 보스 제안은 애매하면 정하지 않는다 (v11.6.2)', () => {
   const drops = readFileSync(resolve(ROOT, 'lib/drops.ts'), 'utf8');
   const lf = readFileSync(resolve(ROOT, 'components/LootFields.tsx'), 'utf8');

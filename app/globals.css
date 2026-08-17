@@ -43,12 +43,17 @@
   --radius: 6px;
   --radius-sm: 4px;
 
-  /* 제목용 세리프 (v11.7) — 게임의 명조 계열 제목을 흉내낸다.
-     ★ 폰트 파일을 싣지 않는다. 한국어 세리프는 5MB 가 넘어 폰에서 첫 화면이
-       그만큼 늦어지고, 게임 폰트를 복사해 오는 것도 아니다. 기기에 있는 것만 쓴다.
-     ★ 없는 기기에서는 본문 글꼴로 떨어진다. 굵기·자간·금색이 남아 있어
-       그 상태로도 제목으로 읽힌다 — 세리프가 있으면 더 좋아지는 정도다. */
-  --font-display: 'Nanum Myeongjo', 'Noto Serif KR', 'AppleMyungjo', Batang, serif;
+  /* 제목·금액용 글꼴 (v11.7) — 굵은 고딕.
+     ★ **리니지W 가 실제로 쓰는 글꼴은 실을 수 없다.** NC소프트 소유물이다.
+       라이선스가 열린 고딕 중 무게가 가장 게임 UI 에 가까운 것을 골라 직접 싣는다.
+     ★ 처음에는 명조(바탕체)로 갔다가 되돌렸다 — 게임의 인게임 UI 는 명조가
+       아니라 굵은 고딕이고, 기기 기본 바탕체는 옛날 문서처럼 읽혔다.
+     ★ 한글은 실어 보낸 글꼴에 없을 수 있다(라틴 자족만 받는다). 그때는 본문
+       고딕으로 떨어지는데, 굵기·자간이 남아 그 상태로도 제목으로 읽힌다. */
+  --font-display: var(--font-display-loaded), -apple-system, BlinkMacSystemFont,
+    'Apple SD Gothic Neo', 'Pretendard', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+  --display-weight: 800;
+  --display-track: -0.2px;
   --shadow: 0 1px 2px rgba(40, 32, 16, 0.06), 0 4px 16px rgba(40, 32, 16, 0.07);
 
   /* 하단 탭바가 사라져 0 이다. 안전영역(홈 인디케이터)만 따로 챙긴다 (v11.2.1) */
@@ -95,8 +100,16 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* 바탕 질감 (v11.7) — 매끈한 색판은 웹 폼처럼 보인다. 아주 옅은 결을 넣어
+   양피지·돌 위에 얹힌 화면으로 읽히게 한다.
+   ★ 그림 파일을 쓰지 않는다 — 폰에서 한 장 더 받아오는 비용이 없다.
+   ★ 결은 **글자 뒤에서 보이면 안 된다.** 대비를 떨어뜨리면 숫자를 잘못 읽는다.
+     그래서 아주 낮은 명암으로만 깔고, 카드(글자가 놓이는 면)는 덮지 않는다. */
 html {
-  background: var(--bg);
+  background-color: var(--bg);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E"),
+    radial-gradient(120% 90% at 50% 0%, rgba(255, 255, 255, 0.5), transparent 55%);
 }
 
 body {
@@ -174,9 +187,8 @@ button {
   min-width: 0;
   font-family: var(--font-display);
   font-size: 16.5px;
-  font-weight: 700;
-  /* 세리프는 자간을 좁히면 뭉친다 — 본문과 반대로 벌린다 */
-  letter-spacing: 0.3px;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-track);
   line-height: 1.25;
 }
 
@@ -611,12 +623,24 @@ button {
   margin-bottom: 8px;
 }
 
+/* 직접 그린 글리프 (v11.7) — 이모지와 달리 색을 우리가 정한다.
+   금색으로 두면 여덟 칸이 한 벌로 보이고, 어느 폰에서나 같은 그림이다. */
+.tile .em .glyph {
+  display: block;
+  margin: 0 auto;
+  color: var(--gold);
+}
+
+.todo-row .em .glyph {
+  color: var(--gold);
+}
+
 .tile b {
   display: block;
   font-family: var(--font-display);
   font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-track);
 }
 
 .tile .sub {
@@ -641,13 +665,41 @@ button {
 }
 
 /* 홈에서 연 화면의 머리줄 — 지금 어디인지와 나가는 길([✕])을 같이 둔다 */
+/* 화면 머리줄 (v11.7) — 게임 창의 제목 띠.
+   양옆에 금 꺾쇠를 세우고 아래를 금 두 줄로 닫는다. 화면이 "창"으로 읽히면
+   어디까지가 이 화면인지 한눈에 들어온다. */
 .screen-bar {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--gold-line);
+  padding: 12px 18px;
+  border-bottom: 1px solid rgba(166, 124, 42, 0.7);
+  box-shadow: 0 1px 0 rgba(166, 124, 42, 0.22);
   background: var(--surface);
+  background-image: linear-gradient(180deg, rgba(166, 124, 42, 0.07), transparent 70%);
+}
+
+.screen-bar::before,
+.screen-bar::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  width: 8px;
+  border-top: 1.5px solid var(--gold-line);
+  border-bottom: 1.5px solid var(--gold-line);
+  pointer-events: none;
+}
+
+.screen-bar::before {
+  left: 5px;
+  border-left: 1.5px solid var(--gold-line);
+}
+
+.screen-bar::after {
+  right: 5px;
+  border-right: 1.5px solid var(--gold-line);
 }
 
 .screen-bar h2 {
@@ -655,8 +707,8 @@ button {
   min-width: 0;
   font-family: var(--font-display);
   font-size: 16px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-track);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1411,8 +1463,8 @@ select:focus {
 .sheet h2 {
   font-family: var(--font-display);
   font-size: 17.5px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-track);
   margin-bottom: 4px;
   /* [✕] 자리를 비워둔다 — 긴 제목이 버튼 아래로 파고들면 둘 다 못 읽는다 */
   padding-right: 44px;

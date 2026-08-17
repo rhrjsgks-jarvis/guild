@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { BalanceRow, GuildState, LedgerItem } from '@/lib/types';
-import { api } from '@/lib/client';
+import { api, getStoredAppName, setStoredAppName } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 import { APP_VERSION } from '@/lib/version';
@@ -174,7 +174,32 @@ export default function App() {
   // 앱 이름: 마스터가 직접 지은 이름이면 데이터로 보고 그대로 두고,
   // 시트 기본값('길드정산')이면 화면 문구로 보고 언어에 맞춰 바꾼다.
   const rawName = state?.appName?.trim() ?? '';
-  const title = !rawName || rawName === DEFAULT_APP_NAME ? t('app.title') : rawName;
+  const fromSheet = !rawName || rawName === DEFAULT_APP_NAME ? '' : rawName;
+
+  /**
+   * 첫 화면에서 제목이 **스스로 바뀌지 않게** 한다 (v11.7).
+   *
+   * 이름은 시트에 있어서 첫 그림은 이름이 오기 전에 그려진다. 예전에는 기본 이름을
+   * 띄웠다가 1초쯤 뒤 진짜 이름으로 갈아치웠고, 그게 눈에 보였다 — 제목이 저 혼자
+   * 바뀌는 화면은 잘못 들어온 것처럼 읽힌다.
+   *
+   * ★ localStorage 는 **붙인 뒤에** 읽는다. 첫 그림에서 읽으면 서버가 그린 것과
+   *   달라져 React 가 하이드레이션 경고를 낸다. 붙은 직후 한 프레임이라 눈에 안 띈다.
+   * ★ 시트에서 온 값이 언제나 이긴다. 마스터가 이름을 바꿨는데 옛 이름이 남아 있으면
+   *   그게 더 나쁘다.
+   */
+  const [cachedName, setCachedName] = useState('');
+  useEffect(() => setCachedName(getStoredAppName()), []);
+  useEffect(() => {
+    if (fromSheet) setStoredAppName(fromSheet);
+  }, [fromSheet]);
+
+  const title = fromSheet || cachedName || t('app.title');
+
+  // 브라우저 탭·앱 전환 화면에도 같은 이름이 뜨게 한다 — 거기만 옛 이름이면 다른 앱으로 보인다
+  useEffect(() => {
+    if (title) document.title = title;
+  }, [title]);
 
   // 시트(.gs)는 사용자가 직접 붙여넣고 재배포해야 해서, 앱만 새 버전인 상태가 되기 쉽다.
   // 그 어긋남을 제목 옆에서 바로 보이게 한다.

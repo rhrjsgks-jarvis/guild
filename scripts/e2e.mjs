@@ -2863,7 +2863,9 @@ await t('첫 화면은 홈이고, 모든 화면이 아이콘으로 있다 (v11.2
   eq(await page.locator('.nav').count(), 0, '하단 탭바');
   eq(await page.locator('.screen-bar').count(), 0, '첫 화면이 홈인가');
 
-  const tiles = (await page.locator('.tile').allInnerTexts()).map((s) => s.split('\n')[1]);
+  // 라벨은 `.tile b` 에서 직접 읽는다. 예전에는 줄 번호로 집었는데(0=이모지, 1=라벨),
+  // 이모지를 직접 그린 글리프(SVG)로 바꾸자 글자가 한 줄씩 밀려 어긋났다 (v11.7).
+  const tiles = await page.locator('.tile b').allInnerTexts();
   const want = ['잔액', '아이템', '연합', '레이드', '내 정보', '게시판', '언어', '관리'];
   if (tiles.join(' ') !== want.join(' ')) {
     throw new Error(`홈 아이콘: ${tiles.join(' ')} (기대 ${want.join(' ')})`);
