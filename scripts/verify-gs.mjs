@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v11_7.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v11_8.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 /**
@@ -1678,9 +1678,17 @@ check('연합 한 건에 여러 서버가 들어가고, 혈비는 실제로 적�
   if (!/_creditFundBalance\(ss, s\.fundTotal\)/.test(credit)) {
     throw new Error('정산이 혈맹운영비 잔액에 적립하지 않습니다.');
   }
+  /*
+   * ★ v11.8 — 정산이 끝난 건은 **아무도 못 지운다.** 그래서 삭제가 혈비를 되돌릴
+   *   일 자체가 없어졌다 (되돌릴 만큼 적립된 건은 애초에 지워지지 않는다).
+   *   잘못된 정산은 [수정]이 **차액만** 조정해 바로잡는다.
+   */
   const del = (gs.match(/function api_deleteAlliance[\s\S]*?\n\}\n/) ?? [''])[0];
-  if (!/_creditFundBalance\(ss, -fund\)/.test(del)) {
-    throw new Error('삭제가 적립했던 혈비를 되돌리지 않습니다.');
+  if (!/e\.allyNoDelete/.test(del)) {
+    throw new Error('정산이 끝난 건의 삭제를 시트가 막지 않습니다.');
+  }
+  if (/_creditFundBalance/.test(del)) {
+    throw new Error('삭제가 아직 혈비를 되돌립니다 — 정산된 건은 아예 지울 수 없어야 합니다.');
   }
   // 참여횟수는 다른 사건이다 — 연합은 우리 혈맹원 명단과 무관하므로 절대 건드리면 안 된다
   const fundFn = extractFn(gs, '_creditFundBalance');
@@ -1691,8 +1699,16 @@ check('연합 한 건에 여러 서버가 들어가고, 혈비는 실제로 적�
   if (!/callGas\('creditAlliance', \{ group, amount, email \}/.test(route)) {
     throw new Error('정산 라우트가 묶음(group)이 아니라 옛 row 를 보냅니다.');
   }
-  if (!/callGas\('deleteAlliance', \{ group,/.test(route)) {
+  // 지우는 것은 마스터 몫이라 라우트도 그쪽에 있다 (v11.8)
+  const delRoute = readFileSync(resolve(ROOT, 'app/api/master/alliance/route.ts'), 'utf8');
+  if (!/callGas\('deleteAlliance', \{ group,/.test(delRoute)) {
     throw new Error('삭제 라우트가 묶음(group)을 보내지 않습니다.');
+  }
+  if (!/requireMaster\(\)/.test(delRoute)) {
+    throw new Error('연합 삭제가 마스터를 요구하지 않습니다.');
+  }
+  if (/export async function DELETE/.test(route)) {
+    throw new Error('관리자 라우트에 연합 삭제가 남아 있습니다 — 지우는 것은 마스터 몫입니다.');
   }
   if (!/syncStateCache\(res\)/.test(route)) {
     throw new Error('혈맹운영비 잔액이 바뀌는데 상태 캐시를 맞추지 않습니다 (규칙 6-3).');
@@ -1772,44 +1788,55 @@ check('연합 인증샷은 서버 줄마다 따로 붙는다 (v11.3)', () => {
   return '등록/추가/정정 3경로 · 잇기만 · 수식 금지 · 조회·앱·모의 서버별';
 });
 
-check('연합 수정: 관리자는 미정산까지, 정산된 건은 마스터만 (v11.3)', () => {
+check('연합 수정은 관리자 이상 — 정산된 건도 고친다 (v11.8)', () => {
   /*
-   * 아직 금액이 안 들어간 건은 다이아가 하나도 안 움직인 상태다 — 틀리면 고치면 그만이고,
-   * 그때마다 마스터를 불러야 하면 등록 자체가 미뤄진다.
-   * 반대로 정산된 건은 고칠 때마다 혈맹운영비 잔액이 실제로 움직인다 (되돌리는 일).
+   * v11.7 까지 정산된 건의 수정은 마스터 전용이었다. 그때는 잘못된 정산을
+   * **지워버리는 길**이 있었기 때문이다. v11.8 에서 그 삭제를 없앴으므로,
+   * 고칠 길까지 막으면 잘못된 혈비가 마스터를 기다리는 동안 장부에 그대로 남는다.
+   *
+   * 여는 근거는 "안전해서" 가 아니라 **되돌릴 수 있어서** 다 — 수정은 기록을
+   * 지우지 않고 혈비를 차액만 조정한다. 대신 확인 절차는 그대로 남는다.
    */
   const edit = extractFn(gs, 'api_editAlliance');
-  if (!/function api_editAlliance\(group, item, entries, amount, email, confirm, asMaster\)/.test(gs)) {
-    throw new Error('정정 함수가 등급을 받지 않습니다.');
+  if (!/function api_editAlliance\(group, item, entries, amount, email, confirm\)/.test(gs)) {
+    throw new Error('정정 함수의 인자가 바뀌었습니다.');
   }
-  if (!/if \(done && asMaster !== true\)/.test(edit)) {
-    throw new Error('시트가 정산된 건을 마스터 전용으로 막지 않습니다.');
+  // 등급으로 가르던 옛 경로가 **코드에** 남아 있으면 안 된다 (한쪽만 지우면 영영 안 열린다).
+  // 머리말의 변경 이력은 대상이 아니다 — 그건 "예전에 그랬다" 는 기록이다
+  const router = gs.slice(gs.indexOf('function _apiRoute'));
+  if (/asMaster/.test(edit) || /asMaster/.test(router)) {
+    throw new Error("정정 코드에 asMaster 가 남아 있습니다.");
   }
-  // 막는 자리가 **되묻기보다 앞**이어야 한다 — 뒤면 관리자에게 바뀔 금액이 새어 나간다
-  if (edit.indexOf('asMaster !== true') > edit.indexOf('needsConfirm')) {
-    throw new Error('등급 판정이 되묻기보다 뒤에 있습니다.');
-  }
-  if (!/e\.allyMasterOnly/.test(edit)) throw new Error('막을 때 이유를 알려주지 않습니다.');
 
-  // 라우트: 등급은 **라우트가 고정**한다 (앱이 보낸 값을 쓰면 아무나 마스터가 된다)
+  // 돈이 움직이는 수정은 **바뀔 숫자를 보여준 뒤에만** 실행된다 (규칙 5-1)
+  if (!/confirm !== true/.test(edit)) throw new Error("정산된 건을 확인 없이 고칩니다.");
+  if (!/needsConfirm: true/.test(edit)) throw new Error("되물을 때 needsConfirm 을 주지 않습니다.");
+  if (!/fundDelta/.test(edit)) throw new Error("혈비가 얼마나 바뀌는지 알려주지 않습니다.");
+  // ★ 전액을 다시 더하면 고칠 때마다 운영비가 불어난다
+  if (!/_creditFundBalance\(ss, s\.fundTotal - oldFund\)/.test(edit)) {
+    throw new Error("혈비를 차액이 아니라 전액으로 조정합니다.");
+  }
+
+  // 라우트: 관리자 인증 · confirm 은 그대로 전달 · 금액도 함께 (정산된 건에서 쓴다)
   const adminRoute = readFileSync(resolve(ROOT, 'app/api/admin/alliance/route.ts'), 'utf8');
-  const master = readFileSync(resolve(ROOT, 'app/api/master/alliance/route.ts'), 'utf8');
-  if (!/asMaster: false/.test(adminRoute)) throw new Error('관리자 라우트가 asMaster 를 고정하지 않습니다.');
-  if (!/asMaster: true/.test(master)) throw new Error('마스터 라우트가 asMaster 를 보내지 않습니다.');
-  if (/asMaster:\s*body\./.test(adminRoute + master)) {
-    throw new Error('앱이 보낸 값으로 등급을 정합니다.');
+  if (!/requireAdmin\(\)/.test(adminRoute)) throw new Error("연합 수정이 인증을 요구하지 않습니다.");
+  if (!/confirm: body\.confirm === true/.test(adminRoute)) {
+    throw new Error("라우트가 confirm 을 그대로 전달하지 않습니다 — 안전장치가 무력화됩니다.");
   }
-  if (!/requireAdmin\(\)/.test(adminRoute) || !/requireMaster\(\)/.test(master)) {
-    throw new Error('라우트가 인증을 요구하지 않습니다.');
+  if (/confirm: true/.test(adminRoute)) throw new Error("라우트가 확인값을 임의로 채웁니다.");
+
+  // 앱: 미정산이든 정산된 건이든 **한 경로**로 간다
+  const ali = readFileSync(resolve(ROOT, 'components/AllianceTab.tsx'), 'utf8');
+  if (!/op: 'edit',/.test(ali)) throw new Error("수정이 관리자 경로로 가지 않습니다.");
+  if (/await api\('\/api\/master\/alliance', \{\s*\n\s*group/.test(ali)) {
+    throw new Error("정산된 건이 아직 마스터 경로로 갑니다.");
   }
-  // 관리자 경로는 금액을 아예 안 보낸다 (금액은 정산된 건에서만 쓰는 값이다)
-  if (!/amount: null/.test(adminRoute)) throw new Error('관리자 경로가 금액을 보냅니다.');
 
   // 모의 시트도 같은 판정을 해야 E2E 가 의미가 있다
   const mock = readFileSync(resolve(ROOT, 'scripts/mock-sheet.mjs'), 'utf8');
-  if (!/done && asMaster !== true/.test(mock)) throw new Error('모의 시트가 등급을 판정하지 않습니다.');
+  if (/asMaster/.test(mock)) throw new Error("모의 시트에 등급 판정이 남아 있습니다.");
 
-  return '시트 판정(되묻기보다 앞) · 라우트가 등급 고정 · 관리자는 금액 미전송 · 모의 동일';
+  return '등급 게이트 제거 · 확인 게이트 유지 · 혈비 차액 · 라우트 1벌 · 모의 동일';
 });
 
 check('용어 사전: 세 언어로 찾고, 저장은 언제나 국문 (v11.4)', () => {
@@ -2073,85 +2100,68 @@ check('사진이 읽은 인원수가 사람이 넣은 값을 덮어쓰지 않는
   return '손댄 값 보호 · 자동 입력은 한 줄·미입력일 때만 · 읽은 값은 표시';
 });
 
-check('연합 정정은 마스터만, 서버 추가는 관리자도 (v11.1)', () => {
-  const edit = (gs.match(/function api_editAlliance[\s\S]*?\n\}\n/) ?? [''])[0];
-  if (!edit) throw new Error('api_editAlliance 가 없습니다.');
-
-  // ★ 정산된 건을 고치는 것은 돈이 움직이는 작업이다 — 숫자를 보여준 뒤에만 실행한다
-  if (!/confirm !== true/.test(edit)) throw new Error('정산된 건을 확인 없이 고칩니다 (규칙 5-1).');
-  if (!/needsConfirm: true/.test(edit)) throw new Error('되물을 때 needsConfirm 을 주지 않습니다.');
-  // 되물을 때 바뀔 숫자가 함께 가야 사용자가 판단할 수 있다
-  if (!/fundDelta/.test(edit)) throw new Error('혈비가 얼마나 바뀌는지 알려주지 않습니다.');
-  // ★ 전액을 다시 더하면 고칠 때마다 운영비가 불어난다
-  if (!/_creditFundBalance\(ss, s\.fundTotal - oldFund\)/.test(edit)) {
-    throw new Error('혈비를 차액이 아니라 전액으로 조정합니다 — 고칠 때마다 운영비가 불어납니다.');
-  }
-  if (!/lock\.waitLock/.test(edit)) throw new Error('정정이 락 없이 실행됩니다.');
-  // 산식은 한 곳에서만 — 여기서 다시 구현하면 정산과 어긋난다
-  if (!/_calcAlliance\(/.test(edit)) throw new Error('정정이 공통 산식을 쓰지 않습니다.');
-
-  // 라우터가 confirm 을 그대로 넘기는지 (임의로 true 를 만들면 안전장치가 무력화된다)
-  if (!/api_editAlliance\(req\.group, req\.item, req\.entries, req\.amount, req\.email,\s*\n?\s*req\.confirm === true, req\.asMaster === true\)/.test(gs)) {
-    throw new Error('라우터가 정정 인자를 그대로 넘기지 않습니다.');
-  }
-
-  // 정정은 마스터 라우트에만 있어야 한다
-  const master = readFileSync(resolve(ROOT, 'app/api/master/alliance/route.ts'), 'utf8');
-  if (!/requireMaster\(\)/.test(master)) throw new Error('연합 정정이 마스터를 요구하지 않습니다.');
-  if (!/confirm: body\.confirm === true/.test(master)) {
-    throw new Error('라우트가 confirm 을 그대로 전달하지 않습니다.');
-  }
+check('연합: 고치는 것은 관리자, 지우는 것은 마스터 (v11.8)', () => {
   /*
-   * v11.3 — 관리자도 **미정산 건**은 고친다. 대신 두 가지가 지켜져야 한다:
-   *   ① 관리자 라우트는 asMaster 를 **false 로 고정**한다 (앱이 보낸 값을 쓰지 않는다)
-   *   ② 정산된 건인지는 **시트가** 판정한다 — 라우트를 직접 불러도 뚫리지 않는다
+   * 권한을 가르는 기준은 하나다 — **되돌릴 수 있는가.**
+   * 고친 것은 기록이 남아 다시 고칠 수 있고, 지운 것은 되돌릴 방법이 없다.
+   * 그리고 정산이 끝난 건은 **아무도** 못 지운다: 혈비가 이미 적립된 뒤라
+   * 지우면 "그때 얼마가 들어왔다" 는 사실까지 사라진다.
    */
+  const del = extractFn(gs, 'api_deleteAlliance');
+  if (!/e\.allyNoDelete/.test(del)) throw new Error("정산된 건의 삭제를 시트가 막지 않습니다.");
+  // 막는 자리가 **지우기보다 앞**이어야 한다
+  if (del.indexOf("allyNoDelete") > del.indexOf("deleteRow")) {
+    throw new Error("삭제가 판정보다 먼저 일어납니다.");
+  }
+
   const adminRoute = readFileSync(resolve(ROOT, 'app/api/admin/alliance/route.ts'), 'utf8');
-  if (!/asMaster: false/.test(adminRoute)) {
-    throw new Error('관리자 라우트가 asMaster 를 false 로 고정하지 않습니다.');
+  const master = readFileSync(resolve(ROOT, 'app/api/master/alliance/route.ts'), 'utf8');
+  if (!/requireMaster\(\)/.test(master)) throw new Error("연합 삭제가 마스터를 요구하지 않습니다.");
+  if (/export async function DELETE/.test(adminRoute)) {
+    throw new Error("관리자 라우트에 삭제가 남아 있습니다.");
   }
-  if (/asMaster: body\./.test(adminRoute) || /asMaster: body\./.test(master)) {
-    throw new Error('앱이 보낸 값으로 등급을 정합니다 — 라우트가 고정해야 합니다.');
+  if (/export async function POST/.test(master)) {
+    throw new Error("마스터 라우트에 수정이 남아 있습니다 — 수정은 관리자 경로 한 곳입니다.");
   }
-  if (!/asMaster: true/.test(master)) throw new Error('마스터 라우트가 asMaster 를 보내지 않습니다.');
-  if (!/if \(done && asMaster !== true\)/.test(edit)) {
-    throw new Error('시트가 정산된 건을 마스터 전용으로 막지 않습니다.');
-  }
-  if (!/e\.allyMasterOnly/.test(edit)) throw new Error('막을 때 이유를 알려주지 않습니다.');
 
   // ➕ 서버 추가는 관리자도 한다 — 대신 **더하기만** 되어야 안전하다
   const add = (gs.match(/function api_addAllianceServers[\s\S]*?\n\}\n/) ?? [''])[0];
-  if (!add) throw new Error('api_addAllianceServers 가 없습니다.');
+  if (!add) throw new Error("api_addAllianceServers 가 없습니다.");
   if (/ALLY_COL\.PEOPLE\)\.setValue|ALLY_COL\.ITEM\)\.setValue/.test(add)) {
-    throw new Error('서버 추가가 기존 줄의 값을 고칩니다 — 관리자에게 열 수 없습니다.');
+    throw new Error("서버 추가가 기존 줄의 값을 고칩니다 — 관리자에게 열 수 없습니다.");
   }
-  if (/deleteRow/.test(add)) throw new Error('서버 추가가 줄을 지웁니다.');
-  // 이미 정산된 건에 인원을 더하면 이미 나눠준 몫과 어긋난다
-  if (!/e\.allyDone/.test(add)) throw new Error('정산된 건에도 서버를 더할 수 있습니다.');
-  // 같은 서버가 두 줄이 되면 인원이 갈려 분배 비율이 틀어진다
-  if (!/have\[list\[i\]\.server\]/.test(add)) throw new Error('이미 있는 서버를 또 더할 수 있습니다.');
-  if (!/'addAllianceServers'/.test(adminRoute)) throw new Error('관리자 라우트에 서버 추가가 없습니다.');
+  if (/deleteRow/.test(add)) throw new Error("서버 추가가 줄을 지웁니다.");
+  if (!/e\.allyDone/.test(add)) throw new Error("정산된 건에도 서버를 더할 수 있습니다.");
+  if (!/have\[list\[i\]\.server\]/.test(add)) {
+    throw new Error("이미 있는 서버를 또 더할 수 있습니다.");
+  }
+  if (!/'addAllianceServers'/.test(adminRoute)) throw new Error("관리자 라우트에 서버 추가가 없습니다.");
 
   /*
-   * 화면 (v11.3): 미정산 건의 [수정]은 관리자에게도, **정산된 건의 [수정]은 마스터에게만**.
-   * ＋ 는 관리자에게.
+   * 화면: [수정]은 관리자에게 (정산 여부와 무관), [삭제]는 **마스터에게만**,
+   * 그리고 정산이 끝난 줄에는 삭제 버튼이 아예 없다.
    */
   const ali = readFileSync(resolve(ROOT, 'components/AllianceTab.tsx'), 'utf8');
-  if (!/master \? \(\s*\n\s*<button className="btn ghost" onClick=\{\(\) => setEditing\(g\)\}/.test(ali)) {
-    throw new Error('정산된 건의 정정 버튼이 마스터에게만 보이지 않습니다.');
+  const removes = (ali.match(/void remove\(g\.group\)/g) ?? []).length;
+  if (removes !== 1) {
+    throw new Error(`삭제 버튼이 ${removes}곳에 있습니다 — 아직 정산 안 된 줄에만 있어야 합니다.`);
   }
-  // 미정산 건은 관리자도 — 앱이 관리자 경로(op:'edit')로 보낸다
-  if (!/op: 'edit',/.test(ali)) throw new Error('미정산 건 수정이 관리자 경로로 가지 않습니다.');
-  if (!/entry\.done\s*\n?\s*\? await api\('\/api\/master\/alliance'/.test(ali)) {
-    throw new Error('정산된 건이 마스터 경로로 가지 않습니다.');
+  if (!/master \? \(\s*\n\s*<button className="btn ghost" onClick=\{\(\) => void remove/.test(ali)) {
+    throw new Error("삭제 버튼이 마스터에게만 보이지 않습니다.");
   }
-  if (!/setAddingSv\(g\)/.test(ali)) throw new Error('＋ 버튼이 없습니다.');
-  if (!/\/api\/master\/alliance/.test(ali)) throw new Error('앱이 마스터 라우트를 부르지 않습니다.');
+  if (!/<button className="btn ghost" onClick=\{\(\) => setEditing\(g\)\}/.test(ali)) {
+    throw new Error("수정 버튼이 없습니다.");
+  }
+  if (/master \? \(\s*\n\s*<button className="btn ghost" onClick=\{\(\) => setEditing/.test(ali)) {
+    throw new Error("수정 버튼이 아직 마스터 전용입니다 — 관리자도 고칠 수 있어야 합니다.");
+  }
+  if (!/setAddingSv\(g\)/.test(ali)) throw new Error("＋ 버튼이 없습니다.");
   // 등록·정정이 같은 편집기를 써야 한쪽만 낡지 않는다
   if ((ali.match(/<ServerRows[\s\n]/g) ?? []).length < 3) {
-    throw new Error('서버·인원 편집기를 화면마다 따로 만들었습니다.');
+    throw new Error("서버·인원 편집기를 화면마다 따로 만들었습니다.");
   }
-  return '정정=마스터(확인·차액조정·공통산식) · 추가=관리자(더하기만) · 편집기 1벌';
+
+  return '정산 건 삭제 차단(시트) · 삭제=마스터 · 수정=관리자 · 추가=관리자(더하기만) · 편집기 1벌';
 });
 
 check('팝업은 바깥을 눌러도 닫히지 않는다 (v11.1)', () => {

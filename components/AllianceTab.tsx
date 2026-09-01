@@ -90,9 +90,16 @@ export default function AllianceTab({
     void load();
   }, [load]);
 
+  /**
+   * 묶음 삭제 (v11.8) — **마스터관리자 전용**이고, 아직 정산 안 된 건만 지워진다.
+   *
+   * 정산이 끝난 건은 시트가 거부한다 (혈비가 이미 적립된 뒤라 지우면 "얼마가
+   * 들어왔다" 는 사실까지 사라진다). 화면에서도 그 줄에는 버튼을 두지 않지만,
+   * 판정은 시트가 한다 — 라우트를 직접 부르는 길이 있다 (규칙 5-3).
+   */
   async function remove(group: string) {
     setBusy(true);
-    const res = await api('/api/admin/alliance', { group, email: getStoredEmail() }, 'DELETE');
+    const res = await api('/api/master/alliance', { group, email: getStoredEmail() }, 'DELETE');
     setBusy(false);
     toast(srv(res, res.ok ? 'r.deleted' : 'r.deleteFailed'), !res.ok);
     if (res.ok) {
@@ -312,9 +319,13 @@ export default function AllianceTab({
                   <button className="btn warn" onClick={() => setCrediting(g)}>
                     {t('ali.credit')}
                   </button>
-                  <button className="btn ghost" onClick={() => void remove(g.group)}>
-                    {t('c.delete')}
-                  </button>
+                  {/* 지우는 것은 마스터 몫이다 (v11.8) — 고친 것은 기록이 남지만
+                      지운 것은 되돌릴 방법이 없다. 관리자는 [수정]까지 한다 */}
+                  {master ? (
+                    <button className="btn ghost" onClick={() => void remove(g.group)}>
+                      {t('c.delete')}
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -403,13 +414,11 @@ export default function AllianceTab({
                   <button className="btn ghost" onClick={() => setMetaOf(g)}>
                     <Glyph name="tag" size={16} /> {t('loot.editTitle')}
                   </button>
-                  {master ? (
-                    <button className="btn ghost" onClick={() => setEditing(g)}>
-                      {t('items.edit')}
-                    </button>
-                  ) : null}
-                  <button className="btn ghost" onClick={() => void remove(g.group)}>
-                    {t('c.delete')}
+                  {/* 정산된 건도 **관리자**가 고친다 (v11.8). 대신 지우는 길은 없다 —
+                      혈비가 이미 적립된 뒤라 지우면 얼마가 들어왔는지가 사라진다.
+                      수정은 혈비를 차액만 조정하므로 결과는 같고 기록이 남는다 */}
+                  <button className="btn ghost" onClick={() => setEditing(g)}>
+                    {t('items.edit')}
                   </button>
                 </div>
               ) : null}
@@ -1031,27 +1040,20 @@ function EditSheet({
     if (!valid) return;
     setBusy(true);
     /*
-     * ★ 아직 금액을 안 넣은 건은 **관리자 경로**로 보낸다 (v11.3).
-     *   돈이 하나도 안 움직이는 수정이라 관리자에게 열어둔 길이다.
-     *   정산된 건은 마스터 경로로만 간다 — 혈맹운영비 잔액이 실제로 움직인다.
-     *   어느 쪽이든 "정산된 건인가"는 **시트가** 다시 판정한다.
+     * ★ 미정산이든 정산된 건이든 **한 경로**로 간다 (v11.8) — 관리자 이상.
+     *   정산된 건이면 시트가 바뀔 혈비를 먼저 돌려주고, 앱이 그 숫자를 보여준 뒤에만
+     *   confirm 이 true 로 다시 온다 (규칙 5-1). "정산된 건인가" 는 **시트가** 판정한다.
      */
-    const res = entry.done
-      ? await api('/api/master/alliance', {
-          group: entry.group,
-          item: item.trim(),
-          entries: toEntries(rows),
-          amount,
-          email: getStoredEmail(),
-          confirm,
-        })
-      : await api('/api/admin/alliance', {
-          op: 'edit',
-          group: entry.group,
-          item: item.trim(),
-          entries: toEntries(rows),
-          email: getStoredEmail(),
-        });
+    const res = await api('/api/admin/alliance', {
+      op: 'edit',
+      group: entry.group,
+      item: item.trim(),
+      entries: toEntries(rows),
+      // 미정산 건에는 금액 자체가 없다 — 빈 값이면 시트가 지금 값을 그대로 둔다
+      amount: entry.done ? amount : '',
+      email: getStoredEmail(),
+      confirm,
+    });
     setBusy(false);
 
     // 서버가 되물으면 여기서 멈춘다. 숫자는 이미 화면에 떠 있다

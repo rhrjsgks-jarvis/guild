@@ -1202,11 +1202,6 @@ const DICT: Record<string, Entry> = {
   's.term.delOk': ['✅ "{item}" 을(를) 지웠습니다.', '✅ 已刪除「{item}」。', '✅ Deleted "{item}".'],
 
   /* v11.3 — 정산된 연합 건은 마스터만 고친다 (관리자는 미정산 건까지) */
-  's.e.allyMasterOnly': [
-    '"{item}" 은(는) 이미 정산된 건이라 마스터관리자만 고칠 수 있습니다.',
-    '「{item}」已結算，只有主管理員可以修改。',
-    '"{item}" is already settled — only the master admin can edit it.',
-  ],
   's.e.allyDone': [
     '"{item}" 은(는) 이미 정산된 건입니다. 새로고침해주세요.',
     '「{item}」已結算，請重新整理。',
@@ -1340,6 +1335,11 @@ const DICT: Record<string, Entry> = {
   's.e.badClass': ['클래스는 목록에서 선택해주세요.', '請從列表中選擇職業。', 'Pick a class from the list.'],
 
   /* ── v11.7 ── */
+  's.e.allyNoDelete': [
+    '이미 정산된 "{item}" 은(는) 삭제할 수 없습니다. [수정]으로 고쳐주세요.',
+    '已結算的「{item}」無法刪除，請用[修改]。',
+    '"{item}" has already been settled — it cannot be deleted. Use Edit instead.',
+  ],
   's.e.doneNoDelete': [
     '이미 분배된 "{item}" 은(는) 삭제할 수 없습니다. [수정]으로 고쳐주세요.',
     '已分配的「{item}」無法刪除，請用[修改]。',

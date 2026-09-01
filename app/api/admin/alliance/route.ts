@@ -12,12 +12,14 @@ export const maxDuration = 60;
  *
  *   op:'register'   → 아이템명 + **서버별 참여 인원 · 서버별 인증샷**.  상태 ⏳미분배
  *   op:'addServers' → 참여 서버 줄만 더한다 (기존 값은 못 고친다)
- *   op:'edit'       → **아직 금액을 안 넣은 건만** 고친다 (v11.3)
+ *   op:'edit'       → 아이템명·서버·인원, 그리고 **정산된 건이면 판매금액까지** (v11.8)
  *   op:'credit'     → 그 묶음에 판매금액을 넣어 혈비 공제 후 인원수 비례로 서버에 누적.
  *
- * ★ op:'edit' 로 **정산된 건은 못 고친다.** 그건 혈맹운영비 잔액이 실제로 움직이는
- *   작업이라 마스터 전용이다 (/api/master/alliance). 여기서는 `asMaster: false` 를
- *   보내고, 실제 판정은 **시트가** 한다 — 이 라우트를 직접 불러도 뚫리지 않는다.
+ * ★ 지우는 것은 여기 없다 — **마스터 전용**이다 (/api/master/alliance, v11.8).
+ *   권한을 가르는 기준은 하나다: **고치는 것은 되돌릴 수 있고, 지우는 것은 아니다.**
+ * ★ op:'edit' 로 정산된 건을 고치면 혈맹운영비 잔액이 실제로 움직인다. 그래서
+ *   시트가 `confirm === true` 없이는 실행하지 않고 **바뀔 혈비를 먼저 돌려준다**.
+ *   이 라우트는 그 값을 **임의로 채우지 않는다** (규칙 5-1).
  *
  * 레이드 직후엔 아직 안 팔려서 금액을 모르는 것이 정상이다. 그때 금액을
  * 요구하면 등록 자체가 미뤄지고 그 사이에 인증샷을 잃어버린다.
@@ -39,6 +41,7 @@ export async function POST(req: Request) {
     amount?: unknown;
     meta?: unknown;
     email?: unknown;
+    confirm?: unknown;
   };
   try {
     body = await req.json();
@@ -83,7 +86,7 @@ export async function POST(req: Request) {
   }
 
   // ➕ 참여 서버 추가 — 줄을 더하기만 한다. 기존 값은 시트가 못 바꾸게 막는다
-  // (값을 고치는 것은 /api/master/alliance 의 몫이다)
+  // (이미 있는 줄의 인원을 고치는 것은 op:'edit' 의 몫이다)
   if (op === 'addServers') {
     const group = String(body.group ?? '').trim();
     if (!group) {
@@ -102,12 +105,16 @@ export async function POST(req: Request) {
   }
 
   /*
-   * ✏️ 미정산 건 수정 (v11.3) — **관리자**도 할 수 있다.
+   * ✏️ 연합 건 수정 (v11.3 → v11.8) — **관리자 이상**.
    *
-   * 아직 금액이 하나도 안 들어간 건이라 다이아가 움직이지 않는다. 틀리면 고치면 끝이고,
-   * 그때마다 마스터를 불러야 하면 등록 자체가 미뤄진다.
-   * 정산된 건은 시트가 거부한다 — 여기서 asMaster 를 false 로 **고정**해 보내고,
-   * 실제 판정은 시트가 상태를 직접 보고 한다.
+   * 미정산 건은 다이아가 하나도 안 움직여서 원래 관리자에게 열려 있었다.
+   * v11.8 부터 **정산된 건도** 여기서 고친다. 그 대신 정산된 건의 삭제를 없앴다 —
+   * 지우는 길과 고치는 길을 둘 다 막으면 잘못된 혈비가 마스터를 기다리는 동안
+   * 장부에 그대로 남는다.
+   *
+   * 안전장치는 시트에 있다: 정산된 건이면 `confirm === true` 없이 실행되지 않고,
+   * 바뀔 혈비(before/after/fundDelta)를 먼저 돌려준다. 앱이 그 숫자를 보여준 뒤에만
+   * true 가 되고, 이 라우트는 값을 **그대로 전달만** 한다 (규칙 5-1).
    */
   if (op === 'edit') {
     const group = String(body.group ?? '').trim();
@@ -119,23 +126,34 @@ export async function POST(req: Request) {
     const parsed = parseEntries(body.entries, '참여한 서버를 하나 이상 넣어주세요.');
     if ('error' in parsed) return Response.json({ ok: false, msg: parsed.error }, { status: 400 });
 
+    // 금액은 정산된 건에서만 쓴다. 안 보내면 시트가 지금 금액을 그대로 쓴다
+    let amount: number | null = null;
+    if (body.amount !== undefined && body.amount !== null && body.amount !== '') {
+      amount = Number(String(body.amount).replace(/,/g, ''));
+      if (!Number.isInteger(amount) || amount <= 0) {
+        return Response.json({ ok: false, msg: '금액은 양의 정수여야 합니다.' }, { status: 400 });
+      }
+    }
+
     const res = await callGas(
       'editAlliance',
       {
         group,
         item,
         entries: parsed.entries,
-        // 금액은 정산된 건에서만 쓰는 값이다 — 관리자 경로에서는 아예 보내지 않는다
-        amount: null,
+        amount,
         email,
-        // confirm 은 보내지 않는다 — 되묻기가 필요한 것은 정산된 건뿐이고,
-        // 그건 애초에 이 경로로 들어올 수 없다 (시트가 막는다)
-        asMaster: false,
+        // ★ 앱이 바뀔 혈비를 보여준 뒤에만 true 가 된다 — 여기서 채우면 안전장치가 무력화된다
+        confirm: body.confirm === true,
       },
-      { timeoutMs: 45_000 },
+      { timeoutMs: 55_000, withState: true },
     );
-    if (res.ok) invalidate('alliance');
-    return Response.json(res, { status: res.ok ? 200 : 400 });
+    if (res.ok) {
+      invalidate('alliance');
+      syncStateCache(res);
+    }
+    // 되묻는 응답(needsConfirm)은 실패가 아니다 — 앱이 숫자를 보여주고 다시 부른다
+    return Response.json(res, { status: res.ok || res.needsConfirm ? 200 : 400 });
   }
 
   if (op === 'credit') {
@@ -158,31 +176,4 @@ export async function POST(req: Request) {
   }
 
   return Response.json({ ok: false, msg: '알 수 없는 요청입니다.' }, { status: 400 });
-}
-
-/** 연합 기록 삭제 — 등록만 된 건도, 정산까지 끝난 건도 묶음 단위로 지운다 */
-export async function DELETE(req: Request) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
-
-  let body: { group?: unknown; email?: unknown };
-  try {
-    body = await req.json();
-  } catch {
-    return Response.json({ ok: false, msg: '요청 형식이 올바르지 않습니다.' }, { status: 400 });
-  }
-
-  const group = String(body.group ?? '').trim();
-  if (!group) {
-    return Response.json({ ok: false, msg: '삭제할 기록을 찾을 수 없습니다.' }, { status: 400 });
-  }
-
-  // 이미 정산된 건이면 시트가 혈맹운영비 적립을 되돌린다 — 잔액이 바뀌므로 상태를 함께 받아온다
-  const res = await callGas('deleteAlliance', { group, email: String(body.email ?? '').trim() }, { withState: true });
-  if (res.ok) {
-    invalidate('alliance');
-    syncStateCache(res);
-  }
-
-  return Response.json(res, { status: res.ok ? 200 : 400 });
 }

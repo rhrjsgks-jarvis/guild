@@ -43,7 +43,7 @@ const ST_DONE = '✅분배완료';
 // 앱이 기대하는 버전과 같은 값 — 화면에 "버전 불일치" 경고가 뜨지 않아야 정상이다.
 // ★ 한 곳에만 적는다. 여기저기 흩어 적으면 버전을 올릴 때 한 군데가 남아
 //   "실어 온 상태의 버전이 다르다"는 엉뚱한 실패로 나타난다 (실제로 겪었다).
-const GS_VERSION = '11.7';
+const GS_VERSION = '11.8';
 let MOCK_GS_VERSION = GS_VERSION;
 
 /**
@@ -1169,7 +1169,7 @@ const handlers = {
   },
 
   // ✏️ 연합 정정 (v11.1, 마스터) — 미분배는 바로, 정산된 건은 되물은 뒤에
-  editAlliance: ({ group, item, entries, amount, confirm, asMaster }) => {
+  editAlliance: ({ group, item, entries, amount, confirm }) => {
     const hit = S.alliance.filter((r) => r.group === String(group));
     if (hit.length === 0) return rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
     const nm = String(item || '').trim();
@@ -1184,12 +1184,8 @@ const handlers = {
       seen.add(e.server);
     }
 
+    // ★ v11.8 — 정산된 건도 관리자가 고친다. 대신 아래 confirm 게이트가 남는다
     const done = hit.some((r) => r.done);
-    // ★ 정산된 건은 마스터관리자만 (v11.3) — 관리자 라우트는 asMaster 를 false 로 고정한다
-    if (done && asMaster !== true) {
-      return rc({ ok: false, msg: '이미 정산된 건은 마스터관리자만 고칠 수 있습니다.' },
-        'e.allyMasterOnly', { item: hit[0].item });
-    }
     const oldFund = hit.reduce((a, r) => a + r.fund, 0);
     const oldAmount = hit.reduce((a, r) => Math.max(a, r.amount), 0);
     const before = hit[0].item;
@@ -1285,12 +1281,18 @@ const handlers = {
     if (hit.length === 0) return rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
     const item = hit[0].item;
     const credited = hit.reduce((a, r) => a + r.credited, 0);
-    const fund = hit.reduce((a, r) => a + r.fund, 0);
+    // ★ v11.8 — 정산이 끝난 건은 아무도 못 지운다. 혈비가 이미 적립된 뒤라,
+    //   지우면 "그때 얼마가 들어왔다" 는 사실까지 사라진다. 고칠 것은 [수정]이 담당한다
+    if (hit.some((r) => r.done)) {
+      return rc(
+        { ok: false, reason: 'done', msg: `이미 정산된 "${item}" 은(는) 삭제할 수 없습니다. [수정]으로 고쳐주세요.` },
+        'e.allyNoDelete',
+        { item },
+      );
+    }
     S.alliance = S.alliance.filter((r) => r.group !== String(group));
-    // 적립했던 혈비를 되돌린다 — 안 그러면 지운 기록의 혈비만 잔액에 남는다
-    if (fund > 0) creditFund(-fund);
     return rc({ ok: true, msg: `✅ 삭제했습니다 — ${item} ${credited.toLocaleString()}${UNIT}` },
-      'ally.delMulti', { item, credited, fund });
+      'ally.delMulti', { item, credited, fund: 0 });
   },
 
   /* ── 레이드 (v10.8) — 실제 시트와 같은 판정을 흉내낸다 ── */

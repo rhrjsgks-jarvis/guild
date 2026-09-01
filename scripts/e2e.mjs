@@ -2082,14 +2082,38 @@ await t('연합: 아이템 하나에 여러 서버 · 혈비가 혈맹운영비 
   const again = await post('/api/admin/alliance', { op: 'credit', group, amount: 100000 }, { Cookie: cookie });
   eq(again.status, 400, '중복 정산 거부');
 
-  // ⑥ 삭제하면 적립했던 혈비를 되돌려야 장부가 맞는다
-  const del = await fetch(`${APP}/api/admin/alliance`, {
+  /*
+   * ⑥ 정산이 끝난 건은 **아무도 못 지운다** (v11.8).
+   *   혈비가 이미 혈맹운영비 잔액에 적립된 뒤라, 지우면 "그때 얼마가 들어왔다" 는
+   *   사실까지 사라진다. 잘못된 것은 [수정]이 차액만 조정해 바로잡는다.
+   */
+  const del = await fetch(`${APP}/api/master/alliance`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', Cookie: masterCookie },
+    body: JSON.stringify({ group }),
+  });
+  const delBody = await del.json();
+  eq(delBody.ok, false, '정산된 건은 마스터도 못 지운다');
+  eq(delBody.code, 'e.allyNoDelete', '막힌 이유를 코드로 알려준다');
+  eq(await fundOf(), before + 10000, '거부된 삭제는 혈비를 건드리지 않는다');
+
+  // 관리자에게는 삭제 자체가 없다 — 라우트가 마스터 전용이다 (v11.8)
+  const asAdmin = await fetch(`${APP}/api/master/alliance`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json', Cookie: cookie },
     body: JSON.stringify({ group }),
   });
-  eq((await del.json()).ok, true, '묶음 삭제');
-  eq(await fundOf(), before, '삭제 뒤 혈맹운영비 잔액 (회수됨)');
+  eq(asAdmin.status, 401, '관리자에게는 삭제가 막힌다');
+
+  // 아직 정산 안 된 건은 마스터가 지울 수 있다 (적립된 것이 없어 잔액도 그대로다)
+  const wait2 = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data.waiting[0];
+  const delWait = await fetch(`${APP}/api/master/alliance`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', Cookie: masterCookie },
+    body: JSON.stringify({ group: wait2.group }),
+  });
+  eq((await delWait.json()).ok, true, '미정산 건은 마스터가 지운다');
+  eq(await fundOf(), before + 10000, '미정산 삭제는 혈비를 건드리지 않는다');
 });
 
 await t("연합: 서버가 '5' 로 저장된 옛 행도 05 서버 누적에 잡힌다 (v11.1)", async () => {
@@ -2264,7 +2288,7 @@ await t('분배완료 아이템은 관리자가 고친다 — 참여자·금액,
   if (!after.rows.find((r) => r.name === '팩맨')) throw new Error('팩맨이 잔액현황에 없습니다.');
 });
 
-await t('연합 정정: 마스터만, 혈비는 차액만 움직인다 (v11.1)', async () => {
+await t('연합 정정: 관리자가 하되 혈비는 차액만 움직인다 (v11.8)', async () => {
   await reset();
   const fundOf = async () => {
     const st = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
@@ -2276,23 +2300,23 @@ await t('연합 정정: 마스터만, 혈비는 차액만 움직인다 (v11.1)',
   const wait = before.waiting[0];
   const fund0 = await fundOf();
 
-  // ① 관리자에게는 막혀야 한다
-  const asAdmin = await post(
-    '/api/master/alliance',
-    { group: wait.group, item: 'x', entries: [{ server: '05', people: 1 }] },
-    { Cookie: cookie },
+  // ① 로그인하지 않으면 막힌다 (관리자에게는 열려 있다 — v11.8)
+  const anon = await post(
+    '/api/admin/alliance',
+    { op: 'edit', group: wait.group, item: 'x', entries: [{ server: '05', people: 1 }] },
   );
-  eq(asAdmin.status, 401, '관리자에게는 막힌다');
+  eq(anon.status, 401, '비로그인은 막힌다');
 
-  // ② 마스터는 고칠 수 있다 — 서버를 하나 늘려본다
+  // ② 관리자가 고친다 — 서버를 하나 늘려본다
   const edited = await post(
-    '/api/master/alliance',
+    '/api/admin/alliance',
     {
+      op: 'edit',
       group: wait.group,
       item: '이름 바꿈',
       entries: [{ server: '05', people: 4 }, { server: '07', people: 6 }],
     },
-    { Cookie: masterCookie },
+    { Cookie: cookie },
   );
   eq((await edited.json()).ok, true, '미분배 정정');
   eq(await fundOf(), fund0, '미분배 정정은 혈비를 건드리지 않는다');
@@ -2310,9 +2334,9 @@ await t('연합 정정: 마스터만, 혈비는 차액만 움직인다 (v11.1)',
 
   // 확인 없이는 실행되지 않는다 (규칙 5-1) — 바뀔 숫자를 보여준 뒤에만
   const ask = await post(
-    '/api/master/alliance',
-    { group: wait.group, item: '이름 바꿈', entries: [{ server: '05', people: 4 }, { server: '07', people: 6 }], amount: 200000 },
-    { Cookie: masterCookie },
+    '/api/admin/alliance',
+    { op: 'edit', group: wait.group, item: '이름 바꿈', entries: [{ server: '05', people: 4 }, { server: '07', people: 6 }], amount: 200000 },
+    { Cookie: cookie },
   );
   const askBody = await ask.json();
   eq(askBody.ok, false, '확인 없이는 실행 안 됨');
@@ -2322,9 +2346,9 @@ await t('연합 정정: 마스터만, 혈비는 차액만 움직인다 (v11.1)',
 
   // 확인하면 실행된다 — 혈비는 20,000 (전액을 또 더하면 30,000 이 된다)
   const ok = await post(
-    '/api/master/alliance',
-    { group: wait.group, item: '이름 바꿈', entries: [{ server: '05', people: 4 }, { server: '07', people: 6 }], amount: 200000, confirm: true },
-    { Cookie: masterCookie },
+    '/api/admin/alliance',
+    { op: 'edit', group: wait.group, item: '이름 바꿈', entries: [{ server: '05', people: 4 }, { server: '07', people: 6 }], amount: 200000, confirm: true },
+    { Cookie: cookie },
   );
   eq((await ok.json()).ok, true, '정정 실행');
   eq(await fundOf(), fund0 + 20000, '혈비는 차액만 조정된다');
@@ -2485,7 +2509,7 @@ await t('연합 인증샷이 서버 줄마다 따로 붙는다 (v11.3)', async (
   eq(g2.servers.find((x) => x.server === '01').photos.join(), A, '먼저 붙인 사진 유지');
 });
 
-await t('연합 수정: 관리자는 미정산까지, 정산된 건은 마스터만 (v11.3)', async () => {
+await t('연합 수정: 관리자가 미정산도 정산된 건도 고친다 (v11.8)', async () => {
   await reset();
   const before = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
   const wait = before.waiting[0];
@@ -2508,39 +2532,56 @@ await t('연합 수정: 관리자는 미정산까지, 정산된 건은 마스터
   eq(g.item, '관리자가 고침', '바뀐 아이템명');
   eq(g.people, 10, '바뀐 인원');
 
-  // ② 정산한 뒤에는 관리자가 못 고친다 — 혈맹운영비 잔액이 움직이는 일이다
+  /*
+   * ② 정산한 뒤에도 **관리자가** 고친다 (v11.8) — 대신 확인을 거친다.
+   *   v11.7 까지는 마스터 전용이었지만, 그때는 잘못된 정산을 지우는 길이 있었다.
+   *   그 삭제를 없앴으므로 고칠 길까지 막으면 잘못된 혈비가 그대로 남는다.
+   */
   eq(
     (await post('/api/admin/alliance', { op: 'credit', group: wait.group, amount: 100000 }, { Cookie: cookie })).status,
     200,
     '정산',
   );
-  const denied = await post(
+  const ask = await post(
     '/api/admin/alliance',
     {
       op: 'edit',
       group: wait.group,
       item: '관리자가 또 고침',
-      entries: [{ server: '05', people: 9 }],
+      entries: [{ server: '05', people: 4 }, { server: '07', people: 6 }],
+      amount: 200000,
     },
     { Cookie: cookie },
   );
-  const deniedBody = await denied.json();
-  eq(deniedBody.ok, false, '정산된 건은 관리자에게 막힌다');
-  eq(deniedBody.code, 'e.allyMasterOnly', '막힌 이유를 코드로 알려준다');
+  const askBody = await ask.json();
+  eq(askBody.ok, false, '확인 없이는 실행 안 됨');
+  eq(askBody.needsConfirm, true, '바뀔 숫자를 보여주고 되묻는다');
+  eq(askBody.fundDelta, 10000, '바뀔 혈비 차액');
 
-  // 아무것도 안 바뀌었어야 한다
+  // 되물은 단계에서는 아무것도 안 바뀌어야 한다
+  const mid2 = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
+  eq(mid2.records.find((x) => x.group === wait.group).item, '관리자가 고침', '되묻는 동안은 그대로');
+
+  // ③ 확인하면 관리자도 실행할 수 있다
+  const done = await post(
+    '/api/admin/alliance',
+    {
+      op: 'edit',
+      group: wait.group,
+      item: '관리자가 또 고침',
+      entries: [{ server: '05', people: 4 }, { server: '07', people: 6 }],
+      amount: 200000,
+      confirm: true,
+    },
+    { Cookie: cookie },
+  );
+  eq((await done.json()).ok, true, '확인하면 실행된다');
   const after = (await (await fetch(`${APP}/api/alliance?fresh=1`)).json()).data;
   const rec = after.records.find((x) => x.group === wait.group);
-  eq(rec.item, '관리자가 고침', '막힌 뒤에도 그대로');
-  eq(rec.servers.length, 2, '서버 수 그대로');
-
-  // ③ 같은 건을 마스터는 고칠 수 있다 (되묻기 → 확인)
-  const askBody = await (await post(
-    '/api/master/alliance',
-    { group: wait.group, item: '마스터가 고침', entries: [{ server: '05', people: 4 }, { server: '07', people: 6 }], amount: 200000 },
-    { Cookie: masterCookie },
-  )).json();
-  eq(askBody.needsConfirm, true, '마스터에게는 되묻는다');
+  eq(rec.item, '관리자가 또 고침', '바뀐 아이템명');
+  eq(rec.amount, 200000, '바뀐 판매금액');
+  // ★ 보존 불변식은 관리자가 고친 뒤에도 성립해야 한다
+  eq(rec.fund + rec.credited, 200000, '혈비 + 서버 몫 = 판매금액');
 });
 
 await t('연합 서버 추가: 관리자도 하되 기존 값은 못 고친다 (v11.1)', async () => {
