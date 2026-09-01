@@ -64,6 +64,8 @@ export type GasAction =
   /* v11.6 — 레이드일·보스·루팅 (새 4칸만 건드린다, 관리자 이상) */
   | 'setAllianceMeta'
   | 'setItemMeta'
+  /* v11.7 — 인증샷 더 붙이기 (잇기만 한다, 관리자 이상) */
+  | 'addItemPhotos'
   /* v11.1 — 연합 항목 정정 (마스터관리자) */
   | 'editAlliance'
   | 'addAllianceServers';

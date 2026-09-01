@@ -1769,7 +1769,10 @@ select:focus {
 /* ───────── 연합: 아이템 하나 = 여러 서버 (v11.0) ─────────
    서버마다 "칩 한 줄 + 인원 한 칸"이다. 한 칸에 `01:5, 02:3` 처럼 몰아 적게 하면
    오타가 그대로 분배 비율이 되므로, 고르는 것과 세는 것을 따로 둔다. */
-.ali-entry {
+/* 아이템 인증샷의 서버 줄 (v11.7) — 연합 줄과 **같은 모양**을 쓴다.
+   두 화면이 다르게 생기면 같은 규칙인 줄 모른다. 그래서 스타일도 한 벌이다. */
+.ali-entry,
+.shot-entry {
   margin-top: 8px;
   padding: 10px;
   border: 1.5px solid var(--line);
@@ -1798,18 +1801,21 @@ select:focus {
 /* 서버 줄 안의 인증샷 (v11.3) — 사진이 **그 서버의 것**임을 자리로 보여준다.
    묶음 전체에 붙이던 시절에는 3서버 건에 사진 3장이 있어도 어느 것이 어느
    서버인지 알 수 없었다. */
-.ali-row-photo {
+.ali-row-photo,
+.shot-row-photo {
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px dashed var(--line);
 }
 
-.ali-row-photo .btn {
+.ali-row-photo .btn,
+.shot-row-photo .btn {
   padding: 7px 10px;
   font-size: 12px;
 }
 
-.ali-row-photo .shots {
+.ali-row-photo .shots,
+.shot-row-photo .shots {
   margin-top: 7px;
 }
 
@@ -2343,4 +2349,22 @@ select:focus {
 .man-shots figure:only-child figcaption {
   width: 220px;
   max-width: 100%;
+}
+
+/* 서버 칩 줄과 [빼기] 버튼을 한 줄에 — 줄이 하나뿐이면 [빼기]는 아예 안 나온다
+   (마지막 한 줄까지 지우면 사진을 붙일 자리가 사라진다) */
+.shot-entry-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.shot-entry-head .svpick {
+  flex: 1;
+}
+
+.shot-entry-head .btn {
+  padding: 7px 10px;
+  font-size: 12px;
+  flex: none;
 }

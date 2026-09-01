@@ -1,8 +1,35 @@
 // ═══════════════════════════════════════════════════════════════
-//  길드 정산 시스템 v11.6  (분배비중 · 연합 · 레이드 · 용어사전 · 게시판 · 3개국어)
+//  길드 정산 시스템 v11.7  (분배비중 · 연합 · 레이드 · 용어사전 · 게시판 · 3개국어)
 //  시트 구성: [사용안내] [멤버DB] [참여자현황] [분배대기중] [잔액현황]
 //            [지급기록] [연합] [레이드] [용어] [게시판] [작업기록] + [시즌1] [시즌2] ...
 //            ← 이 순서로 항상 정렬됨
+// ═══════════════════════════════════════════════════════════════
+//  변경점 v11.6 → v11.7  (아이템 인증샷도 서버별로 · 판매금액 공개)
+//
+//   - ★ [분배대기중] 인증샷 칸이 **어느 서버의 사진인지** 함께 담는다.
+//       연합은 시트가 서버마다 한 줄이라 이게 공짜였지만, 아이템은 한 줄이라
+//       사진을 다 모아 놓으면 어느 서버 파티의 증거인지 영영 알 수 없었다.
+//       칸 안에 `01|주소` 로 적는다 — 한 줄이 사진 한 장이다.
+//
+//         01|https://drive.google.com/file/d/AAA/view
+//         01|https://drive.google.com/file/d/BBB/view
+//         03|https://drive.google.com/file/d/CCC/view
+//         https://drive.google.com/file/d/DDD/view      ← 서버를 안 고른 사진
+//
+//   - ★ 옛 두 형태를 **그대로 읽는다.** =HYPERLINK(...)(v10 이하 한 장)도,
+//       주소만 줄바꿈으로 나열한 것(v11.0~v11.6)도 '서버 미지정' 사진으로 읽힌다.
+//       읽는 길은 _shotList / _readLedgerShots 한 곳뿐이다 — 수식만 보면
+//       여러 장이 사라지고, 값만 보면 옛 한 장이 사라진다 (규칙 5-8).
+//   - ★ _photoList 는 서버 표시를 떼고 **주소만** 돌려준다. 그래서 이 칸을
+//       읽던 기존 코드(연합·이관·디스코드)는 아무것도 안 고쳐도 그대로 돈다.
+//   - ★ api_addItemPhotos — 등록한 뒤에 사진을 **더 붙인다**. 관리자 이상.
+//       잇기만 하고 지우지 않는다 (연합의 _writeAllyPhotos 와 같은 규칙).
+//       분배가 끝난 건에도 붙일 수 있다 — 증거를 더하는 일은 다이아를 안 움직인다.
+//   - ★ api_getState 가 **분배완료 목록(done)** 을 함께 내려준다.
+//       "어떤 아이템이 얼마에 팔렸는지"는 지금까지 마스터 전용 [정정] 화면에서만
+//       볼 수 있었다. 조회는 원래 누구에게나 열려 있는 것이고(잔액·참여횟수와
+//       같은 성격), 판 금액을 아무도 못 보면 분배 결과를 검증할 길이 없다.
+//
 // ═══════════════════════════════════════════════════════════════
 //  변경점 v11.5 → v11.6  (레이드일·보스·루팅서버·루팅캐릭터)
 //
@@ -625,7 +652,7 @@
 //     '누적기록'을 그대로 찾음 (하위 호환, 리네이밍과 무관)
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION = '11.6';
+const VERSION = '11.7';
 const T2S_MAP = {'國':'国','學':'学','這':'这','個':'个','們':'们','說':'说','話':'话','對':'对','時':'时','間':'间','現':'现','場':'场','開':'开','關':'关','內':'内','東':'东','車':'车','馬':'马','龍':'龙','風':'风','陽':'阳','陰':'阴','電':'电','語':'语','讀':'读','寫':'写','書':'书','紙':'纸','筆':'笔','長':'长','門':'门','問':'问','聽':'听','見':'见','覺':'觉','讓':'让','誰':'谁','還':'还','進':'进','運':'运','動':'动','靜':'静','樂':'乐','藥':'药','華':'华','蘭':'兰','葉':'叶','黃':'黄','麗':'丽','寶':'宝','貴':'贵','財':'财','買':'买','賣':'卖','錢':'钱','銀':'银','鐵':'铁','鋼':'钢','陳':'陈','劉':'刘','張':'张','楊':'杨','蔣':'蒋','鄭':'郑','謝':'谢','呂':'吕','蘇':'苏','韓':'韩','馮':'冯','於':'于','鳳':'凤','雲':'云','劍':'剑','斷':'断','亂':'乱','愛':'爱','聲':'声','醫':'医','藝':'艺','頭':'头','臉':'脸','腳':'脚','氣':'气','樓':'楼','橋':'桥','飛':'飞','機':'机','網':'网','線':'线','條':'条','裡':'里','邊':'边','錯':'错','壞':'坏','舊':'旧','寬':'宽','淺':'浅','週':'周','節':'节','業':'业','後':'后','來':'来','終':'终','結':'结','敗':'败','勝':'胜','負':'负','輸':'输','贏':'赢','強':'强','難':'难','簡':'简','單':'单','複':'复','雜':'杂','純':'纯','淨':'净','髒':'脏','齊':'齐','穩':'稳','變':'变','轉':'转','換':'换','顯':'显','樣':'样','種':'种','類':'类','團':'团','體':'体','統':'统','織':'织','組':'组','構':'构','設':'设','計':'计','劃':'划','數':'数','課':'课','題':'题','試':'试','練':'练','習':'习','師':'师','員':'员','職':'职','務':'务','責':'责','權':'权','應':'应','該':'该','須':'须','願':'愿','夢':'梦','憶':'忆','識':'识','認':'认','歡':'欢','醜':'丑','帥':'帅','靈':'灵','獸':'兽','鷹':'鹰','鶴':'鹤','鴻':'鸿','鱷':'鳄','鯨':'鲸','鯊':'鲨','蝦':'虾','殼':'壳','冑':'胄','戰':'战','爭':'争','鬥':'斗','擊':'击','禦':'御','護':'护','衛':'卫','謀':'谋','陣':'阵','營':'营','軍':'军','隊':'队','將':'将','嬪':'嫔','宮':'宫','廟':'庙','觀':'观','閣':'阁','蓮':'莲','楓':'枫','樺':'桦','檜':'桧','樹':'树','實':'实','幹':'干','莖':'茎','穫':'获','採':'采','鮮':'鲜','籠':'笼','傷':'伤','殺':'杀','斬':'斩','豬':'猪','雞':'鸡','鴨':'鸭','鵝':'鹅','龜':'龟','蟬':'蝉','蟻':'蚁','螞':'蚂','鴉':'鸦','鵰':'雕','鴛':'鸳','鴦':'鸯','賽':'赛','廠':'厂','廣':'广','麼':'么','誒':'诶','歲':'岁','歷':'历','歸':'归','殘':'残','蟲':'虫','貓':'猫','氈':'毡','貫':'贯','質':'质','貨':'货','貼':'贴','費':'费','資':'资','賬':'账','賺':'赚','贈':'赠','賀':'贺','賢':'贤','賦':'赋','賤':'贱','賓':'宾','賴':'赖','齲':'龋','齒':'齿','龄':'齡','齡':'龄','齣':'出','岡':'冈','剛':'刚','剮':'剐','創':'创','劇':'剧','勵':'励','勸':'劝','勻':'匀','匯':'汇','醬':'酱','醞':'酝','釀':'酿','釋':'释','釘':'钉','針':'针','釣':'钓','鈍':'钝','鈴':'铃','鈔':'钞','鉛':'铅','鋸':'锯','鋒':'锋','鍵':'键','鎖':'锁','鑄':'铸','鑼':'锣','錶':'表','鐘':'钟','鏡':'镜','鑽':'钻','鑑':'鉴','閉':'闭','閃':'闪','閏':'闰','閱':'阅','闆':'板','闖':'闯','陸':'陆','隱':'隐','雖':'虽','雙':'双','雛':'雏','靂':'雳','韋':'韦','韌':'韧','頁':'页','頂':'顶','項':'项','順':'顺','頌':'颂','預':'预','頑':'顽','頒':'颁','頗':'颇','領':'领','頡':'颉','頜':'颌','頸':'颈','頻':'频','頹':'颓','顆':'颗','額':'额','顏':'颜','顛':'颠','顧':'顾','飄':'飘','饑':'饥','餃':'饺','餅':'饼','館':'馆','饒':'饶','饞':'馋','馳':'驰','駕':'驾','駛':'驶','駐':'驻','駱':'骆','駭':'骇','騎':'骑','騰':'腾','驅':'驱','驚':'惊','驕':'骄','驗':'验','骯':'肮','髮':'发','鬍':'胡','鬧':'闹','鮑':'鲍','鯉':'鲤','鰲':'鳌','鱉':'鳖','鳥':'鸟','鳴':'鸣','鹹':'咸','麥':'麦','麵':'面','黨':'党'};  // 번체→간체 상용한자 (서체 변환 전용, 다른 뜻 글자는 포함하지 않음)
 const UNIT = '다이아';                 // 재화 단위 표기
 const MAX_MEMBERS = 100;              // 최대 멤버 수 (v10.5: 50 → 100)
@@ -1099,7 +1126,6 @@ function _correctCore(ss, row, newAmount, email, newParts) {
 // ─────────────────────────────────────────
 function _deleteItemCore(ss, row, email) {
   const ledger = ss.getSheetByName(LEDGER_SHEET);
-  const balance = ss.getSheetByName('잔액현황');
   if (!ledger) {
     return _rc({ ok: false, reason: 'nosheet', msg: LEDGER_SHEET + ' 시트를 찾을 수 없습니다.' },
       'e.noSheet', { sheet: LEDGER_SHEET });
@@ -1108,40 +1134,27 @@ function _deleteItemCore(ss, row, email) {
   const info = _readLedgerRow(ledger, Number(row));
   if (!info) return _rc({ ok: false, reason: 'norow', msg: '아이템을 찾을 수 없습니다. 새로고침 후 다시 시도해주세요.' }, 'e.noItem');
 
+  /*
+   * ★ 이미 분배된 건은 **지우지 않는다** (v11.7).
+   *
+   * 잔액은 되돌릴 수 있어도 "그때 누가 얼마를 받았다" 는 사실은 되돌릴 수 없다.
+   * 행을 지우면 그 사실이 통째로 사라진다 — "기록은 지워지지 않는다" 는 이
+   * 시스템의 기본 약속이다 (규칙 5-2 가 탈퇴에 대해 말하는 것과 같은 이유).
+   * 잘못 나눈 것은 [수정]으로 고친다: 분배 시점 스냅샷으로 회수한 뒤 새 명단·
+   * 새 금액으로 다시 나누므로, 결과는 같으면서 기록은 남는다 (규칙 2-1).
+   *
+   * ★ 판정은 **여기서** 한다. 화면에서 버튼만 감추면 라우트를 직접 부르는 길이
+   *   그대로 열려 있다 (규칙 5-3).
+   */
   if (info.status === ST_DONE) {
-    if (!balance) {
-      return _rc({ ok: false, reason: 'nosheet', msg: '잔액현황 시트가 없어 안전하게 삭제할 수 없습니다.' },
-        'e.noSheet', { sheet: '잔액현황' });
-    }
-
-    const chk = _reverseCheck(ss, balance, _reversalPlan(ss, info).plan);
-    if (chk.insufficient.length > 0) {
-      return _rc({
-        ok: false, reason: 'insufficient', insufficient: chk.insufficient,
-        msg: '삭제할 수 없습니다. 아래 대상이 이미 지급✓ 처리되어 분배전 잔액이 부족합니다:\n\n' +
-             chk.insufficient.join('\n')
-      }, 'del.insufficient', { list: chk.insufficient.join('\n') });
-    }
-    const rev = _reverseAmounts(balance, chk);
-    if (rev.failed.length > 0) {
-      return _rc({
-        ok: false, reason: 'partial', reversed: rev.reversed, failed: rev.failed,
-        msg: '금액 되돌리기가 일부만 반영되어 삭제를 중단했습니다.\n\n' +
-             '반영됨(' + rev.reversed.length + '): ' + rev.reversed.join(', ') + '\n' +
-             '실패(' + rev.failed.length + '): ' + rev.failed.join(', ') + '\n\n' +
-             '행은 삭제하지 않았습니다.'
-      }, 'del.partial', {
-        okN: rev.reversed.length, okList: rev.reversed.join(', '),
-        failN: rev.failed.length, failList: rev.failed.join(', ')
-      });
-    }
+    return _rc({
+      ok: false, reason: 'done',
+      msg: '이미 분배된 "' + info.item + '" 은(는) 삭제할 수 없습니다. [수정]으로 고쳐주세요.'
+    }, 'e.doneNoDelete', { item: info.item });
   }
-
   // 행이 사라지기 전에 반드시 로그를 남긴다
   const actor = _getActorEmail(email);
-  const detail = (info.status === ST_DONE
-    ? info.amount.toLocaleString() + UNIT + ' 분배분을 되돌린 뒤 삭제'
-    : '미분배 상태에서 삭제') + ' (참여 ' + info.n + '명)';
+  const detail = '미분배 상태에서 삭제 (참여 ' + info.n + '명)';
   _logAction(ss, '삭제', info.item, actor, detail);
 
   ledger.deleteRow(Number(row));
@@ -1668,7 +1681,11 @@ function deleteLedgerItem() {
 
   const info = _readLedgerRow(ss.getSheetByName(LEDGER_SHEET), target);
   let msg = '📦 ' + info.item + ' (행 ' + target + ', ' + info.status + ')\n참여자 ' + info.n + '명\n';
-  if (info.status === ST_DONE) msg += '판매금액 ' + info.amount.toLocaleString() + UNIT + ' 를 먼저 되돌립니다.\n';
+  // 분배가 끝난 건은 아예 지울 수 없다 (v11.7) — 고칠 것은 [수정]이 담당한다
+  if (info.status === ST_DONE) {
+    ui.alert('⚠️ 이미 분배된 항목은 삭제할 수 없습니다.\n앱의 [수정]에서 참여자·판매금액을 고쳐주세요.');
+    return;
+  }
   msg += '\n⚠️ 완전히 삭제합니다(되돌릴 수 없음). 계속할까요?';
   if (ui.alert('🗑️ 삭제 확인', msg, ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
 
@@ -2874,8 +2891,13 @@ function _rebuildGuide(ss) {
     ['📷 인증샷 첨부 시 참여자 자동 감지 (아이템 등록)', 'sec'],
     ['① 아이템 등록 화면에서 "사진 선택/촬영"으로 인증샷 첨부', 'b'],
     ['  ⭐ v11.0 부터 한 아이템에 여러 장을 한꺼번에 고를 수 있습니다', 'b'],
+    ['  ⭐ v11.7 부터 연합처럼 **서버 줄마다** 붙입니다 — 01서버 파티 사진은', 'b'],
+    ['     01서버 줄에. 서버를 안 고르면 그냥 미지정으로 들어갑니다', 'b'],
     ['② 자동으로 드라이브에 저장 + 링크 자동 입력', 'b'],
-    ['  (두 장 이상이면 인증샷 칸에 링크가 줄바꿈으로 나열됩니다)', 'b'],
+    ['  (두 장 이상이면 인증샷 칸에 링크가 줄바꿈으로 나열됩니다.', 'b'],
+    ['   서버를 고른 사진은 01|주소 처럼 서버 번호가 앞에 붙습니다)', 'b'],
+    ['④ 등록한 뒤에도 아이템명을 눌러 [인증샷 추가]로 더 붙일 수 있습니다', 'b'],
+    ['  (관리자 이상 · 더하기만 되고 지워지지 않습니다. 분배가 끝난 건도 됩니다)', 'b'],
     ['③ 사진 속 글자를 인식해 일치하는 멤버를 자동 체크', 'b'],
     ['  (여러 장이면 장마다 찾은 사람이 계속 더해집니다)', 'b'],
     ['※ 인식률이 완벽하지 않을 수 있어 항상 "제안"으로만 작동합니다', 'warn'],
@@ -3260,16 +3282,62 @@ function _readLedgerPhotos(formula, display) {
   return _photoList(display);
 }
 
+/**
+ * 인증샷 칸 읽기 — **어느 서버의 사진인지까지** (v11.7).
+ *
+ * 옛 수식 한 장(v10 이하)과 주소만 나열한 것(v11.0~v11.6)은 전부
+ * '서버 미지정' 으로 읽힌다. 우리가 서버를 짐작해 채우지 않는다 (규칙 7).
+ */
+function _readLedgerShots(formula, display) {
+  const out = [];
+  const re = /HYPERLINK\("([^"]+)"/g;
+  let m;
+  while ((m = re.exec(String(formula || '')))) out.push({ sv: '', url: m[1] });
+  if (out.length > 0) return out;
+  return _shotList(display);
+}
+
+/**
+ * 인증샷 칸 쓰기 — 서버 표시까지, 그리고 **잇기만** 한다 (v11.7).
+ *
+ * ★ 연합의 _writeAllyPhotos 와 같은 규칙이다. 덮어쓰면 먼저 붙인 사진이 사라지고,
+ *   사진은 "그때 거기 있었다"는 유일한 증거라 되돌릴 방법이 없다.
+ * ★ 아무도 서버를 안 고른 한 장이면 예전처럼 =HYPERLINK 로 둔다 —
+ *   시트에서 바로 눌러 볼 수 있고, v11.6 이하와 글자 하나까지 같은 모양이다.
+ */
+function _writeLedgerShots(ledger, r, shots) {
+  const cell = ledger.getRange(r, LG.PHOTO);
+  const merged = _readLedgerShots(cell.getFormula(), cell.getDisplayValue());
+  const seen = {};
+  merged.forEach(function (x) { seen[x.url] = true; });
+  (shots || []).forEach(function (x) {
+    const url = String((x && x.url) || '').trim();
+    if (!url || seen[url]) return;
+    seen[url] = true;
+    merged.push({ sv: _normServer(x && x.sv), url: url });
+  });
+  if (merged.length === 0) return [];
+  const urls = merged.map(function (x) { return x.url; });
+  const tagged = merged.some(function (x) { return x.sv; });
+  if (!tagged) return _writeLedgerPhotos(ledger, r, urls);
+  cell.setValue(_shotCell(merged));
+  return urls;
+}
+
 // 등록 코어 (메뉴 + 웹앱 공용, UI 없음)
-function _registerCore(ss, itemName, participants, photoLink, clientEmail, meta) {
+function _registerCore(ss, itemName, participants, photoLink, clientEmail, meta, shots) {
   const ledger = ss.getSheetByName(LEDGER_SHEET);
   if (!ledger) throw new Error(LEDGER_SHEET + ' 시트를 찾을 수 없습니다.');
   const actor = _getActorEmail(clientEmail);
   const r = ledger.getLastRow() + 1;
   ledger.getRange(r, LG.DATE, 1, 5).setValues([[new Date(), itemName, ST_WAIT, participants.length, participants.join(', ')]]);
   ledger.getRange(r, LG.DATE).setNumberFormat('yyyy-mm-dd hh:mm');
-  // photoLink 는 문자열 한 개일 수도, 배열일 수도 있다 (v11.0 부터 여러 장)
-  const photos = _writeLedgerPhotos(ledger, r, Array.isArray(photoLink) ? photoLink : [photoLink]);
+  // photoLink 는 문자열 한 개일 수도, 배열일 수도 있다 (v11.0 부터 여러 장).
+  // v11.7 부터는 서버 표시가 붙은 shots 가 오면 그쪽을 쓴다 — 어느 서버 파티의
+  // 증거인지는 사람이 고른 값이고, 우리가 짐작해서 붙이지 않는다 (규칙 7).
+  const photos = (shots && shots.length)
+    ? _writeLedgerShots(ledger, r, shots)
+    : _writeLedgerPhotos(ledger, r, Array.isArray(photoLink) ? photoLink : [photoLink]);
   ledger.getRange(r, LG.CHECK).insertCheckboxes();
   ledger.getRange(r, LG.AMOUNT).setBackground('#FFF9C4').setNumberFormat('#,##0').setHorizontalAlignment('right');
   ledger.getRange(r, LG.STATUS).setHorizontalAlignment('center');
@@ -5238,10 +5306,87 @@ function _photoCell(links) {
   return (links || []).map(function (u) { return String(u || '').trim(); })
     .filter(function (u) { return u; }).join('\n');
 }
+/**
+ * 인증샷 칸 → **주소만** (서버 표시는 떼어낸다).
+ *
+ * v11.7 부터 아이템 인증샷 칸에는 `01|주소` 처럼 어느 서버의 사진인지가 함께 적힌다.
+ * 이 함수는 그 표시를 떼고 주소만 돌려주므로, 이 칸을 읽던 기존 코드(연합·이관·
+ * 디스코드 알림·앱의 photos)는 **아무것도 안 고쳐도 그대로 돈다.**
+ * 어느 서버인지까지 알아야 하는 곳은 _shotList 를 쓴다.
+ */
 function _photoList(cell) {
-  return String(cell || '').split(/[\n,\s]+/)
-    .map(function (u) { return u.trim(); })
-    .filter(function (u) { return /^https?:\/\//.test(u); });
+  return _shotList(cell).map(function (s) { return s.url; });
+}
+
+/**
+ * 인증샷 칸 → [{sv, url}] (v11.7).
+ *
+ * 한 줄이 사진 한 장이다. `01|주소` 면 그 서버의 사진이고, 주소만 있으면
+ * '서버 미지정'(sv = '')이다 — v11.6 이하가 저장한 모양이 그대로 이쪽에 들어온다.
+ *
+ * ★ 서버를 못 알아보면 **지어내지 않고** 미지정으로 둔다 (규칙 7).
+ *   틀린 서버가 박히면 "저 파티는 안 왔는데 사진이 있다" 가 되어 더 나쁘다.
+ */
+function _shotList(cell) {
+  const out = [];
+  String(cell || '').split(/[\n,]+/).forEach(function (raw) {
+    const line = String(raw || '').trim();
+    if (!line) return;
+    const m = line.match(/^(\d{1,2})\s*\|\s*(\S+)$/);
+    if (m) {
+      const sv = _normServer(m[1]);
+      if (/^https?:\/\//.test(m[2])) {
+        out.push({ sv: SERVER_LIST.indexOf(sv) >= 0 ? sv : '', url: m[2] });
+      }
+      return;
+    }
+    // 서버 표시가 없는 줄 — 사람이 손으로 넣은 칸에는 공백으로 여러 개가 붙어 있을 수 있다
+    line.split(/\s+/).forEach(function (u) {
+      if (/^https?:\/\//.test(u)) out.push({ sv: '', url: u });
+    });
+  });
+  return out;
+}
+
+/** [{sv,url}] → 인증샷 칸 문자열. 서버가 없으면 옛 모양(주소만) 그대로다 */
+function _shotCell(shots) {
+  return (shots || []).map(function (s) {
+    const url = String((s && s.url) || '').trim();
+    if (!url) return '';
+    const sv = _normServer(s && s.sv);
+    return SERVER_LIST.indexOf(sv) >= 0 ? sv + '|' + url : url;
+  }).filter(function (v) { return v; }).join('\n');
+}
+
+/**
+ * 앱이 보낸 서버별 사진 묶음 → [{sv,url}] (v11.7).
+ *
+ * 연합의 _allyEntries 와 같은 자리에 있는 함수다. 다른 점은 인원수가 없다는 것뿐 —
+ * 아이템 참여자는 멤버DB에 있으므로 사진에서 셀 이유가 없다.
+ * 서버 칸이 비면 '미지정' 이다. 아직 서버를 나눠 쓰지 않는 길드가 있고,
+ * 손으로 붙여넣은 주소에는 서버가 없다 — 그걸 막으면 등록 자체가 막힌다.
+ */
+function _itemShots(entries) {
+  const out = [];
+  (entries || []).forEach(function (e) {
+    const sv = _normServer(e && e.server);
+    _photoList(_photoCell(e && e.photos)).forEach(function (url) {
+      out.push({ sv: sv, url: url });
+    });
+  });
+  return out;
+}
+
+/** 서버 칸이 01~12 이거나 비어 있는지 — 잘못됐으면 결과 객체를, 괜찮으면 null 을 돌려준다 */
+function _itemShotsCheck(entries) {
+  const list = entries || [];
+  for (let i = 0; i < list.length; i++) {
+    const sv = _normServer(list[i] && list[i].server);
+    if (sv && SERVER_LIST.indexOf(sv) < 0) {
+      return _rc({ ok: false, msg: '서버를 01~12 중에서 선택해주세요.' }, 'e.badServer');
+    }
+  }
+  return null;
 }
 
 /**
@@ -5578,6 +5723,60 @@ function api_creditAlliance(group, amount, email) {
  * 아이템 쪽 같은 기능 (v11.6) — 줄 번호로 찾는다.
  * 연합과 마찬가지로 새 4칸 말고는 아무것도 만지지 않는다.
  */
+/**
+ * 📷 아이템 인증샷 더 붙이기 (v11.7) — **관리자 이상**.
+ *
+ * 레이드 직후에는 사진을 다 못 모은다. 다른 서버 파티가 나중에 보내주는 일이
+ * 흔하고, 그때마다 등록을 지웠다 다시 하면 참여횟수가 통째로 흔들린다 (규칙 3).
+ *
+ * ★ **잇기만** 한다. 지우는 길은 두지 않는다 — 사진은 "그때 거기 있었다" 는
+ *   유일한 증거이고, 지우면 되돌릴 방법이 없다 (연합의 _writeAllyPhotos 와 같은 규칙).
+ * ★ 분배가 끝난 건에도 붙는다. 증거를 더하는 일은 다이아를 움직이지 않으므로
+ *   마스터를 부를 이유가 없다 — 권한은 "누구인가" 가 아니라 "무엇을 만질 수
+ *   있는가" 로 가른다 (api_setItemMeta 와 같은 자리).
+ */
+function api_addItemPhotos(row, entries, email) {
+  row = Number(row) || 0;
+  if (row < 2) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+  // 서버 값 판정은 시트가 한다 — 라우트를 직접 부르는 길이 있다 (규칙 5-3)
+  const badSv = _itemShotsCheck(entries);
+  if (badSv) return badSv;
+  const shots = _itemShots(entries);
+  if (shots.length === 0) {
+    return _rc({ ok: false, msg: '추가할 인증샷이 없습니다.' }, 'e.noShots');
+  }
+
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(15000); } catch (e) { return _rc({ ok: false, msg: '다른 작업이 진행 중입니다. 잠시 후 다시 시도해주세요.' }, 'e.busy'); }
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ledger = ss.getSheetByName(LEDGER_SHEET);
+    if (!ledger || row > ledger.getLastRow()) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+    const item = String(ledger.getRange(row, LG.ITEM).getValue()).trim();
+    if (!item) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+
+    const before = _readLedgerShots(
+      ledger.getRange(row, LG.PHOTO).getFormula(),
+      ledger.getRange(row, LG.PHOTO).getDisplayValue(),
+    ).length;
+    const all = _writeLedgerShots(ledger, row, shots);
+    const added = all.length - before;
+    const where = shots.map(function (x) {
+      return x.sv ? x.sv + '서버' : '서버 미지정';
+    }).filter(function (v, i, a) { return a.indexOf(v) === i; }).join(' · ');
+
+    _logAction(ss, '인증샷추가', item, _getActorEmail(email), where + ' · ' + added + '장 추가');
+    return _rc({ ok: true, added: added, total: all.length,
+      msg: added > 0
+        ? '✅ "' + item + '" 에 인증샷 ' + added + '장을 더했습니다. (모두 ' + all.length + '장)'
+        : '이미 붙어 있는 사진입니다. (모두 ' + all.length + '장)' },
+      added > 0 ? 'shot.added' : 'shot.dup', { item: item, n: added, total: all.length });
+  } catch (e) {
+    return { ok: false, msg: '오류: ' + e.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
 function api_setItemMeta(row, meta, email) {
   row = Number(row) || 0;
   if (row < 2) return _rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
@@ -6950,7 +7149,7 @@ const API_WRITE_ACTIONS = ['register', 'distribute', 'payout', 'rename', 'addMem
                            'correctItem', 'deleteItem', 'editItem', 'undoPayout', 'runTool',
                            'deletePost', 'addAlliance', 'creditAlliance', 'editAlliance', 'addAllianceServers', 'deleteAlliance', 'updateMember',
                            'saveTerm', 'deleteTerm', 'bulkTerms',
-                           'setAllianceMeta', 'setItemMeta',
+                           'setAllianceMeta', 'setItemMeta', 'addItemPhotos',
                            'bulkAddMembers',
                            'addRaid', 'updateRaid', 'deleteRaid',
                            'setAppName', 'setAdminPin', 'setSeasonServer'];
@@ -7103,7 +7302,7 @@ function _apiRoute(action, req) {
       return api_lookupBalance(req.name);
 
     case 'register':
-      return api_register(req.itemName, req.participants, req.photoLink, req.email, req.photoLinks, req.meta);
+      return api_register(req.itemName, req.participants, req.photoLink, req.email, req.photoLinks, req.meta, req.photoEntries);
 
     case 'distribute':
       return api_distribute(req.row, req.amount, req.email);
@@ -7234,6 +7433,10 @@ function _apiRoute(action, req) {
     case 'setItemMeta':
       return api_setItemMeta(req.row, req.meta, req.email);
 
+    // 인증샷 더 붙이기 (v11.7) — 잇기만 한다. 다이아를 못 만지므로 관리자에게 연다
+    case 'addItemPhotos':
+      return api_addItemPhotos(req.row, req.entries, req.email);
+
     case 'addRaid':
       return api_addRaid(req.day, req.time, req.boss, req.note, req.email);
 
@@ -7363,34 +7566,67 @@ function api_getState() {
       });
     });
   }
-  // 미분배 아이템 목록
+  /*
+   * 아이템 목록 — 미분배(items)와 **분배완료(done)** 를 한 번에 읽는다 (v11.7).
+   *
+   * done 이 여기 있는 이유: "어떤 아이템이 얼마에 팔렸는지" 는 지금까지
+   * 마스터 전용 [정정] 화면에서만 볼 수 있었다. 조회는 원래 누구에게나 열려
+   * 있는 것이고(잔액·참여횟수와 같은 성격), 판 금액을 아무도 못 보면 분배 결과를
+   * 검증할 길이 없다.
+   *
+   * ★ 쓰기 응답에 실려 나가는 상태(_withState)에 함께 담기므로, 분배 직후
+   *   화면이 왕복 없이 그대로 갱신된다 (규칙 6-3).
+   */
   const ledger = ss.getSheetByName(LEDGER_SHEET);
   const items = [];
+  const done = [];
   if (ledger && ledger.getLastRow() > 1) {
     const n = ledger.getLastRow() - 1;
-    const vals = ledger.getRange(2, 1, n, LG.PHOTO).getValues();
+    const w = Math.min(LEDGER_HEADERS.length, ledger.getLastColumn());
+    const vals = ledger.getRange(2, 1, n, w).getValues();
     const pf = ledger.getRange(2, LG.PHOTO, n, 1).getFormulas();
     const pd = ledger.getRange(2, LG.PHOTO, n, 1).getDisplayValues();
+    // 옛 시트는 열이 모자랄 수 있다 — 없는 칸은 빈 값으로 읽는다 (터지면 화면이 통째로 안 열린다)
+    const at = (r, col) => (col <= r.length ? r[col - 1] : '');
+    const num = (v) => Number(String(v).replace(/,/g, '')) || 0;
+    const mmdd = (v) => (v ? Utilities.formatDate(new Date(v), Session.getScriptTimeZone(), 'MM/dd') : '');
     vals.forEach((r, i) => {
-      if (String(r[LG.STATUS - 1]).trim() === ST_WAIT) {
-        items.push({
-          row: i + 2,
-          item: String(r[LG.ITEM - 1]),
-          date: Utilities.formatDate(new Date(r[LG.DATE - 1]), Session.getScriptTimeZone(), 'MM/dd'),
-          cnt: Number(r[LG.CNT - 1]) || 0,
-          // 앱이 분배 미리보기에서 참여자별 비중을 적용하려면 명단이 필요하다
-          names: String(r[LG.NAMES - 1]).split(',').map(function (s) { return s.trim(); }).filter(Boolean),
-          photos: _readLedgerPhotos(pf[i][0], pd[i][0])
-        });
-      }
+      const status = String(r[LG.STATUS - 1]).trim();
+      const base = {
+        row: i + 2,
+        item: String(r[LG.ITEM - 1]),
+        date: mmdd(r[LG.DATE - 1]),
+        cnt: Number(r[LG.CNT - 1]) || 0,
+        // 앱이 분배 미리보기에서 참여자별 비중을 적용하려면 명단이 필요하다
+        names: String(r[LG.NAMES - 1]).split(',').map(function (s) { return s.trim(); }).filter(Boolean),
+        photos: _readLedgerPhotos(pf[i][0], pd[i][0]),
+        // 어느 서버 파티의 사진인지 (v11.7). 옛 기록은 전부 미지정으로 온다
+        shots: _readLedgerShots(pf[i][0], pd[i][0]),
+        raid: String(at(r, LG.RAID)).trim(),
+        boss: String(at(r, LG.BOSS)).trim(),
+        lootSv: _normServer(at(r, LG.LOOTSV)),
+        lootCh: String(at(r, LG.LOOTCH)).trim()
+      };
+      if (status === ST_WAIT) { items.push(base); return; }
+      if (status !== ST_DONE) return;
+      base.amount = num(at(r, LG.AMOUNT));
+      base.fund = num(at(r, LG.FUND));
+      base.per = num(at(r, LG.PER));
+      // 판매(=분배)한 날. 옛 기록에 비어 있으면 등록일을 대신 쓰지 않는다 —
+      // 빈 것은 빈 채로 보여준다 (규칙 7)
+      base.soldAt = mmdd(at(r, LG.DIST));
+      done.push(base);
     });
   }
+  // 최근 것이 위로 — 방금 판 아이템을 맨 위에서 보게 된다
+  done.reverse();
   const season = _currentSeason(ss);
   const props = PropertiesService.getDocumentProperties();
   const memberRows = _getMemberRows(ss);
   return {
     rows: rows,
     items: items,
+    done: done,
     members: memberRows.map(function (m) { return m.name; }),
     memberInfo: memberRows.map(function (m) {
       return { name: m.name, weight: m.weight, server: m.server, hanja: m.hanja, cls: m.cls };
@@ -7410,15 +7646,34 @@ function api_getState() {
   };
 }
 
-// 아이템 등록 API — photoLinks(여러 장) 를 우선 쓰고, 없으면 옛 photoLink(한 장)
-function api_register(itemName, participants, photoLink, email, photoLinks, meta) {
+/**
+ * 아이템 등록 API.
+ *
+ * 사진은 세 가지로 들어올 수 있고 **전부 살린다** (앱 버전이 뒤섞여도 사진을 잃지 않는다):
+ *   photoEntries — 서버별 묶음 [{server, photos:[]}] (v11.7 앱)
+ *   photoLinks   — 주소만 여러 장 (v11.0~v11.6 앱)
+ *   photoLink    — 주소 한 개 (v10 이하 · 손으로 붙여넣은 링크)
+ * 서버 표시가 없는 것은 미지정으로 들어간다. 같은 주소는 한 번만 저장된다.
+ */
+function api_register(itemName, participants, photoLink, email, photoLinks, meta, photoEntries) {
   itemName = String(itemName || '').trim();
   participants = (participants || []).map(p => String(p).trim()).filter(p => p && p !== FUND_NAME);
   if (!itemName) return _rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
   if (participants.length === 0) return _rc({ ok: false, msg: '참여 멤버를 선택해주세요.' }, 'e.noParticipants');
+  // 서버 값 판정은 **시트가** 한다 — 라우트를 직접 부르는 길이 있다 (규칙 5-3)
+  const badSv = _itemShotsCheck(photoEntries);
+  if (badSv) return badSv;
   try {
     const pics = (photoLinks && photoLinks.length) ? photoLinks : [String(photoLink || '').trim()];
-    _registerCore(SpreadsheetApp.getActiveSpreadsheet(), itemName, participants, pics, email, meta);
+    const shots = _itemShots(photoEntries);
+    const seen = {};
+    shots.forEach(function (x) { seen[x.url] = true; });
+    _photoList(_photoCell(pics)).forEach(function (u) {
+      if (seen[u]) return;
+      seen[u] = true;
+      shots.push({ sv: '', url: u });
+    });
+    _registerCore(SpreadsheetApp.getActiveSpreadsheet(), itemName, participants, pics, email, meta, shots);
     return _rc({ ok: true, msg: '✅ "' + itemName + '" 등록 완료 (' + participants.length + '명, ' + ST_WAIT + ')' },
                'reg.ok', { item: itemName, n: participants.length });
   } catch (e) {

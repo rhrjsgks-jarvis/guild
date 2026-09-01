@@ -692,8 +692,15 @@ await t('되돌리기는 분배 시점 금액을 그대로 쓴다 (비중을 바
   eq((await upd.json()).ok, true, '비중 변경 ok');
 
   const before = (await (await fetch(`${APP}/api/state`)).json()).data;
-  const del2 = await post('/api/admin/items', { op: 'delete', row: 2, confirm: true }, { Cookie: masterCookie });
-  eq((await del2.json()).ok, true, '삭제 ok');
+  // ★ v11.7 — 분배완료 건은 지울 수 없다. 같은 회수를 하는 [정정 · 되돌리기]로 확인한다
+  const gone = await post('/api/admin/items', { op: 'delete', row: 2, confirm: true }, { Cookie: masterCookie });
+  eq((await gone.json()).ok, false, '분배완료 건은 삭제되지 않는다');
+  const del2 = await post(
+    '/api/admin/items',
+    { op: 'correct', row: 2, newAmount: '', confirm: true },
+    { Cookie: masterCookie },
+  );
+  eq((await del2.json()).ok, true, '되돌리기 ok');
 
   const after = (await (await fetch(`${APP}/api/state`)).json()).data;
   const diff = (n) =>
@@ -2183,7 +2190,7 @@ await t('연합 등록: 사진이 읽은 인원이 손으로 넣은 값을 덮�
   eq(g.photos.length, 3, '저장된 사진 장수');
 });
 
-await t('분배완료 아이템도 마스터가 고친다 — 참여자·금액 (v11.1)', async () => {
+await t('분배완료 아이템은 관리자가 고친다 — 참여자·금액, 삭제는 없다 (v11.7)', async () => {
   await reset();
   const bal = async (name) => {
     const st = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
@@ -2201,19 +2208,28 @@ await t('분배완료 아이템도 마스터가 고친다 — 참여자·금액 
   eq(await bal('가이'), before['가이'] + 13500, '분배 뒤 가이');
   eq(await bal('혈맹운영비'), before['혈비'] + 3000, '분배 뒤 혈비');
 
-  // ① 관리자에게는 막힌다
-  const asAdmin = await post(
-    '/api/master/item',
+  // ① 로그인하지 않으면 막힌다 (관리자에게는 열려 있다 — v11.7)
+  const anon = await post(
+    '/api/admin/item',
     { row, itemName: '정정 대상', participants: ['가이'], amount: 30000, confirm: true },
-    { Cookie: cookie },
   );
-  eq(asAdmin.status, 401, '관리자에게는 막힌다');
+  eq(anon.status, 401, '비로그인은 막힌다');
+
+  // ★ 분배가 끝난 건은 **삭제가 아예 없다** (v11.7). 마스터가 눌러도 시트가 거부한다 —
+   //  잔액은 되돌려도 "그때 누가 얼마를 받았다" 는 사실은 되돌릴 수 없다
+  const del = await post(
+    '/api/admin/items',
+    { op: 'delete', row, confirm: true },
+    { Cookie: masterCookie },
+  );
+  eq((await del.json()).ok, false, '분배완료 건은 삭제되지 않는다');
+  eq(await bal('가이'), before['가이'] + 13500, '거부된 삭제는 잔액을 건드리지 않는다');
 
   // ② 확인 없이는 실행되지 않는다 — 바뀔 숫자를 먼저 돌려준다 (규칙 5-1)
   const ask = await post(
-    '/api/master/item',
+    '/api/admin/item',
     { row, itemName: '정정 대상', participants: ['가이', 'TC무식', '팩맨'], amount: 60000 },
-    { Cookie: masterCookie },
+    { Cookie: cookie },
   );
   const askBody = await ask.json();
   eq(askBody.ok, false, '확인 없이는 실행 안 됨');
@@ -2222,11 +2238,11 @@ await t('분배완료 아이템도 마스터가 고친다 — 참여자·금액 
   eq(askBody.after.amount, 60000, '바뀔 금액');
   eq(await bal('가이'), before['가이'] + 13500, '되물은 단계에서는 아무것도 안 바뀐다');
 
-  // ③ 확인하면 실행된다 — 6만을 셋이서 (혈비 6,000 · 각 18,000)
+  // ③ 확인하면 실행된다 — 6만을 셋이서 (혈비 6,000 · 각 18,000). 관리자가 한다 (v11.7)
   const ok = await post(
-    '/api/master/item',
+    '/api/admin/item',
     { row, itemName: '정정 대상', participants: ['가이', 'TC무식', '팩맨'], amount: 60000, confirm: true },
-    { Cookie: masterCookie },
+    { Cookie: cookie },
   );
   eq((await ok.json()).ok, true, '정정 실행');
 
@@ -2320,6 +2336,103 @@ await t('연합 정정: 마스터만, 혈비는 차액만 움직인다 (v11.1)',
   eq(rec.fund + rec.credited, 200000, '혈비 + 서버 몫 = 판매금액');
 });
 
+await t('아이템 인증샷도 서버 줄마다 붙고, 나중에 더할 수 있다 (v11.7)', async () => {
+  await reset();
+  const A = 'https://drive.google.com/file/d/MOCKITEMA001/view';
+  const B = 'https://drive.google.com/file/d/MOCKITEMB001/view';
+  const C = 'https://drive.google.com/file/d/MOCKITEMC001/view';
+
+  // 등록하면서 **줄마다 다른 서버**의 사진을 붙인다
+  const reg = await post(
+    '/api/admin/register',
+    {
+      itemName: '서버별 인증샷',
+      participants: ['가이', 'PlusS'],
+      photoEntries: [
+        { server: '01', photos: [A] },
+        { server: '03', photos: [B] },
+      ],
+    },
+    { Cookie: cookie },
+  );
+  eq((await reg.json()).ok, true, '등록');
+
+  const st = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
+  const it = st.items.find((x) => x.item === '서버별 인증샷');
+  if (!it) throw new Error('등록한 아이템을 찾을 수 없습니다.');
+  const svOf = (url) => (it.shots.find((x) => x.url === url) ?? {}).sv;
+  eq(svOf(A), '01', '01서버 사진');
+  eq(svOf(B), '03', '03서버 사진');
+  eq(it.photos.length, 2, '평평한 목록도 그대로 (옛 코드가 이걸 읽는다)');
+
+  // 나중에 도착한 사진을 **더한다** — 등록을 지웠다 다시 하지 않아도 된다
+  const more = await post(
+    '/api/admin/item-photos',
+    { row: it.row, entries: [{ server: '03', photos: [C] }] },
+    { Cookie: cookie },
+  );
+  eq((await more.json()).ok, true, '인증샷 추가');
+
+  const st2 = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
+  const it2 = st2.items.find((x) => x.row === it.row);
+  eq(it2.shots.length, 3, '더한 뒤 장수');
+  // ★ 먼저 붙인 사진이 사라지면 안 된다 (잇기만 한다)
+  if (!it2.photos.includes(A)) throw new Error('먼저 붙인 사진이 사라졌습니다.');
+  eq(it2.shots.filter((x) => x.sv === '03').length, 2, '03서버 사진 두 장');
+
+  // 같은 주소를 또 보내도 두 번 저장되지 않는다
+  const dup = await post(
+    '/api/admin/item-photos',
+    { row: it.row, entries: [{ server: '03', photos: [C] }] },
+    { Cookie: cookie },
+  );
+  eq((await dup.json()).ok, true, '중복은 실패가 아니다');
+  const st3 = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
+  eq(st3.items.find((x) => x.row === it.row).shots.length, 3, '중복은 안 쌓인다');
+
+  // 서버 값 판정은 시트가 한다 — 앱이 아무 값이나 보내도 막힌다
+  const bad = await post(
+    '/api/admin/item-photos',
+    { row: it.row, entries: [{ server: '99', photos: [A] }] },
+    { Cookie: cookie },
+  );
+  eq((await bad.json()).ok, false, '없는 서버는 거부');
+
+  // 로그인하지 않으면 붙일 수 없다
+  eq((await post('/api/admin/item-photos', { row: it.row, entries: [{ server: '01', photos: [A] }] })).status,
+    401, '비로그인은 막힌다');
+});
+
+await t('분배하면 얼마에 팔렸는지 누구나 본다 (v11.7)', async () => {
+  await reset();
+  const reg = await post(
+    '/api/admin/register',
+    { itemName: '팔린 아이템', participants: ['가이', 'TC무식'] },
+    { Cookie: cookie },
+  );
+  eq((await reg.json()).ok, true, '등록');
+  const st = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
+  const row = st.items.find((x) => x.item === '팔린 아이템').row;
+
+  eq((await post('/api/admin/distribute', { row, amount: 10000 }, { Cookie: cookie })).status, 200, '분배');
+
+  // ★ 로그인하지 않은 사람에게도 보인다 — 조회는 원래 열려 있다
+  const open = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
+  const sold = (open.done ?? []).find((x) => x.item === '팔린 아이템');
+  if (!sold) throw new Error('분배완료 목록에 없습니다.');
+  eq(sold.amount, 10000, '판매금액');
+  eq(sold.fund, 1000, '혈맹운영비 몫');
+  eq(sold.per, 4500, '1인당 (비중 100% 기준)');
+  // 보존 불변식 — 혈비 + 나눠준 몫 = 판매금액 (규칙 1)
+  eq(sold.fund + sold.per * 2, sold.amount, '혈비 + 각자 몫 = 판매금액');
+
+  // 화면에도 그 숫자가 있어야 한다 (로그아웃 상태로 본다)
+  await page.reload({ waitUntil: 'networkidle' });
+  await go(page, 'items');
+  await page.waitForTimeout(700);
+  const text = await page.locator('.page').innerText();
+  if (!text.includes('10,000')) throw new Error('화면에 판매금액이 없습니다: ' + text.slice(0, 200));
+});
 await t('연합 인증샷이 서버 줄마다 따로 붙는다 (v11.3)', async () => {
   await reset();
   const A = 'https://drive.google.com/file/d/MOCKALLYA0001/view';
@@ -2490,7 +2603,7 @@ await t('연합: 아이템명을 누르면 서버별 참여 인원이 펼쳐진�
   await page.waitForTimeout(300);
 });
 
-await t('아이템 수정은 마스터만 — 분배 후에는 확인을 거친다 (v11.1)', async () => {
+await t('아이템 수정은 관리자 이상 — 분배 후에는 확인을 거친다 (v11.7)', async () => {
   await reset();
 
   // 등록해두고 그 행을 고친다
@@ -2503,22 +2616,18 @@ await t('아이템 수정은 마스터만 — 분배 후에는 확인을 거친�
   const st = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
   const row = st.items.find((i) => i.item === '수정 대상').row;
 
-  // ① 관리자 PIN 으로는 막혀야 한다
+  // ① 로그인하지 않으면 막혀야 한다
+  const anon = await post('/api/admin/item', { row, itemName: '바뀐 이름', participants: ['가이'] });
+  eq(anon.status, 401, '비로그인은 막힌다');
+
+  // ② 관리자가 고칠 수 있다 (v11.7). 참여자를 한 명으로 줄인다
   const asAdmin = await post(
-    '/api/master/item',
+    '/api/admin/item',
     { row, itemName: '바뀐 이름', participants: ['가이'] },
     { Cookie: cookie },
   );
-  eq(asAdmin.status, 401, '관리자에게는 막힌다');
-
-  // ② 마스터는 고칠 수 있다. 참여자를 한 명으로 줄인다
-  const asMaster = await post(
-    '/api/master/item',
-    { row, itemName: '바뀐 이름', participants: ['가이'] },
-    { Cookie: masterCookie },
-  );
-  const body = await asMaster.json();
-  eq(body.ok, true, '마스터 수정');
+  const body = await asAdmin.json();
+  eq(body.ok, true, '관리자 수정');
 
   const after = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
   const it = after.items.find((i) => i.row === row);
@@ -2531,9 +2640,9 @@ await t('아이템 수정은 마스터만 — 분배 후에는 확인을 거친�
   //   다시 세므로, 손으로 올려둔 옛 값이 있으면 그 자리에서 한 번 보정된다.
   const cntOf = (d) => d.rows.find((r) => r.name === '팩맨').cnt;
   const back = await post(
-    '/api/master/item',
+    '/api/admin/item',
     { row, itemName: '바뀐 이름', participants: ['가이', '팩맨'] },
-    { Cookie: masterCookie },
+    { Cookie: cookie },
   );
   eq((await back.json()).ok, true, '참여자 되돌리기');
   const readded = (await (await fetch(`${APP}/api/state?fresh=1`)).json()).data;
@@ -2541,26 +2650,26 @@ await t('아이템 수정은 마스터만 — 분배 후에는 확인을 거친�
 
   // ③ 참여자를 전부 빼는 것은 거부해야 한다
   const empty = await post(
-    '/api/master/item',
+    '/api/admin/item',
     { row, itemName: '바뀐 이름', participants: [] },
-    { Cookie: masterCookie },
+    { Cookie: cookie },
   );
   eq(empty.status, 400, '참여자 0명 거부');
 
   // ④ 분배된 뒤에는 확인을 거쳐야 고쳐진다 (v11.1 — 돈이 움직인다, 규칙 5-1)
   eq((await post('/api/admin/distribute', { row, amount: 10000 }, { Cookie: cookie })).status, 200, '분배');
   const askAfter = await post(
-    '/api/master/item',
+    '/api/admin/item',
     { row, itemName: '분배 후 수정', participants: ['가이'], amount: 10000 },
-    { Cookie: masterCookie },
+    { Cookie: cookie },
   );
   const askBody = await askAfter.json();
   eq(askBody.needsConfirm, true, '분배된 아이템은 되묻는다');
 
   const doneEdit = await post(
-    '/api/master/item',
+    '/api/admin/item',
     { row, itemName: '분배 후 수정', participants: ['가이'], amount: 10000, confirm: true },
-    { Cookie: masterCookie },
+    { Cookie: cookie },
   );
   eq((await doneEdit.json()).ok, true, '확인하면 고쳐진다');
 });

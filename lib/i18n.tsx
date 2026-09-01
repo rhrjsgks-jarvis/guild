@@ -269,6 +269,48 @@ const DICT: Record<string, Entry> = {
     'Only items that have not been distributed yet. Changing participants recounts attendance.',
   ],
   'items.photoPick': ['📎 사진 선택 / 촬영', '📎 選擇照片 / 拍攝', '📎 Choose or take a photo'],
+
+  /* ── 서버별 인증샷 (v11.7) — 연합과 같은 규칙을 아이템에도 ── */
+  'items.shotSect': ['📷 인증샷 (서버별)', '📷 截圖（依伺服器）', '📷 Screenshots (by server)'],
+  'items.shotAddRow': ['＋ 서버 줄 추가', '＋ 新增伺服器行', '+ Add a server row'],
+  'items.shotAddAny': ['📷 사진 선택 / 촬영', '📷 選擇照片 / 拍攝', '📷 Choose or take a photo'],
+  'items.shotNoServer': ['서버 미지정', '未指定伺服器', 'No server'],
+  'items.shotHint': [
+    '서버 파티별로 나눠 찍은 사진은 그 서버 줄에 붙이세요. 서버를 안 골라도 등록됩니다.',
+    '各伺服器隊伍分開拍的截圖，請放到該伺服器那一行。不選伺服器也能登記。',
+    'Attach each party screenshot to its own server row. Leaving the server blank is fine.',
+  ],
+  'items.shotAdd': ['📷 인증샷 추가', '📷 新增截圖', '📷 Add screenshots'],
+  'items.shotAddNote': [
+    '더하기만 됩니다 — 이미 붙어 있는 사진은 지워지지 않습니다.',
+    '只會新增 — 已附加的截圖不會被刪除。',
+    'Screenshots are only added — nothing already attached is removed.',
+  ],
+
+  /* ── 분배 완료 목록 (v11.7) — 어떤 아이템이 얼마에 팔렸는지 ── */
+  'items.doneSect': ['✅ 분배 완료', '✅ 已分配', '✅ Distributed'],
+  'led.noDeleteDone': [
+    '이미 분배된 아이템은 삭제할 수 없습니다 — [수정]으로 고쳐주세요. 기록은 남습니다.',
+    '已分配的物品無法刪除，請用[修改]。記錄會保留。',
+    'Distributed items cannot be deleted — use Edit. The record stays.',
+  ],
+  'items.doneEmpty': ['아직 분배한 아이템이 없습니다.', '尚無已分配的物品。', 'Nothing has been distributed yet.'],
+  'items.doneNeedSheet': [
+    '구글시트가 옛 버전이라 분배 기록을 받아오지 못했습니다. 시트에 새 코드를 붙여넣고 재배포해주세요.',
+    '試算表版本較舊，無法取得分配記錄。請貼上新版程式碼並重新部署。',
+    'The sheet is on an older version, so distributed items could not be loaded. Paste the new code and redeploy.',
+  ],
+  'items.doneMore': ['+ 지난 {n}건 더 보기', '+ 顯示其餘 {n} 件', '+ Show {n} older'],
+  'items.doneFold': ['− 지난 기록 접기', '− 收起舊記錄', '− Collapse older'],
+  'items.perOne': ['1인당 {v}', '每人 {v}', '{v} each'],
+  'items.fundGot': ['혈비 {v}', '運營費 {v}', 'Fee {v}'],
+  'items.soldFor': ['💰 판매금액', '💰 售出金額', '💰 Sold for'],
+  'items.soldAt': ['분배일', '分配日', 'Distributed on'],
+  'items.editDoneSub': [
+    '판매금액이나 참여자를 고치면 이미 나눠준 다이아를 그때 준 금액 그대로 회수한 뒤 다시 나눕니다.',
+    '修改售出金額或參與者時，會先按當時發放的金額回收，再重新分配。',
+    'Changing the amount or participants claws back exactly what was paid, then redistributes.',
+  ],
   'items.photoAlt': ['인증샷 미리보기', '截圖預覽', 'Screenshot preview'],
   'items.ocrShow': ['🔍 인식된 텍스트 보기', '🔍 檢視識別文本', '🔍 Show recognised text'],
   'items.ocrHide': ['🔍 인식된 텍스트 숨기기', '🔍 隱藏識別文本', '🔍 Hide recognised text'],
@@ -1131,16 +1173,6 @@ const DICT: Record<string, Entry> = {
     '✅ 已刪除「{item}」— 參與次數已自動重新計算。',
     '✅ Deleted "{item}" — participation counts were recalculated.',
   ],
-  's.del.insufficient': [
-    '삭제할 수 없습니다. 아래 대상이 이미 지급✓ 처리되어 분배전 잔액이 부족합니다:\n\n{list}',
-    '無法刪除。以下成員已發放✓，待分配餘額不足：\n\n{list}',
-    'Cannot delete — these members were already paid out and lack the unpaid balance:\n\n{list}',
-  ],
-  's.del.partial': [
-    '금액 되돌리기가 일부만 반영되어 삭제를 중단했습니다.\n\n반영됨({okN}): {okList}\n실패({failN}): {failList}\n\n행은 삭제하지 않았습니다.',
-    '金額撤銷只完成了一部分，已中止刪除。\n\n已完成（{okN}）：{okList}\n失敗（{failN}）：{failList}\n\n該行未被刪除。',
-    'The amount reversal only partly applied, so the delete was stopped.\n\nApplied ({okN}): {okList}\nFailed ({failN}): {failList}\n\nThe row was not deleted.',
-  ],
   's.undo.ok': [
     '✅ "{name}" {amount}다이아가 분배전으로 복구되었습니다.',
     '✅ 「{name}」的 {amount}鑽石已恢復為待分配。',
@@ -1306,6 +1338,24 @@ const DICT: Record<string, Entry> = {
   's.e.bodyLong': ['내용이 너무 깁니다 ({max}자 이내).', '內容太長（{max} 字以內）。', 'The body is too long ({max} characters max).'],
   's.e.badServer': ['서버를 01~12 중에서 선택해주세요.', '請從 01~12 中選擇伺服器。', 'Pick a server from 01–12.'],
   's.e.badClass': ['클래스는 목록에서 선택해주세요.', '請從列表中選擇職業。', 'Pick a class from the list.'],
+
+  /* ── v11.7 ── */
+  's.e.doneNoDelete': [
+    '이미 분배된 "{item}" 은(는) 삭제할 수 없습니다. [수정]으로 고쳐주세요.',
+    '已分配的「{item}」無法刪除，請用[修改]。',
+    '"{item}" has already been distributed — it cannot be deleted. Use Edit instead.',
+  ],
+  's.e.noShots': ['추가할 인증샷이 없습니다.', '沒有要新增的截圖。', 'There are no screenshots to add.'],
+  's.shot.added': [
+    '✅ "{item}" 에 인증샷 {n}장을 더했습니다. (모두 {total}장)',
+    '✅ 已為「{item}」新增 {n} 張截圖（共 {total} 張）。',
+    '✅ Added {n} screenshot(s) to "{item}" ({total} in total).',
+  ],
+  's.shot.dup': [
+    '이미 붙어 있는 사진입니다. (모두 {total}장)',
+    '這些截圖已經附加過了（共 {total} 張）。',
+    'Those screenshots were already attached ({total} in total).',
+  ],
   's.meta.saveOk': ['✅ 저장했습니다.', '✅ 已儲存。', '✅ Saved.'],
   's.e.dupServer': [
     '{s}서버가 두 번 들어갔습니다. 한 줄로 합쳐주세요.',

@@ -10,10 +10,15 @@ import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 
 /**
- * 등록된 모든 아이템 (관리자 전용) — 판매금액 정정과 완전 삭제.
+ * 등록된 모든 아이템 (마스터관리자 전용) — 판매금액 정정과 삭제.
  *
  * 둘 다 잔액을 되돌리는 작업이라, 실행 전에 서버에서 "무엇을 얼마나 되돌리는지"
  * 를 받아 그대로 보여준다. 이미 지급✓ 된 사람이 있으면 서버가 아예 막는다.
+ *
+ * ★ v11.7 — **분배가 끝난 건에는 삭제가 없다.** 잔액은 되돌려도 "그때 누가 얼마를
+ *   받았다" 는 사실은 되돌릴 수 없는데, 행을 지우면 그것까지 사라진다.
+ *   그 자리는 [수정]이 대신한다 (아이템 탭의 분배완료 목록, 관리자 이상).
+ *   화면에서 감추는 것만으로는 부족해서 시트도 거부한다 (규칙 5-3).
  *
  * ★ 이 카드 전체가 마스터관리자 전용이다 (ItemsTab 이 master 일 때만 그린다).
  *   이미 끝난 분배를 되돌리는 자리라, 관리자에게는 존재 자체를 보이지 않는다.
@@ -180,7 +185,7 @@ function ItemSheet({
   async function saveEdit(confirm: boolean) {
     if (!editValid) return;
     setBusy(true);
-    const res = await api('/api/master/item', {
+    const res = await api('/api/admin/item', {
       row: entry.row,
       itemName: entry.item,
       participants: [...picked],
@@ -252,14 +257,19 @@ function ItemSheet({
               </button>
             </>
           ) : null}
-          <button
-            className="btn danger block"
-            style={{ marginTop: 8 }}
-            disabled={blocked}
-            onClick={() => setMode('delete')}
-          >
-            {t('led.delete')}
-          </button>
+          {/* 분배가 끝난 건은 지울 수 없다 (v11.7) — 고칠 것은 위의 [수정]이 담당한다 */}
+          {preview && !preview.needsReverse ? (
+            <button
+              className="btn danger block"
+              style={{ marginTop: 8 }}
+              disabled={blocked}
+              onClick={() => setMode('delete')}
+            >
+              {t('led.delete')}
+            </button>
+          ) : (
+            <p className="hint">{t('led.noDeleteDone')}</p>
+          )}
           <button className="btn ghost block" style={{ marginTop: 8 }} onClick={onClose}>
             <IconText text={t('c.close')} />
           </button>

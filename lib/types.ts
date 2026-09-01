@@ -10,6 +10,14 @@ export type BalanceRow = {
   cnt: number;
 };
 
+/**
+ * 인증샷 한 장 (v11.7) — **어느 서버 파티의 사진인지**까지 들고 있다.
+ *
+ * `sv` 가 빈 문자열이면 '서버 미지정' 이다. 옛 기록(v11.6 이하)은 전부 여기 해당한다 —
+ * 우리가 뒤늦게 서버를 짐작해 채우지 않는다 (규칙 7).
+ */
+export type Shot = { sv: string; url: string };
+
 export type LedgerItem = {
   /** 분배대기중 시트의 행 번호 — 분배 API에 그대로 넘긴다 */
   row: number;
@@ -21,6 +29,8 @@ export type LedgerItem = {
   names: string[];
   /** 인증샷 — v11.0 부터 한 아이템에 여러 장 (옛 기록은 0~1장) */
   photos?: string[];
+  /** 같은 사진을 **서버 표시까지** 들고 있는 것 (v11.7). photos 와 순서가 같다 */
+  shots?: Shot[];
   /**
    * 레이드일 · 보스 · 루팅서버 · 루팅캐릭터 (v11.6).
    * 옛 기록은 비어 있다 — 아이템명에 적혀 있던 것을 우리가 쪼개 넣지 않는다.
@@ -31,9 +41,29 @@ export type LedgerItem = {
   lootCh?: string;
 };
 
+/**
+ * 분배가 끝난 아이템 (v11.7) — **얼마에 팔렸는지**가 여기에 있다.
+ *
+ * 지금까지 판매금액은 마스터 전용 [정정] 화면에서만 볼 수 있었다. 조회는 원래
+ * 누구에게나 열려 있고(잔액·참여횟수와 같은 성격), 판 금액을 아무도 못 보면
+ * 분배 결과를 검증할 길이 없다.
+ */
+export type DoneItem = LedgerItem & {
+  /** 판매금액 (분배 총액) */
+  amount: number;
+  /** 그중 혈맹운영비로 간 몫 (혈비 + 잔여) */
+  fund: number;
+  /** 비중 100% 기준 1인당 */
+  per: number;
+  /** 분배한 날 'MM/DD'. 옛 기록에는 없을 수 있다 — 그때는 빈 문자열이다 */
+  soldAt?: string;
+};
+
 export type GuildState = {
   rows: BalanceRow[];
   items: LedgerItem[];
+  /** 분배완료 목록 — 최근 것이 위. 옛 시트(v11.6 이하)는 이 값을 안 내려준다 */
+  done?: DoneItem[];
   members: string[];
   /** 멤버별 부가정보 (분배비중·서버·한자표기) */
   memberInfo: MemberInfo[];

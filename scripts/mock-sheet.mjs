@@ -43,7 +43,7 @@ const ST_DONE = '✅분배완료';
 // 앱이 기대하는 버전과 같은 값 — 화면에 "버전 불일치" 경고가 뜨지 않아야 정상이다.
 // ★ 한 곳에만 적는다. 여기저기 흩어 적으면 버전을 올릴 때 한 군데가 남아
 //   "실어 온 상태의 버전이 다르다"는 엉뚱한 실패로 나타난다 (실제로 겪었다).
-const GS_VERSION = '11.6';
+const GS_VERSION = '11.7';
 let MOCK_GS_VERSION = GS_VERSION;
 
 /**
@@ -101,9 +101,12 @@ function freshState() {
       { name: '선륙소농포 (鮮肉小籠包)', pending: 0, paid: 0, cnt: 0, weight: 100, server: '06', hanja: '鮮肉小籠包', cls: '기사' },
     ],
     items: [
-      // 인증샷 두 장 — 아이템명을 누르면 앱 안에서 바로 보인다 (v11.1)
+      // 인증샷 두 장 — 아이템명을 누르면 앱 안에서 바로 보인다 (v11.1).
+      // ★ v11.7 — 한 장은 01서버, 한 장은 **서버 미지정**이다 (옛 기록이 그렇다).
       { row: 2, item: '기란 세금', date: '08/01', cnt: 3, names: ['가이', 'TC무식', '대서과Z'],
-        photos: ['https://drive.google.com/file/d/MOCKFILEID001/view', 'https://drive.google.com/file/d/MOCKFILEID002/view'] },
+        photos: ['https://drive.google.com/file/d/MOCKFILEID001/view', 'https://drive.google.com/file/d/MOCKFILEID002/view'],
+        shots: [{ sv: '01', url: 'https://drive.google.com/file/d/MOCKFILEID001/view' },
+                { sv: '', url: 'https://drive.google.com/file/d/MOCKFILEID002/view' }] },
       { row: 5, item: '용의 심장', date: '08/03', cnt: 2, names: ['가이', 'PlusS'] },
     ],
     // 분배완료된 아이템 — 정정·삭제 대상.
@@ -392,7 +395,21 @@ const handlers = {
     ok: true,
     data: {
       rows: S.rows.map((r) => ({ ...r })),
-      items: S.items.map((i) => ({ ...i })),
+      items: S.items.map((i) => ({ ...i, shots: i.shots ?? (i.photos ?? []).map((url) => ({ sv: '', url })) })),
+      // 분배완료 목록 (v11.7) — 어떤 아이템이 얼마에 팔렸는지. 최근 것이 위로
+      done: S.done
+        .map((i) => {
+          const sp = calcSplit(i.amount, weightsFor(participantsOf(i)));
+          return {
+            ...i,
+            amount: i.amount,
+            fund: sp.fundTotal,
+            per: sp.perPerson,
+            soldAt: i.soldAt ?? '',
+            shots: i.shots ?? (i.photos ?? []).map((url) => ({ sv: '', url })),
+          };
+        })
+        .reverse(),
       members: S.rows.map((r) => r.name),
       memberInfo: S.rows.map((r) => ({ name: r.name, weight: r.weight ?? 100, server: r.server ?? '', hanja: r.hanja ?? '', cls: r.cls ?? '' })),
       fundName: FUND_NAME,
@@ -417,7 +434,7 @@ const handlers = {
       : { ok: false, msg: '멤버DB에서 찾지 못했습니다. 이름을 다시 확인해주세요.' };
   },
 
-  register: ({ itemName, participants, photoLink, photoLinks, meta }) => {
+  register: ({ itemName, participants, photoLink, photoLinks, meta, photoEntries }) => {
     const list = (participants || []).filter((p) => p && p !== FUND_NAME);
     if (!itemName) return rc({ ok: false, msg: '아이템명을 입력해주세요.' }, 'e.itemEmpty');
     if (list.length === 0) return rc({ ok: false, msg: '참여 멤버를 선택해주세요.' }, 'e.noParticipants');
@@ -431,6 +448,26 @@ const handlers = {
     const pics = ((photoLinks && photoLinks.length ? photoLinks : [photoLink]) || [])
       .map((u) => String(u || '').trim())
       .filter(Boolean);
+    /*
+     * v11.7 — 어느 서버 파티의 사진인지까지 받는다 (.gs 의 _itemShots 와 같은 모양).
+     * 서버 표시가 없는 것은 미지정으로 들어가고, 같은 주소는 한 번만 저장된다.
+     */
+    const shots = [];
+    const seenUrl = new Set();
+    (photoEntries || []).forEach((e) => {
+      const sv = normServer(e && e.server) || '';
+      (e?.photos || []).forEach((u) => {
+        const url = String(u || '').trim();
+        if (!url || seenUrl.has(url)) return;
+        seenUrl.add(url);
+        shots.push({ sv: SERVER_LIST.includes(sv) ? sv : '', url });
+      });
+    });
+    pics.forEach((url) => {
+      if (seenUrl.has(url)) return;
+      seenUrl.add(url);
+      shots.push({ sv: '', url });
+    });
     // ★ item 은 빼고 펼친다 — lootMeta 의 빈 item 이 방금 넣은 이름을 덮어쓴다.
     //   (펼치기는 뒤에 오는 것이 이긴다 — 조용히)
     const { item: _ignore, ...lm } = lootMeta(meta);
@@ -441,7 +478,8 @@ const handlers = {
       date: new Date().toISOString().slice(5, 10).replace('-', '/'),
       cnt: list.length,
       names: list,
-      photos: pics,
+      photos: shots.map((x) => x.url),
+      shots,
     });
     return rc({ ok: true, msg: `✅ "${itemName}" 등록 완료 (${list.length}명, ⏳미분배)` },
       'reg.ok', { item: itemName, n: list.length });
@@ -535,7 +573,8 @@ const handlers = {
 
     S.items.splice(idx, 1);
     // 분배 시점 금액을 그대로 남긴다 — 비중이 나중에 바뀌어도 되돌리기가 정확해진다
-    S.done.push({ ...item, amount: amt, names, splits: names.map((nm, i) => ({ name: nm, amount: sp.shares[i] })) });
+    S.done.push({ ...item, amount: amt, soldAt: '08/05', names,
+      splits: names.map((nm, i) => ({ name: nm, amount: sp.shares[i] })) });
     let msg = `✅ "${item.item}" ${amt.toLocaleString()}${UNIT} 분배 완료 — ${FUND_NAME} ${sp.fundTotal.toLocaleString()} / ${names.length}명 기본 ${sp.perPerson.toLocaleString()}`;
     if (sp.remainder > 0) msg += ` (잔여 ${sp.remainder.toLocaleString()}${UNIT} 운영비 귀속)`;
     return rc({ ok: true, msg }, 'dist.ok', {
@@ -742,15 +781,16 @@ const handlers = {
 
   deleteItem: ({ row, confirm }) => {
     if (confirm !== true) return { ok: false, needsConfirm: true, msg: '확인이 필요합니다.' };
+    // ★ v11.7 — 이미 분배된 건은 지우지 않는다. 잔액은 되돌려도 "그때 누가 얼마를
+    //   받았다" 는 사실은 되돌릴 수 없다. 고칠 것은 [수정]이 담당한다
     const di = S.done.findIndex((x) => x.row === Number(row));
     if (di >= 0) {
       const it = S.done[di];
-      const plan = reversalPlan(it);
-      const short = plan.filter((e) => (findRow(e.name)?.pending ?? 0) < e.amount).map((e) => e.name);
-      if (short.length) return { ok: false, reason: 'insufficient', msg: '삭제할 수 없습니다. 이미 지급✓ 처리된 대상이 있습니다: ' + short.join(', ') };
-      plan.forEach((e) => add(e.name, -e.amount));
-      S.done.splice(di, 1);
-      return { ok: true, msg: `✅ "${it.item}" 삭제 완료 — 참여횟수가 자동으로 재계산되었습니다.` };
+      return rc(
+        { ok: false, reason: 'done', msg: `이미 분배된 "${it.item}" 은(는) 삭제할 수 없습니다. [수정]으로 고쳐주세요.` },
+        'e.doneNoDelete',
+        { item: it.item },
+      );
     }
     const wi = S.items.findIndex((x) => x.row === Number(row));
     if (wi < 0) return { ok: false, msg: '아이템을 찾을 수 없습니다.' };
@@ -1046,8 +1086,50 @@ const handlers = {
     return rc({ ok: true, msg: '✅ 저장했습니다.' }, 'meta.saveOk');
   },
 
+  /**
+   * 📷 인증샷 더 붙이기 (v11.7) — .gs 의 api_addItemPhotos 와 같은 규칙.
+   * **잇기만** 한다. 분배가 끝난 건에도 붙는다 (다이아를 안 움직인다).
+   */
+  addItemPhotos: ({ row, entries }) => {
+    const hit =
+      S.items.find((i) => i.row === Number(row)) ?? S.done.find((i) => i.row === Number(row));
+    if (!hit) return rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
+    for (const e of entries || []) {
+      const sv = normServer(e && e.server) || '';
+      if (sv && !SERVER_LIST.includes(sv)) return rc({ ok: false, msg: '서버를 01~12 중에서 선택해주세요.' }, 'e.badServer');
+    }
+    const cur = hit.shots ?? (hit.photos ?? []).map((url) => ({ sv: '', url }));
+    const before = cur.length;
+    const seen = new Set(cur.map((x) => x.url));
+    (entries || []).forEach((e) => {
+      const sv = normServer(e && e.server) || '';
+      (e?.photos || []).forEach((u) => {
+        const url = String(u || '').trim();
+        if (!url || seen.has(url)) return;
+        seen.add(url);
+        cur.push({ sv: SERVER_LIST.includes(sv) ? sv : '', url });
+      });
+    });
+    hit.shots = cur;
+    hit.photos = cur.map((x) => x.url);
+    const added = cur.length - before;
+    return rc(
+      {
+        ok: true,
+        added,
+        total: cur.length,
+        msg: added > 0
+          ? `✅ "${hit.item}" 에 인증샷 ${added}장을 더했습니다. (모두 ${cur.length}장)`
+          : `이미 붙어 있는 사진입니다. (모두 ${cur.length}장)`,
+      },
+      added > 0 ? 'shot.added' : 'shot.dup',
+      { item: hit.item, n: added, total: cur.length },
+    );
+  },
+
   setItemMeta: ({ row, meta }) => {
-    const hit = S.items.find((i) => i.row === Number(row));
+    const hit =
+      S.items.find((i) => i.row === Number(row)) ?? S.done.find((i) => i.row === Number(row));
     if (!hit) return rc({ ok: false, msg: '기록을 찾을 수 없습니다.' }, 'e.noRecord');
     const mm = lootMeta(meta);
     Object.assign(hit, mm, mm.item ? { item: mm.item } : { item: hit.item });

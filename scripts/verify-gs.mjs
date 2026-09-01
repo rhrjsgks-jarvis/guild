@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v11_6.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v11_7.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 /**
@@ -1223,7 +1223,8 @@ check('사진 인식: 여러 언어로 읽고, 실패 이유를 감추지 않는
   // 앱: 사진 보정을 거쳐야 한다. 원본(수 MB)을 그대로 보내면 OCR 이 더 못 읽는다
   const bulkUi = readFileSync(resolve(ROOT, 'components/BulkMemberSheet.tsx'), 'utf8');
   if (!/prepPhoto\(file\)/.test(bulkUi)) throw new Error('명단 일괄 추가가 사진을 보정하지 않습니다.');
-  for (const f of ['components/ItemsTab.tsx', 'components/AllianceTab.tsx']) {
+  // v11.7 — 아이템 등록의 사진 칸은 components/ItemShots.tsx 로 옮겼다 (등록·[인증샷 추가] 공용)
+  for (const f of ['components/ItemShots.tsx', 'components/AllianceTab.tsx']) {
     const src = readFileSync(resolve(ROOT, f), 'utf8');
     if (!/prepPhoto\(/.test(src)) throw new Error(`${f} 가 사진 보정을 쓰지 않습니다.`);
     if (/readAsDataURL/.test(src)) throw new Error(`${f} 에 보정 없는 옛 경로가 남아 있습니다.`);
@@ -1984,8 +1985,18 @@ check('인증샷은 여러 장 붙고, 이관해도 살아남는다 (v11.0)', ()
     throw new Error('사진이 두 장 이상일 때의 저장 경로가 없습니다.');
   }
   // 읽기는 옛 수식과 새 나열을 하나로 봐야 한다 (옛 기록이 안 보이면 안 된다)
-  const ctx = vm.createContext({});
-  vm.runInContext(`${extractFn(gs, '_photoList')}\n${extractFn(gs, '_readLedgerPhotos')}; __r = _readLedgerPhotos;`, ctx);
+  // v11.7 — _photoList 는 _shotList 위에 얹혀 있다 (서버 표시를 떼고 주소만 돌려준다)
+  const ctx = vm.createContext({ SERVER_LIST: ['01','02','03','04','05','06','07','08','09','10','11','12'] });
+  vm.runInContext(
+    [
+      extractFn(gs, '_normServer'),
+      extractFn(gs, '_shotList'),
+      extractFn(gs, '_photoList'),
+      extractFn(gs, '_readLedgerPhotos'),
+      '__r = _readLedgerPhotos;',
+    ].join('\n'),
+    ctx,
+  );
   const read = ctx.__r;
   const A = 'https://drive.google.com/file/d/A/view';
   const B = 'https://drive.google.com/file/d/B/view';
@@ -1994,6 +2005,8 @@ check('인증샷은 여러 장 붙고, 이관해도 살아남는다 (v11.0)', ()
     ['', `${A}\n${B}`, [A, B]],                          // 새 여러 장
     ['', '', []],                                        // 없음
     ['', '📷 보기', []],                                 // 링크가 아닌 글자만
+    ['', `01|${A}\n03|${B}`, [A, B]],             // v11.7 서버 표시 — 주소만 남는다
+    ['', `${A} ${B}`, [A, B]],                       // 손으로 넣은 공백 구분
   ];
   for (const [formula, display, want] of cases) {
     const got = read(formula, display);
@@ -2011,9 +2024,14 @@ check('인증샷은 여러 장 붙고, 이관해도 살아남는다 (v11.0)', ()
     }
   }
 
-  // 앱: 여러 장을 고를 수 있고, 장마다 찾은 사람을 더해야 한다 (덮어쓰면 앞 장이 사라진다)
+  // 앱: 여러 장을 고를 수 있고, 장마다 찾은 사람을 더해야 한다 (덮어쓰면 앞 장이 사라진다).
+  // v11.7 부터 아이템 쪽 사진 고르기는 components/ItemShots.tsx 에 있다 (등록·[인증샷 추가] 공용)
+  const shots = readFileSync(resolve(ROOT, 'components/ItemShots.tsx'), 'utf8');
+  if (!/multiple/.test(shots)) throw new Error('아이템 등록이 사진 한 장만 받습니다.');
+  if (!/next\.add\(m\)/.test(shots) && !/onMatched/.test(shots)) {
+    throw new Error('사진마다 찾은 사람을 더하지 않습니다.');
+  }
   const items = readFileSync(resolve(ROOT, 'components/ItemsTab.tsx'), 'utf8');
-  if (!/multiple/.test(items)) throw new Error('아이템 등록이 사진 한 장만 받습니다.');
   if (!/photoLinks: links/.test(items)) throw new Error('아이템 등록이 사진 목록을 보내지 않습니다.');
   const ali = readFileSync(resolve(ROOT, 'components/AllianceTab.tsx'), 'utf8');
   if (!/multiple/.test(ali)) throw new Error('연합 등록이 사진 한 장만 받습니다.');
@@ -2374,7 +2392,7 @@ check('인증샷은 앱 안에서 바로 보인다 (v11.1)', () => {
   return `주소 변환 ${cases.length}케이스 · 실패 표시 · 원본 링크 · 아이템/연합 2곳`;
 });
 
-check('아이템 수정은 마스터만 — 분배 전은 이름·참여자, 분배 후는 금액까지 (v11.1)', () => {
+check('아이템 수정은 관리자 이상 — 분배 후는 금액까지, 삭제는 없다 (v11.7)', () => {
   const fn = (gs.match(/function api_editItem[\s\S]*?\n\}\n/) ?? [''])[0];
   if (!fn) throw new Error('api_editItem 이 없습니다.');
   if (!/status !== ST_WAIT/.test(fn)) throw new Error('알 수 없는 상태를 거부하지 않습니다.');
@@ -2410,26 +2428,47 @@ check('아이템 수정은 마스터만 — 분배 전은 이름·참여자, 분
   if (!/_correctCore\(ss, row, amt, email, parts\)/.test(fn)) {
     throw new Error('분배완료 정정이 공통 되돌리기 코어를 쓰지 않습니다.');
   }
-  const mroute = readFileSync(resolve(ROOT, 'app/api/master/item/route.ts'), 'utf8');
+  const mroute = readFileSync(resolve(ROOT, 'app/api/admin/item/route.ts'), 'utf8');
   if (!/confirm: body\.confirm === true/.test(mroute)) {
     throw new Error('라우트가 confirm 을 그대로 전달하지 않습니다.');
   }
   const led = readFileSync(resolve(ROOT, 'components/LedgerCard.tsx'), 'utf8');
-  if (!/\/api\/master\/item/.test(led)) throw new Error('분배완료 화면에서 수정할 수 없습니다.');
+  if (!/\/api\/admin\/item/.test(led)) throw new Error('분배완료 화면에서 수정할 수 없습니다.');
   if (!/led\.editMembers/.test(led)) throw new Error('참여 인원 수정 입구가 없습니다.');
 
   if (!/case 'editItem':/.test(gs)) throw new Error('라우터에 editItem 이 없습니다.');
   if (!/'deleteItem', 'editItem'/.test(gs)) throw new Error('editItem 이 쓰기 액션 목록에 없습니다.');
 
-  // 라우트는 마스터 전용 경로에 있어야 한다 (경로만 봐도 의도가 드러난다)
-  const route = readFileSync(resolve(ROOT, 'app/api/master/item/route.ts'), 'utf8');
-  if (!/requireMaster\(\)/.test(route)) throw new Error('아이템 수정 라우트가 마스터를 요구하지 않습니다.');
+  /*
+   * v11.7 — 수정은 **관리자 이상**이다. 분배완료 건의 삭제를 없애고 그 자리를
+   * 수정이 대신하기 때문이다. 잘못 나눈 것을 바로잡을 길이 관리자에게 하나도 없으면,
+   * 고칠 사람을 기다리는 동안 잔액이 틀린 채로 남는다.
+   * 여는 근거는 "안전해서" 가 아니라 **되돌릴 수 있어서** 다 — 수정은 기록을 지우지 않는다.
+   */
+  if (!/requireAdmin\(\)/.test(mroute)) throw new Error('아이템 수정 라우트가 인증을 요구하지 않습니다.');
   const items = readFileSync(resolve(ROOT, 'components/ItemsTab.tsx'), 'utf8');
-  if (!/\/api\/master\/item/.test(items)) throw new Error('앱이 마스터 라우트를 부르지 않습니다.');
-  if (!/master \? \(\s*\n\s*<button className="btn ghost" onClick=\{\(\) => setEditing\(it\)\}/.test(items)) {
-    throw new Error('수정 버튼이 마스터에게만 보이지 않습니다.');
+  if (!/\/api\/admin\/item'/.test(items)) throw new Error('앱이 수정 라우트를 부르지 않습니다.');
+  if (!/admin \? \(\s*\n\s*<button className="btn ghost" onClick=\{\(\) => setEditing\(it\)\}/.test(items)) {
+    throw new Error('미분배 수정 버튼이 관리자에게 보이지 않습니다.');
   }
-  return '미분배(이름·참여자) · 분배완료(참여자·금액, 스냅샷 회수 후 명단 교체·확인 필수) · 참여횟수 재계산 · 마스터 전용';
+
+  /*
+   * ★ 분배가 끝난 건은 **지울 수 없다** (v11.7).
+   *   잔액은 되돌려도 "그때 누가 얼마를 받았다" 는 사실은 되돌릴 수 없는데, 행을
+   *   지우면 그것까지 사라진다. 판정은 시트가 한다 — 화면에서 버튼만 감추면
+   *   라우트를 직접 부르는 길이 그대로 열려 있다 (규칙 5-3).
+   */
+  const delCore = extractFn(gs, '_deleteItemCore');
+  if (!/status === ST_DONE/.test(delCore) || !/e\.doneNoDelete/.test(delCore)) {
+    throw new Error('분배완료 건의 삭제를 시트가 막지 않습니다.');
+  }
+  if (/_reverseAmounts/.test(delCore)) {
+    throw new Error('삭제가 아직 잔액을 되돌립니다 — 분배완료 건은 아예 지울 수 없어야 합니다.');
+  }
+  if (!/preview && !preview\.needsReverse/.test(led)) {
+    throw new Error('분배완료 건에 삭제 버튼이 그대로 보입니다.');
+  }
+  return '미분배(이름·참여자) · 분배완료(참여자·금액·스냅샷 회수 후 명단 교체) · 관리자 이상 · 분배완료 삭제 차단';
 });
 
 check('이름은 두 줄로 나뉘고 글자 수에 맞춰 줄어든다', () => {
@@ -3668,6 +3707,125 @@ check('티어는 빈칸과 0티어를 구분한다 (v11.5)', () => {
   return `${cases.length}케이스 · 티어 열 맨 뒤 · 빈칸≠0티어`;
 });
 
+check('아이템 인증샷도 서버 줄마다 붙는다 (v11.7)', () => {
+  /*
+   * 연합에서 v11.3 에 겪은 것과 같은 문제다. 레이드 참여자가 한 화면에 다 안 들어가
+   * 서버 파티별로 나눠 찍는데, 사진을 한 자루에 담아 두면 어느 서버 파티의 증거인지
+   * 알 수 없다. 3서버 건에서 "01서버 사람이 빠졌다" 는 말이 나와도 확인할 방법이 없었다.
+   */
+  // 시트: 저장 형태 세 가지를 **한 곳에서** 읽는다
+  const ctx = vm.createContext({ SERVER_LIST: ['01','02','03','04','05','06','07','08','09','10','11','12'] });
+  vm.runInContext(
+    [
+      extractFn(gs, '_normServer'),
+      extractFn(gs, '_shotList'),
+      extractFn(gs, '_shotCell'),
+      extractFn(gs, '_photoCell'),
+      extractFn(gs, '_photoList'),
+      extractFn(gs, '_itemShots'),
+      extractFn(gs, '_readLedgerShots'),
+      '__shots = _readLedgerShots; __cell = _shotCell; __entries = _itemShots; __urls = _photoList;',
+    ].join('\n'),
+    ctx,
+  );
+  const A = 'https://drive.google.com/file/d/A/view';
+  const Bu = 'https://drive.google.com/file/d/B/view';
+
+  // 옛 두 형태는 전부 **서버 미지정**으로 읽힌다 (우리가 서버를 짐작해 채우지 않는다)
+  const cases = [
+    [`=HYPERLINK("${A}","📷 보기")`, '📷 보기', ['|' + A]],
+    ['', `${A}\n${Bu}`, ['|' + A, '|' + Bu]],
+    ['', `01|${A}\n03|${Bu}`, ['01|' + A, '03|' + Bu]],
+    ['', `99|${A}`, ['|' + A]],          // 01~12 가 아니면 미지정으로 (지어내지 않는다)
+  ];
+  for (const [formula, display, want] of cases) {
+    const got = ctx.__shots(formula, display).map((x) => `${x.sv}|${x.url}`);
+    if (got.join(' ') !== want.join(' ')) {
+      throw new Error(`서버별 인증샷 읽기 불일치: ${JSON.stringify([formula, display])} → ${JSON.stringify(got)}`);
+    }
+  }
+
+  // 쓰기 → 읽기 왕복. 서버 표시가 살아 남아야 한다
+  const round = ctx.__shots('', ctx.__cell([{ sv: '01', url: A }, { sv: '', url: Bu }]));
+  if (round.map((x) => x.sv).join(',') !== '01,') throw new Error('왕복에서 서버 표시가 사라집니다.');
+  // 옛 코드가 읽던 평평한 목록은 **그대로** 나와야 한다 (연합·이관·디스코드가 이걸 쓴다)
+  if (ctx.__urls(ctx.__cell([{ sv: '01', url: A }])).join() !== A) {
+    throw new Error('_photoList 가 서버 표시를 못 떼어냅니다 — 옛 코드가 사진을 통째로 잃습니다.');
+  }
+
+  // 저장은 **잇기만** 한다 (연합의 _writeAllyPhotos 와 같은 규칙)
+  const writer = extractFn(gs, '_writeLedgerShots');
+  if (!/_readLedgerShots\(cell\.getFormula/.test(writer) || !/merged\.push/.test(writer)) {
+    throw new Error('인증샷을 이어 붙이지 않고 덮어씁니다 — 먼저 붙인 사진이 사라집니다.');
+  }
+  // 서버를 아무도 안 고른 한 장이면 예전처럼 수식으로 (시트에서 눌러 볼 수 있다)
+  if (!/if \(!tagged\) return _writeLedgerPhotos/.test(writer)) {
+    throw new Error('옛 한 장짜리 저장 경로가 사라졌습니다.');
+  }
+
+  // 시트가 서버 값을 판정한다 (라우트를 직접 부르는 길이 있다 — 규칙 5-3)
+  for (const fn of ['api_register', 'api_addItemPhotos']) {
+    const body = extractFn(gs, fn);
+    if (!/_itemShotsCheck/.test(body)) throw new Error(`${fn} 이 서버 값을 판정하지 않습니다.`);
+  }
+  // 인증샷 추가는 잇기만 하므로 관리자에게 열려 있다 (금액·참여자를 못 만진다)
+  const addRoute = readFileSync(resolve(ROOT, 'app/api/admin/item-photos/route.ts'), 'utf8');
+  if (!/requireAdmin\(\)/.test(addRoute)) throw new Error('인증샷 추가가 인증 없이 열려 있습니다.');
+
+  // 앱: 등록도 [인증샷 추가]도 **같은 편집기 한 벌**을 쓴다
+  const shots = readFileSync(resolve(ROOT, 'components/ItemShots.tsx'), 'utf8');
+  if (!/multiple/.test(shots)) throw new Error('사진을 한 장만 받습니다.');
+  if (!/ServerPicker/.test(shots)) throw new Error('사진에 서버를 고를 자리가 없습니다.');
+  const items = readFileSync(resolve(ROOT, 'components/ItemsTab.tsx'), 'utf8');
+  if (!/photoEntries/.test(items)) throw new Error('등록이 서버별 사진을 보내지 않습니다.');
+  if (!/groupShots\(entry\.shots/.test(items)) {
+    throw new Error('상세 화면이 사진을 서버별로 보여주지 않습니다.');
+  }
+  // 모의 시트도 같은 모양이어야 E2E 가 의미가 있다
+  const mock = readFileSync(resolve(ROOT, 'scripts/mock-sheet.mjs'), 'utf8');
+  if (!/addItemPhotos:/.test(mock)) throw new Error('모의 시트에 인증샷 추가가 없습니다.');
+
+  return `읽기 ${cases.length}케이스(옛 수식·나열·서버표시·잘못된 서버) · 왕복 보존 · 잇기만 · 시트 판정 · 앱·모의 대응`;
+});
+
+check('분배된 아이템이 얼마에 팔렸는지 누구나 본다 (v11.7)', () => {
+  /*
+   * 판매금액은 마스터 전용 [정정] 화면에만 있었다. 조회는 원래 누구에게나 열려
+   * 있는 것이고(잔액·참여횟수와 같은 성격), 판 금액을 아무도 못 보면 자기 몫이
+   * 왜 그 숫자인지 스스로 확인할 길이 없다.
+   */
+  const st = extractFn(gs, 'api_getState');
+  if (!/done: done/.test(st)) throw new Error('상태에 분배완료 목록이 없습니다.');
+  for (const f of ['base.amount', 'base.fund', 'base.per']) {
+    if (!st.includes(f)) throw new Error(`분배완료 목록에 ${f} 가 없습니다.`);
+  }
+  // 옛 시트는 열이 모자랄 수 있다 — 읽다가 터지면 그 화면이 통째로 안 열린다
+  if (!/Math\.min\(LEDGER_HEADERS\.length/.test(st)) {
+    throw new Error('옛 시트의 좁은 폭을 감안하지 않고 읽습니다.');
+  }
+
+  // 조회 라우트는 인증을 요구하지 않는다 (누구나 본다)
+  const route = readFileSync(resolve(ROOT, 'app/api/state/route.ts'), 'utf8');
+  if (/requireAdmin\(\)|requireMaster\(\)/.test(route)) {
+    throw new Error('상태 조회가 관리자만 볼 수 있게 막혀 있습니다.');
+  }
+
+  // 앱: 분배완료 목록이 관리자 여부와 무관하게 그려져야 한다
+  const items = readFileSync(resolve(ROOT, 'components/ItemsTab.tsx'), 'utf8');
+  const sect = items.indexOf("t('items.doneSect')");
+  if (sect < 0) throw new Error('분배완료 목록이 없습니다.');
+  const viewerOnly = items.indexOf('{!admin ? (');
+  if (viewerOnly >= 0 && sect > viewerOnly) {
+    throw new Error('분배완료 목록이 관리자 전용 구역 안에 있습니다 — 조회자에게 안 보입니다.');
+  }
+  if (!/fmt\(it\.amount\)/.test(items)) throw new Error('판매금액을 숫자로 보여주지 않습니다.');
+
+  // 모의 시트도 같은 값을 내려줘야 E2E 가 의미가 있다
+  const mock = readFileSync(resolve(ROOT, 'scripts/mock-sheet.mjs'), 'utf8');
+  if (!/done: S\.done/.test(mock)) throw new Error('모의 시트가 분배완료 목록을 안 내려줍니다.');
+
+  return '시트 done(금액·혈비·1인당·분배일) · 공개 조회 · 앱 목록 · 모의 대응';
+});
 check('화면에 한국어가 직접 박혀 있지 않다', () => {
   // 언어를 바꿔도 안 바뀌는 문구가 생기지 않도록, JSX 텍스트/라벨에 한글이
   // 그대로 들어간 곳을 잡는다. 주석과 CSS 클래스는 대상이 아니다.

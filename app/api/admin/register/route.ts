@@ -1,5 +1,5 @@
 import { callGas } from '@/lib/gas';
-import { lootMeta } from '@/lib/alliance';
+import { lootMeta, shotEntries } from '@/lib/alliance';
 import { requireAdmin } from '@/lib/auth';
 import { syncStateCache } from '@/lib/fresh';
 
@@ -16,6 +16,7 @@ export async function POST(req: Request) {
     participants?: unknown;
     photoLink?: unknown;
     photoLinks?: unknown;
+    photoEntries?: unknown;
     meta?: unknown;
     email?: unknown;
   };
@@ -40,6 +41,13 @@ export async function POST(req: Request) {
     .map((u) => String(u ?? '').trim())
     .filter((u) => /^https?:\/\//.test(u));
 
+  /*
+   * v11.7 — 같은 사진을 **어느 서버 파티의 것인지**까지 함께 보낸다 (연합과 같은 모양).
+   * 평평한 photoLinks 도 계속 보낸다: 시트가 아직 v11.6 이면 photoEntries 를 모르므로,
+   * 그때는 이 목록이 사진을 살린다. 시트가 같은 주소를 두 번 저장하지 않는다.
+   */
+  const photoEntries = shotEntries(body.photoEntries);
+
   const res = await callGas(
     'register',
     {
@@ -47,6 +55,7 @@ export async function POST(req: Request) {
       participants,
       photoLink: String(body.photoLink ?? '').trim(),
       photoLinks,
+      photoEntries,
       // 레이드일·보스·루팅 (v11.6) — 값 판정은 시트가 한다 (규칙 5-3)
       meta: lootMeta(body.meta),
       email: String(body.email ?? '').trim(),

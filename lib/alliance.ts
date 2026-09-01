@@ -76,3 +76,25 @@ export function lootMeta(raw: unknown): {
     lootCh: s(o.lootCh, 30),
   };
 }
+
+/**
+ * 아이템 인증샷 묶음 (v11.7) — 연합의 `parseEntries` 와 같은 자리에 있다.
+ *
+ * 다른 점은 **인원수가 없다**는 것뿐이다. 아이템 참여자는 멤버DB에 있으므로
+ * 사진에서 셀 이유가 없다 (연합 인원은 우리 명단에 없어서 세야 했다).
+ *
+ * ★ 서버 칸은 **비어 있어도 된다** ('미지정'). 아직 서버를 나눠 쓰지 않는 길드가
+ *   있고, 손으로 붙여넣은 주소에는 서버가 없다 — 그걸 막으면 등록 자체가 막힌다.
+ * ★ 여기서 하는 것은 형식 정리뿐이다. "01~12 인가" 는 시트가 판정한다 —
+ *   라우트를 직접 부르는 길이 있으므로 여기서 끝내면 안 된다 (규칙 5-3).
+ */
+export type ShotEntry = { server: string; photos: string[] };
+
+export function shotEntries(raw: unknown): ShotEntry[] {
+  return (Array.isArray(raw) ? raw : [])
+    .map((e) => {
+      const o = (e ?? {}) as { server?: unknown; photos?: unknown };
+      return { server: String(o.server ?? '').trim().slice(0, 2), photos: photoLinks(o.photos) };
+    })
+    .filter((e) => e.photos.length > 0);
+}

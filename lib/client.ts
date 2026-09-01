@@ -648,3 +648,38 @@ export function photoView(url: string, width = 1200): string {
   if (!id) return u;
   return `https://drive.google.com/thumbnail?id=${id}&sz=w${width}`;
 }
+
+/**
+ * 인증샷을 **서버별로 묶는다** (v11.7) — 아이템 상세·연합 상세가 같은 규칙을 쓴다.
+ *
+ * ★ 순서는 사진이 붙은 순서 그대로다. 서버 번호로 다시 정렬하지 않는다 —
+ *   관리자가 올린 순서가 곧 레이드가 진행된 순서인 경우가 많다.
+ * ★ 서버를 안 고른 사진('미지정')은 **맨 뒤**로 모은다. 옛 기록은 전부 여기 들어오는데,
+ *   맨 앞에 두면 서버별로 정리한 새 기록이 그 아래로 밀려 안 보인다.
+ * ★ shots 가 없으면 photos 를 미지정으로 읽는다 — 옛 시트를 붙여둔 채로도 화면이 돈다.
+ */
+export function groupShots(
+  shots?: { sv: string; url: string }[],
+  photos?: string[],
+): { server: string; urls: string[] }[] {
+  const list =
+    shots && shots.length > 0
+      ? shots
+      : (photos ?? []).map((url) => ({ sv: '', url }));
+  const order: string[] = [];
+  const bag = new Map<string, string[]>();
+  list.forEach((s) => {
+    const sv = String(s?.sv ?? '');
+    const url = String(s?.url ?? '').trim();
+    if (!url) return;
+    if (!bag.has(sv)) {
+      bag.set(sv, []);
+      order.push(sv);
+    }
+    const cur = bag.get(sv)!;
+    if (!cur.includes(url)) cur.push(url);
+  });
+  return order
+    .sort((a, b) => (a === '' ? 1 : 0) - (b === '' ? 1 : 0))
+    .map((server) => ({ server, urls: bag.get(server) ?? [] }));
+}
