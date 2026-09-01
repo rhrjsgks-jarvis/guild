@@ -18,6 +18,7 @@ import {
   groupShots,
   nameParts,
   personLabel,
+  raidDate,
   serverOf,
   tally,
   weightsOf,
@@ -209,7 +210,7 @@ export default function ItemsTab({
    */
   const lootLine = (it: LedgerItem) => (
     <>
-      {[it.raid, termDisplay(terms, it.boss ?? '', lang)]
+      {[raidDate(it.raid), termDisplay(terms, it.boss ?? '', lang)]
         .map((x) => String(x ?? '').trim())
         .filter(Boolean)
         .map((v) => (

@@ -683,3 +683,37 @@ export function groupShots(
     .sort((a, b) => (a === '' ? 1 : 0) - (b === '' ? 1 : 0))
     .map((server) => ({ server, urls: bag.get(server) ?? [] }));
 }
+/**
+ * 레이드일 표기 (v11.7.1) — **아이템 목록과 연합 목록이 같은 규칙을 쓴다.**
+ *
+ * 이 칸은 사람이 시트에 직접 넣는 자유 입력이라 형태가 제각각으로 들어온다:
+ *
+ *   Date 셀     '8/29' 를 넣으면 구글시트가 날짜로 바꾼다 → getValues() 가 Date 를 준다
+ *               (시트가 그대로 흘려보내면 앱에는
+ *                'Sat Aug 29 2026 00:00:00 GMT+0900 (Korean Standard Time)' 가 온다)
+ *   yyyy-MM-dd  연합은 시트의 _dateOnly 가 이 모양으로 준다
+ *   '8/14'      텍스트로 넣은 경우 — 사람이 쓴 그대로다
+ *
+ * 🐛 v11.7 에서 아이템 목록이 첫 형태를 그대로 그려, **날짜 한 줄이 아이템명을
+ *    통째로 밀어냈다.** 목록에서 아이템을 알아볼 수 없게 된다.
+ *
+ * ★ 못 알아보는 값은 **그대로 둔다** (규칙 7). 자르거나 지어내면 사람이 적어둔
+ *   메모가 소리 없이 사라진다.
+ */
+export function raidDate(v?: string): string {
+  const s = String(v ?? '').trim();
+  if (!s) return '';
+  // 이미 짧게 적어둔 것은 손대지 않는다 (8/14 · 8-14)
+  const short = s.match(/^(\d{1,2})[/.-](\d{1,2})$/);
+  if (short) return `${Number(short[1])}/${Number(short[2])}`;
+  // yyyy-MM-dd (연합이 시트에서 받는 모양)
+  const iso = s.match(/^(\d{4})[-.](\d{1,2})[-.](\d{1,2})/);
+  if (iso) return `${Number(iso[2])}/${Number(iso[3])}`;
+  // 날짜 셀이 문자열로 흘러온 경우
+  const t = Date.parse(s);
+  if (!Number.isNaN(t)) {
+    const d = new Date(t);
+    return `${d.getMonth() + 1}/${d.getDate()}`;
+  }
+  return s;
+}

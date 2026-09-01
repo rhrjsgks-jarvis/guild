@@ -12,7 +12,7 @@ import ItemNameInput from './ItemNameInput';
 import LootFields, { EMPTY_LOOT, type Loot } from './LootFields';
 import LootEditSheet from './LootEditSheet';
 import type { AllianceGroup, AllianceState } from '@/lib/types';
-import { api, calcAlliance, fmt, getStoredEmail, prepPhoto } from '@/lib/client';
+import { api, calcAlliance, fmt, getStoredEmail, prepPhoto, raidDate } from '@/lib/client';
 import { termDisplay, useTerms } from '@/lib/terms';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
@@ -191,7 +191,7 @@ export default function AllianceTab({
   const groupLine = (g: AllianceGroup) => {
     // ★ 보스만 사전으로 번역한다 (v11.6). 날짜·서버번호·캐릭터명은 번역 대상이 아니다 —
     //   캐릭터명은 사람 이름이고, 사람 이름은 번역하지 않는다 (규칙 6-4).
-    const before = [g.raid, termDisplay(terms, g.boss ?? '', lang)]
+    const before = [raidDate(g.raid), termDisplay(terms, g.boss ?? '', lang)]
       .map((x) => String(x ?? '').trim()).filter(Boolean);
     const after = [g.lootSv, g.lootCh].map((x) => String(x ?? '').trim()).filter(Boolean);
     return (

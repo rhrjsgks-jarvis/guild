@@ -3826,6 +3826,51 @@ check('분배된 아이템이 얼마에 팔렸는지 누구나 본다 (v11.7)', 
 
   return '시트 done(금액·혈비·1인당·분배일) · 공개 조회 · 앱 목록 · 모의 대응';
 });
+check('레이드일은 어떤 모양으로 와도 짧게 그린다 (v11.7.1)', () => {
+  /*
+   * 🐛 실제 사고다. 시트의 레이드일 칸에 8/29 를 넣으면 구글시트가 **날짜 셀**로
+   *    바꾸고, getValues() 는 Date 를 준다. v11.7 이 그것을 String() 으로 읽어
+   *    'Sat Aug 29 2026 00:00:00 GMT+0900 (Korean Standard Time)' 가 목록에 실렸다 —
+   *    날짜 한 줄이 **아이템명을 통째로 밀어내** 목록에서 아이템을 알아볼 수 없었다.
+   *
+   * 이 칸은 사람이 직접 넣는 자유 입력이라 형태를 하나로 강제할 수 없다.
+   * 그래서 **그리는 자리에서** 짧게 만들고, 아이템·연합이 같은 함수를 쓴다.
+   */
+  const src = readFileSync(resolve(ROOT, "lib/client.ts"), "utf8");
+  const fn = (src.match(/export function raidDate[\s\S]*?\n\}/) ?? [''])[0];
+  if (!fn) throw new Error("raidDate 를 찾지 못했습니다.");
+  const ctx = vm.createContext({});
+  // 타입 표기를 걷어내고 실제로 실행한다 — 눈으로 읽는 검사는 이 사고를 못 잡는다
+  const js = fn.replace("export ", "").replace("(v?: string): string", "(v)");
+  vm.runInContext(js + "; __d = raidDate;", ctx);
+  const d = ctx.__d;
+
+  const cases = [
+    // 시트가 날짜 셀을 그대로 흘려보낸 경우 — 이것이 사고의 원인이었다
+    ["Sat Aug 29 2026 00:00:00 GMT+0900 (Korean Standard Time)", "8/29"],
+    ["2026-08-14", "8/14"],          // 연합이 시트에서 받는 모양
+    ["8/14", "8/14"],                // 사람이 텍스트로 넣은 것 — 그대로
+    ["08-09", "8/9"],
+    ["", ""],                        // 빈칸은 빈칸 (지어내지 않는다)
+    ["8월 셋째 주", "8월 셋째 주"],  // 못 알아보면 사람이 쓴 그대로 (규칙 7)
+  ];
+  for (const [input, want] of cases) {
+    const got = d(input);
+    if (got !== want) {
+      throw new Error(`레이드일 표기 불일치: ${JSON.stringify(input)} → ${JSON.stringify(got)} (기대 ${JSON.stringify(want)})`);
+    }
+  }
+  // 아무리 길어도 화면 한 칸을 넘기지 않는다
+  if (d(cases[0][0]).length > 6) throw new Error("날짜가 여전히 깁니다 — 아이템명을 밀어냅니다.");
+
+  // ★ 두 화면이 **같은 함수**를 쓴다. 한쪽만 고치면 같은 기록이 다르게 보인다
+  for (const f of ["components/ItemsTab.tsx", "components/AllianceTab.tsx"]) {
+    const ui = readFileSync(resolve(ROOT, f), "utf8");
+    if (!/raidDate\(/.test(ui)) throw new Error(`${f} 가 레이드일을 그대로 그립니다.`);
+  }
+
+  return `표기 ${cases.length}케이스(날짜셀·ISO·M/D·빈칸·알 수 없음) · 아이템·연합 공용`;
+});
 check('화면에 한국어가 직접 박혀 있지 않다', () => {
   // 언어를 바꿔도 안 바뀌는 문구가 생기지 않도록, JSX 텍스트/라벨에 한글이
   // 그대로 들어간 곳을 잡는다. 주석과 CSS 클래스는 대상이 아니다.
