@@ -78,6 +78,42 @@ export function setStoredAppName(name: string): void {
   }
 }
 
+/* ── 마지막으로 받은 상태: 여는 순간 숫자를 먼저 보여준다 (v11.9.1) ──
+ *
+ * 시트 조회는 4~11초가 걸린다 (Apps Script 가 매번 실행을 새로 준비한다).
+ * 그동안 스켈레톤만 보고 있으면 앱이 멈춘 것처럼 느껴진다.
+ *
+ * ★ 이 값은 **보기 전용**이다. 앱은 최신 값이 도착할 때까지 쓰기(등록·분배·지급)를
+ *   잠근다 — 낡은 숫자를 보고 분배하면 안 된다.
+ * ★ 언제 것인지는 헤더에 항상 보인다 ("3분 전 · 갱신 중"). 숨긴 채 옛 숫자를 보여주면
+ *   거짓말이 된다 (규칙 7).
+ * ★ 앱 버전이 바뀌면 버린다 — 모양이 달라진 옛 데이터로 화면이 깨질 수 있다.
+ */
+
+const STATE_KEY = 'gm_last_state';
+
+export function getStoredState<T>(version: string): { data: T; at: number } | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(STATE_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as { ver?: string; at?: number; data?: T };
+    if (v.ver !== version || !v.data || !v.at) return null;
+    return { data: v.data, at: v.at };
+  } catch {
+    return null; // 깨졌거나 막혔으면 예전처럼 스켈레톤부터
+  }
+}
+
+export function setStoredState(version: string, data: unknown, at: number): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(STATE_KEY, JSON.stringify({ ver: version, at, data }));
+  } catch {
+    /* 용량·사생활 보호 모드로 못 적어도 다음에 스켈레톤이 잠깐 보일 뿐이다 */
+  }
+}
+
 /* ── 개인 조회 탭에서 마지막에 본 이름을 기억한다 ── */
 
 const NAME_KEY = 'gm_my_name';

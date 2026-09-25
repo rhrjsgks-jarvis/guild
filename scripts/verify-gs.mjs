@@ -3104,6 +3104,45 @@ check('혈맹운영비는 목록 맨 위에 온다', () => {
   return '순서 보존 4케이스 · 잔액(정렬 뒤·배지) · 혈맹원 관리';
 });
 
+check('시트 자동 배포는 주소를 바꾸지 않고, 실패하면 되돌린다 (v11.9.1)', () => {
+  /*
+   * clasp 의 배포 명령은 배포 ID 가 없으면 **새 배포**를 만든다 — /exec 주소가 바뀌어
+   * 앱이 시트를 잃는다. 매니페스트를 새로 만들어 올리면 Drive 고급 서비스(OCR)와
+   * 웹앱 "모든 사용자" 설정이 사라진다. 이 둘이 이 스크립트의 가장 큰 사고 경로다.
+   */
+  const d = readFileSync(resolve(ROOT, 'scripts/deploy-gs.mjs'), 'utf8');
+  const at = (re, what) => {
+    const m = d.search(re);
+    if (m < 0) throw new Error(`deploy-gs: ${what}`);
+    return m;
+  };
+  at(/for \(const k of \['scriptId', 'deploymentId', 'appUrl'\]\)/, '배포 ID 없이도 진행합니다 — 새 배포가 생겨 주소가 바뀝니다');
+  if (/'(create-deployment|deploy)'/.test(d)) throw new Error('deploy-gs: 새 배포를 만드는 명령을 씁니다.');
+  const upd = at(/'update-deployment', cfg\.deploymentId/, '기존 배포를 갱신하지 않습니다');
+  const ver = at(/verify-gs\.mjs/, 'verify:gs 를 먼저 돌리지 않습니다');
+  const pull = at(/clasp\(\['pull'\]/, '원격을 먼저 받지 않습니다 — 매니페스트가 사라집니다');
+  const push = at(/clasp\(\['push'/, '올리는 단계가 없습니다');
+  if (!(ver < pull && pull < push && push < upd)) throw new Error('deploy-gs: 검사 → 받기 → 올리기 → 배포 순서가 아닙니다.');
+  if (/writeFileSync\([^)]*appsscript\.json/.test(d)) throw new Error('deploy-gs: 매니페스트를 새로 씁니다 — 원격 것을 그대로 올려야 합니다.');
+  at(/ANYONE_ANONYMOUS/, '웹앱 액세스를 확인하지 않습니다');
+  at(/'-V', String\(prevVersion\)/, '확인 실패 시 직전 버전으로 되돌리지 않습니다');
+  const gi = readFileSync(resolve(ROOT, '.gitignore'), 'utf8');
+  if (!/^\.gas-deploy\.local\.json$/m.test(gi)) throw new Error('.gas-deploy.local.json 이 git 에 올라갈 수 있습니다 — 길드마다 다른 값입니다.');
+  // GitHub Actions 자동 배포 — main 의 .gs 변경에서만, 한 번에 하나씩, 로그인 정보는 남기지 않는다
+  const wf = readFileSync(resolve(ROOT, '.github/workflows/deploy-gs.yml'), 'utf8');
+  if (!/branches: \[main\]/.test(wf) || !/github\.ref == 'refs\/heads\/main'/.test(wf)) {
+    throw new Error('deploy-gs.yml: main 이 아닌 브랜치에서도 시트를 배포합니다.');
+  }
+  if (!/paths: \['apps-script\/\*\*'\]/.test(wf)) throw new Error('deploy-gs.yml: .gs 가 안 바뀐 push 에도 배포합니다.');
+  if (!/cancel-in-progress: false/.test(wf)) throw new Error('deploy-gs.yml: 배포가 겹치거나 중간에 끊깁니다.');
+  if (!/contents: read/.test(wf)) throw new Error('deploy-gs.yml: 권한을 좁히지 않았습니다.');
+  if (!/run: npm run deploy:gs/.test(wf)) throw new Error('deploy-gs.yml: 로컬과 같은 배포 스크립트를 쓰지 않습니다.');
+  if (!/if: always\(\)\s+run: rm -f "\$HOME\/\.clasprc\.json"/.test(wf)) {
+    throw new Error('deploy-gs.yml: 실패해도 로그인 정보를 지우지 않습니다.');
+  }
+  return '배포 ID 필수 · 새 배포 금지 · 검사→받기→올리기→배포 · 매니페스트 보존 · 액세스 확인 · 되돌림 · git 제외 · Actions(main·직렬·권한·정리)';
+});
+
 check('새로고침 버튼이 화면에 있다', () => {
   const app = readFileSync(resolve(ROOT, 'components/App.tsx'), 'utf8');
   if (!/className=\{'sync'/.test(app)) throw new Error('헤더에 새로고침 버튼이 없습니다.');

@@ -61,6 +61,9 @@ const DICT: Record<string, Entry> = {
 
   'c.refresh': ['새로고침', '重新整理', 'Refresh'],
   'c.syncing': ['갱신 중', '更新中', 'Syncing'],
+  // 기억해 둔 옛 숫자를 먼저 보여주는 동안 (v11.9.1) — 이때는 등록·분배·지급이 잠긴다
+  'c.stale': ['지난번 숫자입니다 · 최신 값을 불러오는 중', '這是上次的數字 · 正在載入最新資料', 'Last saved numbers · loading the latest'],
+  'c.staleErr': ['최신 값을 못 불러와 지난번 숫자를 보여줍니다', '無法載入最新資料，顯示上次的數字', 'Could not load the latest — showing last saved numbers'],
   'c.justNow': ['방금', '剛剛', 'just now'],
   'c.agoMin': ['{n}분 전', '{n}分鐘前', '{n} min ago'],
   'c.agoHour': ['{n}시간 전', '{n}小時前', '{n} h ago'],

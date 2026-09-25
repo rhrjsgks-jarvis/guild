@@ -1,6 +1,6 @@
 {
   "name": "guild-settlement-app",
-  "version": "11.9.0",
+  "version": "11.9.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "verify:gs": "node scripts/verify-gs.mjs",
+    "deploy:gs": "node scripts/deploy-gs.mjs",
     "e2e": "node scripts/e2e.mjs",
     "verify": "npm run typecheck && npm run lint && npm run verify:gs && npm run build && npm run e2e",
     "icons": "node scripts/make-icons.mjs",
@@ -33,6 +34,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.6",
+    "@google/clasp": "3.4.1",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",

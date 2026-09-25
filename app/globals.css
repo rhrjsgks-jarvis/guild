@@ -1412,6 +1412,46 @@ select:focus {
      칸을 하나 더 놓으세요. */
 
 /* 공지 띠 — 어느 탭에 있든 항상 화면 맨 위에 붙는다 */
+/* 기억해 둔 옛 숫자를 보는 중 (v11.9.1) — 공지와 헷갈리지 않게 회색 계열 */
+.stale-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 16px;
+  font-size: 13px;
+  color: #4a5160;
+  background: #EEF1F5;
+  border-bottom: 1px solid #D8DDE5;
+}
+.stale-bar.err {
+  color: #8a1c1c;
+  background: #FDECEC;
+  border-bottom-color: #F3C2C2;
+}
+.stale-bar .link {
+  flex: none;
+  padding: 4px 8px;
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  text-decoration: underline;
+  background: none;
+  border: 0;
+}
+@media (prefers-color-scheme: dark) {
+  .stale-bar {
+    color: #C9D1DC;
+    background: #22272F;
+    border-bottom-color: #343B46;
+  }
+  .stale-bar.err {
+    color: #FFB4B4;
+    background: #3A1E1E;
+    border-bottom-color: #5A2C2C;
+  }
+}
+
 .notice-bar {
   display: block;
   width: 100%;

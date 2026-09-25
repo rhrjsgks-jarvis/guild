@@ -1,27 +1,73 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import Glyph from './Glyph';
 import type { BalanceRow, GuildState, LedgerItem } from '@/lib/types';
-import { api, getStoredAppName, setStoredAppName } from '@/lib/client';
+import { api, getStoredAppName, getStoredState, setStoredAppName, setStoredState } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
 import { APP_VERSION } from '@/lib/version';
-import BalanceTab from './BalanceTab';
-import ItemsTab from './ItemsTab';
-import BoardTab from './BoardTab';
-import AllianceTab from './AllianceTab';
-import RaidTab from './RaidTab';
-import MeTab from './MeTab';
-import AdminTab from './AdminTab';
-import TermsTab from './TermsTab';
 import HomeTab, { dropHomeMemo } from './HomeTab';
-import ManualTab from './ManualTab';
 import Screen from './Screen';
-import LangSheet from './LangSheet';
-import DistributeSheet from './DistributeSheet';
-import PayoutSheet from './PayoutSheet';
-import SeasonSheet from './SeasonSheet';
+
+/**
+ * 화면·팝업은 **열 때** 불러온다 (v11.9.1).
+ *
+ * 첫 화면은 언제나 홈이다. 예전에는 홈에서 열지도 않은 화면 9개와 팝업 4개,
+ * 그 밑의 사용안내·드롭표·혈맹원 관리까지 전부 첫 로드에 실려 폰이 받고 해석했다.
+ * 쪼개 두고, 홈이 뜬 뒤 한가한 틈에 미리 받아 둔다(`preloadAll`) — 눌렀을 때 기다리지 않는다.
+ */
+const loaders = {
+  balance: () => import('./BalanceTab'),
+  items: () => import('./ItemsTab'),
+  board: () => import('./BoardTab'),
+  alliance: () => import('./AllianceTab'),
+  raid: () => import('./RaidTab'),
+  me: () => import('./MeTab'),
+  admin: () => import('./AdminTab'),
+  terms: () => import('./TermsTab'),
+  manual: () => import('./ManualTab'),
+  lang: () => import('./LangSheet'),
+  dist: () => import('./DistributeSheet'),
+  payout: () => import('./PayoutSheet'),
+  season: () => import('./SeasonSheet'),
+};
+
+/** 미리 받아 두지 못했을 때(느린 망) 잠깐 보이는 자리 */
+function ScreenLoading() {
+  return (
+    <div className="card">
+      <div className="field">
+        {[70, 100, 85].map((w, i) => (
+          <div key={i} className="skeleton" style={{ width: `${w}%`, marginBottom: 12 }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const BalanceTab = dynamic(loaders.balance, { loading: ScreenLoading });
+const ItemsTab = dynamic(loaders.items, { loading: ScreenLoading });
+const BoardTab = dynamic(loaders.board, { loading: ScreenLoading });
+const AllianceTab = dynamic(loaders.alliance, { loading: ScreenLoading });
+const RaidTab = dynamic(loaders.raid, { loading: ScreenLoading });
+const MeTab = dynamic(loaders.me, { loading: ScreenLoading });
+const AdminTab = dynamic(loaders.admin, { loading: ScreenLoading });
+const TermsTab = dynamic(loaders.terms, { loading: ScreenLoading });
+const ManualTab = dynamic(loaders.manual, { loading: ScreenLoading });
+const LangSheet = dynamic(loaders.lang);
+const DistributeSheet = dynamic(loaders.dist);
+const PayoutSheet = dynamic(loaders.payout);
+const SeasonSheet = dynamic(loaders.season);
+
+function preloadAll() {
+  Object.values(loaders).forEach((load) => {
+    load().catch(() => {
+      /* 미리 받기는 덤이다 — 실패하면 누를 때 다시 받는다 */
+    });
+  });
+}
 
 /** Apps Script 가 앱 이름을 정하지 않았을 때 내려주는 기본값 */
 const DEFAULT_APP_NAME = '길드정산';
@@ -71,6 +117,13 @@ export default function App() {
   const [syncedAt, setSyncedAt] = useState(0);
   const [nowTick, setNowTick] = useState(0);
   const [toastMsg, setToastMsg] = useState<{ text: string; err: boolean } | null>(null);
+  /**
+   * 지금 보이는 숫자가 **기기에 기억해 둔 옛 값**인가 (v11.9.1).
+   * 참이면 쓰기를 잠근다 — 낡은 잔액을 보고 분배·지급하면 안 된다.
+   * 이번 실행에서 시트 값을 한 번이라도 받으면 거짓이 되고, 다시 참이 되지 않는다
+   * (도중에 참이 되면 관리자가 쓰던 입력란이 통째로 사라진다 — 규칙 5-9).
+   */
+  const [stale, setStale] = useState(false);
 
   const [seasonOpen, setSeasonOpen] = useState(false);
   // 공지 띠를 눌렀을 때 게시판에서 그 글을 바로 펼치기 위한 값
@@ -105,9 +158,12 @@ export default function App() {
         setLoadError(srv(res));
         return;
       }
+      const now = Date.now();
       setLoadError('');
       setState(res.data as GuildState);
-      setSyncedAt(Date.now());
+      setSyncedAt(now);
+      setStale(false);
+      setStoredState(APP_VERSION, res.data, now);
     },
     [srv],
   );
@@ -125,9 +181,12 @@ export default function App() {
       dropHomeMemo();
       const fresh = res?.state as GuildState | undefined;
       if (fresh) {
+        const now = Date.now();
         setState(fresh);
-        setSyncedAt(Date.now());
+        setSyncedAt(now);
         setLoadError('');
+        setStale(false);
+        setStoredState(APP_VERSION, fresh, now);
         return;
       }
       void refresh(true);
@@ -136,8 +195,29 @@ export default function App() {
   );
 
   useEffect(() => {
+    // 기억해 둔 숫자를 먼저 띄운다 — 시트 응답(4~11초)을 스켈레톤으로 기다리지 않는다.
+    // ★ 붙은 뒤에 읽는다. 첫 그림에서 읽으면 서버가 그린 것과 달라 하이드레이션이 깨진다.
+    // ★ 처음 한 번만. refresh 에 묶으면 언어를 바꿀 때마다 다시 옛 값으로 돌아간다.
+    const kept = getStoredState<GuildState>(APP_VERSION);
+    if (kept) {
+      setState(kept.data);
+      setSyncedAt(kept.at);
+      setStale(true);
+    }
+  }, []);
+
+  useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // 홈이 뜬 뒤 한가할 때 화면 코드를 미리 받아 둔다 — 첫 로드는 가볍게, 누를 때는 바로
+  const hasState = state !== null;
+  useEffect(() => {
+    if (!hasState) return;
+    const w = window as Window & { requestIdleCallback?: (cb: () => void) => number };
+    if (w.requestIdleCallback) w.requestIdleCallback(preloadAll);
+    else setTimeout(preloadAll, 1500);
+  }, [hasState]);
 
   // 앱을 다시 열거나 탭으로 돌아오면 자동으로 최신 상태를 가져온다
   useEffect(() => {
@@ -209,6 +289,10 @@ export default function App() {
    * ★ 이름에 마스터가 넣은 줄바꿈이 들어 있다 — 탭 제목에서는 한 줄로 편다.
    */
   const tabTitle = title.replace(/\s+/g, ' ').trim();
+
+  // 기억해 둔 옛 숫자를 보는 동안은 관리자라도 쓰기를 열지 않는다
+  const canAdmin = admin && !stale;
+  const canMaster = master && !stale;
 
   // 시트(.gs)는 사용자가 직접 붙여넣고 재배포해야 해서, 앱만 새 버전인 상태가 되기 쉽다.
   // 그 어긋남을 제목 옆에서 바로 보이게 한다.
@@ -327,7 +411,22 @@ export default function App() {
         </button>
       ) : null}
 
-      {loadError ? (
+      {/*
+        옛 숫자를 보는 중이라는 것을 **숨기지 않는다** (v11.9.1). 헤더의 "n분 전" 만으로는
+        지나치기 쉽다 — 잔액을 보고 누구에게 얼마를 줄지 정하는 앱이다.
+      */}
+      {stale && state ? (
+        <div className={'stale-bar' + (loadError ? ' err' : '')} role="status">
+          {loadError ? t('c.staleErr') : t('c.stale')}
+          {loadError ? (
+            <button className="link" onClick={() => void refresh()}>
+              {t('c.retry')}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {loadError && !(stale && state) ? (
         <div className="page">
           <div className="card">
             <div className="field">
@@ -362,13 +461,13 @@ export default function App() {
           {screen ? (
             <Screen title={t(SCREEN_TITLE[screen])} onClose={() => setScreen(null)}>
               {screen === 'balance' ? (
-                <BalanceTab state={state} admin={admin} onPayout={setPayTarget} toast={toast} />
+                <BalanceTab state={state} admin={canAdmin} onPayout={setPayTarget} toast={toast} />
               ) : null}
               {screen === 'items' ? (
                 <ItemsTab
                   state={state}
-                  admin={admin}
-                  master={master}
+                  admin={canAdmin}
+                  master={canMaster}
                   onDistribute={setDistTarget}
                   onDone={refreshNow}
                   toast={toast}
@@ -378,8 +477,8 @@ export default function App() {
               {screen === 'alliance' ? (
                 // 연합 정산은 혈맹운영비 잔액을 실제로 늘리고 줄인다 — 잔액도 같이 맞춰야 한다
                 <AllianceTab
-                  admin={admin}
-                  master={master}
+                  admin={canAdmin}
+                  master={canMaster}
                   fundName={state.fundName}
                   members={state.members}
                   toast={toast}
@@ -387,11 +486,11 @@ export default function App() {
                   onWrote={refreshNow}
                 />
               ) : null}
-              {screen === 'raid' ? <RaidTab admin={admin} toast={toast} setBusy={setBusy} /> : null}
+              {screen === 'raid' ? <RaidTab admin={canAdmin} toast={toast} setBusy={setBusy} /> : null}
               {screen === 'me' ? <MeTab state={state} toast={toast} /> : null}
               {screen === 'board' ? (
                 <BoardTab
-                  admin={admin}
+                  admin={canAdmin}
                   focusPostId={focusPostId}
                   onFocusHandled={() => setFocusPostId(null)}
                   toast={toast}
@@ -399,12 +498,12 @@ export default function App() {
                 />
               ) : null}
               {/* 관리자용 절은 관리자 모드일 때만 그린다 — 접어두는 것이 아니라 아예 만들지 않는다 */}
-              {screen === 'manual' ? <ManualTab admin={admin} /> : null}
-              {screen === 'terms' ? <TermsTab admin={admin} toast={toast} setBusy={setBusy} /> : null}
+              {screen === 'manual' ? <ManualTab admin={canAdmin} /> : null}
+              {screen === 'terms' ? <TermsTab admin={canAdmin} toast={toast} setBusy={setBusy} /> : null}
               {screen === 'admin' ? (
                 <AdminTab
-                  admin={admin}
-                  master={master}
+                  admin={canAdmin}
+                  master={canMaster}
                   unit={state.unit}
                   servers={state.serverList ?? []}
                   appName={title}
@@ -415,7 +514,7 @@ export default function App() {
               ) : null}
             </Screen>
           ) : (
-            <HomeTab state={state} admin={admin} onGo={setScreen} />
+            <HomeTab state={state} admin={canAdmin} onGo={setScreen} />
           )}
         </main>
       )}
