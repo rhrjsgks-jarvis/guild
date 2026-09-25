@@ -745,7 +745,12 @@ export function raidDate(v?: string): string {
   // yyyy-MM-dd (연합이 시트에서 받는 모양)
   const iso = s.match(/^(\d{4})[-.](\d{1,2})[-.](\d{1,2})/);
   if (iso) return `${Number(iso[2])}/${Number(iso[3])}`;
-  // 날짜 셀이 문자열로 흘러온 경우
+  // 날짜 셀이 문자열로 흘러온 경우 — 'Sat Aug 29 2026 00:00:00 GMT+0900 (...)'
+  // ★ 적힌 달·일을 **그대로** 읽는다 (v11.9.1). Date 로 바꾸면 보는 폰의 시간대로
+  //   다시 계산돼, 중국(UTC+8)에서는 한국 자정이 전날 23시라 하루 앞 날짜가 나왔다.
+  const cell = s.match(/^[A-Z][a-z]{2} ([A-Z][a-z]{2}) (\d{1,2}) \d{4}\b/);
+  const mon = cell ? 'JanFebMarAprMayJunJulAugSepOctNovDec'.indexOf(cell[1]) : -1;
+  if (cell && mon >= 0 && mon % 3 === 0) return `${mon / 3 + 1}/${Number(cell[2])}`;
   const t = Date.parse(s);
   if (!Number.isNaN(t)) {
     const d = new Date(t);

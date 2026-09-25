@@ -3552,13 +3552,29 @@ check('설명서가 부르는 화면이 실제로 있다 (v11.7)', () => {
     }
   }
 
-  // 그림 설명서(docs/manual/*.html)가 거는 상대 경로도 실제 파일이어야 한다
+  /*
+   * 그림 설명서(docs/manual/*.html)가 거는 화면은 **촬영 스크립트가 그 이름으로 찍어야** 한다.
+   *
+   * ★ manual/shots/ 는 일부러 git 에 올리지 않는다(.gitignore — 언제든 다시 찍는다). 그래서
+   *   새로 받은 저장소(GitHub Actions)에는 파일이 없고, 파일만 보던 이 검사는 v11.7 부터
+   *   CI 에서 늘 실패했다 — 시트 자동 배포(v11.9.1)가 이 검사를 먼저 돌리므로 배포까지 막혔다.
+   *   이름은 언제나 촬영 스크립트와 대조하고, 촬영본이 있는 곳에서만 파일까지 본다.
+   */
+  const shooter = readFileSync(resolve(ROOT, 'scripts/make-manual-shots.mjs'), 'utf8');
+  const shotNames = new Set([
+    ...[...shooter.matchAll(/\bshot\('([\w-]+)'\)/g)].map((m) => m[1]),
+    ...[...shooter.matchAll(/scrollShot\([^,]+,\s*'([\w-]+)'\)/g)].map((m) => m[1]),
+  ]);
+  const haveShots = existsSync(resolve(ROOT, 'manual/shots'));
   let html = 0;
   for (const f of ['member.html', 'admin.html']) {
     const src = readFileSync(resolve(ROOT, `docs/manual/${f}`), 'utf8');
     for (const m of src.matchAll(/src="\.\.\/\.\.\/manual\/shots\/([\w-]+)\.png"/g)) {
       html++;
-      if (!existsSync(resolve(ROOT, `manual/shots/${m[1]}.png`))) {
+      if (!shotNames.has(m[1])) {
+        throw new Error(`${f} 가 부르는 화면을 촬영 스크립트가 찍지 않습니다: ${m[1]} (scripts/make-manual-shots.mjs)`);
+      }
+      if (haveShots && !existsSync(resolve(ROOT, `manual/shots/${m[1]}.png`))) {
         throw new Error(`${f} 가 부르는 화면이 없습니다: manual/shots/${m[1]}.png (npm run manual:shots)`);
       }
     }
@@ -3911,6 +3927,23 @@ check('레이드일은 어떤 모양으로 와도 짧게 그린다 (v11.7.1)', (
   }
   // 아무리 길어도 화면 한 칸을 넘기지 않는다
   if (d(cases[0][0]).length > 6) throw new Error("날짜가 여전히 깁니다 — 아이템명을 밀어냅니다.");
+
+  // ★ 보는 폰의 시간대와 무관해야 한다 (v11.9.1). 한국 자정은 중국에서 전날 23시다 —
+  //   Date 로 바꿔 읽던 v11.7.1 은 중국 혈맹원에게 하루 앞 날짜를 보여줬고,
+  //   UTC 로 도는 GitHub Actions 에서만 이 검사가 실패해 드러났다.
+  // ★ 윈도우의 Node 는 'Asia/Shanghai' 같은 지역 이름을 무시하고 'UTC' 만 알아듣는다.
+  //   그래서 UTC 를 반드시 목록에 둔다 — 윈도우에서도 옛 코드는 여기서 8/28 로 걸린다.
+  const tz0 = process.env.TZ;
+  try {
+    for (const tz of ["Asia/Shanghai", "UTC", "America/Los_Angeles"]) {
+      process.env.TZ = tz;
+      const got = d(cases[0][0]);
+      if (got !== "8/29") throw new Error(`시간대 ${tz} 에서 레이드일이 ${got} 로 보입니다 (기대 8/29).`);
+    }
+  } finally {
+    if (tz0 === undefined) delete process.env.TZ;
+    else process.env.TZ = tz0;
+  }
 
   // ★ 두 화면이 **같은 함수**를 쓴다. 한쪽만 고치면 같은 기록이 다르게 보인다
   for (const f of ["components/ItemsTab.tsx", "components/AllianceTab.tsx"]) {
