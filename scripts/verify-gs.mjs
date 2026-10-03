@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v11_9.gs');
+const GS_PATH = resolve(ROOT, 'apps-script/GuildManager_v11_10.gs');
 const CLIENT_PATH = resolve(ROOT, 'lib/client.ts');
 
 /**
