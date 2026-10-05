@@ -1248,17 +1248,24 @@ page.on('pageerror', (e) => consoleErrors.push('PAGEERROR: ' + e.message));
 const shot = (name) => (SHOTS ? page.screenshot({ path: `${SHOTS}/${name}.png` }) : Promise.resolve());
 
 /**
- * 인증샷은 구글 드라이브에서 온다. 검사 환경에서는 밖으로 나갈 수 없으므로
- * 요청을 가로채 1픽셀 그림을 준다. 확인하려는 것은 "앱이 어떤 주소로 부르는가"
- * 이지 드라이브가 아니다. 전역에 걸어둬야 다른 검사에서도 콘솔이 조용하다.
+ * 인증샷은 우리 서버의 `/api/photo` 가 드라이브에서 받아 건넨다 (v11.10.1).
+ * 검사 환경에서는 밖으로 나갈 수 없으므로 요청을 가로채 1픽셀 그림을 준다.
+ * 확인하려는 것은 "앱이 어떤 주소로 부르는가"이지 드라이브가 아니다.
+ * 전역에 걸어둬야 다른 검사에서도 콘솔이 조용하다.
+ * 드라이브 직접 호출도 가로채 기록해 둔다 — 하나라도 있으면 중국에서 안 열린다.
  */
 const drivePng = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
   'base64',
 );
 const driveHits = [];
-await page.route('https://drive.google.com/**', async (route) => {
+const directDrive = [];
+await page.route('**/api/photo?**', async (route) => {
   driveHits.push(route.request().url());
+  await route.fulfill({ status: 200, contentType: 'image/png', body: drivePng });
+});
+await page.route('https://drive.google.com/**', async (route) => {
+  directDrive.push(route.request().url());
   await route.fulfill({ status: 200, contentType: 'image/png', body: drivePng });
 });
 
@@ -2758,8 +2765,12 @@ await t('인증샷: 아이템·연합에서 눌러 앱 안에서 본다 (v11.1, 
   await page.waitForTimeout(600);
   eq(await page.locator('.sheet .shots .shot').count(), 2, '아이템 인증샷 장수');
   // ★ 드라이브 뷰어 페이지 주소를 그대로 <img> 에 넣으면 아무것도 안 나온다
-  if (!driveHits.some((u) => u.includes('thumbnail?id='))) {
-    throw new Error(`뷰어 주소가 아니라 원본을 그대로 <img> 에 넣었습니다:\n${driveHits.join('\n')}`);
+  if (!driveHits.some((u) => u.includes('/api/photo?id='))) {
+    throw new Error(`썸네일 중계 주소가 아니라 원본을 그대로 <img> 에 넣었습니다:\n${driveHits.join('\n')}`);
+  }
+  // ★ 폰이 드라이브를 직접 부르면 중국 본토에서는 사진이 안 열린다 (v11.10.1)
+  if (directDrive.length) {
+    throw new Error(`폰이 드라이브를 직접 불렀습니다:\n${directDrive.join('\n')}`);
   }
 
   // 눌러서 크게 보고, 닫으면 원래 자리로 돌아온다 (새 탭으로 나가지 않는다)

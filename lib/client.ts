@@ -674,6 +674,8 @@ export function calcAlliance(amount: number, counts: number[], fundRate: number)
  *
  * ★ 드라이브 링크가 아니면 **그대로 돌려준다.** 관리자가 손으로 붙여넣은
  *   다른 주소일 수 있고, 거기에 드라이브 규칙을 씌우면 멀쩡한 링크가 깨진다 (규칙 7).
+ * ★ 썸네일은 폰이 드라이브에서 직접 받지 않고 **우리 서버(`/api/photo`)를 거친다**
+ *   (v11.10.1). 중국 본토에서는 drive.google.com 이 막혀 사진이 하나도 안 열렸다.
  */
 export function photoView(url: string, width = 1200): string {
   const u = String(url ?? '').trim();
@@ -682,7 +684,7 @@ export function photoView(url: string, width = 1200): string {
     u.match(/[?&]id=([A-Za-z0-9_-]{10,})/)?.[1] ??
     u.match(/^https:\/\/drive\.google\.com\/open\?id=([A-Za-z0-9_-]{10,})/)?.[1];
   if (!id) return u;
-  return `https://drive.google.com/thumbnail?id=${id}&sz=w${width}`;
+  return `/api/photo?id=${id}&w=${width}`;
 }
 
 /**

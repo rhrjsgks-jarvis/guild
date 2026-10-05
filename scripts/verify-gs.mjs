@@ -2364,8 +2364,9 @@ check('인증샷은 앱 안에서 바로 보인다 (v11.1)', () => {
 
   const ID = '1AbC_dEfGhIjKlMnOpQ';
   const cases = [
-    [`https://drive.google.com/file/d/${ID}/view?usp=drivesdk`, `https://drive.google.com/thumbnail?id=${ID}&sz=w400`],
-    [`https://drive.google.com/open?id=${ID}`, `https://drive.google.com/thumbnail?id=${ID}&sz=w400`],
+    // ★ 드라이브를 폰이 직접 부르지 않는다 — 중국 본토에서는 막혀 있다 (v11.10.1)
+    [`https://drive.google.com/file/d/${ID}/view?usp=drivesdk`, `/api/photo?id=${ID}&w=400`],
+    [`https://drive.google.com/open?id=${ID}`, `/api/photo?id=${ID}&w=400`],
     // ★ 드라이브가 아니면 손대지 않는다 — 멀쩡한 링크가 깨진다 (규칙 7)
     ['https://example.com/shot.png', 'https://example.com/shot.png'],
     ['', ''],
@@ -2383,6 +2384,15 @@ check('인증샷은 앱 안에서 바로 보인다 (v11.1)', () => {
   if (!/shot\.failed/.test(strip)) throw new Error('못 불러온 사진을 알려주지 않습니다.');
   // 원본으로 나가는 길은 남겨둔다 (썸네일이 흐릴 때 필요하다)
   if (!/shot\.origin/.test(strip)) throw new Error('원본 링크가 없습니다.');
+
+  // 중계 라우트는 드라이브 파일 ID 만 받는다 — 아무 주소나 받으면 열린 중계기가 된다
+  const relay = readFileSync(resolve(ROOT, 'app/api/photo/route.ts'), 'utf8');
+  if (!/const ID = \/\^\[A-Za-z0-9_-\]/.test(relay)) throw new Error('/api/photo 가 ID 형식을 검사하지 않습니다.');
+  if (/q\.get\(['"]url['"]\)/.test(relay)) throw new Error('/api/photo 가 임의 주소를 받습니다.');
+  if (!/fetch\(`https:\/\/drive\.google\.com\/thumbnail\?id=\$\{id\}/.test(relay)) {
+    throw new Error('/api/photo 가 드라이브 썸네일 말고 다른 곳을 부릅니다.');
+  }
+  if (!/startsWith\(['"]image\/['"]\)/.test(relay)) throw new Error('/api/photo 가 그림이 아닌 응답을 그대로 넘깁니다.');
 
   // 아이템·연합 두 곳 모두에서 열려야 한다
   for (const f of ['components/ItemsTab.tsx', 'components/AllianceTab.tsx']) {

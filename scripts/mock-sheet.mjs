@@ -1342,7 +1342,7 @@ const handlers = {
     return rc({
       ok: true,
       people,
-      photoUrl: `https://drive.google.com/file/d/MOCKSHOT${S.photoReads}/view`,
+      photoUrl: `https://drive.google.com/file/d/MOCKSHOTID${String(S.photoReads).padStart(3, "0")}/view`,
       msg: `📷 사진에서 ${people}명으로 읽었습니다. 실제 인원과 다르면 숫자를 직접 고쳐주세요.`,
     }, 'photo.count', { n: people });
   },
