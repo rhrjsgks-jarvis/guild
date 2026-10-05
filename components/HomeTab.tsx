@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import IconText from './IconText';
 import Glyph, { type GlyphName } from './Glyph';
 import type { AllianceState, GuildState, RaidState } from '@/lib/types';
-import { api, fmt } from '@/lib/client';
+import { fmt, todayDay } from '@/lib/client';
+import { loadShared } from '@/lib/shared';
 import { useT } from '@/lib/i18n';
-import { todayDay } from './RaidTab';
 
 /**
  * 홈 (v11.2.1) — 앱을 열면 여기서 시작한다.
@@ -62,7 +62,8 @@ export default function HomeTab({
     if (memo && Date.now() - memo.at < MEMO_MS) return;
     let alive = true;
     void (async () => {
-      const [a, r] = await Promise.all([api('/api/alliance'), api('/api/raid')]);
+      // 여기서 받은 것을 연합·레이드 화면이 그대로 쓴다 — 아이콘을 눌러도 다시 기다리지 않는다
+      const [a, r] = await Promise.all([loadShared('alliance', '/api/alliance'), loadShared('raid', '/api/raid')]);
       // 못 읽은 것은 -1 로 남겨 숫자를 아예 안 붙인다 (0 건과 구별해야 한다)
       const ally = a.ok ? ((a.data as AllianceState).waiting?.length ?? 0) : -1;
       const day = todayDay();

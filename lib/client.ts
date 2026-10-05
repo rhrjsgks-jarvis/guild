@@ -128,6 +128,16 @@ export function setStoredName(name: string): void {
   else window.localStorage.removeItem(NAME_KEY);
 }
 
+/**
+ * 오늘 요일 — 시트는 1=월 … 7=일, 자바스크립트 getDay()는 0=일 … 6=토.
+ * 홈과 레이드 화면이 같이 쓴다. RaidTab 안에 두면 홈이 이 함수 하나 때문에
+ * 레이드 화면 전체를 첫 화면 번들에 끌고 들어온다 (v11.10.2).
+ */
+export function todayDay(d: Date = new Date()): number {
+  const js = d.getDay();
+  return js === 0 ? 7 : js;
+}
+
 export function fmt(n: number | undefined | null): string {
   return (n ?? 0).toLocaleString('ko-KR');
 }

@@ -2349,6 +2349,44 @@ check('하단 탭이 없고 모든 화면은 홈 아이콘에서 연다 (v11.2.1
   return `하단바 없음 · 아이콘 ${order.length}개(관리 맨 끝) · 글자 ${px}px · 닫기 버튼 · 숫자 캐시 ${ttl / 1000}초`;
 });
 
+check('같은 것을 두 번 읽지 않는다 — 화면끼리 조회를 나눠 쓴다 (v11.10.2)', () => {
+  // 시트 한 번 읽는 데 3초 안팎이다. 홈이 읽은 연합·레이드를 그 화면이 또 읽으면
+  // 아이콘을 누를 때마다 3초를 다시 기다린다.
+  const shared = readFileSync(resolve(ROOT, 'lib/shared.ts'), 'utf8');
+  if (!/inflight\.get\(key\)/.test(shared)) throw new Error('진행 중인 요청을 나눠 쓰지 않습니다.');
+  // ★ 쓴 직후의 조회가 쓰기 전 요청에 얹히면 방금 쓴 것이 안 보인다 (규칙 6-2)
+  if (!/if \(!fresh\) \{[\s\S]{0,80}inflight\.get/.test(shared)) throw new Error('fresh 조회가 진행 중인 옛 요청에 얹힙니다.');
+  // ★ 실패를 저장하면 다음에 열 때 빈 목록이 "없음"으로 보인다
+  if (!/if \(res\.ok\) \{[\s\S]{0,120}mem\.set/.test(shared)) throw new Error('실패한 조회도 저장합니다.');
+  if (!/APP_VERSION/.test(shared)) throw new Error('앱 버전이 바뀌어도 옛 저장값을 씁니다.');
+
+  const home = readFileSync(resolve(ROOT, 'components/HomeTab.tsx'), 'utf8');
+  if (/from '\.\/RaidTab'/.test(home)) throw new Error('홈이 레이드 화면 전체를 첫 화면 번들에 끌고 들어옵니다.');
+  for (const [f, key] of [
+    ['components/HomeTab.tsx', 'alliance'],
+    ['components/HomeTab.tsx', 'raid'],
+    ['components/AllianceTab.tsx', 'alliance'],
+    ['components/RaidTab.tsx', 'raid'],
+    ['components/BoardTab.tsx', 'board'],
+    ['lib/terms.ts', 'terms'],
+  ]) {
+    const src = readFileSync(resolve(ROOT, f), 'utf8');
+    if (!src.includes(`loadShared('${key}'`)) throw new Error(`${f} 가 '${key}' 를 따로 읽습니다.`);
+    // 조회만 본다 — 게시판 글쓰기(api('/api/board', {...}))는 쓰기라 따로 간다
+    if (src.includes(`api('/api/${key}')`) || src.includes(`'/api/${key}?fresh=1'`)) {
+      throw new Error(`${f} 가 /api/${key} 를 직접 부릅니다.`);
+    }
+  }
+  // ★ 저장해 둔 값은 확인 전 값이다 — 새로 받기 전에는 쓰기 버튼을 감춘다
+  for (const f of ['components/AllianceTab.tsx', 'components/RaidTab.tsx', 'components/BoardTab.tsx']) {
+    const src = readFileSync(resolve(ROOT, f), 'utf8');
+    if (!/const admin = adminProp && live;/.test(src)) throw new Error(`${f} 가 확인 전 값으로 관리 기능을 엽니다.`);
+  }
+  const ali = readFileSync(resolve(ROOT, 'components/AllianceTab.tsx'), 'utf8');
+  if (!/const master = masterProp && live;/.test(ali)) throw new Error('연합이 확인 전 값으로 마스터 기능을 엽니다.');
+  return '연합·레이드·게시판·용어 4종 · 진행 중 요청 공유 · 확인 전 쓰기 잠금';
+});
+
 check('인증샷은 앱 안에서 바로 보인다 (v11.1)', () => {
   // 시트에 저장되는 값은 드라이브 **뷰어 페이지** 주소다. <img> 에 그대로 넣으면
   // 아무것도 안 나온다 — 썸네일 주소로 바꿔야 보인다.
@@ -3263,7 +3301,8 @@ check('보스 시간표는 요일별로 나뉘고 못 읽은 값을 지어내지
 
   // 앱: 오늘 요일이 기본이고, 시트(1=월)와 getDay()(0=일)의 차이를 변환해야 한다
   const tab = readFileSync(resolve(ROOT, 'components/RaidTab.tsx'), 'utf8');
-  if (!/js === 0 \? 7 : js/.test(tab)) throw new Error('getDay()(0=일) → 시트 요일(1=월) 변환이 없습니다.');
+  // 변환 함수는 lib/client.ts 에 있다 — 홈이 레이드 화면 전체를 끌고 들어오지 않게 (v11.10.2)
+  if (!/js === 0 \? 7 : js/.test(clientTs)) throw new Error('getDay()(0=일) → 시트 요일(1=월) 변환이 없습니다.');
   if (!/useState\(\(\) => todayDay\(\)\)/.test(tab)) throw new Error('기본 요일이 오늘이 아닙니다.');
 
   return `요일·시간 정규화 ${dayCases.length + timeCases.length}케이스 · 빈 줄 제외 · 라우터 4종 · 공개 라우트 읽기 전용`;

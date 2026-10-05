@@ -13,6 +13,7 @@ import LootFields, { EMPTY_LOOT, type Loot } from './LootFields';
 import LootEditSheet from './LootEditSheet';
 import type { AllianceGroup, AllianceState } from '@/lib/types';
 import { api, calcAlliance, fmt, getStoredEmail, prepPhoto, raidDate } from '@/lib/client';
+import { loadShared, peekShared } from '@/lib/shared';
 import { termDisplay, useTerms } from '@/lib/terms';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
@@ -40,8 +41,8 @@ import ShareBtn from './ShareBtn';
  *   개인 잔액은 어느 단계에서도 건드리지 않는다.
  */
 export default function AllianceTab({
-  admin,
-  master,
+  admin: adminProp,
+  master: masterProp,
   fundName,
   members,
   toast,
@@ -62,7 +63,12 @@ export default function AllianceTab({
 }) {
   const { t, unit, srv, lang } = useT();
   const { terms } = useTerms();
-  const [data, setData] = useState<AllianceState | null>(null);
+  // 홈이 방금 받아둔 것·지난번에 본 것을 먼저 띄운다 (lib/shared.ts)
+  const [data, setData] = useState<AllianceState | null>(() => peekShared<AllianceState>('alliance')?.data ?? null);
+  // 시트에서 새로 받기 전까지는 확인 안 된 값이다 — 낡은 숫자로 정산하지 않게 쓰기 버튼을 감춘다
+  const [live, setLive] = useState(false);
+  const admin = adminProp && live;
+  const master = masterProp && live;
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
   const [crediting, setCrediting] = useState<AllianceGroup | null>(null);
@@ -76,10 +82,11 @@ export default function AllianceTab({
 
   // fresh=true 는 내가 방금 쓴 직후에만 — 서버 캐시를 건너뛴다 (lib/fresh.ts)
   const load = useCallback(async (fresh = false) => {
-    const res = await api(fresh ? '/api/alliance?fresh=1' : '/api/alliance');
+    const res = await loadShared('alliance', '/api/alliance', fresh);
     if (res.ok) {
       setError('');
       setData(res.data as AllianceState);
+      setLive(true);
       return;
     }
     // 시트가 아직 v10 이 아니면 이 액션 자체가 없다 — 뼈대만 계속 돌리지 말고 이유를 말해준다

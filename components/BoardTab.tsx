@@ -8,6 +8,7 @@ import type { BoardPost } from '@/lib/types';
 import { api, getStoredEmail, getStoredName } from '@/lib/client';
 import type { ApiResult } from '@/lib/client';
 import { useT } from '@/lib/i18n';
+import { loadShared, peekShared } from '@/lib/shared';
 
 /**
  * 게시판 — 혈맹원 누구나 글을 쓸 수 있다 (PIN 불필요).
@@ -15,7 +16,7 @@ import { useT } from '@/lib/i18n';
  * 삭제도 관리자·마스터만.
  */
 export default function BoardTab({
-  admin,
+  admin: adminProp,
   focusPostId,
   onFocusHandled,
   toast,
@@ -29,17 +30,22 @@ export default function BoardTab({
   onChanged: (res?: ApiResult) => void;
 }) {
   const { t, srv } = useT();
-  const [posts, setPosts] = useState<BoardPost[] | null>(null);
+  // 지난번에 본 글 목록을 먼저 띄운다 (lib/shared.ts)
+  const [posts, setPosts] = useState<BoardPost[] | null>(() => peekShared<BoardPost[]>('board')?.data ?? null);
+  // 새로 받기 전에는 관리 기능(공지·삭제)을 감춘다 — 이미 지워진 글을 또 지우려 들지 않게
+  const [live, setLive] = useState(false);
+  const admin = adminProp && live;
   const [error, setError] = useState('');
   const [open, setOpen] = useState<BoardPost | null>(null);
   const [writing, setWriting] = useState(false);
 
   // fresh=true 는 내가 방금 쓴 직후에만 — 서버 캐시를 건너뛴다 (lib/fresh.ts)
   const load = useCallback(async (fresh = false) => {
-    const res = await api(fresh ? '/api/board?fresh=1' : '/api/board');
+    const res = await loadShared('board', '/api/board', fresh);
     if (res.ok) {
       setError('');
       setPosts(res.data as BoardPost[]);
+      setLive(true);
       return;
     }
     // 글이 없는 것과 불러오지 못한 것은 다르다 — 빈 목록으로 얼버무리지 않는다

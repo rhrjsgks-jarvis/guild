@@ -6,15 +6,10 @@ import IconText from './IconText';
 import Sheet from './Sheet';
 import ShareBtn from './ShareBtn';
 import type { RaidRow, RaidState } from '@/lib/types';
-import { api, getStoredEmail } from '@/lib/client';
+import { api, getStoredEmail, todayDay } from '@/lib/client';
+import { loadShared, peekShared } from '@/lib/shared';
 import { useT } from '@/lib/i18n';
 import ItemNameInput from './ItemNameInput';
-
-/** 시트는 1=월 … 7=일, 자바스크립트 getDay()는 0=일 … 6=토 */
-export function todayDay(d: Date = new Date()): number {
-  const js = d.getDay();
-  return js === 0 ? 7 : js;
-}
 
 /** 'HH:MM' → 오전/오후 표기. 사람이 시간표를 읽는 방식에 맞춘다. */
 function ampm(time: string, t: (k: string, v?: Record<string, string | number>) => string): string {
@@ -41,7 +36,7 @@ function ampm(time: string, t: (k: string, v?: Record<string, string | number>) 
  * 마스터 전용으로 둘 이유가 없다.
  */
 export default function RaidTab({
-  admin,
+  admin: adminProp,
   toast,
   setBusy,
 }: {
@@ -50,7 +45,11 @@ export default function RaidTab({
   setBusy: (on: boolean) => void;
 }) {
   const { t, srv } = useT();
-  const [data, setData] = useState<RaidState | null>(null);
+  // 홈이 방금 받아둔 것·지난번에 본 것을 먼저 띄운다 (lib/shared.ts)
+  const [data, setData] = useState<RaidState | null>(() => peekShared<RaidState>('raid')?.data ?? null);
+  // 시트에서 새로 받기 전까지는 확인 안 된 값이다 — 고치기 버튼을 감춘다
+  const [live, setLive] = useState(false);
+  const admin = adminProp && live;
   const [error, setError] = useState('');
   const [day, setDay] = useState(() => todayDay());
   // 사람이 요일 칩을 누르기 전까지만 오늘을 따라간다 — 눌렀는데 도로 오늘로 돌아가면 고장으로 보인다
@@ -59,10 +58,11 @@ export default function RaidTab({
 
   const load = useCallback(
     async (fresh = false) => {
-      const res = await api(fresh ? '/api/raid?fresh=1' : '/api/raid');
+      const res = await loadShared('raid', '/api/raid', fresh);
       if (res.ok) {
         setError('');
         setData(res.data as RaidState);
+        setLive(true);
         return;
       }
       // 시트가 아직 v10.8 이 아니면 이 액션 자체가 없다 — 뼈대만 돌리지 말고 이유를 말해준다

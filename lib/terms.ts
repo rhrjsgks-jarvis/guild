@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api } from '@/lib/client';
+import { loadShared, peekShared } from '@/lib/shared';
 import type { Lang } from '@/lib/i18n';
 
 /**
@@ -37,6 +37,7 @@ export type Term = {
 
 /** 화면을 옮겨 다닐 때마다 시트를 읽지 않게 한다 (용어는 자주 바뀌지 않는다) */
 let memo: { at: number; terms: Term[]; cats: string[]; tiers: string[] } | null = null;
+type TermsData = { terms?: Term[]; cats?: string[]; tiers?: string[] };
 const MEMO_MS = 60_000;
 
 /** 비교용 정규화 — 공백·대소문자를 지운다 (규칙 4 와 같은 이유) */
@@ -140,7 +141,8 @@ export function imgOf(terms: Term[], name: string): string {
 
 /** 용어 목록 — 화면 여러 곳에서 쓰므로 훅 하나로 모은다 */
 export function useTerms(): { terms: Term[]; cats: string[]; tiers: string[]; reload: () => void } {
-  const fresh0 = memo && Date.now() - memo.at < MEMO_MS ? memo : null;
+  // 1분 안에 받은 것 → 그것을, 아니면 지난번에 받은 사전을 먼저 쓴다 (자동완성이 바로 된다)
+  const fresh0 = memo && Date.now() - memo.at < MEMO_MS ? memo : (peekShared<TermsData>('terms')?.data ?? null);
   const [terms, setTerms] = useState<Term[]>(fresh0?.terms ?? []);
   // ★ 분류·티어 목록도 **시트가** 준다. 앱에 적어두면 시트에서 하나 늘렸을 때
   //   화면에서는 고를 수가 없어진다 (그리고 화면 코드에 한국어가 박힌다).
@@ -149,9 +151,10 @@ export function useTerms(): { terms: Term[]; cats: string[]; tiers: string[]; re
 
   const load = (isFresh = false) => {
     void (async () => {
-      const res = await api(isFresh ? '/api/terms?fresh=1' : '/api/terms');
+      // 사전을 쓰는 화면 여럿이 한꺼번에 열려도 시트는 한 번만 읽는다 (lib/shared.ts)
+      const res = await loadShared('terms', '/api/terms', isFresh);
       if (!res.ok) return; // 못 읽으면 자동완성만 안 될 뿐, 입력은 그대로 된다
-      const data = (res.data ?? {}) as { terms?: Term[]; cats?: string[]; tiers?: string[] };
+      const data = (res.data ?? {}) as TermsData;
       const list = data.terms ?? [];
       const cs = data.cats ?? [];
       const ts = data.tiers ?? [];
